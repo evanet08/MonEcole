@@ -6,6 +6,10 @@
 
 {% block page_css %}
 <style>
+    .hidden {
+        display: none !important
+    }
+
     .section-panel {
         display: none
     }
@@ -688,7 +692,9 @@
 
                 {% elif form_type == 'select_form_reclam' %}
                 <h2><span class="h2-icon"><i class="fas fa-exclamation-circle"></i></span> Réclamations</h2>
-                {% if form_select_reclam.non_form_errors %}<div class="alert alert-danger" style="border-radius:8px;font-size:.78rem;">{{ form_select_reclam.non_form_errors }}</div>{% endif %}
+                {% if form_select_reclam.non_form_errors %}<div class="alert alert-danger"
+                    style="border-radius:8px;font-size:.78rem;">{{ form_select_reclam.non_form_errors }}</div>{% endif
+                %}
                 <div class="form-row">
                     {% for field in form_select_reclam %}
                     <div class="form-group">
@@ -720,7 +726,9 @@
 
                 {% elif form_type == 'select_form_repechag' %}
                 <h2><span class="h2-icon"><i class="fas fa-redo"></i></span> Repêchage</h2>
-                {% if form_select_repechag.non_form_errors %}<div class="alert alert-danger" style="border-radius:8px;font-size:.78rem;">{{ form_select_repechag.non_form_errors }}</div>{% endif %}
+                {% if form_select_repechag.non_form_errors %}<div class="alert alert-danger"
+                    style="border-radius:8px;font-size:.78rem;">{{ form_select_repechag.non_form_errors }}</div>{% endif
+                %}
                 <div class="form-row">
                     {% for field in form_select_repechag %}
                     <div class="form-group">
