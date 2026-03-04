@@ -318,7 +318,7 @@
 
         <div class="modal-content">
 
-            <span style="display: none;" class="close-btn">&times;</span>
+            <span class="close-btn" id="evalCloseModal">&times;</span>
 
             <form action="#" method="POST" enctype="multipart/form-data">
 
@@ -1124,7 +1124,8 @@
                                     <td>{{ finalite.sigle }}</td>
                                     <td>
                                         <input type="checkbox" class="update-checkbox-finalite"
-                                            data-id="{{ finalite.id_finalite }}" {% if finalite.droit_avancement %}checked{% endif %}>
+                                            data-id="{{ finalite.id_finalite }}" {% if finalite.droit_avancement
+                                            %}checked{% endif %}>
                                     </td>
                                     <td>
                                         <button class="btn btn-primary edit-btn-finalite" data-bs-toggle="modal"
@@ -1347,6 +1348,34 @@
     // Auto-activate first section if none active
     document.addEventListener('DOMContentLoaded', function () {
         if (!document.querySelector('.sidebar-nav-item.active')) switchSection('notes');
+
+        // ===== Auto-open modal when a form_type is present =====
+        var formType = '{{ form_type|default:"" }}';
+        var modalFormTypes = [
+            'select_form', 'select_form_note', 'select_form_bull',
+            'form_note_type', 'form_session', 'form_mention',
+            'form_type_delib', 'form_finalit_delib', 'form_condit_delib'
+        ];
+        var modal = document.getElementById('modalContainer');
+        if (formType && modalFormTypes.indexOf(formType) !== -1 && modal) {
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Close modal handlers (always set up)
+        if (modal) {
+            var closeModal = function () {
+                modal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            };
+            var closeBtn = document.getElementById('evalCloseModal');
+            if (closeBtn) closeBtn.addEventListener('click', closeModal);
+            var cancelBtn = document.getElementById('cancelBtn');
+            if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', function (e) {
+                if (e.target === modal) closeModal();
+            });
+        }
     });
 </script>
 <script>
@@ -2003,9 +2032,9 @@
         const modalPeriode = modal.querySelector("#modal_id_periode");
         const form = modal.querySelector("#AnnulerDeliberation");
 
-        const triggerLink = document.querySelector('.menu-item .annuler-deliberation');
+        const triggerLink = document.querySelector('.annuler-deliberation');
         if (!triggerLink) {
-            console.error("L'élément .menu-item .annuler-deliberation n'est pas trouvé dans le DOM.");
+            console.error("L'élément .annuler-deliberation n'est pas trouvé dans le DOM.");
             return;
         }
 
