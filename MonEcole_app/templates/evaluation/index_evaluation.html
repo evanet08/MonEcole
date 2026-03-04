@@ -1181,9 +1181,8 @@
                                             <td>{{ finalite.finalite }}</td>
                                             <td>{{ finalite.sigle }}</td>
                                             <td>
-                                                <input type="checkbox" class="update-checkbox-finalite"
-                                                    data-id="{{ finalite.id_finalite }}" {% if finalite.droit_avancement
-                                                    %}checked{% endif %}>
+                                                <input type="checkbox" class="update-checkbox-finalite" data-id="{{ finalite.id_finalite }}" {% if finalite.droit_avancement %}checked{% endif %}>
+
                                             </td>
                                             <td>
                                                 <button class="btn btn-primary edit-btn-finalite" data-bs-toggle="modal"
@@ -1385,8 +1384,6 @@
         <!-- ======================= Edition condition deliberation -->
 
         <!-- ======================== droit avancer toggle -->
-
-
     </div><!-- /workspace -->
 </div><!-- /module-main -->
 </div><!-- /module-layout -->
@@ -1722,8 +1719,6 @@
 
 <script>
     sessionStorage.clear();
-
-
     const fields = {
 
         idAnnee: document.getElementById("id_id_annee"),
@@ -2204,8 +2199,6 @@
                 }
             }
         });
-
-
         form.addEventListener("submit", function (e) {
             e.preventDefault();
             const confirmation = confirm("Êtes-vous sûr de vouloir annuler cette délibération ? Cette action est irréversible.");
