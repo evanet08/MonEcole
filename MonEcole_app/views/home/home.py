@@ -73,7 +73,7 @@ def redirect_to_recouvrement(request):
 def redirect_to_achive(request):
     user_info = get_user_info(request)
     user_modules = user_info
-    return render(request,'archives/index_achive.html',
+    return render(request,'archives/index_archives.html',
                    {"photo_profil":user_modules['photo_profil'],
                     "modules": user_modules['modules'],
                      "last_name": user_modules['last_name'],
@@ -136,7 +136,8 @@ def redirect_to_espace_enseignat(request):
         'photo_profil': user_modules['photo_profil'],
         'modules': user_modules['modules'],
         'last_name': user_modules['last_name'],
-        'cours_by_cycle': cours_by_cycle
+        'cours_by_cycle': cours_by_cycle,
+        'active_page': 'enseignement',
     })
 
 @login_required
