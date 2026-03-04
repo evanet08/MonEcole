@@ -304,6 +304,135 @@
             margin: 0;
         }
 
+        /* ================= MODULE SIDEBAR (vertical left bar) ================= */
+        .module-layout-row {
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            overflow: hidden;
+        }
+
+        .module-sidebar {
+            width: 200px;
+            min-width: 200px;
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 60%, #334155 100%);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            position: relative;
+        }
+
+        .module-sidebar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(ellipse at top left, rgba(99, 102, 241, 0.08) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .module-sidebar .sidebar-header {
+            padding: 16px 16px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .module-sidebar .sidebar-header h6 {
+            margin: 0;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .module-sidebar .sidebar-nav {
+            flex: 1;
+            padding: 8px 0;
+        }
+
+        .sidebar-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 16px;
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+            position: relative;
+        }
+
+        .sidebar-nav-item:hover {
+            color: #e2e8f0;
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .sidebar-nav-item.active {
+            color: #818cf8;
+            background: rgba(99, 102, 241, 0.1);
+            border-left-color: #818cf8;
+            font-weight: 600;
+        }
+
+        .sidebar-nav-item.active::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 60%;
+            background: linear-gradient(180deg, #818cf8, #6366f1);
+            border-radius: 3px 0 0 3px;
+        }
+
+        .sidebar-nav-item i {
+            width: 20px;
+            text-align: center;
+            font-size: 0.9rem;
+            transition: transform 0.2s;
+        }
+
+        .sidebar-nav-item:hover i {
+            transform: scale(1.1);
+        }
+
+        .sidebar-nav-item .nav-badge {
+            margin-left: auto;
+            background: rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-size: 0.65rem;
+            font-weight: 600;
+        }
+
+        .sidebar-nav-item.active .nav-badge {
+            background: rgba(99, 102, 241, 0.3);
+            color: #c7d2fe;
+        }
+
+        .sidebar-nav-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.06);
+            margin: 6px 16px;
+        }
+
+        /* Module sidebar sub-content area (right of sidebar) */
+        .module-content-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
         /* ================= LOADER ================= */
         .loader-overlay {
             position: fixed;
@@ -416,6 +545,37 @@
 
             .palette-container {
                 grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            }
+
+            .module-sidebar {
+                width: 56px;
+                min-width: 56px;
+            }
+
+            .sidebar-nav-item span,
+            .sidebar-nav-item .nav-badge,
+            .module-sidebar .sidebar-header h6 {
+                display: none;
+            }
+
+            .sidebar-nav-item {
+                justify-content: center;
+                padding: 12px 0;
+                border-left: none;
+                border-bottom: 3px solid transparent;
+            }
+
+            .sidebar-nav-item.active {
+                border-left-color: transparent;
+                border-bottom-color: #818cf8;
+            }
+
+            .sidebar-nav-item.active::after {
+                display: none;
+            }
+
+            .sidebar-nav-item i {
+                font-size: 1.05rem;
             }
         }
 
@@ -631,21 +791,29 @@
     <div class="body-row">
         <!-- ========== MAIN CONTENT ========== -->
         <div class="main-wrapper">
-            <div class="content-area">
-                <!-- Flash Messages -->
-                {% if messages %}
-                <div class="mb-3">
-                    {% for message in messages %}
-                    <div class="alert {{ message.tags }} alert-dismissible fade show" role="alert"
-                        style="border-radius: 10px; font-size: 0.85rem;">
-                        {{ message|safe }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
+            <div class="module-layout-row">
+                <!-- Module Sidebar (filled by child templates) -->
+                {% block module_sidebar %}{% endblock %}
 
-                {% block page_content %}{% endblock %}
+                <!-- Content Column -->
+                <div class="module-content-col">
+                    <div class="content-area">
+                        <!-- Flash Messages -->
+                        {% if messages %}
+                        <div class="mb-3">
+                            {% for message in messages %}
+                            <div class="alert {{ message.tags }} alert-dismissible fade show" role="alert"
+                                style="border-radius: 10px; font-size: 0.85rem;">
+                                {{ message|safe }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        {% block page_content %}{% endblock %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
