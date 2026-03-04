@@ -19,20 +19,20 @@
 {% block module_sidebar %}
 <nav class="module-sidebar">
   <div class="sidebar-nav">
-    <a class="sidebar-nav-item {% if form_type == 'session' or form_type == 'note_type' or form_type == 'select_form' or form_type == 'import_note' or not form_type %}active{% endif %}" data-section="notes" onclick="switchSection('notes')">
+    <a class="sidebar-nav-item {% if form_type == 'form_session' or form_type == 'form_note_type' or not form_type %}active{% endif %}" data-section="notes" onclick="switchSection('notes')">
       <div class="nav-icon" style="background:linear-gradient(135deg,#6366f1,#818cf8);"><i class="fas fa-clipboard-list"></i></div>
       <span>Gestion<br>Notes</span>
     </a>
-    <a class="sidebar-nav-item {% if form_type == 'deliberation_type' or form_type == 'mention' or form_type == 'deliberation_finalite' or form_type == 'deliberation_condition' %}active{% endif %}" data-section="criteres" onclick="switchSection('criteres')">
+    <a class="sidebar-nav-item {% if form_type == 'form_type_delib' or form_type == 'form_mention' or form_type == 'form_finalit_delib' or form_type == 'form_condit_delib' %}active{% endif %}" data-section="criteres" onclick="switchSection('criteres')">
       <div class="nav-icon" style="background:linear-gradient(135deg,#f59e0b,#fbbf24);"><i class="fas fa-balance-scale"></i></div>
       <span>Critères<br>Délibération</span>
     </a>
     <div class="sidebar-nav-divider"></div>
-    <a class="sidebar-nav-item {% if form_type == 'deliberation_trimestre' or form_type == 'deliberation_annuelle' %}active{% endif %}" data-section="deliberations" onclick="switchSection('deliberations')">
+    <a class="sidebar-nav-item {% if form_type == 'select_form' %}active{% endif %}" data-section="deliberations" onclick="switchSection('deliberations')">
       <div class="nav-icon" style="background:linear-gradient(135deg,#10b981,#34d399);"><i class="fas fa-gavel"></i></div>
       <span>Délibérations</span>
     </a>
-    <a class="sidebar-nav-item {% if form_type == 'bulletin' or form_type == 'select_form_bull' or form_type == 'avancer_classe' %}active{% endif %}" data-section="resultats" onclick="switchSection('resultats')">
+    <a class="sidebar-nav-item {% if form_type == 'select_form_bull' %}active{% endif %}" data-section="resultats" onclick="switchSection('resultats')">
       <div class="nav-icon" style="background:linear-gradient(135deg,#0ea5e9,#38bdf8);"><i class="fas fa-chart-line"></i></div>
       <span>Résultats<br>Scolaires</span>
     </a>
@@ -42,49 +42,52 @@
 
 {% block page_content %}
 <!-- Section panels driven by form_type -->
-<div class="section-panel {% if form_type == 'session' or form_type == 'note_type' or form_type == 'select_form' or form_type == 'import_note' or not form_type %}active{% endif %}" id="section-notes">
+<div class="section-panel {% if form_type == 'form_session' or form_type == 'form_note_type' or not form_type %}active{% endif %}" id="section-notes">
   <div class="module-tabs">
-    <a href="{% url 'create_session' %}" class="module-tab {% if form_type == 'session' or not form_type %}active{% endif %}"><i class="fas fa-bookmark"></i> Session</a>
-    <a href="{% url 'generer_excel_file' %}" class="module-tab {% if form_type == 'select_form' %}active{% endif %}"><i class="fas fa-file-alt"></i> Fiche des notes</a>
-    <a href="{% url 'import_file_note' %}" class="module-tab {% if form_type == 'import_note' %}active{% endif %}"><i class="fas fa-file-import"></i> Importer notes</a>
+    <a href="{% url 'create_session' %}" class="module-tab {% if form_type == 'form_session' or not form_type %}active{% endif %}"><i class="fas fa-bookmark"></i> Session</a>
+    <a href="{% url 'generer_excel_file' %}" class="module-tab"><i class="fas fa-file-alt"></i> Fiche des notes</a>
+    <a href="{% url 'import_file_note' %}" class="module-tab"><i class="fas fa-file-import"></i> Importer notes</a>
   </div>
 </div>
-<div class="section-panel {% if form_type == 'deliberation_type' or form_type == 'mention' or form_type == 'deliberation_finalite' or form_type == 'deliberation_condition' %}active{% endif %}" id="section-criteres">
+<div class="section-panel {% if form_type == 'form_type_delib' or form_type == 'form_mention' or form_type == 'form_finalit_delib' or form_type == 'form_condit_delib' %}active{% endif %}" id="section-criteres">
   <div class="module-tabs">
-    <a href="{% url 'create_deliberation_type' %}" class="module-tab {% if form_type == 'deliberation_type' %}active{% endif %}"><i class="fas fa-list-ol"></i> Type délib.</a>
-    <a href="{% url 'create_mention' %}" class="module-tab {% if form_type == 'mention' %}active{% endif %}"><i class="fas fa-award"></i> Mention</a>
-    <a href="{% url 'create_deliberation_finalite' %}" class="module-tab {% if form_type == 'deliberation_finalite' %}active{% endif %}"><i class="fas fa-flag-checkered"></i> Finalité</a>
-    <a href="{% url 'create_deliberation_condition' %}" class="module-tab {% if form_type == 'deliberation_condition' %}active{% endif %}"><i class="fas fa-tasks"></i> Condition</a>
+    <a href="{% url 'create_deliberation_type' %}" class="module-tab {% if form_type == 'form_type_delib' %}active{% endif %}"><i class="fas fa-list-ol"></i> Type délib.</a>
+    <a href="{% url 'create_mention' %}" class="module-tab {% if form_type == 'form_mention' %}active{% endif %}"><i class="fas fa-award"></i> Mention</a>
+    <a href="{% url 'create_deliberation_finalite' %}" class="module-tab {% if form_type == 'form_finalit_delib' %}active{% endif %}"><i class="fas fa-flag-checkered"></i> Finalité</a>
+    <a href="{% url 'create_deliberation_condition' %}" class="module-tab {% if form_type == 'form_condit_delib' %}active{% endif %}"><i class="fas fa-tasks"></i> Condition</a>
   </div>
 </div>
-<div class="section-panel {% if form_type == 'deliberation_trimestre' or form_type == 'deliberation_annuelle' %}active{% endif %}" id="section-deliberations">
+<div class="section-panel {% if form_type == 'select_form' %}active{% endif %}" id="section-deliberations">
   <div class="palette-container" style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:1rem;">
-    <a href="{% url 'declencher_deliberation' %}" class="palette-card {% if form_type == 'deliberation_trimestre' %}active{% endif %}" style="text-decoration:none;">
+    <a href="{% url 'declencher_deliberation' %}" class="palette-card" style="text-decoration:none; border-radius:12px; padding:20px 24px; min-width:140px;">
       <div class="pc-icon grad-purple"><i class="fas fa-calendar-check"></i></div>
-      <div class="pc-label">Délibérer / Trimestre</div>
+      <div class="pc-label">Délibérer<br>par Trimestre</div>
     </a>
-    <a href="{% url 'generer_deliberation_annuelle' %}" class="palette-card {% if form_type == 'deliberation_annuelle' %}active{% endif %}" style="text-decoration:none;">
+    <a href="{% url 'generer_deliberation_annuelle' %}" class="palette-card" style="text-decoration:none; border-radius:12px; padding:20px 24px; min-width:140px;">
       <div class="pc-icon grad-emerald"><i class="fas fa-calendar-alt"></i></div>
-      <div class="pc-label">Délibérer / Année</div>
+      <div class="pc-label">Délibérer<br>par Année</div>
     </a>
-    <a href="#" class="palette-card annuler-deliberation" style="text-decoration:none;">
+    <a href="#" class="palette-card annuler-deliberation" style="text-decoration:none; border-radius:12px; padding:20px 24px; min-width:140px;">
       <div class="pc-icon" style="background:var(--grad-pink);"><i class="fas fa-times-circle"></i></div>
-      <div class="pc-label">Annuler délib.</div>
+      <div class="pc-label">Annuler<br>Délibération</div>
     </a>
   </div>
 </div>
-<div class="section-panel {% if form_type == 'bulletin' or form_type == 'select_form_bull' or form_type == 'avancer_classe' %}active{% endif %}" id="section-resultats">
+<div class="section-panel {% if form_type == 'select_form_bull' %}active{% endif %}" id="section-resultats">
   <div class="palette-container" style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:1rem;">
-    <a href="{% url 'generer_bulletin_eleve' %}" class="palette-card {% if form_type == 'bulletin' or form_type == 'select_form_bull' %}active{% endif %}" style="text-decoration:none;">
+    <a href="{% url 'generer_bulletin_eleve' %}" class="palette-card" style="text-decoration:none; border-radius:12px; padding:20px 24px; min-width:140px;">
       <div class="pc-icon grad-blue"><i class="fas fa-file-pdf"></i></div>
-      <div class="pc-label">Bulletin / Section</div>
+      <div class="pc-label">Bulletin<br>par Section</div>
     </a>
-    <a href="#" id="openModal1" class="palette-card {% if form_type == 'avancer_classe' %}active{% endif %}" style="text-decoration:none;">
+    <a href="#" id="openModal1" class="palette-card" style="text-decoration:none; border-radius:12px; padding:20px 24px; min-width:140px;">
       <div class="pc-icon grad-amber"><i class="fas fa-arrow-circle-right"></i></div>
-      <div class="pc-label">Avancer d'une classe</div>
+      <div class="pc-label">Avancer<br>d'une classe</div>
     </a>
   </div>
 </div>
+
+<!-- Workspace content -->
+<div class="workspace">
 <!--==================== Fenêtre modale for many forms-->
 <div id="modalContainer" class="modal">
 
@@ -1095,6 +1098,7 @@
 
 <!-- ======================== droit avancer toggle -->
 
+</div><!-- /workspace -->
 {% endblock %}
 
 {% block page_js %}
