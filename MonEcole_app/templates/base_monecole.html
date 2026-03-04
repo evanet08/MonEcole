@@ -65,187 +65,6 @@
             overflow: hidden;
         }
 
-        /* ================= SIDEBAR (icon + text below) ================= */
-        .sidebar {
-            width: var(--sidebar-width);
-            background: var(--nav-bg);
-            backdrop-filter: blur(16px);
-            border-right: 1px solid rgba(255, 255, 255, 0.05);
-            display: flex;
-            flex-direction: column;
-            padding: 0;
-            z-index: 1050;
-            flex-shrink: 0;
-            align-items: center;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-
-        .sidebar::-webkit-scrollbar {
-            width: 3px;
-        }
-
-        .sidebar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-        }
-
-        .sidebar-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1049;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .sidebar-overlay.active {
-            display: block;
-            opacity: 1;
-        }
-
-        .hamburger-btn {
-            display: none;
-            background: none;
-            border: none;
-            color: #f1f5f9;
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 0.4rem;
-            border-radius: 6px;
-            transition: background 0.2s;
-            flex-shrink: 0;
-        }
-
-        .hamburger-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        /* Sidebar Logo Container */
-        .sidebar-logo-container {
-            width: 120px;
-            height: 90px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 10px;
-            box-sizing: border-box;
-            background: transparent;
-            overflow: hidden;
-            flex-shrink: 0;
-        }
-
-        .sidebar-logo-container .brand-logo-img {
-            width: 56px;
-            height: 56px;
-            object-fit: contain;
-            display: block;
-            border-radius: 50%;
-            background: var(--grad-blue);
-            padding: 6px;
-        }
-
-        .sidebar-logo-container .brand-logo-placeholder {
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            background: var(--grad-blue);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .sidebar-logo-container .brand-logo-placeholder i {
-            font-size: 1.5rem;
-            color: white;
-        }
-
-        /* Nav Items (icon + text below) */
-        .nav-item {
-            width: 100%;
-            padding: 0.85rem 0.5rem;
-            color: #94a3b8;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.35rem;
-            transition: all 0.2s;
-            border-left: 3px solid transparent;
-            text-decoration: none;
-        }
-
-        .nav-item i {
-            font-size: 1.35rem;
-        }
-
-        .nav-item span {
-            font-size: 0.68rem;
-            text-align: center;
-            line-height: 1.2;
-        }
-
-        .nav-item:hover {
-            color: white;
-            background: rgba(255, 255, 255, 0.05);
-            text-decoration: none;
-        }
-
-        .nav-item.active {
-            color: white;
-            border-left-color: var(--accent-color);
-            background: linear-gradient(90deg, rgba(37, 99, 235, 0.1), transparent);
-        }
-
-        /* Sidebar Icon Colors */
-        .nav-item i.text-blue {
-            color: #60a5fa !important;
-        }
-
-        .nav-item i.text-orange {
-            color: #fb923c !important;
-        }
-
-        .nav-item i.text-purple {
-            color: #a78bfa !important;
-        }
-
-        .nav-item i.text-teal {
-            color: #2dd4bf !important;
-        }
-
-        .nav-item i.text-pink {
-            color: #f472b6 !important;
-        }
-
-        .nav-item i.text-emerald {
-            color: #34d399 !important;
-        }
-
-        .nav-item i.text-amber {
-            color: #fbbf24 !important;
-        }
-
-        .nav-item i.text-rose {
-            color: #fb7185 !important;
-        }
-
-        .logout-btn {
-            margin-top: auto;
-            color: #ef4444;
-        }
-
-        .logout-btn:hover {
-            color: #f87171 !important;
-            background: rgba(239, 68, 68, 0.1);
-        }
-
         /* ================= MAIN WRAPPER ================= */
         .main-wrapper {
             flex: 1;
@@ -587,22 +406,6 @@
 
         /* ================= RESPONSIVE ================= */
         @media (max-width: 992px) {
-            :root {
-                --sidebar-width: 90px;
-            }
-
-            .nav-item span {
-                font-size: 0.6rem;
-            }
-
-            .nav-item i {
-                font-size: 1.1rem;
-            }
-
-            .nav-item {
-                padding: 0.65rem 0.4rem;
-            }
-
             .top-bar .search-bar {
                 flex: 0 1 250px;
             }
@@ -618,58 +421,10 @@
 
         @media (max-width: 768px) {
             :root {
-                --sidebar-width: 220px;
                 --topbar-height: 48px;
             }
 
             body {
-                font-size: 0.82rem;
-            }
-
-            .hamburger-btn {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .sidebar {
-                position: fixed;
-                top: 0;
-                left: 0;
-                height: 100vh;
-                height: 100dvh;
-                width: var(--sidebar-width);
-                transform: translateX(-100%);
-                flex-direction: column;
-                align-items: stretch;
-                padding-top: 0.5rem;
-                box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
-            }
-
-            .sidebar.open {
-                transform: translateX(0);
-            }
-
-            .sidebar .nav-item {
-                flex-direction: row;
-                align-items: center;
-                gap: 0.75rem;
-                padding: 0.85rem 1.2rem;
-                border-left: none;
-                border-radius: 0;
-            }
-
-            .sidebar .nav-item.active {
-                border-left: 3px solid var(--accent-color);
-            }
-
-            .sidebar .nav-item i {
-                font-size: 1.1rem;
-                width: 24px;
-                text-align: center;
-            }
-
-            .sidebar .nav-item span {
                 font-size: 0.82rem;
             }
 
@@ -740,10 +495,7 @@
 
         @media print {
 
-            .top-bar,
-            .sidebar,
-            .sidebar-overlay,
-            .hamburger-btn {
+            .top-bar {
                 display: none !important;
             }
 
@@ -771,15 +523,8 @@
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- Sidebar Overlay (mobile) -->
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
-
     <!-- ========== TOP BAR ========== -->
     <div class="top-bar">
-        <!-- Hamburger (mobile) -->
-        <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Menu">
-            <i class="fas fa-bars" id="hamburgerIcon"></i>
-        </button>
 
         <!-- Brand -->
         <div class="d-flex align-items-center gap-2" style="flex-shrink: 0;">
@@ -884,92 +629,6 @@
 
     <!-- ========== BODY ROW ========== -->
     <div class="body-row">
-        <!-- ========== SIDEBAR ========== -->
-        <div class="sidebar" id="sidebar">
-            <!-- Logo -->
-            <div class="sidebar-logo-container">
-                {% if logo_ecole %}
-                <img src="{{ logo_ecole }}" class="brand-logo-img" alt="Logo">
-                {% else %}
-                <div class="brand-logo-placeholder">
-                    <i class="fas fa-school"></i>
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- Navigation Items (modules with icons) -->
-            {% block sidebar_nav %}
-            {% for mod in modules %}
-            {% if mod.module == "Direction" %}
-            <a href="{% url mod.url_name %}" class="nav-item {% if active_page == 'direction' %}active{% endif %}"
-                title="{{ mod.module }}">
-                <i class="fas fa-home text-blue"></i>
-                <span>Accueil</span>
-            </a>
-            {% elif mod.module == "Inscription" %}
-            <a href="{% url mod.url_name %}" class="nav-item {% if active_page == 'inscription' %}active{% endif %}"
-                title="{{ mod.module }}">
-                <i class="fas fa-user-graduate text-teal"></i>
-                <span>Inscription</span>
-            </a>
-            {% elif mod.module == "Enseignement" %}
-            <a href="{% url mod.url_name %}" class="nav-item {% if active_page == 'enseignement' %}active{% endif %}"
-                title="{{ mod.module }}">
-                <i class="fas fa-chalkboard-teacher text-orange"></i>
-                <span>Enseign.</span>
-            </a>
-            {% elif mod.module == "Evaluation" %}
-            <a href="{% url mod.url_name %}" class="nav-item {% if active_page == 'evaluation' %}active{% endif %}"
-                title="{{ mod.module }}">
-                <i class="fas fa-clipboard-check text-purple"></i>
-                <span>Évaluation</span>
-            </a>
-            {% elif mod.module == "Recouvrement" %}
-            <a href="{% url mod.url_name %}" class="nav-item {% if active_page == 'recouvrement' %}active{% endif %}"
-                title="{{ mod.module }}">
-                <i class="fas fa-cash-register text-emerald"></i>
-                <span>Recouv.</span>
-            </a>
-            {% elif mod.module == "Administration" %}
-            <a href="{% url mod.url_name %}" class="nav-item {% if active_page == 'parametrage' %}active{% endif %}"
-                title="{{ mod.module }}">
-                <i class="fas fa-cog text-pink"></i>
-                <span>Paramétrage</span>
-            </a>
-            {% elif mod.module == "Bibliotheque" %}
-            <a href="{% url mod.url_name %}" class="nav-item {% if active_page == 'library' %}active{% endif %}"
-                title="{{ mod.module }}">
-                <i class="fas fa-book text-amber"></i>
-                <span>Biblio.</span>
-            </a>
-            {% elif mod.module == "Institeur et son Espace" %}
-            <a href="{% url mod.url_name %}" class="nav-item {% if active_page == 'espace' %}active{% endif %}"
-                title="{{ mod.module }}">
-                <i class="fas fa-user-tie text-teal"></i>
-                <span>Suivi</span>
-            </a>
-            {% elif mod.module == "Archive" %}
-            <a href="{% url mod.url_name %}" class="nav-item {% if active_page == 'archives' %}active{% endif %}"
-                title="{{ mod.module }}">
-                <i class="fas fa-archive text-blue"></i>
-                <span>Archives</span>
-            </a>
-            {% else %}
-            <a href="{% url mod.url_name %}" class="nav-item" title="{{ mod.module }}">
-                <i class="fas fa-cube text-blue"></i>
-                <span>{{ mod.module }}</span>
-            </a>
-            {% endif %}
-            {% endfor %}
-            {% endblock %}
-
-            <!-- Logout -->
-            <a href="{% url 'log_out' %}" class="nav-item logout-btn" title="Déconnexion">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>Quitter</span>
-            </a>
-        </div>
-
         <!-- ========== MAIN CONTENT ========== -->
         <div class="main-wrapper">
             <div class="content-area">
@@ -995,23 +654,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        /* ========== SIDEBAR TOGGLE (mobile) ========== */
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            const icon = document.getElementById('hamburgerIcon');
-            sidebar.classList.toggle('open');
-            overlay.classList.toggle('active');
-            icon.className = sidebar.classList.contains('open') ? 'fas fa-times' : 'fas fa-bars';
-        }
-        function closeSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            const icon = document.getElementById('hamburgerIcon');
-            sidebar.classList.remove('open');
-            overlay.classList.remove('active');
-            if (icon) icon.className = 'fas fa-bars';
-        }
 
         /* ========== MODULE TAB SWITCHING ========== */
         function switchTab(tabId) {

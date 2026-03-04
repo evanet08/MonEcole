@@ -17,8 +17,6 @@
             --transition: all 0.3s ease;
         }
 
-
-
         /* ---- Dashboard Container ---- */
         #dashboard_direction {
             max-width: 2000px;
@@ -237,101 +235,11 @@
             transform: translateY(-2px);
         }
 
-        /* ---- Sidebar Styles ---- */
-        .sidebar {
-            width: 300px;
-            background: linear-gradient(145deg, #2c3e50, #34495e);
-            color: white;
-            height: 100vh;
-            position: fixed;
-            left: 0;
-            top: 0;
-            overflow-y: auto;
-            transition: all 0.3s ease;
-            z-index: 1000;
-            box-shadow: 2px 0 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .menu {
-            padding: 20px 0;
-        }
-
-        .menu-item {
-            margin-bottom: 5px;
-            position: relative;
-        }
-
-        .menu-link,
-        .submenu-link {
-            display: flex;
-            align-items: center;
-            padding: 12px 20px;
-            color: rgba(255, 255, 255, 0.9);
-            text-decoration: none;
-            transition: all 0.3s ease;
-            border-left: 3px solid transparent;
-        }
-
-        .menu-link:hover,
-        .submenu-link:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            border-left-color: var(--primary-color);
-        }
-
-        .icon-wrapper {
-            margin-right: 15px;
-            font-size: 18px;
-            width: 24px;
-            text-align: center;
-        }
-
-        .menu-text {
-            flex-grow: 1;
-            font-size: 15px;
-        }
-
-        .arrow-icon {
-            transition: transform 0.3s ease;
-        }
-
-        .menu-item.active .arrow-icon {
-            transform: rotate(90deg);
-        }
-
-        .submenu {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-            background: rgba(0, 0, 0, 0.1);
-        }
-
-        .menu-item.active .submenu {
-            max-height: 500px;
-        }
-
-        .menu-item.active .arrow-icon {
-            transform: rotate(180deg);
-        }
-
-        .arrow-icon {
-            transition: transform 0.3s ease;
-        }
-
-        .submenu-link {
-            padding-left: 55px;
-            font-size: 14px;
-        }
-
-        /* Logout Button */
+        /* Sidebar styles removed - handled by base_monecole.html */
 </style>
 {% endblock %}
 
 {% block page_content %}
-<div class="ep-bg-animation">
-        <div class="ep-bg-shape ep-bg-shape-1"></div>
-        <div class="ep-bg-shape ep-bg-shape-2"></div>
-    </div>
 {% if messages %}
     <div id="message-container" class="container">
         <div class="message-box">
@@ -348,22 +256,9 @@
     {% endif %}
 
     <div id="ajax-message" class="container mt-3"></div>
-
-    <!-- Mobile Toggle Button -->
-    <div class="mobile-nav-toggle">
-        <i class="fas fa-bars"></i>
-    </div>
-
-    <!-- Sidebar -->
-    {% include 'recouvrement/_sidebar_direct.html'%}
-    <!-- Bottom Navigation -->
-    
-
-    <!-- Main Content -->
-    <div class="main-content">
-        
-
-        <div id="modalContainer" class="modal">
+<!-- Sidebar -->
+<!-- Bottom Navigation -->
+<div id="modalContainer" class="modal">
             <div class="modal-content">
                 <span style="display: none;" class="close-btn">&times;</span> <!-- Bouton Fermer -->
                 <form id="variablePrixForm" action="#" method="POST" enctype="multipart/form-data">
@@ -2342,8 +2237,6 @@ $(document).ready(function () {
                         }
                     });
                 });
-
-
 
                 $('#cancelBtn, #cancelBtnForm').on('click', function () {
                     $('#modalContainer').modal('hide');

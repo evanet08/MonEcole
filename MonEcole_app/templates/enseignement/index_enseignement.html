@@ -7,10 +7,6 @@
 {% block page_css %}{% endblock %}
 
 {% block page_content %}
-<div class="ep-bg-animation">
-        <div class="ep-bg-shape ep-bg-shape-1"></div>
-        <div class="ep-bg-shape ep-bg-shape-2"></div>
-    </div>
 {% if messages %}
     <div id="message-container" class="container">
         <div class="message-box">
@@ -24,20 +20,8 @@
     </div>
     {% endif %}
     <div id="ajax-message" class="container mt-3"></div>
-
-    <!-- Mobile Toggle Button -->
-    <div class="mobile-nav-toggle">
-        <i class="fas fa-bars"></i>
-    </div>
-    <!-- ===================Sidebar mobile -->
-    {% include 'enseignement/_sidebar_ensgmnt.html'%}
-    <!-- ===================Bottom Navigation Bar en bas -->
-    
-
-    <!-- Main Content -->
-    <div class="main-content">
-        
-        <!--==================== Fenêtre modale for many forms-->
+<!-- ===================Sidebar mobile -->
+<!--==================== Fenêtre modale for many forms-->
         <div id="modalContainer" class="modal">
             <div class="modal-content">
                 <span style="display: none;" class="close-btn">&times;</span> <!-- Bouton Fermer -->

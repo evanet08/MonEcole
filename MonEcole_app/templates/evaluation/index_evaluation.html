@@ -7,10 +7,6 @@
 {% block page_css %}{% endblock %}
 
 {% block page_content %}
-<div class="ep-bg-animation">
-        <div class="ep-bg-shape ep-bg-shape-1"></div>
-        <div class="ep-bg-shape ep-bg-shape-2"></div>
-    </div>
 {% if messages %}
     <div id="message-container" class="container">
         <div class="message-box">
@@ -23,25 +19,7 @@
         </div>
     </div>
     {% endif %}
-    <!-- Mobile Toggle Button -->
-    <div class="mobile-nav-toggle">
-        <i class="fas fa-bars"></i>
-    </div>
-    <!-- ===================Sidebar mobile -->
-    <div class="sidebar">
-        
-
-        <div class="menu">
-            <div class="menu-item">
-
-                <a href="#"><span class="emoji-icon">📊</span>Type notes & sessions<i
-                        class="fas fa-chevron-right"></i></a>
-
-                <div class="submenu">
-                    <div class="menu-item">
-                        <a href="{% url 'add_types_notes' %}"><span class="emoji-icon">📚</span>Type des notes </a>
-                    </div>
-                    <div class="menu-item">
+<div class="menu-item">
                         <a href="{% url 'create_session' %}"><span class="emoji-icon">🔖</span>Session </a>
                     </div>
                     <div style="display: none;" class="menu-item">
@@ -133,12 +111,7 @@
         </div>
         
     </div>
-    <!-- ===================Bottom Navigation Bar en bas -->
-    
-    <!-- Main Content -->
-    <div class="main-content">
-        
-        <!--==================== Fenêtre modale for many forms-->
+<!--==================== Fenêtre modale for many forms-->
         <div id="modalContainer" class="modal">
 
             <div class="modal-content">

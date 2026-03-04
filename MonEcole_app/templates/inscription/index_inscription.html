@@ -7,10 +7,6 @@
 {% block page_css %}{% endblock %}
 
 {% block page_content %}
-<div class="ep-bg-animation">
-        <div class="ep-bg-shape ep-bg-shape-1"></div>
-        <div class="ep-bg-shape ep-bg-shape-2"></div>
-    </div>
 {% if messages %}
   <div id="message-container" class="container">
     <div class="message-box">
@@ -23,23 +19,7 @@
     </div>
   </div>
   {% endif %}
-  <!-- Mobile Toggle Button -->
-  <div class="mobile-nav-toggle">
-    <i class="fas fa-bars"></i>
-  </div>
-
-  <!-- ===================Sidebar mobile -->
-
-  <div class="sidebar">
-    
-    
-
-  </div>
-  <!-- Main Content -->
-  
-  <div class="main-content">
-    
-    <!--==================== Fenêtre modale for many forms-->
+<!--==================== Fenêtre modale for many forms-->
     <div id="modalContainer" class="modal">
       <div class="modal-content">
         <span style="display: none;" class="close-btn">&times;</span>
@@ -445,15 +425,11 @@ document.addEventListener("DOMContentLoaded", function () {
         });
       }
 
-
-
       if (idClasseCycle) {
         idClasseCycle.addEventListener("change", function () {
           const idCycleActifValue = this.value;
           const campusId = idCampus?.value || sessionStorage.getItem("id_campus") || "";
           const anneeId = idAnnee?.value || sessionStorage.getItem("id_annee") || "";
-
-
 
           hideFields(idClasse);
 
