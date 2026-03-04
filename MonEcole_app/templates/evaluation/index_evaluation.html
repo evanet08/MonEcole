@@ -18,24 +18,25 @@
 
 {% block module_sidebar %}
 <nav class="module-sidebar">
-    <div class="sidebar-header">
-        <h6>Évaluation</h6>
-    </div>
-    <div class="sidebar-nav">
-        <a class="sidebar-nav-item active" data-section="notes" onclick="switchSection('notes')">
-            <i class="fas fa-clipboard-list"></i> <span>Notes</span>
-        </a>
-        <a class="sidebar-nav-item" data-section="criteres" onclick="switchSection('criteres')">
-            <i class="fas fa-balance-scale"></i> <span>Critères</span>
-        </a>
-        <div class="sidebar-nav-divider"></div>
-        <a class="sidebar-nav-item" data-section="deliberations" onclick="switchSection('deliberations')">
-            <i class="fas fa-gavel"></i> <span>Délibérations</span>
-        </a>
-        <a class="sidebar-nav-item" data-section="resultats" onclick="switchSection('resultats')">
-            <i class="fas fa-chart-line"></i> <span>Résultats</span>
-        </a>
-    </div>
+  <div class="sidebar-nav">
+    <a class="sidebar-nav-item active" data-section="notes" onclick="switchSection('notes')">
+      <div class="nav-icon" style="background:linear-gradient(135deg,#6366f1,#818cf8);"><i class="fas fa-clipboard-list"></i></div>
+      <span>Gestion<br>Notes</span>
+    </a>
+    <a class="sidebar-nav-item" data-section="criteres" onclick="switchSection('criteres')">
+      <div class="nav-icon" style="background:linear-gradient(135deg,#f59e0b,#fbbf24);"><i class="fas fa-balance-scale"></i></div>
+      <span>Critères<br>Délibération</span>
+    </a>
+    <div class="sidebar-nav-divider"></div>
+    <a class="sidebar-nav-item" data-section="deliberations" onclick="switchSection('deliberations')">
+      <div class="nav-icon" style="background:linear-gradient(135deg,#10b981,#34d399);"><i class="fas fa-gavel"></i></div>
+      <span>Délibérations</span>
+    </a>
+    <a class="sidebar-nav-item" data-section="resultats" onclick="switchSection('resultats')">
+      <div class="nav-icon" style="background:linear-gradient(135deg,#0ea5e9,#38bdf8);"><i class="fas fa-chart-line"></i></div>
+      <span>Résultats<br>Scolaires</span>
+    </a>
+  </div>
 </nav>
 {% endblock %}
 
