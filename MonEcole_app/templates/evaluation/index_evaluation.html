@@ -207,7 +207,7 @@
 {% block module_sidebar %}
 <nav class="module-sidebar">
     <div class="sidebar-nav">
-        <a class="sidebar-nav-item {% if form_type == 'form_session' or form_type == 'form_note_type' or not form_type %}active{% endif %}"
+        <a class="sidebar-nav-item {% if form_type == 'form_session' or form_type == 'form_note_type' or form_type == 'select_form_note' or form_type == 'import_note' or not form_type %}active{% endif %}"
             data-section="notes" onclick="switchSection('notes')">
             <div class="nav-icon" style="background:linear-gradient(135deg,#6366f1,#818cf8);"><i
                     class="fas fa-clipboard-list"></i></div>
@@ -238,7 +238,7 @@
 
 {% block page_content %}
 <!-- ========== SECTION: Gestion Notes (palette cards) ========== -->
-<div class="section-panel {% if form_type == 'form_session' or form_type == 'form_note_type' or not form_type %}active{% endif %}"
+<div class="section-panel {% if form_type == 'form_session' or form_type == 'form_note_type' or form_type == 'select_form_note' or form_type == 'import_note' or not form_type %}active{% endif %}"
     id="section-notes">
     <div class="palette-container">
         <a href="{% url 'create_session' %}" class="palette-card">
@@ -325,7 +325,7 @@
                 {% csrf_token %}
                 <!-- ===================== selection pour creer un fichier!ou declencher une deliberation /TRIMESTRE-->
 
-                {% if form_type == 'select_form' %}
+                {% if form_type == 'select_form' or form_type == 'select_form_note' %}
                 <h2>Séléctionner pas à pas:</h2>
                 {% if form_select.non_form_errors %}
                 <div class="alert alert-danger">

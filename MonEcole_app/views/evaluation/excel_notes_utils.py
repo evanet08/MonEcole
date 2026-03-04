@@ -208,7 +208,7 @@ def generate_excel_file_notes(request):
 
 
 @login_required
-@module_required("Institeur et son Espace")
+@module_required("Evaluation")
 def importation_notes(request):
     note_form = True
     user_info = get_user_info(request)
@@ -240,8 +240,9 @@ def importation_notes(request):
 
         save_notes(request, validated_data, filename_info['id_parts'], evaluation)
 
-    return render(request, 'enseignement/zone_pedag/espace_enseignant.html', {
+    return render(request, 'evaluation/index_evaluation.html', {
         'notes_form': note_form,
+        'form_type': 'import_note',
         'photo_profil': user_info['photo_profil'],
         'modules': user_info['modules'],
         'last_name': user_info['last_name']

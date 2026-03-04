@@ -25,7 +25,7 @@ def select_by_field_to_generate_file_note(request):
     form_select = Eleve_NoteForm(request.POST or None)
     return render(request, 'evaluation/index_evaluation.html', {
         'form_select':form_select,
-        'form_type': 'select_form',
+        'form_type': 'select_form_note',
         'photo_profil': user_modules['photo_profil'],
         'modules': user_modules['modules'],
         'last_name': user_modules['last_name'],
