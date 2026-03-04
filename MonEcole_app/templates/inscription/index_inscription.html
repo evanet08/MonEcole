@@ -17,10 +17,9 @@
   /* ===== PALETTE CARDS ===== */
   .palette-container {
     display: flex;
-    gap: 14px;
+    gap: 10px;
     flex-wrap: wrap;
-    padding: 12px 0;
-    justify-content: flex-start;
+    padding: 8px 0;
   }
 
   .palette-card {
@@ -32,40 +31,40 @@
     text-decoration: none !important;
     color: #334155;
     background: #fff;
-    border-radius: 14px;
-    padding: 18px 16px 14px;
-    min-width: 110px;
-    max-width: 130px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, .06);
+    border-radius: 12px;
+    padding: 12px 10px 10px;
+    min-width: 90px;
+    max-width: 110px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .05);
     border: 1px solid #e2e8f0;
-    transition: all .2s ease;
+    transition: all .2s;
     cursor: pointer;
+    font-size: .68rem;
   }
 
   .palette-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 24px rgba(99, 102, 241, .18);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, .16);
     border-color: #c7d2fe;
     color: #334155;
   }
 
   .pc-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 11px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.15rem;
+    font-size: 1rem;
     color: #fff;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
   .pc-label {
-    font-size: .72rem;
+    font-size: .68rem;
     font-weight: 600;
-    line-height: 1.3;
-    text-align: center;
+    line-height: 1.25;
   }
 
   .grad-indigo {
@@ -76,20 +75,12 @@
     background: linear-gradient(135deg, #10b981, #34d399);
   }
 
-  .grad-blue {
-    background: linear-gradient(135deg, #3b82f6, #60a5fa);
-  }
-
   .grad-teal {
     background: linear-gradient(135deg, #14b8a6, #2dd4bf);
   }
 
   .grad-amber {
     background: linear-gradient(135deg, #f59e0b, #fbbf24);
-  }
-
-  .grad-rose {
-    background: linear-gradient(135deg, #f43f5e, #fb7185);
   }
 
   /* ===== WORKSPACE ===== */
@@ -99,44 +90,38 @@
     flex-direction: column;
     align-items: center;
     width: 100%;
-    min-height: calc(100vh - 220px);
-    padding: 20px;
+    min-height: calc(100vh - 200px);
+    padding: 12px;
   }
 
   .inscr-workspace>*:not(#modalContainer) {
     width: 100%;
-    max-width: 900px;
+    max-width: 850px;
   }
 
-  /* ===== PREMIUM DATA CARDS ===== */
+  /* ===== COMPACT DATA CARD ===== */
   .ep-card {
-    background: rgba(255, 255, 255, 0.85) !important;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.6) !important;
-    border-radius: 16px !important;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, .06) !important;
+    background: rgba(255, 255, 255, .88) !important;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, .5) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 3px 16px rgba(0, 0, 0, .05) !important;
     overflow: hidden;
     margin: 0 auto;
   }
 
   .ep-card .table-header {
     background: linear-gradient(135deg, #6366f1, #818cf8);
-    padding: 14px 20px;
+    padding: 10px 16px;
     margin: 0;
   }
 
   .ep-card .table-header h3 {
     color: #fff !important;
-    font-size: .9rem;
+    font-size: .8rem;
     font-weight: 600;
     margin: 0;
-    letter-spacing: .3px;
-  }
-
-  .ep-card .card-body,
-  .ep-card.card-body {
-    padding: 12px 16px;
+    letter-spacing: .2px;
   }
 
   .ep-card table {
@@ -152,18 +137,18 @@
 
   .ep-card thead th {
     color: #475569 !important;
-    font-size: .78rem;
+    font-size: .7rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: .5px;
-    padding: 10px 14px;
+    letter-spacing: .4px;
+    padding: 7px 10px;
     border: none !important;
     background: transparent !important;
   }
 
   .ep-card tbody td {
-    padding: 10px 14px;
-    font-size: .82rem;
+    padding: 6px 10px;
+    font-size: .78rem;
     color: #334155;
     border-bottom: 1px solid #f1f5f9 !important;
     border-top: none !important;
@@ -191,14 +176,14 @@
     height: 100% !important;
     max-width: none !important;
     margin: 0 !important;
-    background: rgba(15, 23, 42, 0.45);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    background: rgba(15, 23, 42, .4);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
     z-index: 1050;
     align-items: center;
     justify-content: center;
-    padding: 60px 20px 20px 90px;
-    animation: modalFadeIn .25s ease;
+    padding: 50px 16px 16px 80px;
+    animation: modalFadeIn .2s ease;
   }
 
   #modalContainer.modal[style*="display: flex"],
@@ -208,41 +193,39 @@
 
   @keyframes modalFadeIn {
     from {
-      opacity: 0;
+      opacity: 0
     }
 
     to {
-      opacity: 1;
+      opacity: 1
     }
   }
 
   @keyframes modalSlideUp {
     from {
       opacity: 0;
-      transform: translateY(24px) scale(.97);
+      transform: translateY(16px) scale(.98)
     }
 
     to {
       opacity: 1;
-      transform: translateY(0) scale(1);
+      transform: translateY(0) scale(1)
     }
   }
 
   #modalContainer .modal-content {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.7);
-    border-radius: 20px;
-    box-shadow:
-      0 24px 80px rgba(0, 0, 0, .12),
-      0 0 0 1px rgba(99, 102, 241, .06);
-    max-width: 600px;
+    background: rgba(255, 255, 255, .96);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, .6);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .1), 0 0 0 1px rgba(99, 102, 241, .05);
+    max-width: 560px;
     width: 100%;
     padding: 0;
     position: relative;
     overflow: hidden;
-    animation: modalSlideUp .3s ease;
+    animation: modalSlideUp .25s ease;
     max-height: 85vh;
     overflow-y: auto;
   }
@@ -250,38 +233,38 @@
   #modalContainer .modal-content::before {
     content: '';
     display: block;
-    height: 6px;
+    height: 4px;
     background: linear-gradient(90deg, #6366f1, #818cf8, #a78bfa, #6366f1);
     background-size: 200% 100%;
-    animation: gradientShift 3s ease infinite;
+    animation: gradShift 3s ease infinite;
   }
 
-  @keyframes gradientShift {
+  @keyframes gradShift {
 
     0%,
     100% {
-      background-position: 0% 50%;
+      background-position: 0 50%
     }
 
     50% {
-      background-position: 100% 50%;
+      background-position: 100% 50%
     }
   }
 
   #modalContainer .close-btn {
     position: absolute;
-    top: 16px;
-    right: 18px;
-    font-size: 1.4rem;
+    top: 12px;
+    right: 14px;
+    font-size: 1.2rem;
     color: #94a3b8;
     cursor: pointer;
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     display: flex !important;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
-    transition: all .2s ease;
+    border-radius: 7px;
+    transition: all .2s;
     z-index: 10;
     line-height: 1;
   }
@@ -293,138 +276,149 @@
   }
 
   #modalContainer form {
-    padding: 28px 32px 24px;
+    padding: 18px 22px 16px;
   }
 
   #modalContainer h2 {
-    font-size: 1.05rem;
+    font-size: .92rem;
     font-weight: 700;
     color: #1e293b;
-    margin: 0 0 20px 0;
+    margin: 0 0 14px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     letter-spacing: -.2px;
   }
 
-  #modalContainer h2::before {
-    content: '\f007';
-    font-family: 'Font Awesome 5 Free';
-    font-weight: 900;
-    font-size: .85rem;
-    width: 34px;
-    height: 34px;
+  #modalContainer h2 .h2-icon {
+    width: 30px;
+    height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: linear-gradient(135deg, #6366f1, #818cf8);
     color: #fff;
-    border-radius: 10px;
+    border-radius: 8px;
+    font-size: .75rem;
     flex-shrink: 0;
+  }
+
+  /* ===== ICON INPUT FIELDS ===== */
+  .icon-field {
+    position: relative;
+    margin-bottom: 10px;
+  }
+
+  .icon-field .field-icon {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 36px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #818cf8;
+    font-size: .78rem;
+    pointer-events: none;
+    z-index: 2;
+    border-right: 1px solid #e9ecf1;
+    background: rgba(241, 245, 249, .6);
+    border-radius: 10px 0 0 10px;
+  }
+
+  .icon-field .form-control,
+  .icon-field select,
+  .icon-field input {
+    width: 100%;
+    padding: 8px 12px 8px 42px !important;
+    font-size: .8rem !important;
+    font-weight: 500;
+    color: #1e293b;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    outline: none;
+    transition: all .2s;
+    appearance: none;
+    -webkit-appearance: none;
+    height: 36px;
+  }
+
+  .icon-field select.form-control {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%236366f1' d='M6 8.825L.35 3.175l.7-.7L6 7.425l4.95-4.95.7.7z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px !important;
+    cursor: pointer;
+  }
+
+  .icon-field .form-control:focus,
+  .icon-field select:focus,
+  .icon-field input:focus {
+    background: #fff;
+    border-color: #818cf8;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, .08);
+  }
+
+  .icon-field .form-control:hover {
+    border-color: #c7d2fe;
+  }
+
+  .icon-field label.form-label {
+    display: none;
   }
 
   #modalContainer .form-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 14px;
+    gap: 8px;
   }
 
   #modalContainer .form-group,
   #modalContainer .form-field {
-    flex: 1 1 calc(50% - 7px);
-    min-width: 200px;
+    flex: 1 1 calc(50% - 4px);
+    min-width: 180px;
     margin: 0;
-  }
-
-  #modalContainer .form-label,
-  #modalContainer label {
-    font-size: .78rem;
-    font-weight: 600;
-    color: #475569;
-    text-transform: uppercase;
-    letter-spacing: .5px;
-    margin-bottom: 6px;
-    display: block;
   }
 
   #modalContainer .hidden-label {
     display: none;
   }
 
-  #modalContainer .form-control,
-  #modalContainer select,
-  #modalContainer input[type="text"],
-  #modalContainer input[type="number"],
-  #modalContainer input[type="email"],
-  #modalContainer input[type="date"],
-  #modalContainer input[type="file"] {
-    width: 100%;
-    padding: 11px 14px;
-    font-size: .88rem;
-    font-weight: 500;
-    color: #1e293b;
-    background: #f8fafc;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 12px;
-    outline: none;
-    transition: all .2s ease;
-    appearance: none;
-    -webkit-appearance: none;
-  }
-
-  #modalContainer select.form-control {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236366f1' d='M6 8.825L.35 3.175l.7-.7L6 7.425l4.95-4.95.7.7z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 14px center;
-    padding-right: 36px;
-    cursor: pointer;
-  }
-
-  #modalContainer .form-control:focus,
-  #modalContainer select:focus,
-  #modalContainer input:focus {
-    background: #fff;
-    border-color: #818cf8;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, .1), 0 2px 8px rgba(99, 102, 241, .08);
-  }
-
-  #modalContainer .form-control:hover {
-    border-color: #c7d2fe;
-  }
-
   #modalContainer .form-actions {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     justify-content: flex-end;
-    margin-top: 22px;
-    padding-top: 18px;
+    margin-top: 14px;
+    padding-top: 12px;
     border-top: 1px solid #f1f5f9;
   }
 
   #modalContainer .btn {
-    padding: 10px 22px;
-    font-size: .85rem;
+    padding: 7px 16px;
+    font-size: .8rem;
     font-weight: 600;
-    border-radius: 10px;
+    border-radius: 8px;
     border: none;
     cursor: pointer;
-    transition: all .2s ease;
+    transition: all .2s;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
   }
 
   #modalContainer .btn-primary,
   #modalContainer .btn-success {
     background: linear-gradient(135deg, #6366f1, #818cf8);
     color: #fff;
-    box-shadow: 0 4px 14px rgba(99, 102, 241, .25);
+    box-shadow: 0 3px 10px rgba(99, 102, 241, .2);
   }
 
   #modalContainer .btn-primary:hover,
   #modalContainer .btn-success:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(99, 102, 241, .35);
+    box-shadow: 0 4px 14px rgba(99, 102, 241, .3);
   }
 
   #modalContainer .btn-cancel,
@@ -442,152 +436,153 @@
   #modalContainer .btn-continue {
     background: linear-gradient(135deg, #10b981, #34d399);
     color: #fff;
-    box-shadow: 0 4px 14px rgba(16, 185, 129, .25);
   }
 
   #modalContainer .alert-danger {
     background: linear-gradient(135deg, #fef2f2, #fee2e2);
     color: #991b1b;
     border: 1px solid #fecaca;
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: .82rem;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: .78rem;
     font-weight: 500;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
   }
 
-  /* Import file card */
+  /* ===== IMPORT CARD ===== */
   .import-card {
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 16px;
+    background: rgba(255, 255, 255, .92);
+    border-radius: 14px;
     border: 1px solid #e2e8f0;
-    padding: 28px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, .06);
-    max-width: 500px;
-    margin: 20px auto;
+    padding: 20px;
+    box-shadow: 0 3px 16px rgba(0, 0, 0, .05);
+    max-width: 420px;
+    margin: 12px auto;
   }
 
   .import-card label {
-    font-size: .85rem;
+    font-size: .8rem;
     font-weight: 600;
     color: #475569;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     display: block;
   }
 
   .import-card .form-control {
     border: 1.5px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 11px 14px;
-    font-size: .88rem;
-    transition: all .2s ease;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: .82rem;
+    transition: all .2s;
   }
 
   .import-card .form-control:focus {
     border-color: #818cf8;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, .1);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, .08);
   }
 
-  .import-card .btn-success {
+  .import-card .btn-upload {
     background: linear-gradient(135deg, #6366f1, #818cf8);
     color: #fff;
     border: none;
-    border-radius: 10px;
-    padding: 10px 24px;
+    border-radius: 8px;
+    padding: 8px 20px;
     font-weight: 600;
-    font-size: .85rem;
-    box-shadow: 0 4px 14px rgba(99, 102, 241, .25);
-    transition: all .2s ease;
+    font-size: .8rem;
+    box-shadow: 0 3px 10px rgba(99, 102, 241, .2);
+    transition: all .2s;
+    cursor: pointer;
   }
 
-  .import-card .btn-success:hover {
+  .import-card .btn-upload:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(99, 102, 241, .35);
+    box-shadow: 0 4px 14px rgba(99, 102, 241, .3);
   }
 
-  /* Edit form in workspace */
+  /* ===== EDIT CARD ===== */
   .edit-card {
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 16px;
+    background: rgba(255, 255, 255, .92);
+    border-radius: 14px;
     border: 1px solid #e2e8f0;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, .06);
+    box-shadow: 0 3px 16px rgba(0, 0, 0, .05);
     overflow: hidden;
-    max-width: 700px;
-    margin: 20px auto;
+    max-width: 650px;
+    margin: 12px auto;
   }
 
   .edit-card .table-header {
     background: linear-gradient(135deg, #6366f1, #818cf8);
-    padding: 14px 20px;
+    padding: 10px 16px;
   }
 
   .edit-card .table-header h3 {
     color: #fff;
-    font-size: .9rem;
+    font-size: .8rem;
     font-weight: 600;
     margin: 0;
   }
 
   .edit-card .form-body {
-    padding: 24px;
+    padding: 16px;
   }
 
   .edit-card .form-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 14px;
+    gap: 8px;
   }
 
   .edit-card .form-field {
-    flex: 1 1 calc(50% - 7px);
-    min-width: 200px;
+    flex: 1 1 calc(50% - 4px);
+    min-width: 180px;
   }
 
   .edit-card .form-label {
-    font-size: .78rem;
+    font-size: .7rem;
     font-weight: 600;
     color: #475569;
     text-transform: uppercase;
-    letter-spacing: .5px;
-    margin-bottom: 6px;
+    letter-spacing: .4px;
+    margin-bottom: 4px;
   }
 
   .edit-card .form-control {
     border: 1.5px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 11px 14px;
-    font-size: .88rem;
-    transition: all .2s ease;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: .82rem;
+    transition: all .2s;
+    height: 36px;
   }
 
   .edit-card .form-control:focus {
     border-color: #818cf8;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, .1);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, .08);
   }
 
   .edit-card .form-actions {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     justify-content: flex-end;
-    margin-top: 20px;
-    padding-top: 18px;
+    margin-top: 14px;
+    padding-top: 12px;
     border-top: 1px solid #f1f5f9;
   }
 
   .edit-card .btn {
-    padding: 10px 22px;
-    font-size: .85rem;
+    padding: 7px 16px;
+    font-size: .8rem;
     font-weight: 600;
-    border-radius: 10px;
+    border-radius: 8px;
     border: none;
     cursor: pointer;
-    transition: all .2s ease;
+    transition: all .2s;
   }
 
   .edit-card .btn-success {
     background: linear-gradient(135deg, #10b981, #34d399);
     color: #fff;
-    box-shadow: 0 4px 14px rgba(16, 185, 129, .25);
+    box-shadow: 0 3px 10px rgba(16, 185, 129, .2);
   }
 
   .edit-card .btn-secondary {
@@ -619,41 +614,42 @@
 {% block page_content %}
 
 {% if messages %}
-<div id="message-container" style="max-width:700px;margin:10px auto;">
+<div id="message-container" style="max-width:650px;margin:8px auto;">
   {% for message in messages %}
-  <div class="alert {{ message.tags }} alert-dismissible" role="alert" style="border-radius:12px;font-size:.85rem;">
+  <div class="alert {{ message.tags }} alert-dismissible" role="alert"
+    style="border-radius:10px;font-size:.8rem;padding:8px 12px;">
     {{ message|safe }}
   </div>
   {% endfor %}
 </div>
 {% endif %}
 
-<!-- ========== SECTION: Gestion Élèves (palette cards) ========== -->
+<!-- ========== SECTION: Gestion Élèves ========== -->
 <div
   class="section-panel {% if form_type == 'inscriptions' or form_type == 'excel_file' or form_type == 'import_file' or form_type == 'edition_eleve' or not form_type %}active{% endif %}"
   id="section-eleves">
   <div class="palette-container">
     <a href="{% url 'create_inscription' %}" class="palette-card">
       <div class="pc-icon grad-indigo"><i class="fas fa-user-plus"></i></div>
-      <div class="pc-label">Inscrire<br>un élève</div>
+      <div class="pc-label">Inscrire</div>
     </a>
     <a href="{% url 'inscription_excel_file' %}" class="palette-card">
       <div class="pc-icon grad-emerald"><i class="fas fa-file-excel"></i></div>
-      <div class="pc-label">Fiche<br>d'inscription</div>
+      <div class="pc-label">Fiche Excel</div>
     </a>
     <a href="{% url 'import_inscription' %}" class="palette-card">
       <div class="pc-icon grad-teal"><i class="fas fa-file-import"></i></div>
-      <div class="pc-label">Importer<br>élèves</div>
+      <div class="pc-label">Importer</div>
     </a>
   </div>
 </div>
 
-<!-- ========== SECTION: Réaffectation (palette cards) ========== -->
+<!-- ========== SECTION: Réaffectation ========== -->
 <div class="section-panel {% if form_type == 'select_form_bull' %}active{% endif %}" id="section-reaffectation">
   <div class="palette-container">
     <a href="{% url 'changer_inscription' %}" class="palette-card">
       <div class="pc-icon grad-amber"><i class="fas fa-exchange-alt"></i></div>
-      <div class="pc-label">Changer<br>de classe</div>
+      <div class="pc-label">Changer<br>classe</div>
     </a>
   </div>
 </div>
@@ -661,90 +657,148 @@
 <!-- ========== WORKSPACE ========== -->
 <div class="inscr-workspace">
 
-  <!--==================== Modal for forms ====================-->
+  <!-- ===== Modal ===== -->
   <div id="modalContainer" class="modal">
     <div class="modal-content">
       <span class="close-btn" id="inscrCloseModal">&times;</span>
       <form action="#" method="POST" enctype="multipart/form-data">
         {% csrf_token %}
 
-        <!-- =============== Inscription form ================== -->
+        <!-- ===== Inscription form ===== -->
         {% if form_type == 'inscriptions' %}
-        <h2>Formulaire d'enregistrement</h2>
+        <h2><span class="h2-icon"><i class="fas fa-user-plus"></i></span> Enregistrement élève</h2>
         {% if form_eleve.non_form_errors %}
-        <div class="alert alert-danger">
-          {{ form_eleve.non_form_errors }}
-        </div>
+        <div class="alert alert-danger">{{ form_eleve.non_form_errors }}</div>
         {% elif form_inscription.non_form_errors %}
-        <div class="alert alert-danger">
-          {{ form_inscription.non_form_errors }}
-        </div>
+        <div class="alert alert-danger">{{ form_inscription.non_form_errors }}</div>
         {% endif %}
         <div class="form-row">
           {% for field in form_eleve %}
           {% if field.name not in champs_a_masquer %}
           <div class="form-group">
-            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-            {% render_field field class="form-control" placeholder=field.label %}
+            <div class="icon-field">
+              <span class="field-icon">
+                {% if field.name == 'nom' %}<i class="fas fa-user"></i>
+                {% elif field.name == 'prenom' %}<i class="fas fa-user-tag"></i>
+                {% elif field.name == 'genre' %}<i class="fas fa-venus-mars"></i>
+                {% elif field.name == 'nationalite' %}<i class="fas fa-flag"></i>
+                {% elif field.name == 'nom_pere' %}<i class="fas fa-male"></i>
+                {% elif field.name == 'prenom_pere' %}<i class="fas fa-male"></i>
+                {% elif field.name == 'nom_mere' %}<i class="fas fa-female"></i>
+                {% elif field.name == 'prenom_mere' %}<i class="fas fa-female"></i>
+                {% elif field.name == 'naissance_region' %}<i class="fas fa-map"></i>
+                {% elif field.name == 'naissance_pays' %}<i class="fas fa-globe-africa"></i>
+                {% elif field.name == 'naissance_province' %}<i class="fas fa-map-marker-alt"></i>
+                {% elif field.name == 'naissance_commune' %}<i class="fas fa-map-pin"></i>
+                {% elif field.name == 'naissance_zone' %}<i class="fas fa-map-signs"></i>
+                {% elif field.name == 'province_actuelle' %}<i class="fas fa-map-marker-alt"></i>
+                {% elif field.name == 'commune_actuelle' %}<i class="fas fa-map-pin"></i>
+                {% elif field.name == 'zone_actuelle' %}<i class="fas fa-map-signs"></i>
+                {% elif field.name == 'email_parent' %}<i class="fas fa-envelope"></i>
+                {% else %}<i class="fas fa-pen"></i>
+                {% endif %}
+              </span>
+              <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+              {% render_field field class="form-control" placeholder=field.label %}
+            </div>
           </div>
           {% endif %}
           {% endfor %}
           {% for field in form_inscription %}
           <div class="form-group">
-            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
-            {% render_field field class="form-control" placeholder=field.label %}
+            <div class="icon-field">
+              <span class="field-icon">
+                {% if field.name == 'id_campus' %}<i class="fas fa-school"></i>
+                {% elif field.name == 'id_annee' %}<i class="fas fa-calendar"></i>
+                {% elif field.name == 'id_classe_cycle' %}<i class="fas fa-layer-group"></i>
+                {% elif field.name == 'id_classe' %}<i class="fas fa-chalkboard"></i>
+                {% else %}<i class="fas fa-list"></i>
+                {% endif %}
+              </span>
+              <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
+              {% render_field field class="form-control" placeholder=field.label %}
+            </div>
           </div>
           {% endfor %}
         </div>
         <div class="form-actions">
-          <button type="button" class="btn btn-cancel" id="cancelBtn">
-            <span class="emoji-icon">❌</span> Annuler
-          </button>
-          <button type="submit" class="btn btn-primary">
-            <i class="fas fa-plus-circle"></i> Ajouter
-          </button>
+          <button type="button" class="btn btn-cancel" id="cancelBtn">❌ Annuler</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-plus-circle"></i> Ajouter</button>
         </div>
 
-        <!-- ======== Generate Excel form ======== -->
+        <!-- ===== Excel file form ===== -->
         {% elif form_type == 'excel_file' %}
-        <h2>Générer une fiche d'inscription</h2>
+        <h2><span class="h2-icon"><i class="fas fa-file-excel"></i></span> Fiche d'inscription</h2>
         <div class="form-row">
           {% for field in form_inscription %}
           <div class="form-field">
-            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
-            {% render_field field class="form-control" placeholder=field.label %}
+            <div class="icon-field">
+              <span class="field-icon">
+                {% if field.name == 'id_campus' %}<i class="fas fa-school"></i>
+                {% elif field.name == 'id_annee' %}<i class="fas fa-calendar"></i>
+                {% elif field.name == 'id_classe_cycle' %}<i class="fas fa-layer-group"></i>
+                {% elif field.name == 'id_classe' %}<i class="fas fa-chalkboard"></i>
+                {% else %}<i class="fas fa-list"></i>
+                {% endif %}
+              </span>
+              <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
+              {% render_field field class="form-control" placeholder=field.label %}
+            </div>
           </div>
           {% endfor %}
           <div class="form-field" id="generate_button_container" style="display:none;">
-            <button type="submit" class="btn btn-success" id="generate_button">
-              <i class="fas fa-file-excel"></i> Générer
-            </button>
-            <button type="button" class="btn btn-cancel" id="cancelBtn" style="margin-left:8px;">
-              <span class="emoji-icon">➡️</span>
-            </button>
+            <button type="submit" class="btn btn-success" id="generate_button"><i class="fas fa-file-excel"></i>
+              Générer</button>
+            <button type="button" class="btn btn-cancel" id="cancelBtn" style="margin-left:6px;">➡️</button>
           </div>
+        </div>
+
+        <!-- ===== Réaffectation form ===== -->
+        {% elif form_type == 'select_form_bull' %}
+        <h2><span class="h2-icon"><i class="fas fa-exchange-alt"></i></span> Sélectionner pas à pas</h2>
+        {% if form_select_bulletin.non_form_errors %}
+        <div class="alert alert-danger">{{ form_select_bulletin.non_form_errors }}</div>
+        {% endif %}
+        <div class="form-row">
+          {% for field in form_select_bulletin %}
+          <div class="form-group">
+            <div class="icon-field">
+              <span class="field-icon">
+                {% if field.name == 'id_annee' %}<i class="fas fa-calendar"></i>
+                {% elif field.name == 'id_campus' %}<i class="fas fa-school"></i>
+                {% elif field.name == 'id_cycle_actif' %}<i class="fas fa-layer-group"></i>
+                {% elif field.name == 'id_classe_active' %}<i class="fas fa-chalkboard"></i>
+                {% else %}<i class="fas fa-list"></i>
+                {% endif %}
+              </span>
+              <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
+              {% render_field field class="form-control" placeholder=field.label %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <div style="display:none;" class="form-actions">
+          <button type="button" class="btn btn-cancel" id="cancelBtn">➡️ Continuer</button>
         </div>
 
         {% else %}
         <div class="form-actions">
           <h2>Opération sans formulaire</h2>
-          <button type="button" class="btn btn-cancel" id="cancelBtn">
-            <span class="emoji-icon">❌</span> Quitter
-          </button>
+          <button type="button" class="btn btn-cancel" id="cancelBtn">❌ Quitter</button>
         </div>
         {% endif %}
       </form>
     </div>
   </div>
 
-  <!-- ================= Student list table ================= -->
+  <!-- ===== Student list ===== -->
   {% if inscriptions %}
-  <div class="ep-card" style="margin-top: 16px;">
+  <div class="ep-card" style="margin-top:10px;">
     <div class="table-header">
-      <h3>Élèves inscrits</h3>
+      <h3><i class="fas fa-users" style="margin-right:6px;"></i> Élèves inscrits ({{ inscriptions|length }})</h3>
     </div>
-    <div style="padding: 12px 16px;">
-      <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+    <div style="padding:8px 10px;">
+      <div class="table-responsive" style="max-height:420px;overflow-y:auto;">
         <table class="display table table-striped table-hover" id="basic-datatables">
           <thead>
             <tr>
@@ -765,9 +819,8 @@
               <td>{{ inscr.matricule|default:"" }}</td>
               <td>{{ inscr.email|default:"" }}</td>
               <td>
-                <a href="{% url 'edit_eleve' inscr.id_eleve %}" class="btn btn-sm btn-outline-primary me-2">
-                  <i class="fas fa-edit"></i>
-                </a>
+                <a href="{% url 'edit_eleve' inscr.id_eleve %}" class="btn btn-sm btn-outline-primary me-2"><i
+                    class="fas fa-edit"></i></a>
               </td>
             </tr>
             {% endfor %}
@@ -778,11 +831,11 @@
   </div>
   {% endif %}
 
-  <!-- ================= Edit student form ================= -->
+  <!-- ===== Edit student form ===== -->
   {% if form_type == 'edition_eleve' %}
   <div class="edit-card">
     <div class="table-header">
-      <h3>Modifications des informations de l'élève</h3>
+      <h3><i class="fas fa-user-edit" style="margin-right:6px;"></i> Modifier l'élève</h3>
     </div>
     <div class="form-body">
       <form method="POST" enctype="multipart/form-data">
@@ -791,8 +844,19 @@
           {% for field in form_eleve %}
           {% if field.name not in champs_a_masquer %}
           <div class="form-field">
-            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-            {% render_field field class="form-control" placeholder=field.label %}
+            <div class="icon-field">
+              <span class="field-icon">
+                {% if field.name == 'nom' %}<i class="fas fa-user"></i>
+                {% elif field.name == 'prenom' %}<i class="fas fa-user-tag"></i>
+                {% elif field.name == 'genre' %}<i class="fas fa-venus-mars"></i>
+                {% elif field.name == 'nationalite' %}<i class="fas fa-flag"></i>
+                {% elif field.name == 'email_parent' %}<i class="fas fa-envelope"></i>
+                {% else %}<i class="fas fa-pen"></i>
+                {% endif %}
+              </span>
+              <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+              {% render_field field class="form-control" placeholder=field.label %}
+            </div>
           </div>
           {% endif %}
           {% endfor %}
@@ -806,25 +870,38 @@
   </div>
   {% endif %}
 
-  <!-- ================= Import file form ================= -->
+  <!-- ===== Import file ===== -->
   {% if form_type == 'import_file' %}
   <div class="import-card">
     <form method="POST" enctype="multipart/form-data" action="{% url 'import_inscription' %}">
       {% csrf_token %}
-      <label for="excel_file">📂 Sélectionner un fichier Excel :</label>
+      <label for="excel_file"><i class="fas fa-folder-open" style="margin-right:6px;color:#6366f1;"></i> Sélectionner un
+        fichier Excel</label>
       <input type="file" name="excel_file" id="excel_file" class="form-control" required>
-      <div style="text-align:center;margin-top:20px;">
-        <button type="submit" class="btn-success"
-          style="border:none;border-radius:10px;padding:10px 24px;font-weight:600;font-size:.85rem;cursor:pointer;">
-          <i class="fas fa-upload"></i> Importer
-        </button>
+      <div style="text-align:center;margin-top:14px;">
+        <button type="submit" class="btn-upload"><i class="fas fa-upload"></i> Importer</button>
       </div>
     </form>
   </div>
   {% endif %}
 
-</div>
+  <!-- ===== Reaffectation: tables loaded by op_eval.js ===== -->
+  <div id="table-download-btn" style="display:none;" class="col-md-12"></div>
+  <div id="table-display-pupils" style="display:none;" class="col-md-12">
+    <div class="ep-card" style="max-height:500px;overflow-y:auto;">
+      <div class="table-header">
+        <h3><i class="fas fa-users" style="margin-right:6px;"></i> Élèves de la classe</h3>
+      </div>
+      <div style="padding:8px 10px;">
+        <div class="table-responsive"></div>
+      </div>
+    </div>
+  </div>
+  <div id="table-declencher-btn" style="display:none;" class="col-md-12">
+    <div class="ep-card" style="max-height:500px;overflow-y:auto;"></div>
+  </div>
 
+</div>
 {% endblock %}
 
 {% block page_js %}
@@ -842,16 +919,16 @@
   document.addEventListener('DOMContentLoaded', function () {
     if (!document.querySelector('.sidebar-nav-item.active')) switchSection('eleves');
 
-    // ===== Auto-open modal when a form_type is present =====
+    // Auto-open modal when form_type present
     var formType = '{{ form_type|default:"" }}';
-    var modalFormTypes = ['inscriptions', 'excel_file'];
+    var modalFormTypes = ['inscriptions', 'excel_file', 'select_form_bull'];
     var modal = document.getElementById('modalContainer');
     if (formType && modalFormTypes.indexOf(formType) !== -1 && modal) {
       modal.style.display = 'flex';
       document.body.style.overflow = 'hidden';
     }
 
-    // Close modal handlers
+    // Close modal
     if (modal) {
       var closeModal = function () {
         modal.style.display = 'none';
@@ -868,94 +945,38 @@
   });
 </script>
 
-<!-- ===== Excel file generation cascade JS ===== -->
+<!-- ===== Excel file cascade ===== -->
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-    const currentUrl = window.location.pathname;
-    if (!currentUrl.includes('inscription_excel_file')) return;
+    if (!window.location.pathname.includes('inscription_excel_file')) return;
 
-    const idAnnee = document.getElementById("id_id_annee") || null;
-    const idCampus = document.getElementById("id_id_campus") || null;
-    const idClasseCycle = document.getElementById("id_id_classe_cycle") || null;
-    const idClasse = document.getElementById("id_id_classe") || null;
-    const trimestre = document.getElementById("id_id_trimestre") || null;
+    const idAnnee = document.getElementById("id_id_annee");
+    const idCampus = document.getElementById("id_id_campus");
+    const idClasseCycle = document.getElementById("id_id_classe_cycle");
+    const idClasse = document.getElementById("id_id_classe");
+    const trimestre = document.getElementById("id_id_trimestre");
     const modal = document.getElementById("modalContainer");
 
-    function saveToSession(key, value) { sessionStorage.setItem(key, value); }
-
-    function hideFields(...fields) {
-      fields.forEach(field => {
-        if (field) { field.parentElement.style.display = "none"; field.disabled = true; }
-      });
+    function saveToSession(k, v) { sessionStorage.setItem(k, v); }
+    function hideFields(...fs) { fs.forEach(f => { if (f) { f.parentElement.style.display = "none"; f.disabled = true; } }); }
+    function showField(f) { if (f) { f.parentElement.style.display = "block"; f.disabled = false; } }
+    function updateDropdown(url, dd, idKey, nameKey) {
+      if (!dd) return;
+      fetch(url).then(r => { if (!r.ok) throw new Error; return r.json() }).then(data => {
+        dd.innerHTML = '<option value="">------</option>';
+        if (data.length > 0) { data.forEach(item => { let o = document.createElement("option"); o.value = item[idKey]; o.textContent = item[nameKey]; dd.appendChild(o); }); showField(dd); }
+        else { alert("Aucune donnée trouvée !"); }
+      }).catch(e => { console.error(e); showField(dd); });
     }
 
-    function showField(field) {
-      if (field) { field.parentElement.style.display = "block"; field.disabled = false; }
-    }
-
-    function updateDropdown(url, dropdown, idKey, nameKey) {
-      if (!dropdown) return;
-      fetch(url)
-        .then(response => { if (!response.ok) throw new Error("Erreur"); return response.json(); })
-        .then(data => {
-          dropdown.innerHTML = '<option value="">------</option>';
-          if (data.length > 0) {
-            data.forEach(item => {
-              let option = document.createElement("option");
-              option.value = item[idKey];
-              option.textContent = item[nameKey];
-              dropdown.appendChild(option);
-            });
-            showField(dropdown);
-          } else { alert("Aucune donnée trouvée !"); }
-        })
-        .catch(error => { console.error("Erreur:", error); showField(dropdown); });
-    }
-
-    if (idCampus) {
-      idCampus.addEventListener("change", function () {
-        hideFields(idAnnee, idClasseCycle, idClasse, trimestre);
-        if (this.value) { saveToSession("id_campus", this.value); showField(idAnnee); }
-      });
-    }
-
-    if (idAnnee) {
-      idAnnee.addEventListener("change", function () {
-        const campusId = document.getElementById("id_campus")?.value || sessionStorage.getItem("id_campus") || "";
-        hideFields(idClasseCycle, idClasse, trimestre);
-        if (this.value) {
-          saveToSession("id_annee", this.value);
-          updateDropdown(`/get_cycles_parAnnee?id_annee=${this.value}&id_campus=${campusId}`, idClasseCycle, 'id_cycle_actif', 'cycle');
-        }
-      });
-    }
-
-    if (idClasseCycle) {
-      idClasseCycle.addEventListener("change", function () {
-        const campusId = document.getElementById("id_campus")?.value || sessionStorage.getItem("id_campus") || "";
-        let anneeId = idAnnee?.value || sessionStorage.getItem("id_annee") || "";
-        hideFields(idClasse, trimestre);
-        if (this.value && campusId && anneeId) {
-          saveToSession("id_classe_cycle", this.value);
-          updateDropdown(`/get_classes/?id_classe_cycle=${this.value}&id_annee=${anneeId}&id_campus=${campusId}`, idClasse, 'id_classe', 'classe');
-        }
-      });
-    }
-
-    if (idClasse) {
-      idClasse.addEventListener("change", function () {
-        if (this.value) {
-          saveToSession("id_classe", this.value);
-          document.getElementById("generate_button_container").style.display = "block";
-        } else {
-          document.getElementById("generate_button_container").style.display = "none";
-        }
-      });
-    }
+    if (idCampus) { idCampus.addEventListener("change", function () { hideFields(idAnnee, idClasseCycle, idClasse, trimestre); if (this.value) { saveToSession("id_campus", this.value); showField(idAnnee); } }); }
+    if (idAnnee) { idAnnee.addEventListener("change", function () { const c = document.getElementById("id_campus")?.value || sessionStorage.getItem("id_campus") || ""; hideFields(idClasseCycle, idClasse, trimestre); if (this.value) { saveToSession("id_annee", this.value); updateDropdown(`/get_cycles_parAnnee?id_annee=${this.value}&id_campus=${c}`, idClasseCycle, 'id_cycle_actif', 'cycle'); } }); }
+    if (idClasseCycle) { idClasseCycle.addEventListener("change", function () { const c = document.getElementById("id_campus")?.value || sessionStorage.getItem("id_campus") || ""; let a = idAnnee?.value || sessionStorage.getItem("id_annee") || ""; hideFields(idClasse, trimestre); if (this.value && c && a) { saveToSession("id_classe_cycle", this.value); updateDropdown(`/get_classes/?id_classe_cycle=${this.value}&id_annee=${a}&id_campus=${c}`, idClasse, 'id_classe', 'classe'); } }); }
+    if (idClasse) { idClasse.addEventListener("change", function () { if (this.value) { saveToSession("id_classe", this.value); document.getElementById("generate_button_container").style.display = "block"; } else { document.getElementById("generate_button_container").style.display = "none"; } }); }
   });
 </script>
 
-<!-- ===== Inscription form cascade JS ===== -->
+<!-- ===== Inscription form cascade ===== -->
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     const idAnnee = document.getElementById("id_id_annee");
@@ -963,79 +984,76 @@
     const idClasseCycle = document.getElementById("id_id_classe_cycle");
     const idClasse = document.getElementById("id_id_classe");
 
-    function saveToSession(key, value) { sessionStorage.setItem(key, value); }
-
-    function hideFields(...fields) {
-      fields.forEach(field => {
-        if (field) { field.parentElement.style.display = "none"; field.disabled = true; }
-      });
+    function saveToSession(k, v) { sessionStorage.setItem(k, v); }
+    function hideFields(...fs) { fs.forEach(f => { if (f) { f.parentElement.style.display = "none"; f.disabled = true; } }); }
+    function showField(f) { if (f) { f.parentElement.style.display = "block"; f.disabled = false; } }
+    function updateDropdown(url, dd, idKey, nameKey) {
+      if (!dd) return;
+      fetch(url).then(r => { if (!r.ok) throw new Error; return r.json() }).then(data => {
+        dd.innerHTML = '<option value="">------</option>';
+        if (data.length > 0) { data.forEach(item => { let o = document.createElement("option"); o.value = item[idKey] || ''; o.textContent = item[nameKey] || 'Inconnu'; o.setAttribute('data-locked', 'true'); dd.appendChild(o); }); showField(dd); }
+        else { alert("Aucune donnée trouvée !"); hideFields(dd); }
+      }).catch(e => { alert("Erreur de chargement"); showField(dd); });
     }
 
-    function showField(field) {
-      if (field) { field.parentElement.style.display = "block"; field.disabled = false; }
-    }
-
-    function updateDropdown(url, dropdown, idKey, nameKey) {
-      if (!dropdown) return;
-      fetch(url)
-        .then(response => { if (!response.ok) throw new Error("Erreur"); return response.json(); })
-        .then(data => {
-          dropdown.innerHTML = '<option value="">------</option>';
-          if (data.length > 0) {
-            data.forEach(item => {
-              let option = document.createElement("option");
-              option.value = item[idKey] || '';
-              option.textContent = item[nameKey] || 'Inconnu';
-              option.setAttribute('data-locked', 'true');
-              dropdown.appendChild(option);
-            });
-            showField(dropdown);
-          } else {
-            alert("Aucune donnée trouvée !");
-            hideFields(dropdown);
-          }
-        })
-        .catch(error => { alert("Erreur lors du chargement"); showField(dropdown); });
-    }
-
-    if (idCampus) {
-      idCampus.addEventListener("change", function () {
-        if (this.value) { saveToSession("id_campus", this.value); showField(idAnnee); }
-      });
-    }
-
-    if (idAnnee) {
-      idAnnee.addEventListener("change", function () {
-        const campusId = document.getElementById("id_campus")?.value || sessionStorage.getItem("id_campus") || "";
-        hideFields(idClasseCycle, idClasse);
-        if (this.value) {
-          saveToSession("id_annee", this.value);
-          updateDropdown(`/get_cycles_parAnnee/?id_annee=${this.value}&id_campus=${campusId}`, idClasseCycle, 'id_cycle_actif', 'cycle');
-        }
-      });
-    }
-
-    if (idClasseCycle) {
-      idClasseCycle.addEventListener("change", function () {
-        const campusId = idCampus?.value || sessionStorage.getItem("id_campus") || "";
-        const anneeId = idAnnee?.value || sessionStorage.getItem("id_annee") || "";
-        hideFields(idClasse);
-        if (this.value && campusId && anneeId) {
-          saveToSession("id_classe_cycle", this.value);
-          updateDropdown(`/get_classes/?id_classe_cycle=${this.value}&id_annee=${anneeId}&id_campus=${campusId}`, idClasse, 'id_classe', 'classe');
-        }
-      });
-    }
+    if (idCampus) { idCampus.addEventListener("change", function () { if (this.value) { saveToSession("id_campus", this.value); showField(idAnnee); } }); }
+    if (idAnnee) { idAnnee.addEventListener("change", function () { const c = document.getElementById("id_campus")?.value || sessionStorage.getItem("id_campus") || ""; hideFields(idClasseCycle, idClasse); if (this.value) { saveToSession("id_annee", this.value); updateDropdown(`/get_cycles_parAnnee/?id_annee=${this.value}&id_campus=${c}`, idClasseCycle, 'id_cycle_actif', 'cycle'); } }); }
+    if (idClasseCycle) { idClasseCycle.addEventListener("change", function () { const c = idCampus?.value || sessionStorage.getItem("id_campus") || ""; const a = idAnnee?.value || sessionStorage.getItem("id_annee") || ""; hideFields(idClasse); if (this.value && c && a) { saveToSession("id_classe_cycle", this.value); updateDropdown(`/get_classes/?id_classe_cycle=${this.value}&id_annee=${a}&id_campus=${c}`, idClasse, 'id_classe', 'classe'); } }); }
   });
 </script>
 
 <script>
-  function redirectToAjouterEleve() {
-    window.location.href = '{% url "create_inscription" %}';
-  }
+  function redirectToAjouterEleve() { window.location.href = '{% url "create_inscription" %}'; }
 </script>
-
 <script src="{% static 'js/main.js' %}"></script>
 <script src="{% static 'js/modal.js' %}"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="{% static 'js/op_eval.js' %}"></script>
+
+<!-- Reaffectation helpers -->
+<script>
+  const getCsrfToken = () => {
+    const name = 'csrftoken';
+    const cookieValue = document.cookie.split(';')
+      .find(cookie => cookie.trim().startsWith(`${name}=`))
+      ?.split('=')[1];
+    return cookieValue || '';
+  };
+
+  const updateRedoublement = async (checkbox) => {
+    const eleveId = checkbox.dataset.eleveId;
+    const anneeId = checkbox.dataset.anneeId;
+    const campusId = checkbox.dataset.campusId;
+    const cycleId = checkbox.dataset.cycleId;
+    const classeId = checkbox.dataset.classeId;
+    const redoublement = checkbox.checked;
+    try {
+      const response = await fetch('/update_redoublement/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCsrfToken() },
+        body: JSON.stringify({ id_eleve: eleveId, id_annee: anneeId, id_campus: campusId, id_cycle: cycleId, id_classe: classeId, redoublement: redoublement })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) { alert(data.message || 'Redoublement mis à jour.'); }
+      else { throw new Error(data.message || 'Erreur'); }
+    } catch (error) { alert('Erreur: ' + error.message); checkbox.checked = !redoublement; }
+  };
+
+  const updateStatus = async (checkbox) => {
+    const eleveId = checkbox.dataset.eleveId;
+    const anneeId = checkbox.dataset.anneeId;
+    const campusId = checkbox.dataset.campusId;
+    const cycleId = checkbox.dataset.cycleId;
+    const classeId = checkbox.dataset.classeId;
+    const status = checkbox.checked;
+    try {
+      const response = await fetch('/update_status/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCsrfToken() },
+        body: JSON.stringify({ id_eleve: eleveId, id_annee: anneeId, id_campus: campusId, id_cycle: cycleId, id_classe: classeId, status: status })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) { alert('Statut mis à jour.'); }
+      else { throw new Error(data.error || 'Erreur'); }
+    } catch (error) { alert('Erreur: ' + error.message); checkbox.checked = !status; }
+  };
+</script>
 {% endblock %}

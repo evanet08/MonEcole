@@ -33,7 +33,7 @@ def select_by_field_to_reaffect_inscription(request):
     user_info = get_user_info(request)
     user_modules = user_info
     form_select = Eleve_NoteForm(request.POST or None)
-    return render(request, 'inscription/_reafect_inscript.html', {
+    return render(request, 'inscription/index_inscription.html', {
         'form_select_bulletin':form_select,
         'form_type': 'select_form_bull',
         'photo_profil': user_modules['photo_profil'],
