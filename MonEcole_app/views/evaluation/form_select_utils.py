@@ -18,12 +18,12 @@ def select_by_field_to_generate_bulletin(request):
     })
     
 @login_required
-@module_required("Institeur et son Espace")
+@module_required("Evaluation")
 def select_by_field_to_generate_file_note(request):
     user_info = get_user_info(request)
     user_modules = user_info
     form_select = Eleve_NoteForm(request.POST or None)
-    return render(request, 'enseignement/zone_pedag/espace_enseignant.html', {
+    return render(request, 'evaluation/index_evaluation.html', {
         'form_select':form_select,
         'form_type': 'select_form',
         'photo_profil': user_modules['photo_profil'],
