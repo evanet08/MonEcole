@@ -600,7 +600,6 @@
 </div>
 
 <div class="zp-workspace">
-    <!--==================== Fenêtre modale for many forms-->
     <div id="modalContainer" class="modal">
         <div class="modal-content">
             <span class="close-btn" id="zpCloseModal">&times;</span>
@@ -624,611 +623,523 @@
                 <h2><span class="h2-icon"><i class="fas fa-clipboard-list"></i></span> Sélectionner pas à pas</h2>
                 {% if evaluation_form.errors %}
                 <div class="alert alert-danger" style="border-radius:8px;font-size:.78rem;padding:8px 12px;">
-                    {% for field in evaluation_form %}{% if field.errors %}<p>{{ field.label }}: {{ field.errors }}</p>
-                    {% endif %}{% endfor %}
+                    {% for field in evaluation_form %}{% if field.errors %}<p>{{ field.label }}: {{ field.errors }}</p>{% endif %}{% endfor %}
                     {% if evaluation_form.non_field_errors %}<p>{{ evaluation_form.non_field_errors }}</p>{% endif %}
                 </div>
                 {% endif %}
                 <div class="form-row">
                     {% for field in evaluation_form %}
-                    <div class="form-group">
-                        <div class="icon-field">
-                            <span class="field-icon">
-                                {% if field.name == 'id_annee' %}<i class="fas fa-calendar"></i>
-                                {% elif field.name == 'id_campus' %}<i class="fas fa-school"></i>
-                                {% elif field.name == 'id_cycle_actif' %}<i class="fas fa-layer-group"></i>
-                                {% elif field.name == 'id_classe_active' %}<i class="fas fa-chalkboard"></i>
-                                {% elif field.name == 'id_cours_classe' %}<i class="fas fa-book"></i>
-                                {% elif field.name == 'id_trimestre' %}<i class="fas fa-calendar-alt"></i>
-                                {% elif field.name == 'id_periode' %}<i class="fas fa-clock"></i>
-                                {% elif field.name == 'id_session' %}<i class="fas fa-tasks"></i>
-                                {% elif field.name == 'id_type_note' %}<i class="fas fa-star"></i>
-                                {% elif field.name == 'id_evaluation' %}<i class="fas fa-file-alt"></i>
-                                {% elif field.name == 'id_eleve' %}<i class="fas fa-user-graduate"></i>
-                                {% else %}<i class="fas fa-list"></i>{% endif %}
-                            </span>
-                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                            {% render_field field class="form-control" placeholder=field.label %}
-                        </div>
-                    </div>
+                    <div class="form-group"><div class="icon-field"><span class="field-icon">{% if field.name == 'id_annee' %}<i class="fas fa-calendar"></i>{% elif field.name == 'id_campus' %}<i class="fas fa-school"></i>{% elif field.name == 'id_cycle_actif' %}<i class="fas fa-layer-group"></i>{% elif field.name == 'id_classe_active' %}<i class="fas fa-chalkboard"></i>{% elif field.name == 'id_cours_classe' %}<i class="fas fa-book"></i>{% elif field.name == 'id_trimestre' %}<i class="fas fa-calendar-alt"></i>{% elif field.name == 'id_periode' %}<i class="fas fa-clock"></i>{% elif field.name == 'id_session' %}<i class="fas fa-tasks"></i>{% elif field.name == 'id_type_note' %}<i class="fas fa-star"></i>{% elif field.name == 'id_evaluation' %}<i class="fas fa-file-alt"></i>{% elif field.name == 'id_eleve' %}<i class="fas fa-user-graduate"></i>{% else %}<i class="fas fa-list"></i>{% endif %}</span><label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>{% render_field field class="form-control" placeholder=field.label %}</div></div>
                     {% endfor %}
                 </div>
                 <div id="btnsubmit" class="form-actions">
                     <button type="button" class="btn btn-cancel" id="cancelBtn">❌ Annuler</button>
                     <button type="submit" class="btn btn-primary"><i class="fas fa-plus-circle"></i> Ajouter</button>
                 </div>
-
                 {% elif form_type == 'select_form' %}
                 <h2><span class="h2-icon"><i class="fas fa-file-alt"></i></span> Sélectionner pas à pas</h2>
-                {% if form_select.non_form_errors %}<div class="alert alert-danger"
-                    style="border-radius:8px;font-size:.78rem;">{{ form_select.non_form_errors }}</div>{% endif %}
+                {% if form_select.non_form_errors %}<div class="alert alert-danger" style="border-radius:8px;font-size:.78rem;">{{ form_select.non_form_errors }}</div>{% endif %}
                 <div class="form-row">
                     {% for field in form_select %}
-                    <div class="form-group">
-                        <div class="icon-field">
-                            <span class="field-icon">
-                                {% if field.name == 'id_annee' %}<i class="fas fa-calendar"></i>
-                                {% elif field.name == 'id_campus' %}<i class="fas fa-school"></i>
-                                {% elif field.name == 'id_cycle_actif' %}<i class="fas fa-layer-group"></i>
-                                {% elif field.name == 'id_classe_active' %}<i class="fas fa-chalkboard"></i>
-                                {% elif field.name == 'id_cours_classe' %}<i class="fas fa-book"></i>
-                                {% elif field.name == 'id_trimestre' %}<i class="fas fa-calendar-alt"></i>
-                                {% elif field.name == 'id_periode' %}<i class="fas fa-clock"></i>
-                                {% elif field.name == 'id_session' %}<i class="fas fa-tasks"></i>
-                                {% elif field.name == 'id_type_note' %}<i class="fas fa-star"></i>
-                                {% elif field.name == 'id_evaluation' %}<i class="fas fa-file-alt"></i>
-                                {% else %}<i class="fas fa-list"></i>{% endif %}
-                            </span>
-                            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label
-                                }}</label>
-                            {% render_field field class="form-control" placeholder=field.label %}
-                        </div>
-                    </div>
+                    <div class="form-group"><div class="icon-field"><span class="field-icon">{% if field.name == 'id_annee' %}<i class="fas fa-calendar"></i>{% elif field.name == 'id_campus' %}<i class="fas fa-school"></i>{% elif field.name == 'id_cycle_actif' %}<i class="fas fa-layer-group"></i>{% elif field.name == 'id_classe_active' %}<i class="fas fa-chalkboard"></i>{% elif field.name == 'id_cours_classe' %}<i class="fas fa-book"></i>{% elif field.name == 'id_trimestre' %}<i class="fas fa-calendar-alt"></i>{% elif field.name == 'id_periode' %}<i class="fas fa-clock"></i>{% elif field.name == 'id_session' %}<i class="fas fa-tasks"></i>{% elif field.name == 'id_type_note' %}<i class="fas fa-star"></i>{% elif field.name == 'id_evaluation' %}<i class="fas fa-file-alt"></i>{% else %}<i class="fas fa-list"></i>{% endif %}</span><label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>{% render_field field class="form-control" placeholder=field.label %}</div></div>
                     {% endfor %}
                 </div>
-                <div style="display:none;" class="form-actions">
-                    <button type="button" class="btn btn-cancel" id="cancelBtn">➡️ Continuer</button>
-                </div>
-
+                <div style="display:none;" class="form-actions"><button type="button" class="btn btn-cancel" id="cancelBtn">➡️ Continuer</button></div>
                 {% elif form_type == 'select_form_reclam' %}
                 <h2><span class="h2-icon"><i class="fas fa-exclamation-circle"></i></span> Réclamations</h2>
                 {% if form_select_reclam.non_form_errors %}<div class="alert alert-danger" style="border-radius:8px;font-size:.78rem;">{{ form_select_reclam.non_form_errors }}</div>{% endif %}
                 <div class="form-row">
                     {% for field in form_select_reclam %}
-                    <div class="form-group">
-                        <div class="icon-field">
-                            <span class="field-icon">
-                                {% if field.name == 'id_annee' %}<i class="fas fa-calendar"></i>
-                                {% elif field.name == 'id_campus' %}<i class="fas fa-school"></i>
-                                {% elif field.name == 'id_cycle_actif' %}<i class="fas fa-layer-group"></i>
-                                {% elif field.name == 'id_classe_active' %}<i class="fas fa-chalkboard"></i>
-                                {% elif field.name == 'id_eleve' %}<i class="fas fa-user-graduate"></i>
-                                {% elif field.name == 'id_trimestre' %}<i class="fas fa-calendar-alt"></i>
-                                {% elif field.name == 'id_periode' %}<i class="fas fa-clock"></i>
-                                {% elif field.name == 'id_session' %}<i class="fas fa-tasks"></i>
-                                {% elif field.name == 'id_type_note' %}<i class="fas fa-star"></i>
-                                {% elif field.name == 'id_cours_classe' %}<i class="fas fa-book"></i>
-                                {% elif field.name == 'id_evaluation' %}<i class="fas fa-file-alt"></i>
-                                {% else %}<i class="fas fa-list"></i>{% endif %}
-                            </span>
-                            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label
-                                }}</label>
-                            {% render_field field class="form-control" placeholder=field.label %}
-                        </div>
-                    </div>
+                    <div class="form-group"><div class="icon-field"><span class="field-icon">{% if field.name == 'id_annee' %}<i class="fas fa-calendar"></i>{% elif field.name == 'id_campus' %}<i class="fas fa-school"></i>{% elif field.name == 'id_cycle_actif' %}<i class="fas fa-layer-group"></i>{% elif field.name == 'id_classe_active' %}<i class="fas fa-chalkboard"></i>{% elif field.name == 'id_eleve' %}<i class="fas fa-user-graduate"></i>{% elif field.name == 'id_trimestre' %}<i class="fas fa-calendar-alt"></i>{% elif field.name == 'id_periode' %}<i class="fas fa-clock"></i>{% elif field.name == 'id_session' %}<i class="fas fa-tasks"></i>{% elif field.name == 'id_type_note' %}<i class="fas fa-star"></i>{% elif field.name == 'id_cours_classe' %}<i class="fas fa-book"></i>{% elif field.name == 'id_evaluation' %}<i class="fas fa-file-alt"></i>{% else %}<i class="fas fa-list"></i>{% endif %}</span><label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>{% render_field field class="form-control" placeholder=field.label %}</div></div>
                     {% endfor %}
                 </div>
-                <div style="display:none;" class="form-actions">
-                    <button type="button" class="btn btn-cancel" id="cancelBtn">➡️ Continuer</button>
-                </div>
-
+                <div style="display:none;" class="form-actions"><button type="button" class="btn btn-cancel" id="cancelBtn">➡️ Continuer</button></div>
                 {% elif form_type == 'select_form_repechag' %}
                 <h2><span class="h2-icon"><i class="fas fa-redo"></i></span> Repêchage</h2>
                 {% if form_select_repechag.non_form_errors %}<div class="alert alert-danger" style="border-radius:8px;font-size:.78rem;">{{ form_select_repechag.non_form_errors }}</div>{% endif %}
-                    <div class="form-group">
-                        <div class="icon-field">
-                            <span class="field-icon">
-                                {% if field.name == 'id_annee' %}<i class="fas fa-calendar"></i>
-                                {% elif field.name == 'id_campus' %}<i class="fas fa-school"></i>
-                                {% elif field.name == 'id_cycle_actif' %}<i class="fas fa-layer-group"></i>
-                                {% elif field.name == 'id_classe_active' %}<i class="fas fa-chalkboard"></i>
-                                {% elif field.name == 'id_eleve' %}<i class="fas fa-user-graduate"></i>
-                                {% elif field.name == 'id_trimestre' %}<i class="fas fa-calendar-alt"></i>
-                                {% elif field.name == 'id_periode' %}<i class="fas fa-clock"></i>
-                                {% elif field.name == 'id_session' %}<i class="fas fa-tasks"></i>
-                                {% elif field.name == 'id_type_note' %}<i class="fas fa-star"></i>
-                                {% elif field.name == 'id_cours_classe' %}<i class="fas fa-book"></i>
-                                {% else %}<i class="fas fa-list"></i>{% endif %}
-                            </span>
-                            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label
-                                }}</label>
-                            {% render_field field class="form-control" placeholder=field.label %}
-                        </div>
-                    </div>
+                <div class="form-row">
+                    {% for field in form_select_repechag %}
+                    <div class="form-group"><div class="icon-field"><span class="field-icon">{% if field.name == 'id_annee' %}<i class="fas fa-calendar"></i>{% elif field.name == 'id_campus' %}<i class="fas fa-school"></i>{% elif field.name == 'id_cycle_actif' %}<i class="fas fa-layer-group"></i>{% elif field.name == 'id_classe_active' %}<i class="fas fa-chalkboard"></i>{% elif field.name == 'id_eleve' %}<i class="fas fa-user-graduate"></i>{% elif field.name == 'id_trimestre' %}<i class="fas fa-calendar-alt"></i>{% elif field.name == 'id_periode' %}<i class="fas fa-clock"></i>{% elif field.name == 'id_session' %}<i class="fas fa-tasks"></i>{% elif field.name == 'id_type_note' %}<i class="fas fa-star"></i>{% elif field.name == 'id_cours_classe' %}<i class="fas fa-book"></i>{% else %}<i class="fas fa-list"></i>{% endif %}</span><label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>{% render_field field class="form-control" placeholder=field.label %}</div></div>
                     {% endfor %}
                 </div>
-                <div style="display:none;" class="form-actions">
-                    <button type="button" class="btn btn-cancel" id="cancelBtn">➡️ Continuer</button>
-                </div>
+                <div style="display:none;" class="form-actions"><button type="button" class="btn btn-cancel" id="cancelBtn">➡️ Continuer</button></div>
                 {% endif %}
             </form>
         </div>
     </div>
-    <div class="table-container">
-        <!-- =============== Telechargement des fiches des notes -->
-        <div id="table-download-btn" style="display: none;" class="col-md-12">
-            <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
-                <div class="table-header">
-                    <h3>Téléchargement d'une fiche des notes</h3>
-                </div>
-                <div class="card-body">
-                    <button style="display: none;" class="btn btn-success">AJouter</button>
-                    <div class="table-responsive">
-                        <div style="text-align: center; margin-bottom: 10px;">
-                            <form id="downloadForm" action="/generate_excel/" method="get">
-                                <input type="hidden" name="id_annee" id="form_id_annee">
-                                <input type="hidden" name="id_campus" id="form_id_campus">
-                                <input type="hidden" name="id_cycle" id="form_id_cycle">
-                                <input type="hidden" name="id_classe" id="form_id_classe">
-                                <input type="hidden" name="id_cours" id="form_id_cours">
-                                <input type="hidden" name="id_type_note" id="form_id_type_note">
-                                <input type="hidden" name="id_trimestre" id="form_id_trimestre">
-                                <input type="hidden" name="id_periode" id="form_id_periode">
-                                <input type="hidden" name="id_session" id="form_id_session">
-                                <input type="hidden" name="id_evaluation" id="form_id_evaluation">
-                                <button id="downloadBtn" type="submit" style="font-size: 40px; 
+<div class="table-container">
+    <!-- =============== Telechargement des fiches des notes -->
+    <div id="table-download-btn" style="display: none;" class="col-md-12">
+        <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+            <div class="table-header">
+                <h3>Téléchargement d'une fiche des notes</h3>
+            </div>
+            <div class="card-body">
+                <button style="display: none;" class="btn btn-success">AJouter</button>
+                <div class="table-responsive">
+                    <div style="text-align: center; margin-bottom: 10px;">
+                        <form id="downloadForm" action="/generate_excel/" method="get">
+                            <input type="hidden" name="id_annee" id="form_id_annee">
+                            <input type="hidden" name="id_campus" id="form_id_campus">
+                            <input type="hidden" name="id_cycle" id="form_id_cycle">
+                            <input type="hidden" name="id_classe" id="form_id_classe">
+                            <input type="hidden" name="id_cours" id="form_id_cours">
+                            <input type="hidden" name="id_type_note" id="form_id_type_note">
+                            <input type="hidden" name="id_trimestre" id="form_id_trimestre">
+                            <input type="hidden" name="id_periode" id="form_id_periode">
+                            <input type="hidden" name="id_session" id="form_id_session">
+                            <input type="hidden" name="id_evaluation" id="form_id_evaluation">
+                            <button id="downloadBtn" type="submit" style="font-size: 40px; 
                                             background: none; 
                                             border: none; 
                                             cursor: pointer;" title="Télécharger les données">
-                                    ⬇️
-                                </button>
-                            </form>
-                        </div>
+                                ⬇️
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- =============== importation des notes :  -->
-        {% if notes_form %}
-        <div class="card-body">
-            <div class="table-header">
-                <h3></h3>
-            </div>
-            <div class="table-responsive">
-                <form method="POST" enctype="multipart/form-data" action="{% url 'import_file_note' %}">
-                    {% csrf_token %}
-                    <label for="excel_file" style="font-style: italic;">📂 Sélectionner un fichier Excel(.xlsx)
-                        :</label>
-                    <input type="file" name="file" class="form-control" required>
-                    <br>
-                    <br>
-                    <br>
-                    <center><button type="submit" class="btn btn-success">
-                            <i class="fas fa-upload"></i>Cliquer ici pour importer
-                        </button></center>
-                </form>
-
-            </div>
-        </div>
-        {% endif %}
-        {% if note_type_list %}
-        <div class="col-md-12">
-            <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
-                <div class="table-header">
-                    <h3>Informations sur les cours créees</h3>
-                </div>
-                <div class="card-body">
-                    <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
-                        data-bs-target="#coursCycleModal"></button>
-                    <div class="table-responsive">
-                        <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
-                            <thead class="bg-primary text-white">
-                                <tr>
-
-                                    <th>Type de note</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            {% for note in note_type_list %}
-                            <tbody>
-
-                                <tr class="align-middle">
-                                    <td class="fw-bold text-primary text-start">{{ note.type }}
-
-                                    <td>
-                                        <a href="#" class="btn btn-sm btn-outline-primary me-2 edit-btn-class">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <a href="#" class="btn btn-sm btn-outline-danger">
-                                            <i class="fas fa-trash"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                            </tbody>
-                            {% endfor %}
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-        <!-- ============session displaying -->
-        {% if session_list %}
-        <div class="col-md-12">
-            <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
-                <div class="table-header">
-                    <h3>Informations sur les sessions créees</h3>
-                </div>
-                <div class="card-body">
-                    <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
-                        data-bs-target="#coursCycleModal"></button>
-                    <div class="table-responsive">
-                        <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
-                            <thead class="bg-primary text-white">
-                                <tr>
-
-                                    <th>Session</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for session in session_list %}
-                                <tr>
-                                    <td>{{ session.session }}</td>
-                                    <td>
-                                        <button class="btn btn-primary edit-btn-session" data-bs-toggle="modal"
-                                            data-bs-target="#editSessionModal"
-                                            data-session-id="{{ session.id_session }}"
-                                            data-session="{{ session.session }}">
-                                            Modifier
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-        <!-- ============ Mention displaying -->
-        {% if mentions %}
-        <div class="col-md-12">
-            <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
-                <div class="table-header">
-                    <h3>Informations sur les mentions créees</h3>
-                </div>
-                <div class="card-body">
-                    <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
-                        data-bs-target="#coursCycleModal"></button>
-                    <div class="table-responsive">
-                        <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
-                            <thead class="bg-primary text-white">
-                                <tr>
-
-                                    <th>Mention</th>
-                                    <th>Abréviations</th>
-                                    <th>Minimum</th>
-                                    <th>Maximum</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for mention in mentions %}
-                                <tr>
-                                    <td>{{ mention.mention }}</td>
-                                    <td>{{ mention.abbreviation }}</td>
-                                    <td>{{ mention.min|floatformat:0 }}</td>
-                                    <td>{{ mention.max|floatformat:0}}</td>
-                                    <td>
-                                        <button class="btn btn-primary edit-btn-mention" data-bs-toggle="modal"
-                                            data-bs-target="#editMentionModal"
-                                            data-mention-id="{{ mention.id_mention }}"
-                                            data-mention="{{ mention.mention }}"
-                                            data-abbreviation="{{ mention.abbreviation }}" data-min="{{ mention.min }}"
-                                            data-max="{{ mention.max }}">
-                                            Modifier
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- ============ Mentionplaying -->
-        {% if type_deliberat_list %}
-        <div class="col-md-12">
-            <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
-                <div class="table-header">
-                    <h3>Informations sur les types de délibération</h3>
-                </div>
-                <div class="card-body">
-                    <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
-                        data-bs-target="#coursCycleModal"></button>
-                    <div class="table-responsive">
-                        <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
-                            <thead class="bg-primary text-white">
-                                <tr>
-                                    <th>Type de déliberation</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for deliberation_type in type_deliberat_list %}
-                                <tr>
-                                    <td>{{ deliberation_type.type }}</td>
-                                    <td>
-                                        <button class="btn btn-primary edit-btn-deliberation-type"
-                                            data-bs-toggle="modal" data-bs-target="#editDeliberationTypeModal"
-                                            data-deliberation-type-id="{{ deliberation_type.id_deliberation_type }}"
-                                            data-type="{{ deliberation_type.type }}">
-                                            Modifier
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-
-        {% if finalit_deliberat_list %}
-        <div class="col-md-12">
-            <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
-                <div class="table-header">
-                    <h3>Informations sur les finalités créees</h3>
-                </div>
-                <div class="card-body">
-                    <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
-                        data-bs-target="#coursCycleModal"></button>
-                    <div class="table-responsive">
-                        <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
-                            <thead>
-                                <tr>
-                                    <th>Finalité</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for finalite in finalit_deliberat_list %}
-                                <tr>
-                                    <td>{{ finalite.finalite }}</td>
-                                    <td>
-                                        <button class="btn btn-primary edit-btn-finalite" data-bs-toggle="modal"
-                                            data-bs-target="#editFinaliteModal"
-                                            data-finalite-id="{{ finalite.id_finalite }}"
-                                            data-finalite="{{ finalite.finalite }}">
-                                            Modifier
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-
-        {% if condit_deliberat_list %}
-        <div class="col-md-12">
-            <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
-                <div class="table-header">
-                    <h3>Informations sur les conditions de délibération</h3>
-                </div>
-                <div class="card-body">
-                    <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
-                        data-bs-target="#coursCycleModal"></button>
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover text-center shadow-sm">
-                            <thead>
-                                <tr>
-                                    <th>Année</th>
-                                    <th>Campus</th>
-                                    <th>Cycle</th>
-                                    <th>Classe</th>
-                                    <th>Finalité</th>
-                                    <th>Décision</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for condition in condit_deliberat_list %}
-                                <tr>
-                                    <td>{{ condition.id_annee }}</td>
-                                    <td>{{ condition.id_campus }}</td>
-                                    <td>{{ condition.id_cycle }}</td>
-                                    <td>{{ condition.id_classe }}</td>
-                                    <td>{{ condition.id_finalite }}</td>
-                                    <td>{{ condition.decision }}</td>
-                                    <td>
-                                        <button class="btn btn-primary edit-btn-condition" data-bs-toggle="modal"
-                                            data-bs-target="#editConditionModal"
-                                            data-id-decision="{{ condition.id_decision }}"
-                                            data-id-annee="{{ condition.id_annee_id }}"
-                                            data-id-campus="{{ condition.id_campus_id }}"
-                                            data-id-cycle="{{ condition.id_cycle_id }}"
-                                            data-id-classe="{{ condition.id_classe_id }}"
-                                            data-id-finalite="{{ condition.id_finalite_id }}"
-                                            data-pourcentage-requis-reussite="{{ condition.pourcentage_requis_reussite }}"
-                                            data-max-echecs-acceptable="{{ condition.max_echecs_acceptable }}"
-                                            data-seuil-profondeur-echec="{{ condition.seuil_profondeur_echec }}"
-                                            data-decision="{{ condition.decision }}" data-sigle="{{ condition.sigle }}"
-                                            data-sanction-disciplinaire="{{ condition.sanction_disciplinaire }}">
-                                            Modifier
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="7">Aucune condition enregistrée.</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-
     </div>
-    <!--=================== Tableau amélioré pour servir l'affichage! -->
-    <div class="table-container">
-        {% if cours_by_cycle %}
-        <div class="col-md-12">
-            <div class="card shadow-sm" style="background-color: #f4f4f4; max-height: 600px; overflow-y: auto;">
-                <div class="table-header p-3 bg-dark text-white rounded-top">
-                    <h3 class="mb-0">📚 Les cours que vous dispensez </h3>
-                </div>
-                <div class="card-body">
+    <!-- =============== importation des notes :  -->
+    {% if notes_form %}
+    <div class="card-body">
+        <div class="table-header">
+            <h3></h3>
+        </div>
+        <div class="table-responsive">
+            <form method="POST" enctype="multipart/form-data" action="{% url 'import_file_note' %}">
+                {% csrf_token %}
+                <label for="excel_file" style="font-style: italic;">📂 Sélectionner un fichier Excel(.xlsx)
+                    :</label>
+                <input type="file" name="file" class="form-control" required>
+                <br>
+                <br>
+                <br>
+                <center><button type="submit" class="btn btn-success">
+                        <i class="fas fa-upload"></i>Cliquer ici pour importer
+                    </button></center>
+            </form>
 
-                    {% for cycle, cours_list in cours_by_cycle.items %}
-                    <h5 class="text-primary mt-4">{{ cycle }}</h5>
-                    <div class="horizontal-scroll">
-                        {% for cours in cours_list %}
-                        <div class="course-card">
-                            <h6 class="course-title">{{ cours.cours }}</h6>
-                            <p class="course-info">Enseigné en : {{ cours.classe }}</p>
-                            <p class="course-info">Heures/sem : {{ cours.heures_par_semaine }}h</p>
-                            <span class="badge 
+        </div>
+    </div>
+    {% endif %}
+    {% if note_type_list %}
+    <div class="col-md-12">
+        <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+            <div class="table-header">
+                <h3>Informations sur les cours créees</h3>
+            </div>
+            <div class="card-body">
+                <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
+                    data-bs-target="#coursCycleModal"></button>
+                <div class="table-responsive">
+                    <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                        <thead class="bg-primary text-white">
+                            <tr>
+
+                                <th>Type de note</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        {% for note in note_type_list %}
+                        <tbody>
+
+                            <tr class="align-middle">
+                                <td class="fw-bold text-primary text-start">{{ note.type }}
+
+                                <td>
+                                    <a href="#" class="btn btn-sm btn-outline-primary me-2 edit-btn-class">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="#" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        </tbody>
+                        {% endfor %}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <!-- ============session displaying -->
+    {% if session_list %}
+    <div class="col-md-12">
+        <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+            <div class="table-header">
+                <h3>Informations sur les sessions créees</h3>
+            </div>
+            <div class="card-body">
+                <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
+                    data-bs-target="#coursCycleModal"></button>
+                <div class="table-responsive">
+                    <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                        <thead class="bg-primary text-white">
+                            <tr>
+
+                                <th>Session</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for session in session_list %}
+                            <tr>
+                                <td>{{ session.session }}</td>
+                                <td>
+                                    <button class="btn btn-primary edit-btn-session" data-bs-toggle="modal"
+                                        data-bs-target="#editSessionModal" data-session-id="{{ session.id_session }}"
+                                        data-session="{{ session.session }}">
+                                        Modifier
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <!-- ============ Mention displaying -->
+    {% if mentions %}
+    <div class="col-md-12">
+        <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+            <div class="table-header">
+                <h3>Informations sur les mentions créees</h3>
+            </div>
+            <div class="card-body">
+                <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
+                    data-bs-target="#coursCycleModal"></button>
+                <div class="table-responsive">
+                    <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                        <thead class="bg-primary text-white">
+                            <tr>
+
+                                <th>Mention</th>
+                                <th>Abréviations</th>
+                                <th>Minimum</th>
+                                <th>Maximum</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mention in mentions %}
+                            <tr>
+                                <td>{{ mention.mention }}</td>
+                                <td>{{ mention.abbreviation }}</td>
+                                <td>{{ mention.min|floatformat:0 }}</td>
+                                <td>{{ mention.max|floatformat:0}}</td>
+                                <td>
+                                    <button class="btn btn-primary edit-btn-mention" data-bs-toggle="modal"
+                                        data-bs-target="#editMentionModal" data-mention-id="{{ mention.id_mention }}"
+                                        data-mention="{{ mention.mention }}"
+                                        data-abbreviation="{{ mention.abbreviation }}" data-min="{{ mention.min }}"
+                                        data-max="{{ mention.max }}">
+                                        Modifier
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ============ Mentionplaying -->
+    {% if type_deliberat_list %}
+    <div class="col-md-12">
+        <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
+            <div class="table-header">
+                <h3>Informations sur les types de délibération</h3>
+            </div>
+            <div class="card-body">
+                <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
+                    data-bs-target="#coursCycleModal"></button>
+                <div class="table-responsive">
+                    <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                        <thead class="bg-primary text-white">
+                            <tr>
+                                <th>Type de déliberation</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for deliberation_type in type_deliberat_list %}
+                            <tr>
+                                <td>{{ deliberation_type.type }}</td>
+                                <td>
+                                    <button class="btn btn-primary edit-btn-deliberation-type" data-bs-toggle="modal"
+                                        data-bs-target="#editDeliberationTypeModal"
+                                        data-deliberation-type-id="{{ deliberation_type.id_deliberation_type }}"
+                                        data-type="{{ deliberation_type.type }}">
+                                        Modifier
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if finalit_deliberat_list %}
+    <div class="col-md-12">
+        <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+            <div class="table-header">
+                <h3>Informations sur les finalités créees</h3>
+            </div>
+            <div class="card-body">
+                <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
+                    data-bs-target="#coursCycleModal"></button>
+                <div class="table-responsive">
+                    <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                        <thead>
+                            <tr>
+                                <th>Finalité</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for finalite in finalit_deliberat_list %}
+                            <tr>
+                                <td>{{ finalite.finalite }}</td>
+                                <td>
+                                    <button class="btn btn-primary edit-btn-finalite" data-bs-toggle="modal"
+                                        data-bs-target="#editFinaliteModal"
+                                        data-finalite-id="{{ finalite.id_finalite }}"
+                                        data-finalite="{{ finalite.finalite }}">
+                                        Modifier
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if condit_deliberat_list %}
+    <div class="col-md-12">
+        <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
+            <div class="table-header">
+                <h3>Informations sur les conditions de délibération</h3>
+            </div>
+            <div class="card-body">
+                <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
+                    data-bs-target="#coursCycleModal"></button>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover text-center shadow-sm">
+                        <thead>
+                            <tr>
+                                <th>Année</th>
+                                <th>Campus</th>
+                                <th>Cycle</th>
+                                <th>Classe</th>
+                                <th>Finalité</th>
+                                <th>Décision</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for condition in condit_deliberat_list %}
+                            <tr>
+                                <td>{{ condition.id_annee }}</td>
+                                <td>{{ condition.id_campus }}</td>
+                                <td>{{ condition.id_cycle }}</td>
+                                <td>{{ condition.id_classe }}</td>
+                                <td>{{ condition.id_finalite }}</td>
+                                <td>{{ condition.decision }}</td>
+                                <td>
+                                    <button class="btn btn-primary edit-btn-condition" data-bs-toggle="modal"
+                                        data-bs-target="#editConditionModal"
+                                        data-id-decision="{{ condition.id_decision }}"
+                                        data-id-annee="{{ condition.id_annee_id }}"
+                                        data-id-campus="{{ condition.id_campus_id }}"
+                                        data-id-cycle="{{ condition.id_cycle_id }}"
+                                        data-id-classe="{{ condition.id_classe_id }}"
+                                        data-id-finalite="{{ condition.id_finalite_id }}"
+                                        data-pourcentage-requis-reussite="{{ condition.pourcentage_requis_reussite }}"
+                                        data-max-echecs-acceptable="{{ condition.max_echecs_acceptable }}"
+                                        data-seuil-profondeur-echec="{{ condition.seuil_profondeur_echec }}"
+                                        data-decision="{{ condition.decision }}" data-sigle="{{ condition.sigle }}"
+                                        data-sanction-disciplinaire="{{ condition.sanction_disciplinaire }}">
+                                        Modifier
+                                    </button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7">Aucune condition enregistrée.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+<!--=================== Tableau amélioré pour servir l'affichage! -->
+<div class="table-container">
+    {% if cours_by_cycle %}
+    <div class="col-md-12">
+        <div class="card shadow-sm" style="background-color: #f4f4f4; max-height: 600px; overflow-y: auto;">
+            <div class="table-header p-3 bg-dark text-white rounded-top">
+                <h3 class="mb-0">📚 Les cours que vous dispensez </h3>
+            </div>
+            <div class="card-body">
+
+                {% for cycle, cours_list in cours_by_cycle.items %}
+                <h5 class="text-primary mt-4">{{ cycle }}</h5>
+                <div class="horizontal-scroll">
+                    {% for cours in cours_list %}
+                    <div class="course-card">
+                        <h6 class="course-title">{{ cours.cours }}</h6>
+                        <p class="course-info">Enseigné en : {{ cours.classe }}</p>
+                        <p class="course-info">Heures/sem : {{ cours.heures_par_semaine }}h</p>
+                        <span class="badge 
                                                     {% if cours.etat == 'Actif' %}bg-success
                                                     {% elif cours.etat == 'En attente' %}bg-warning text-dark
                                                     {% elif cours.etat == 'Archivé' %}bg-secondary
                                                     {% else %}bg-info
                                                     {% endif %}">Etat du cours : {{ cours.etat }}
-                            </span>
-                        </div>
-                        {% endfor %}
+                        </span>
                     </div>
                     {% endfor %}
-
-
                 </div>
+                {% endfor %}
+
+
             </div>
         </div>
-        {% endif %}
-        <!-- =========================reclammations sectionns -->
-        <div class="col-md-12 hidden" id="evaluationsSection">
-            <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
-                <div class="table-header">
-                    <h3>Informations sur les évaluations</h3>
-                </div>
-                <div class="card-body">
-                    <button style="display:none" class="btn btn-success mb-3" onclick="enableEditing()">Éditer les
-                        évaluations</button>
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover text-center" id="evaluationsTable">
-                            <thead class="thead-dark">
-                                <tr>
-                                    <th>Cours</th>
-                                    <th>Evaluation/Type</th>
-                                    <th>Title evaluation</th>
-                                    <th>Note</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="evaluationsTbody">
-                                <!-- Les lignes seront ajoutées dynamiquement -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+    </div>
+    {% endif %}
+    <!-- =========================reclammations sectionns -->
+    <div class="col-md-12 hidden" id="evaluationsSection">
+        <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
+            <div class="table-header">
+                <h3>Informations sur les évaluations</h3>
             </div>
-        </div>
-        <!-- =========================repechages sections -->
-        <div class="col-md-12 hidden" id="repechageSection">
-            <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
-                <div class="table-header">
-                    <h3>Informations sur les rêpechâges de l'élève <strong>{{nom}} {{prenom}}</strong> </h3>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover text-center" id="repechageTable">
-                            <thead class="thead-dark">
-                                <tr>
-                                    <th>Cours</th>
-                                    <th>Note</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="repechageTbody">
-                                <!-- Les lignes seront ajoutées dynamiquement -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- =========================Fiches desnotes sectionns -->
-        {% comment %} <div class="col-md-12 hidden" id="AffichageNote">
-            <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
-                <div class="table-header">
-                    <h3>Fiche des points</h3>
-                </div>
-                <div class="card-body">
-                    <button style="display:none" class="btn btn-success mb-3" onclick="enableEditing()">Éditer les
-                        évaluations</button>
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover text-center" id="evaluationsTable">
-                            <thead class="thead-dark">
-                                <tr>
-                                    <th>Nom et prenom</th>
-                                    <th>Type</th>
-                                    <th>Title evaluation</th>
-                                    <th>Total</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="AffichageNoteTbody">
-                                <!-- Les lignes seront ajoutées dynamiquement -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div> {% endcomment %}
-
-        <div class="col-md-12 hidden" id="AffichageNote">
-            <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
-                <div class="table-header">
-                    <h3>Fiche des points</h3>
-                    <button class="btn btn-primary mb-3" onclick="generatePDF()">Exporter les notes</button>
-                </div>
-                <div class="card-body">
-                    <button style="display:none" class="btn btn-success mb-3" onclick="enableEditing()">Éditer les
-                        évaluations</button>
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover text-center" id="evaluationsTable">
-                            <thead class="thead-dark">
-                                <tr>
-                                    <th>Nom et prenom</th>
-                                    <!-- Colonnes dynamiques -->
-                                    <th>Note</th>
-                                    <th>Title</th>
-                                    <th>Total</th>
-                                </tr>
-                            </thead>
-                            <tbody id="AffichageNoteTbody">
-                                <!-- Les lignes seront ajoutées dynamiquement -->
-                            </tbody>
-                        </table>
-                    </div>
+            <div class="card-body">
+                <button style="display:none" class="btn btn-success mb-3" onclick="enableEditing()">Éditer les
+                    évaluations</button>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover text-center" id="evaluationsTable">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th>Cours</th>
+                                <th>Evaluation/Type</th>
+                                <th>Title evaluation</th>
+                                <th>Note</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="evaluationsTbody">
+                            <!-- Les lignes seront ajoutées dynamiquement -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
+    <!-- =========================repechages sections -->
+    <div class="col-md-12 hidden" id="repechageSection">
+        <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
+            <div class="table-header">
+                <h3>Informations sur les rêpechâges de l'élève <strong>{{nom}} {{prenom}}</strong> </h3>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover text-center" id="repechageTable">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th>Cours</th>
+                                <th>Note</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="repechageTbody">
+                            <!-- Les lignes seront ajoutées dynamiquement -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================Fiches desnotes sectionns -->
+    {% comment %} <div class="col-md-12 hidden" id="AffichageNote">
+        <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
+            <div class="table-header">
+                <h3>Fiche des points</h3>
+            </div>
+            <div class="card-body">
+                <button style="display:none" class="btn btn-success mb-3" onclick="enableEditing()">Éditer les
+                    évaluations</button>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover text-center" id="evaluationsTable">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th>Nom et prenom</th>
+                                <th>Type</th>
+                                <th>Title evaluation</th>
+                                <th>Total</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="AffichageNoteTbody">
+                            <!-- Les lignes seront ajoutées dynamiquement -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div> {% endcomment %}
+
+    <div class="col-md-12 hidden" id="AffichageNote">
+        <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
+            <div class="table-header">
+                <h3>Fiche des points</h3>
+                <button class="btn btn-primary mb-3" onclick="generatePDF()">Exporter les notes</button>
+            </div>
+            <div class="card-body">
+                <button style="display:none" class="btn btn-success mb-3" onclick="enableEditing()">Éditer les
+                    évaluations</button>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover text-center" id="evaluationsTable">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th>Nom et prenom</th>
+                                <!-- Colonnes dynamiques -->
+                                <th>Note</th>
+                                <th>Title</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="AffichageNoteTbody">
+                            <!-- Les lignes seront ajoutées dynamiquement -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 </div><!-- close zp-workspace -->
 
