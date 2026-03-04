@@ -800,7 +800,7 @@
             <input type="text" placeholder="Rechercher..." id="globalSearchInput">
         </div>
 
-        <!-- User Identity -->
+        <!-- User Identity + Module Switcher (merged) -->
         <div class="user-identity">
             <div class="user-info-col">
                 <span class="user-name">{{ last_name|default:"Utilisateur" }}</span>
@@ -811,14 +811,72 @@
                     aria-expanded="false" style="text-decoration: none; border: none;">
                     {{ last_name|first|default:"U" }}
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end user-dropdown-menu" aria-labelledby="userDropdown">
-                    <li><span class="dropdown-item-text small text-muted">{{ last_name|default:"Utilisateur" }}</span>
+                <ul class="dropdown-menu dropdown-menu-end user-dropdown-menu" aria-labelledby="userDropdown"
+                    style="min-width: 240px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); padding: 8px;">
+                    <!-- User Info -->
+                    <li class="px-3 py-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <div
+                                style="width:36px; height:36px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius:8px; display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:0.85rem;">
+                                {{ last_name|first|default:"U" }}
+                            </div>
+                            <div>
+                                <div style="font-weight:600; font-size:0.85rem; color:#1e293b;">{{
+                                    last_name|default:"Utilisateur" }}</div>
+                                <div style="font-size:0.7rem; color:#94a3b8;">Connecté</div>
+                            </div>
+                        </div>
                     </li>
                     <li>
-                        <hr class="dropdown-divider">
+                        <hr class="dropdown-divider my-1">
                     </li>
-                    <li><a class="dropdown-item" href="{% url 'log_out' %}"><i
-                                class="fas fa-sign-out-alt me-2"></i>Déconnexion</a></li>
+                    <!-- Modules -->
+                    {% if modules %}
+                    <li><span class="dropdown-header"
+                            style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.5px; color:#94a3b8;">Mes
+                            modules</span></li>
+                    {% for mod in modules %}
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url mod.url_name %}"
+                            style="border-radius: 8px; font-size: 0.82rem;">
+                            {% if mod.module == "Administration" %}
+                            <i class="fas fa-cog" style="color:#f472b6; width:18px; text-align:center;"></i>
+                            {% elif mod.module == "Inscription" %}
+                            <i class="fas fa-user-graduate" style="color:#2dd4bf; width:18px; text-align:center;"></i>
+                            {% elif mod.module == "Enseignement" %}
+                            <i class="fas fa-chalkboard-teacher"
+                                style="color:#fb923c; width:18px; text-align:center;"></i>
+                            {% elif mod.module == "Evaluation" %}
+                            <i class="fas fa-clipboard-check" style="color:#a78bfa; width:18px; text-align:center;"></i>
+                            {% elif mod.module == "Recouvrement" %}
+                            <i class="fas fa-cash-register" style="color:#34d399; width:18px; text-align:center;"></i>
+                            {% elif mod.module == "Bibliotheque" %}
+                            <i class="fas fa-book" style="color:#fbbf24; width:18px; text-align:center;"></i>
+                            {% elif mod.module == "Direction" %}
+                            <i class="fas fa-home" style="color:#60a5fa; width:18px; text-align:center;"></i>
+                            {% elif mod.module == "Institeur et son Espace" %}
+                            <i class="fas fa-user-tie" style="color:#2dd4bf; width:18px; text-align:center;"></i>
+                            {% elif mod.module == "Archive" %}
+                            <i class="fas fa-archive" style="color:#60a5fa; width:18px; text-align:center;"></i>
+                            {% else %}
+                            <i class="fas fa-cube" style="color:#94a3b8; width:18px; text-align:center;"></i>
+                            {% endif %}
+                            <span>{{ mod.module }}</span>
+                        </a>
+                    </li>
+                    {% endfor %}
+                    <li>
+                        <hr class="dropdown-divider my-1">
+                    </li>
+                    {% endif %}
+                    <!-- Logout -->
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'log_out' %}"
+                            style="border-radius: 8px; font-size: 0.82rem; color: #ef4444;">
+                            <i class="fas fa-sign-out-alt" style="width:18px; text-align:center;"></i>
+                            <span>Déconnexion</span>
+                        </a>
+                    </li>
                 </ul>
             </div>
         </div>

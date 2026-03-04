@@ -1,0 +1,707 @@
+
+from .delib_an_tools import *
+from .repechage import (build_table_data_for_eleve,
+                        get_all_repechage_courses_on_fields,
+                        get_repechage_courses_for_pupil_util,
+                        )
+
+import logging
+from MonEcole_app.views.decorators.decorators import module_required
+
+logger = logging.getLogger(__name__)
+
+
+
+def format_place(rank, sexe):
+    if rank == 1:
+        return '1ère' if sexe == 'F' else '1er'
+    elif rank == 2:
+        return '2ème'
+    elif rank == 3:
+        return '3ème'
+    else:
+        return f"{rank}ème"
+
+def determiner_mention(pourcentage):
+    mentions = Mention.objects.all()
+    for mention in mentions:
+        if mention.min <= pourcentage <= mention.max:
+            return mention
+    return None
+
+def determiner_decision(pourcentage, echecs, id_annee, id_campus, id_cycle, id_classe):   
+    conditions = Deliberation_annuelle_condition.objects.filter(
+        id_annee_id=id_annee,
+        id_campus_id=id_campus,
+        id_cycle_id=id_cycle,
+        id_classe_id=id_classe
+    ).select_related('id_finalite', 'id_mention')
+
+    if not conditions.exists():
+        return None
+
+    mention = determiner_mention(pourcentage)
+    if not mention:
+        return None 
+    decision_valide = None
+    for condition in conditions:
+        if condition.id_mention != mention:
+            continue
+
+        if not decision_valide or condition.id_finalite.droit_avancement:
+            decision_valide = condition    
+    return decision_valide
+
+def finalize_table_data_deliberation(table_data, ligne_idx, id_eleve, id_annee, id_campus, id_cycle, id_classe):
+    total_index = None
+    for i, row in enumerate(table_data):
+        if row[0] == 'Total':
+            total_index = i
+            break
+    if total_index is None:
+        table_data.append(['Total', ''] + ['-'] * 16 + [''])
+        total_index = len(table_data) - 1
+
+    table_data.extend([
+        ['%', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        ['Place', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+    ])
+
+    total_notes_obtenues = 0
+    total_max_tot_annee = 0
+    cours_inclus = []
+
+    # Calculer les sommes verticales pour c5-c13
+    col_sums = {5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0, 13: 0}
+    for row in table_data[2:]:
+        if row[0] in ['Total', '%', 'Place']:
+            continue
+        notes_obtenues = 0
+        try:
+            max_tot = int(float(row[4])) if row[4] != '-' else 0
+            max_tot_annee = max_tot * 3
+        except (ValueError, TypeError):
+            max_tot_annee = 0
+
+        for col_idx in [5, 6, 8, 9, 11, 12]:
+            try:
+                note = int(float(row[col_idx])) if row[col_idx] != '-' else 0
+                notes_obtenues += note
+                col_sums[col_idx] += note
+                row[col_idx] = {"value": str(note) if note > 0 else '0', "highlight": False}
+            except (ValueError, TypeError):
+                row[col_idx] = {"value": '-', "highlight": False}
+        for col_idx in [7, 10, 13]:
+            try:
+                note = int(float(row[col_idx])) if row[col_idx] != '-' else 0
+                col_sums[col_idx] += note
+                highlight = max_tot > 0 and note < max_tot / 2
+                row[col_idx] = {"value": str(note) if note > 0 else '0', "highlight": highlight}
+            except (ValueError, TypeError):
+                row[col_idx] = {"value": '-', "highlight": False}
+
+        total_notes_obtenues += notes_obtenues
+        total_max_tot_annee += max_tot_annee
+        cours_nom = row[1] or row[0]
+        cours_inclus.append(cours_nom)
+
+        # Colonne 15 : Somme des notes obtenues
+        try:
+            highlight = max_tot_annee > 0 and notes_obtenues < max_tot_annee / 2
+            row[15] = {"value": str(notes_obtenues) if notes_obtenues > 0 else '0', "highlight": highlight}
+        except (ValueError, TypeError):
+            row[15] = {"value": '-', "highlight": False}
+
+        # Colonne 16 : Pourcentage par cours
+        try:
+            if max_tot_annee > 0:
+                cours_percentage = (notes_obtenues * 100) / max_tot_annee
+                highlight = cours_percentage < 50
+                row[16] = {"value": f"{cours_percentage:.2f}%", "highlight": highlight}
+            else:
+                row[16] = {"value": '-', "highlight": False}
+        except (ValueError, TypeError):
+            row[16] = {"value": '-', "highlight": False}
+
+    # Mettre à jour la ligne Total
+    try:
+        table_data[total_index][14] = {"value": str(total_max_tot_annee) if total_max_tot_annee > 0 else '0', "highlight": False}
+        table_data[total_index][15] = {"value": str(total_notes_obtenues) if total_notes_obtenues > 0 else '0', "highlight": False}
+    except (ValueError, TypeError):
+        table_data[total_index][14] = {"value": '-', "highlight": False}
+        table_data[total_index][15] = {"value": '-', "highlight": False}
+
+    # Ligne % : Pourcentage annuel
+    percent_index = next(i for i, row in enumerate(table_data) if row[0] == '%')
+    try:
+        if total_max_tot_annee > 0:
+            total_percentage = (total_notes_obtenues * 100) / total_max_tot_annee
+            highlight = total_percentage < 50
+            table_data[percent_index][15] = {"value": f"{total_percentage:.2f}%", "highlight": highlight}
+        else:
+            table_data[percent_index][15] = {"value": '-', "highlight": False}
+    except (ValueError, TypeError):
+        table_data[percent_index][15] = {"value": '-', "highlight": False}
+
+    # Pourcentages par trimestre (c5-c13)
+    try:
+        tj_max = int(float(table_data[total_index][2])) if table_data[total_index][2] != '-' else 0
+        ex_max = int(float(table_data[total_index][3])) if table_data[total_index][3] != '-' else 0
+        tot_max = int(float(table_data[total_index][4])) if table_data[total_index][4] != '-' else 0
+        for col_idx in [5, 8, 11]:
+            if tj_max > 0:
+                col_percent = (col_sums[col_idx] * 100) / tj_max
+                highlight = col_percent < 50
+                table_data[percent_index][col_idx] = {"value": f"{col_percent:.2f}%", "highlight": highlight}
+            else:
+                table_data[percent_index][col_idx] = {"value": '-', "highlight": False}
+        for col_idx in [6, 9, 12]:
+            if ex_max > 0:
+                col_percent = (col_sums[col_idx] * 100) / ex_max
+                highlight = col_percent < 50
+                table_data[percent_index][col_idx] = {"value": f"{col_percent:.2f}%", "highlight": highlight}
+            else:
+                table_data[percent_index][col_idx] = {"value": '-', "highlight": False}
+        for col_idx in [7, 10, 13]:
+            if tot_max > 0:
+                col_percent = (col_sums[col_idx] * 100) / tot_max
+                highlight = col_percent < 50
+                table_data[percent_index][col_idx] = {"value": f"{col_percent:.2f}%", "highlight": highlight}
+            else:
+                table_data[percent_index][col_idx] = {"value": '-', "highlight": False}
+    except (ValueError, TypeError):
+        for col_idx in [5, 6, 7, 8, 9, 10, 11, 12, 13]:
+            table_data[percent_index][col_idx] = {"value": '-', "highlight": False}
+
+    # Ligne Place : Classements trimestriels + annuel
+    try:
+        place_index = next(i for i, row in enumerate(table_data) if row[0] == 'Place')
+        deliberations = Deliberation_trimistrielle_resultat.objects.filter(
+            id_annee=id_annee,
+            id_campus=id_campus,
+            id_cycle=id_cycle,
+            id_classe=id_classe,
+            id_eleve=id_eleve
+        )
+
+        trimestre_col_mapping = {
+            "Trimestre 1": 7,
+            "Trimestre 2": 10,
+            "Trimestre 3": 13
+        }
+
+        table_data[place_index][7] = {"value": '-', "highlight": False}
+        table_data[place_index][10] = {"value": '-', "highlight": False}
+        table_data[place_index][13] = {"value": '-', "highlight": False}
+
+        for deliberation in deliberations:
+            annee_trimestre = deliberation.id_trimestre
+            trimestre = annee_trimestre.trimestre
+            nom_trimestre = trimestre.trimestre
+            place = deliberation.place if deliberation.place else '-'
+            col_target = trimestre_col_mapping.get(nom_trimestre)
+            if col_target:
+                table_data[place_index][col_target] = {"value": place, "highlight": False}
+
+        # Classement annuel
+        annual_deliberation = Deliberation_annuelle_resultat.objects.filter(
+            id_annee=id_annee,
+            id_campus=id_campus,
+            id_cycle=id_cycle,
+            id_classe=id_classe,
+            id_eleve=id_eleve
+        ).first()
+        place_annual = annual_deliberation.place if annual_deliberation and annual_deliberation.place else '-'
+        table_data[place_index][15] = {"value": place_annual, "highlight": False}
+    except (Annee_trimestre.DoesNotExist, Exception):
+        place_index = next(i for i, row in enumerate(table_data) if row[0] == 'Place')
+        table_data[place_index][7] = {"value": '-', "highlight": False}
+        table_data[place_index][10] = {"value": '-', "highlight": False}
+        table_data[place_index][13] = {"value": '-', "highlight": False}
+        table_data[place_index][15] = {"value": '-', "highlight": False}
+
+    # Créer une version de table_data pour l’affichage
+    table_data_display = [
+        [cell["value"] if isinstance(cell, dict) else cell for cell in row]
+        for row in table_data
+    ]
+    return table_data, table_data_display
+
+def validate_request(request):
+    """Valide la méthode et les en-têtes de la requête."""
+    if request.method != "GET" or request.headers.get("X-Requested-With") != "XMLHttpRequest":
+        return JsonResponse({"status": "error", "message": "Requête non autorisée."}, status=400)
+    return None
+
+def parse_and_validate_params(request):
+    """Récupère et valide les paramètres de la requête."""
+    id_annee = request.GET.get('id_annee')
+    id_campus = request.GET.get('id_campus')
+    id_cycle = request.GET.get('id_cycle')
+    id_classe = request.GET.get('id_classe')
+    id_session = request.GET.get('id_session')
+
+    if not all([id_annee, id_campus, id_cycle, id_classe, id_session]):
+        return None, JsonResponse({"status": "error", "message": "Désolé, il manque une donnée !"}, status=400)
+
+    try:
+        return (
+            int(id_annee),
+            int(id_campus),
+            int(id_cycle),
+            int(id_classe),
+            int(id_session)
+        ), None
+    except (ValueError, TypeError):
+        return None, JsonResponse({"status": "error", "message": "Paramètres invalides."}, status=400)
+
+def get_active_trimestre(id_annee, id_campus, id_cycle, id_classe):
+    """Récupère le dernier trimestre actif."""
+       
+    try:
+        dernier_trimestre = Deliberation_trimistrielle_resultat.objects.filter(
+            id_annee_id=id_annee,
+            id_campus_id=id_campus,
+            id_cycle_id=id_cycle,
+            id_classe_id=id_classe
+        ).select_related('id_trimestre').aggregate(
+            max_date=Max('id_trimestre__fin')
+        )['max_date']
+
+        if dernier_trimestre:
+            id_trimestre = Annee_trimestre.objects.filter(
+                fin=dernier_trimestre,
+              
+            ).values('id_trimestre').first()['id_trimestre']
+        
+        else:
+            dernier_trimestre = Annee_trimestre.objects.filter(
+                id_annee_id=id_annee,
+                id_campus_id=id_campus,
+                id_cycle_id=id_cycle,
+                id_classe_id=id_classe
+            ).order_by('-fin').first()
+            if not dernier_trimestre:
+                return None, JsonResponse({"status": "error", "message": "Aucun trimestre actif trouvé."}, status=400)
+            id_trimestre = dernier_trimestre.id_trimestre.trimestre
+        return id_trimestre, None
+    except Exception as e:
+        # print(f"ERREUR : {str(e)}")
+        return None, JsonResponse({"status": "error", "message": "Erreur lors de la récupération du trimestre."}, status=500)
+
+def get_groupes_cours(id_annee, id_campus, id_cycle, id_classe):
+    """Récupère les groupes de cours pour la classe."""
+    groupes = build_groupes(build_domaines_dict(get_cours_classe(id_annee, id_campus, id_cycle, id_classe)))
+    if not groupes:
+        return None, JsonResponse({"status": "error", "message": "Aucun cours trouvé pour cette classe."}, status=400)
+    return groupes, None
+
+def get_inscriptions(id_annee, id_campus, id_cycle, id_classe, id_trimestre):
+    """Récupère les inscriptions des élèves pour le trimestre."""
+    inscriptions = Eleve_inscription.objects.filter(
+        id_annee=id_annee,
+        id_campus=id_campus,
+        id_classe_cycle=id_cycle,
+        id_classe=id_classe,
+        id_trimestre=id_trimestre,
+        status=1
+    ).select_related('id_eleve')
+    
+    if not inscriptions.exists():
+        return None, JsonResponse({"status": "error", "message": "Aucun élève inscrit dans cette classe pour ce trimestre."}, status=400)
+    return inscriptions, None
+
+def process_eleve(inscription, trimestres, groupes, id_annee, id_campus, id_cycle, id_classe):
+    """Traite les données d'un élève et calcule son pourcentage et ses échecs."""
+    eleve = inscription.id_eleve
+    table_data = initialize_table_data([t[1] for t in trimestres], *get_note_types())
+    
+    try:
+        table_data, totals_by_trimestre, total_tp, total_tpe, total_max_tot = add_cours__notes_in_rows(
+            table_data, groupes, eleve.id_eleve, id_annee, id_campus, id_cycle, id_classe
+        )
+        
+        total_row = ['Total', '']
+        total_row.extend([
+            str(total_tp) if total_tp > 0 else '-',
+            str(total_tpe) if total_tpe > 0 else '-',
+            str(total_max_tot) if total_max_tot > 0 else '-'
+        ])
+        for tid in [1, 2, 3]:
+            total_row.extend([
+                str(totals_by_trimestre[tid]['tj']) if totals_by_trimestre[tid]['tj'] > 0 else '-',
+                str(totals_by_trimestre[tid]['ex']) if totals_by_trimestre[tid]['ex'] > 0 else '-',
+                str(totals_by_trimestre[tid]['tot']) if totals_by_trimestre[tid]['tot'] > 0 else '-'
+            ])
+        total_row.extend([
+            str(totals_by_trimestre[1]['tot_an']) if totals_by_trimestre[1]['tot_an'] > 0 else '-',
+            str(total_max_tot * 3) if total_max_tot > 0 else '-',
+            '-', ''
+        ])
+        table_data.append(total_row)
+
+        table_data, table_data_display = finalize_table_data_deliberation(
+            table_data, len(table_data), eleve.id_eleve, id_annee, id_campus, id_cycle, id_classe
+        )
+    except Exception:
+        return None
+
+    total_index = next((i for i, row in enumerate(table_data) if row[0] == 'Total'), None)
+    if total_index is None:
+        return None
+
+    try:
+        total_max_note_eleve = float(table_data[total_index][15]["value"]) if table_data[total_index][15]["value"] != '-' else 0
+        total_max_annuelle = float(table_data[total_index][14]["value"]) if table_data[total_index][14]["value"] != '-' else 0
+        pourcentage = (total_max_note_eleve * 100) / total_max_annuelle if total_max_annuelle > 0 else 0
+        pourcentage = round(pourcentage, 2)
+    except (ValueError, TypeError):
+        pourcentage = 0
+
+    echecs = []
+    for row in table_data[2:]:
+        if row[0] in ['Total', '%', 'Place']:
+            continue
+        try:
+            cours_percentage = float(row[16]["value"].replace('%', '')) if row[16]["value"] != '-' else 0
+            cours_percentage = round(cours_percentage, 2)
+            if cours_percentage < 50:
+                echecs.append(cours_percentage)
+        except (ValueError, TypeError):
+            continue
+
+    mention = determiner_mention(pourcentage)
+    if not mention:
+        return None
+
+    return {
+        'eleve': eleve,
+        'pourcentage': pourcentage,
+        'echecs': echecs
+    }
+
+def save_results(resultats, id_annee, id_campus, id_cycle, id_classe, id_session):
+    """Trie les résultats, assigne les places et sauvegarde dans la base de données."""
+    resultats.sort(key=lambda x: x['pourcentage'], reverse=True)
+    
+    for rank, resultat in enumerate(resultats, 1):
+        resultat['place'] = format_place(rank, resultat['eleve'].genre)
+    
+    for resultat in resultats:
+        eleve = resultat['eleve']
+        pourcentage = resultat['pourcentage']
+        place = resultat['place']
+        echecs = resultat['echecs']
+
+        decision = determiner_decision(pourcentage, echecs, id_annee, id_campus, id_cycle, id_classe)
+        if decision is None:
+            continue
+
+        mention = decision.id_mention
+        try:
+            Deliberation_annuelle_resultat.objects.update_or_create(
+                id_eleve=eleve,
+                id_annee_id=id_annee,
+                id_campus_id=id_campus,
+                id_cycle_id=id_cycle,
+                id_classe_id=id_classe,
+                id_session_id=id_session,
+                defaults={
+                    'pourcentage': pourcentage,
+                    'id_mention': mention,
+                    'id_decision': decision,
+                    'place': place
+                }
+            )
+        except Exception:
+            continue
+    
+    return resultats
+
+    
+@login_required
+@module_required("Evaluation")
+def deliberate_class_par_annee(request):
+    """Fonction principale pour la délibération annuelle par classe, avec gestion des sessions ordinaire et répéchage."""
+    error_response = validate_request(request)
+    if error_response:
+        return error_response
+
+    params, error_response = parse_and_validate_params(request)
+    if error_response:
+        return error_response
+    id_annee, id_campus, id_cycle, id_classe, id_session = params
+
+    session = Session.objects.get(id_session=id_session)
+    is_repechage = session.session.lower() == "repêchage"
+
+    if not is_repechage:
+        # get_all_classes = Classe_active.objects.filter(
+        #     id_annee = id_annee,
+        #     id_campus = id_campus,
+        #     cycle_id = id_cycle,
+        #     classe_id = id_classe,
+        #     is_active = True
+        # )
+        # get_all_classes_deliberated= Deliberation_annuelle_resultat.objects.values("id_classe")
+        # if len(get_all_classes) == len(get_all_classes_deliberated):
+        #     annee_index = trimestre_ids.index(id_trimestre)
+        #     annee = Annee.objects.get(id_annee=id_annee)
+        #     annee.annee = "Cloturée"
+        #     next_annee_id = trimestre_ids[trimestre_index + 1]
+            
+        
+        if "session" in session.session.lower():
+            trimestres = get_trimestres(id_annee, id_campus, id_cycle, id_classe)
+            if not trimestres:
+                return JsonResponse({"status": "error", "message": "Aucun trimestre défini. Veuillez créer les trimestres pour cette classe"}, status=400)
+
+            id_trimestre, error_response = get_active_trimestre(id_annee, id_campus, id_cycle, id_classe)
+            if error_response:
+                return error_response
+
+            groupes, error_response = get_groupes_cours(id_annee, id_campus, id_cycle, id_classe)
+            if error_response:
+                return error_response
+
+            inscriptions, error_response = get_inscriptions(id_annee, id_campus, id_cycle, id_classe, id_trimestre)
+            if error_response:
+                return error_response
+
+            resultats = []
+            for inscription in inscriptions:
+                resultat = process_eleve(inscription, trimestres, groupes, id_annee, id_campus, id_cycle, id_classe)
+                if resultat:
+                    resultats.append(resultat)
+
+            resultats = save_results(resultats, id_annee, id_campus, id_cycle, id_classe, id_session)
+
+            if not resultats:
+                return JsonResponse({
+                    "status": "error",
+                    "message": "Aucun élève n'a pu être traité pour la délibération."
+                }, status=400)
+
+            return JsonResponse({
+                "status": "success",
+                "message": f"Délibération effectuée avec succès pour {len(resultats)} élève(s).",
+                "resultats": [
+                    {
+                        "eleve_id": r['eleve'].id_eleve,
+                        "nom": r['eleve'].nom,
+                        "prenom": r['eleve'].prenom,
+                        "pourcentage": f"{r['pourcentage']:.2f}",
+                        "place": r['place']
+                    } for r in resultats
+                ]
+            })
+        else:
+            return JsonResponse({"status": "error", "message": "Session non reconnue"}, status=400)
+    
+    else:
+        try:
+            verifier_session_existant = Deliberation_annuelle_resultat.objects.filter(
+                id_annee_id=id_annee,
+                id_campus_id=id_campus,
+                id_cycle_id=id_cycle,
+                id_classe_id=id_classe,
+                id_session__session__icontains="session"
+            ).exists()
+
+            if not verifier_session_existant:
+                return JsonResponse({
+                    "status": "error",
+                    "message": "La délibération pour les répéchages doit se faire après celle de la session ordinaire."
+                }, status=400)
+
+            trimestre = Annee_trimestre.objects.filter(
+                id_annee=id_annee,
+                id_campus=id_campus,
+                id_cycle=id_cycle,
+                id_classe=id_classe
+            ).order_by('-id_trimestre').first()
+            if not trimestre:
+                return JsonResponse({"status": "error", "message": "Aucun trimestre trouvé pour cette classe"}, status=400)
+            id_trimestre = trimestre.id_trimestre
+
+            inscriptions = Eleve_inscription.objects.filter(
+                id_annee=id_annee,
+                id_campus=id_campus,
+                id_classe_cycle=id_cycle,
+                id_classe=id_classe,
+                id_trimestre=id_trimestre,
+                status=1
+            ).select_related('id_eleve').distinct()
+
+            pupils_with_complaints = []
+            for inscription in inscriptions:
+                eleve = inscription.id_eleve
+                table_data = build_table_data_for_eleve(
+                    id_eleve=eleve.id_eleve,
+                    id_annee=id_annee,
+                    id_campus=id_campus,
+                    id_cycle=id_cycle,
+                    id_classe=id_classe
+                )
+                repechage_courses = get_all_repechage_courses_on_fields(table_data)
+                if len(repechage_courses)>1:
+                    pupils_with_complaints.append({
+                        'id_eleve': eleve.id_eleve,
+                        'nom_complet': f"{eleve.nom} {eleve.prenom}",
+                        'id_campus': inscription.id_campus_id,
+                        'id_cycle': inscription.id_classe_cycle_id,
+                    })
+
+            if not pupils_with_complaints:
+                return JsonResponse({"status": "error", "message": "Aucun élève avec des cours à repêcher"}, status=400)
+
+            type_note = Eleve_note_type.objects.get(type="Examen")
+            id_type_note = type_note.id_type_note
+
+            cours_par_classe_all = Cours_par_classe.objects.filter(
+                id_annee_id=id_annee,
+                id_campus_id=id_campus,
+                id_cycle_id=id_cycle,
+                id_classe_id=id_classe
+            ).select_related('id_cours')
+            cours_par_classe_dict = {c.id_cours.cours: c for c in cours_par_classe_all}
+
+            eleve_ids = [p['id_eleve'] for p in pupils_with_complaints]
+            notes = Eleve_note.objects.filter(
+                id_eleve_id__in=eleve_ids,
+                id_annee=id_annee,
+                id_campus_id=id_campus,
+                id_cycle_actif_id=id_cycle,
+                id_classe_active_id=id_classe,
+                id_trimestre_id=id_trimestre,
+                id_type_note_id=id_type_note
+            ).select_related('id_cours')
+            notes_dict = {(n.id_eleve_id, n.id_cours_id): n for n in notes}
+
+            mentions = Mention.objects.all()
+            mentions_dict = {(m.min, m.max): m for m in mentions}
+            decisions = Deliberation_annuelle_condition.objects.filter(
+                id_annee_id=id_annee,
+                id_campus_id=id_campus,
+                id_cycle_id=id_cycle,
+                id_classe_id=id_classe
+            ).select_related('id_mention', 'id_finalite')
+            decisions_dict = {d.id_mention_id: d for d in decisions}
+
+            resultats_repechage = []
+            for pupil in pupils_with_complaints:
+                id_eleve = pupil['id_eleve']
+                repechage_courses, error = get_repechage_courses_for_pupil_util(
+                    id_eleve=id_eleve,
+                    id_annee=id_annee,
+                    id_campus=id_campus,
+                    id_cycle=id_cycle,
+                    id_classe=id_classe
+                )
+
+                cours_pourcentages = []
+                for course in repechage_courses:
+                    nom_cours = course['cours_nom'] if isinstance(course, dict) else course
+
+                    cours_par_classe = cours_par_classe_dict.get(nom_cours)
+                    id_cours_classe = cours_par_classe.id_cours_classe
+
+                    note = notes_dict.get((id_eleve, id_cours_classe))
+                    if not note or note.note_repechage is None:
+                        note_repechage = 0
+                        pourcent_note_pourcent = 0
+                        valid_repechage = 0  
+                    else:
+                        note_repechage = note.note_repechage
+                        try:
+                            pourcent_note_pourcent = (float(note_repechage) * 100 / cours_par_classe.TPE)
+                            valid_repechage = 1 if pourcent_note_pourcent >= 50 else 0
+                        except (AttributeError, ZeroDivisionError) as e:
+                            pourcent_note_pourcent = 0
+                            valid_repechage = 0
+
+                    mention = next((m for (min_val, max_val), m in mentions_dict.items() if min_val <= pourcent_note_pourcent <= max_val), None)
+                    id_mention = mention.id_mention
+                    decision = decisions_dict.get(id_mention)
+                    id_finalite = decision.id_finalite_id
+
+                    resultat_repechage = Deliberation_repechage_resultat(
+                        id_eleve_id=id_eleve,
+                        id_annee_id=id_annee,
+                        id_campus_id=id_campus,
+                        id_cycle_id=id_cycle,
+                        id_classe_id=id_classe,
+                        id_session_id=id_session,
+                        id_finalite_id=id_finalite,
+                        id_cours_id=id_cours_classe,
+                        valid_repechage=valid_repechage
+                    )
+                    resultat_repechage.save()
+
+                    resultats_repechage.append({
+                        "eleve_id": id_eleve,
+                        "nom_complet": pupil['nom_complet'],
+                        "cours": nom_cours,
+                        "note": note_repechage,
+                        "valid_repechage": valid_repechage,
+                        "mention": mention.mention
+                    })
+
+
+                for cours_info in cours_pourcentages:
+                    nom_cours = cours_info['nom_cours']
+                    id_cours_classe = cours_info['id_cours_classe']
+                    pourcent_note_pourcent = cours_info['pourcent']
+                    note_repechage = cours_info['note_repechage']
+                    valid_repechage = cours_info['valid_repechage']
+
+                    mention = next((m for (min_val, max_val), m in mentions_dict.items() if min_val <= pourcent_note_pourcent <= max_val), None)
+                    id_mention = mention.id_mention
+                    id_finalite = decisions_dict.get(id_mention).id_finalite_id
+
+                    resultat_repechage = Deliberation_repechage_resultat(
+                        id_eleve_id=id_eleve,
+                        id_annee_id=id_annee,
+                        id_campus_id=id_campus,
+                        id_cycle_id=id_cycle,
+                        id_classe_id=id_classe,
+                        id_session_id=id_session,
+                        id_finalite_id=id_finalite,
+                        id_cours_id=id_cours_classe,
+                        valid_repechage=valid_repechage
+                    )
+                    resultat_repechage.save()
+
+                    resultats_repechage.append({
+                        "eleve_id": id_eleve,
+                        "nom_complet": pupil['nom_complet'],
+                        "cours": nom_cours,
+                        "note": note_repechage,
+                        "valid_repechage": valid_repechage,
+                        "mention": mention.mention
+                    })
+
+            if not resultats_repechage:
+                return JsonResponse({
+                    "status": "error",
+                    "message": "Aucun résultat de répéchage n'a pu être traité."
+                }, status=400)
+
+            return JsonResponse({
+                "status": "success",
+                "message": f"Délibération de répéchage effectuée avec succès pour {len(resultats_repechage)} enregistrement(s).",
+                "resultats": resultats_repechage
+            })
+
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=500)
+        
+        
+    
+    
+    
+
+
+        
+    
+ 

@@ -1,0 +1,1324 @@
+{% extends 'base_monecole.html' %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block title %}Bibliothèque{% endblock %}
+
+{% block page_css %}
+<style>
+:root {
+            --win11-bg: #f5f5f5;
+            --win11-card: #ffffff;
+            --win11-accent: #f8a50b;
+            --win11-hover: #f0f0f0;
+            --win11-border: #e0e0e0;
+            --win11-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+
+        .table-container {
+            background-color: var(--win11-card);
+            border-radius: 8px;
+            box-shadow: var(--win11-shadow);
+            padding: 20px;
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+
+        .table-header {
+            text-align: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--win11-border);
+        }
+
+        .table-header h3 {
+            margin: 0;
+            color: #444;
+            font-weight: 600;
+        }
+
+        /* Grille Windows 11 pour les dossiers */
+        .documents-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 20px;
+            padding: 10px;
+        }
+
+        @media (max-width: 1400px) {
+            .documents-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 992px) {
+            .documents-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .documents-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Style des dossiers */
+        .folder-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .folder-item:hover {
+            background-color: var(--win11-hover);
+            transform: translateY(-2px);
+        }
+
+        .folder-icon {
+            font-size: 40px;
+            color: var(--win11-accent);
+            margin-bottom: 10px;
+        }
+
+        .folder-name {
+            text-align: center;
+            font-size: 14px;
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .folder-date {
+            font-size: 11px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* Modal pour afficher le contenu des dossiers */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s;
+        }
+
+        .modal-content {
+            background-color: var(--win11-card);
+            margin: 5% auto;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: var(--win11-shadow);
+            width: 80%;
+            max-width: 900px;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideIn 0.3s;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .modal-header {
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--win11-border);
+            margin-bottom: 20px;
+        }
+
+        .books-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .book-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: var(--win11-card);
+            box-shadow: var(--win11-shadow);
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+
+        .book-item:hover {
+            transform: translateY(-3px);
+        }
+
+        .book-icon {
+            font-size: 32px;
+            color: #dba514;
+            margin-bottom: 10px;
+        }
+
+        .book-title {
+            font-size: 13px;
+            text-align: center;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .book-author {
+            font-size: 11px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* Modal pour les informations du livre */
+        .book-modal {
+            display: none;
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .book-modal-content {
+            background-color: var(--win11-card);
+            margin: 10% auto;
+            padding: 25px;
+            border-radius: 8px;
+            width: 50%;
+            max-width: 500px;
+            box-shadow: var(--win11-shadow);
+            position: relative;
+        }
+
+        .book-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--win11-border);
+        }
+
+        .book-modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #444;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--win11-border);
+            border-radius: 4px;
+            font-size: 16px;
+            background-color: #fff;
+        }
+
+        .btn-container {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--win11-accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #0066c0;
+        }
+
+        .btn-secondary {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background-color: #d0d0d0;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Barre de recherche */
+        .search-container {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: var(--win11-card);
+            border: 1px solid var(--win11-border);
+            border-radius: 20px;
+            padding: 5px 15px;
+            width: 250px;
+        }
+
+        .search-box input {
+            border: none;
+            background: transparent;
+            padding: 8px;
+            width: 100%;
+            outline: none;
+        }
+
+        .search-box i {
+            color: #666;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: linear-gradient(145deg, #2c3e50, #34495e);
+            color: white;
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: 2px 0 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .menu {
+            padding: 20px 0;
+        }
+
+        .menu-item {
+            margin-bottom: 5px;
+            position: relative;
+        }
+
+        .menu-link,
+        .submenu-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .menu-link:hover,
+        .submenu-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-left-color: var(--primary-color);
+        }
+
+        .icon-wrapper {
+            margin-right: 15px;
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .menu-text {
+            flex-grow: 1;
+            font-size: 15px;
+        }
+
+        .arrow-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .menu-item.active .arrow-icon {
+            transform: rotate(90deg);
+        }
+
+        .submenu {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .menu-item.active .submenu {
+            max-height: 500px;
+        }
+
+        .menu-item.active .arrow-icon {
+            transform: rotate(180deg);
+        }
+
+        .arrow-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .submenu-link {
+            padding-left: 55px;
+            font-size: 14px;
+        }
+
+        /*-------dropdown update------*/
+
+        .dropdown-container {
+            position: relative;
+            display: inline-block;
+            width: 200px;
+            justify-content: flex-end;
+            margin-bottom: 15px;
+        }
+
+
+        .styled-dropdown {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            width: 100%;
+            padding: 10px 15px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .styled-dropdown:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+        }
+
+        .dropdown-arrow {
+            position: absolute;
+            top: 50%;
+            right: 15px;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid #555;
+            pointer-events: none;
+        }
+
+        .table-container::after {
+            content: "";
+            display: table;
+            clear: both;
+
+        }
+
+        /*report filter date
+    */
+        .report-filter {
+            margin: 20px 0;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            align-items: flex-end;
+        }
+
+        .date-group {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .date-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .date-field label {
+            margin-bottom: 5px;
+        }
+
+        .date-field input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .btn-primary {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background-color: #45a049;
+        }
+</style>
+{% endblock %}
+
+{% block page_content %}
+<div class="ep-bg-animation">
+        <div class="ep-bg-shape ep-bg-shape-1"></div>
+        <div class="ep-bg-shape ep-bg-shape-2"></div>
+    </div>
+{% if messages %}
+    <div id="message-container" class="container">
+        <div class="message-box">
+            <br>
+            {% for message in messages %}
+            <div class="alert {{ message.tags }} alert-dismissible" role="alert">
+                {{ message|safe }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    <div id="ajax-message" class="container mt-3"></div>
+
+    <!-- Mobile Toggle Button -->
+    <div class="mobile-nav-toggle">
+        <i class="fas fa-bars"></i>
+    </div>
+    <!-- ===================Sidebar mobile -->
+    
+    <!-- ===================Bottom Navigation Bar en bas -->
+    
+
+    <!-- Main Content -->
+    <div class="main-content">
+        
+        <!--==================== Fenêtre modale for many forms-->
+
+        <div id="modalContainer" class="modal">
+            <div class="modal-content">
+                <span style="display: none;" class="close-btn">&times;</span> <!-- Bouton Fermer -->
+                <form id="variablePrixForm" action="#" method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <!-- =============== variable frais creation's section ================== -->
+                    {% if form_type == 'armoire_form' %}
+                    <h2>Formulaire d'enregistrement</h2>
+                    {% if form_armoire.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_armoire.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_armoire %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label}}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+
+                    <!-- ==============compartement -->
+                    {% elif form_type == 'compartement_form' %}
+                    <h2>Formulaire d'enregistrement</h2>
+                    {% if form_compartement.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_compartement.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_compartement %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label}}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+
+                    <!-- ======categorie pour un livre -->
+                    {% elif form_type == 'category_form' %}
+                    <h2>Formulaire d'enregistrement</h2>
+                    {% if form_category.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_category.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_category %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label}}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+                    <!-- =========== livre form -->
+                    {% elif form_type == 'livre_form' %}
+                    <h2>Formulaire d'enregistrement</h2>
+                    {% if form_livre.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_livre.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_livre %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label}}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+
+                    <!-- =========== livre form -->
+                    {% elif form_type == 'livre_exemplaire_form' %}
+                    <h2>Formulaire d'enregistrement</h2>
+                    {% if form_livre_exemplaire.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_livre_exemplaire.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_livre_exemplaire %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label}}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+        {% if armoire_list %}
+        <div class="table-container" id="tab_variable_list">
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les armoires créées</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success">Ajouter</button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+                                        <th>Armoire</th>
+                                        <th>Actions</th>
+
+                                    </tr>
+                                </thead>
+                                {% if armoire_list %}
+                                <tbody>
+                                    {% for variable in armoire_list %}
+                                    <tr id="row-variable-{{ variable.id }}">
+                                        <td id="variable-name-{{ variable.id }}" class="editable-cell">{{ variable.nom }}</td>
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-success validate-btn"
+                                                data-id="{{ variable.id }}">
+                                                <i class="fas fa-clipboard-check"></i>
+                                            </a>
+                                            <div class="edit-actions" id="edit-actions-{{ variable.id }}"
+                                                style="display: none;">
+                                                <button class="btn btn-sm btn-primary save-btn"
+                                                    data-id="{{ variable.id }}">Enregistrer</button>
+                                                <button class="btn btn-sm btn-secondary cancel-btn"
+                                                    data-id="{{ variable.id }}">Annuler</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="3">Aucune armoire n'est disponible.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                {% endif %}
+
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% csrf_token %}
+        </div>
+        {% endif %}
+
+        <!-- compartemnt/armoire -->
+        {% if compartement_list %}
+        <div class="table-container" id="tab_compartement_list">
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les compartiments créés</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success">Ajouter</button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+                                        <th>Nom de l'armoire</th>
+                                        <th>Numéro du compartiment</th>
+                                        <th>Capacité</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                {% if compartement_list %}
+                                <tbody>
+                                    {% for variable in compartement_list %}
+                                    <tr id="row-compartiment-{{ variable.id }}">
+                                        <td id="compartiment-armoire-{{ variable.id }}" class="editable-cell">{{ variable.armoire.nom }}</td>
+                                        <td id="compartiment-numero-{{ variable.id }}" class="editable-cell">{{ variable.numero }}</td>
+                                        <td id="compartiment-capacite-{{ variable.id }}" class="editable-cell">{{ variable.capacite }}</td>
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-success compartiment-validate-btn"
+                                                data-id="{{ variable.id }}">
+                                                <i class="fas fa-clipboard-check"></i>
+                                            </a>
+                                            <div class="edit-actions" id="edit-actions-compartiment-{{ variable.id }}"
+                                                style="display: none;">
+                                                <button class="btn btn-sm btn-primary compartiment-save-btn"
+                                                    data-id="{{ variable.id }}">Enregistrer</button>
+                                                <button class="btn btn-sm btn-secondary compartiment-cancel-btn"
+                                                    data-id="{{ variable.id }}">Annuler</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4">Aucun compartiment n'est disponible.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% csrf_token %}
+        </div>
+        {% endif %}
+
+        <!-- categorie/livre -->
+        {% if categorie_list %}
+        <div class="table-container" id="tab_categorie_list">
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les catégories créées</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success">Ajouter</button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables-categorie"
+                                class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+                                        <th>Nom de la catégorie</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                {% if categorie_list %}
+                                <tbody>
+                                    {% for variable in categorie_list %}
+                                    <tr id="row-categorie-{{ variable.id }}">
+                                        <td id="categorie-nom-{{ variable.id }}" class="editable-cell">{{ variable.nom }}</td>
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-success categorie-validate-btn"
+                                                data-id="{{ variable.id }}">
+                                                <i class="fas fa-clipboard-check"></i>
+                                            </a>
+                                            <div class="edit-actions" id="edit-actions-categorie-{{ variable.id }}"
+                                                style="display: none;">
+                                                <button class="btn btn-sm btn-primary categorie-save-btn"
+                                                    data-id="{{ variable.id }}">Enregistrer</button>
+                                                <button class="btn btn-sm btn-secondary categorie-cancel-btn"
+                                                    data-id="{{ variable.id }}">Annuler</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="2">Aucune catégorie n'est disponible.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% csrf_token %}
+        </div>
+        {% endif %}
+        <!-- livre list -->
+        {% if livre_list %}
+        <div class="table-container" id="tab_livre_list">
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les livres créés</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success">Ajouter</button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables-livre"
+                                class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+                                        <th>Titre</th>
+                                        <th>Auteur</th>
+                                        <th>ISBN</th>
+                                        <th>Catégorie</th>
+                                        <th>Compartiment</th>
+                                        <th>Etat</th>
+                                        <th>Exemplaires</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                {% if livre_list %}
+                                <tbody>
+                                    {% for variable in livre_list %}
+                                    <tr id="row-livre-{{ variable.id }}">
+                                        <td id="livre-titre-{{ variable.id }}" class="editable-cell">{{ variable.titre }}</td>
+                                        <td id="livre-auteur-{{ variable.id }}" class="editable-cell">{{ variable.auteur }}</td>
+                                        <td id="livre-isbn-{{ variable.id }}" class="editable-cell">{{ variable.isbn|default:"-" }}</td>
+                                        <td id="livre-categorie-{{ variable.id }}" class="editable-cell">{{ variable.categorie.nom }}</td>
+                                        <td id="livre-compartiment-{{ variable.id }}" class="editable-cell">{{ variable.compartiment.armoire.nom }}_{{ variable.compartiment.numero }}</td>
+                                        <td id="livre-etat-{{ variable.id }}" class="editable-cell">{{ variable.etat }}
+                                        </td>
+                                        <td id="livre-exemplaires-{{ variable.id }}" class="editable-cell">{{ variable.nombre_exemplaires }}</td>
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-success livre-validate-btn"
+                                                data-id="{{ variable.id }}">
+                                                <i class="fas fa-clipboard-check"></i>
+                                            </a>
+                                            <div class="edit-actions" id="edit-actions-livre-{{ variable.id }}"
+                                                style="display: none;">
+                                                <button class="btn btn-sm btn-primary livre-save-btn"
+                                                    data-id="{{ variable.id }}">Enregistrer</button>
+                                                <button class="btn btn-sm btn-secondary livre-cancel-btn"
+                                                    data-id="{{ variable.id }}">Annuler</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="8">Aucun livre n'est disponible.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% csrf_token %}
+        </div>
+        {% endif %}
+        <!-- livre_exemplaire list -->
+        {% if livre_exempl_list %}
+        <div class="table-container" id="tab_livre_exempl_list">
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les exemplaires de livres créés</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success">Ajouter</button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables-livre-exemplaire"
+                                class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+                                        <th>Livre</th>
+                                        <th>Numéro d'inventaire</th>
+                                        <th>État</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                {% if livre_exempl_list %}
+                                <tbody>
+                                    {% for variable in livre_exempl_list %}
+                                    <tr id="row-livre-exemplaire-{{ variable.id }}">
+                                        <td id="livre-exemplaire-livre-{{ variable.id }}" class="editable-cell">{{ variable.livre.titre }}</td>
+                                        <td id="livre-exemplaire-numero-{{ variable.id }}" class="editable-cell">{{ variable.numero_inventaire }}</td>
+                                        <td id="livre-exemplaire-etat-{{ variable.id }}" class="editable-cell">{{ variable.etat }}</td>
+                                        <td>
+                                            <a href="#"
+                                                class="btn btn-sm btn-outline-success livre-exemplaire-validate-btn"
+                                                data-id="{{ variable.id }}">
+                                                <i class="fas fa-clipboard-check"></i>
+                                            </a>
+                                            <div class="edit-actions"
+                                                id="edit-actions-livre-exemplaire-{{ variable.id }}"
+                                                style="display: none;">
+                                                <button class="btn btn-sm btn-primary livre-exemplaire-save-btn"
+                                                    data-id="{{ variable.id }}">Enregistrer</button>
+                                                <button class="btn btn-sm btn-secondary livre-exemplaire-cancel-btn"
+                                                    data-id="{{ variable.id }}">Annuler</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4">Aucun exemplaire de livre n'est disponible.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% csrf_token %}
+        </div>
+        {% endif %}
+
+        {% if biblio_home %}
+        <div class="table-container" id="tab_library">
+
+            <div class="col-md-12" style="overflow-y: auto;max-height: 500px;">
+                <div class="card">
+
+                    <div class="table-header">
+                        <div class="dropdown-container">
+                            <select name="armoire" id="armoire_id" class="styled-dropdown">
+                                <option value="">------------</option>
+                                {% for armoire in list_armoire %}
+                                <option value="{{ armoire.id }}">{{ armoire.nom }}</option>
+                                {% endfor %}
+                            </select>
+                            <span class="dropdown-arrow"></span>
+                        </div>
+                        <h3>CATEGORIES DES LIVRES DISPONIBLES </h3>
+                    </div>
+
+                    <!-- Barre de recherche -->
+                    <div class="search-container">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="search-input" placeholder="Rechercher un dossier...">
+                        </div>
+                    </div>
+
+                    <!-- Grille de dossiers -->
+                    <div class="documents-grid" id="documents-container">
+
+                        <!-- Les dossiers seront générés ici par JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- emprunt list -->
+    {% if emprunt_list %}
+    <div class="table-container" id="tab_emprunt_list">
+        <div class="col-md-12">
+            <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                <div class="table-header">
+                    <h3>Liste des emprunts effectués</h3>
+                </div>
+                <div class="card-body">
+                    <button style="display: none;" class="btn btn-success">Ajouter</button>
+                    <div class="table-responsive">
+                        <table id="basic-datatables-emprunt"
+                            class="table table-bordered table-hover text-center shadow-sm">
+                            <thead class="bg-primary text-white">
+                                <tr>
+                                    <th>Année</th>
+                                    <th>Campus</th>
+                                    <th>Cycle</th>
+                                    <th>Classe</th>
+                                    <th>Élève</th>
+                                    <th>Livre</th>
+                                    <th>Date d'emprunt</th>
+                                    <th>Date de retour prévue</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            {% if emprunt_list %}
+                            <tbody>
+                                {% for variable in emprunt_list %}
+                                <tr id="row-emprunt-{{ variable.id }}">
+                                    <td id="emprunt-annee-{{ variable.id }}" class="editable-cell">{{ variable.id_annee.annee }}</td>
+                                    <td id="emprunt-campus-{{ variable.id }}" class="editable-cell">{{ variable.id_campus.campus }}</td>
+                                    <td id="emprunt-cycle-{{ variable.id }}" class="editable-cell">{{ variable.id_cycle_actif.cycle_id.cycle }}</td>
+                                    <td id="emprunt-classe-{{ variable.id }}" class="editable-cell">{{ variable.id_classe_active.classe_id.classe }}
+                                        {{variable.id_classe_active.groupe}} </td>
+                                    <td id="emprunt-eleve-{{ variable.id }}" class="editable-cell">{{ variable.id_eleve.nom }} {{ variable.id_eleve.prenom }}</td>
+                                    <td id="emprunt-livre-{{ variable.id }}" class="editable-cell">{{ variable.id_livre.titre }}</td>
+                                    <td id="emprunt-date-emprunt-{{ variable.id }}" class="editable-cell">{{ variable.date_emprunt|date:"Y-m-d" }}</td>
+                                    <td id="emprunt-date-retour-{{ variable.id }}" class="editable-cell">{{ variable.date_retour_prevue|date:"Y-m-d" }}</td>
+                                    <td>
+                                        <a href="#" class="btn btn-sm btn-outline-success emprunt-validate-btn"
+                                            data-id="{{ variable.id }}">
+                                            <i class="fas fa-clipboard-check"></i>
+                                        </a>
+                                        <div class="edit-actions" id="edit-actions-emprunt-{{ variable.id }}"
+                                            style="display: none;">
+                                            <button class="btn btn-sm btn-primary emprunt-save-btn"
+                                                data-id="{{ variable.id }}">Enregistrer</button>
+                                            <button class="btn btn-sm btn-secondary emprunt-cancel-btn"
+                                                data-id="{{ variable.id }}">Annuler</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9">Aucun emprunt n'est disponible.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% csrf_token %}
+    </div>
+    {% endif %}
+
+    {% if emprunt_list_retour %}
+    <div class="table-container" id="tab_emprunt_list">
+        <div class="col-md-12">
+            <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                <div class="table-header">
+                    <h3>Liste des emprunts effectués</h3>
+                </div>
+                <div class="card-body">
+                    <button style="display: none;" class="btn btn-success">Ajouter</button>
+                    <div class="table-responsive">
+                        <table id="basic-datatables-emprunt"
+                            class="table table-bordered table-hover text-center shadow-sm">
+                            <thead class="bg-primary text-white">
+                                <tr>
+                                    <th>Classes</th>
+                                    <th>Élève</th>
+                                    <th>Livre</th>
+                                    <th>Date d'emprunt</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            {% if emprunt_list_retour %}
+                            <tbody id="studentTable">
+                                {% for variable in emprunt_list_retour %}
+                                <tr id="row-emprunt-{{ variable.id }}">
+                                    <td class="editable-cell">{{ variable.id_annee.annee }}_{{ variable.id_campus.campus }}_{{ variable.id_cycle_actif.cycle_id.cycle }}_{{ variable.id_classe_active.classe_id.classe }}
+                                        {{variable.id_classe_active.groupe}}</td>
+                                    <td class="editable-cell">{{ variable.id_eleve.nom }} {{ variable.id_eleve.prenom }}
+                                    </td>
+                                    <td class="editable-cell">{{ variable.id_livre.titre }}</td>
+                                    <td class="editable-cell">{{ variable.date_emprunt|date:"Y-m-d" }}</td>
+                                    <td class="fw-bold text-primary text-start">
+                                        <input type="checkbox" class="update_rendu_livre" data-id="{{ variable.id }}"
+                                            data-field="rendu">
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9">Aucun emprunt n'est disponible.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% csrf_token %}
+    </div>
+    {% endif %}
+    <!-- ==========emprunt par periode -->
+    {% if periode_land_form %}
+    <div class="table-container" id="tab_emprunt_list">
+        <div class="col-md-12">
+            <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                <div class="table-header">
+                    <h3 style="color: white;">Veuillez selectionner la date pour votre rapport</h3>
+                </div>
+                <div class="card-body">
+                    <div class="report-filter">
+                        <form action="{% url 'library:emprunt_books_cycle' %}" method="GET">
+                            <div class="form-group date-group">
+                                <div class="date-field">
+                                    <label for="start_date">Date de début :</label>
+                                    <input type="date" name="start_date" id="start_date">
+                                </div>
+                                <div class="date-field">
+                                    <label for="end_date">Date de fin :</label>
+                                    <input type="date" name="end_date" id="end_date">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Générer le rapport</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if most_land_form %}
+    <div class="table-container" id="tab_emprunt_list">
+        <div class="col-md-12">
+            <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                <div class="table-header">
+                    <h3 style="color: white;">Veuillez selectionner la date pour votre rapport</h3>
+                </div>
+                <div class="card-body">
+                    <div class="report-filter">
+                        <form action="{% url 'library:report_generate_books_most_used' %}" method="GET">
+                            <div class="form-group date-group">
+                                <div class="date-field">
+                                    <label for="start_date">Date de début :</label>
+                                    <input type="date" name="start_date" id="start_date">
+                                </div>
+                                <div class="date-field">
+                                    <label for="end_date">Date de fin :</label>
+                                    <input type="date" name="end_date" id="end_date">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Générer le rapport</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% if eleve_land_form %}
+    <div class="table-container" id="tab_emprunt_list">
+        <div class="col-md-12">
+            <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                <div class="table-header">
+                    <h3 style="color: white;">Les emprunts par utilisateur</h3>
+                </div>
+                <div class="card-body">
+                    <div class="report-filter">
+                        <form action="{% url 'library:emprunt_books_per_periode' %}" method="GET">
+                            <div class="form-group date-group">
+                                <div class="date-field">
+                                    <label for="start_date">Date de début :</label>
+                                    <input type="date" name="start_date" id="start_date">
+                                </div>
+                                <div class="date-field">
+                                    <label for="end_date">Date de fin :</label>
+                                    <input type="date" name="end_date" id="end_date">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Générer le rapport</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <!--====================== Modal pour afficher le contenu d'un dossier -->
+    <div id="folder-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div class="modal-header">
+                <h3 id="modal-title">Contenu du dossier</h3>
+            </div>
+            <div class="books-grid" id="books-container">
+                <!-- Les livres seront générés ici par JavaScript -->
+            </div>
+        </div>
+    </div>
+    <!--====================== book modal -->
+    <div id="book-modal" class="book-modal" style="overflow-y: auto;">
+        <div class="book-modal-content">
+            <div class="book-modal-header">
+                <h3 class="book-modal-title">Enregistrer le livre</h3>
+                <span class="close" id="close-book-modal">&times;</span>
+            </div>
+            <div>
+                <!-- <p id="book-id-display">ID du livre: <span id="selected-book-id"></span></p> -->
+                <div class="form-group" id="annee-container">
+                    <label for="annee">Année:</label>
+                    <select id="annee">
+                        <option value="">----------</option>
+                        {% for annee in annees %}
+                        <option value="{{ annee.id_annee }}">{{ annee.annee }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group" id="classe-container" style="display: none;">
+                    <label for="id_classe_active">Classe:</label>
+                    <select id="id_classe_active">
+                        <option value="">----------</option>
+                    </select>
+                </div>
+                <div class="form-group" id="eleve-container" style="display: none;">
+                    <label for="id_id_eleve">Élève:</label>
+                    <select id="id_id_eleve">
+                        <option value="">----------</option>
+                    </select>
+                </div>
+                <div class="form-group" id="date-container">
+                    <label for="date_retour_prevue">Date de retour</label>
+                    <input type="date" name="date_retour_prevue" id="date_retour_prevue">
+                </div>
+                <div class="btn-container">
+                    <button class="btn btn-secondary" id="cancel-book-form">Annuler</button>
+                    <button class="btn btn-primary" id="save-book-form">Enregistrer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--============= Modal pour sélectionner la date -->
+    <div class="modal fade" id="dateRetourModal" tabindex="-1" aria-labelledby="dateRetourModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="dateRetourModalLabel">Sélectionner la date de retour</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="dateRetourForm">
+                        <div class="mb-3">
+                            <label for="dateRetour" class="form-label">Date de retour</label>
+                            <input type="date" class="form-control" id="dateRetour" max="{% now 'Y-m-d' %}" required>
+                        </div>
+                        <input type="hidden" id="empruntId" name="empruntId">
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-primary" id="confirmDateRetour">Confirmer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+    <!-- Dans le <head> -->
+
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <!-- js section -->
+    <script src="{% static 'js/main.js' %}"></script>
+    <script src="{% static 'js/modal.js' %}"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+{% endblock %}
+
+{% block page_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
+<script src="{% static 'js/main.js' %}"></script>
+
+<script src="{% static 'js/modal.js' %}"></script>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+{% endblock %}

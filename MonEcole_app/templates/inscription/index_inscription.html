@@ -1,0 +1,484 @@
+{% extends 'base_monecole.html' %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block title %}Inscription{% endblock %}
+
+{% block page_css %}{% endblock %}
+
+{% block page_content %}
+<div class="ep-bg-animation">
+        <div class="ep-bg-shape ep-bg-shape-1"></div>
+        <div class="ep-bg-shape ep-bg-shape-2"></div>
+    </div>
+{% if messages %}
+  <div id="message-container" class="container">
+    <div class="message-box">
+      <br>
+      {% for message in messages %}
+      <div class="alert {{ message.tags }} alert-dismissible" role="alert">
+        {{ message|safe }}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  <!-- Mobile Toggle Button -->
+  <div class="mobile-nav-toggle">
+    <i class="fas fa-bars"></i>
+  </div>
+
+  <!-- ===================Sidebar mobile -->
+
+  <div class="sidebar">
+    
+    
+
+  </div>
+  <!-- Main Content -->
+  
+  <div class="main-content">
+    
+    <!--==================== Fenêtre modale for many forms-->
+    <div id="modalContainer" class="modal">
+      <div class="modal-content">
+        <span style="display: none;" class="close-btn">&times;</span>
+        <form action="#" method="POST" enctype="multipart/form-data">
+          {% csrf_token %}
+          <!-- =============== inscrition's section ================== -->
+          {% if form_type == 'inscriptions' %}
+          <h2>Formulaire d'enregistrement</h2>
+          {% if form_eleve.non_form_errors %}
+          <div class="alert alert-danger">
+            {{ form_eleve.non_form_errors }}
+          </div>
+          {% elif form_inscription.non_from_errors %}
+          <div class="alert alert-danger">
+            {{ form_inscription.non_form_errors }}
+          </div>
+          {% endif %}
+          <div class="form-row">
+            {% for field in form_eleve %}
+            {% if field.name not in champs_a_masquer %}
+            <div class="form-group col-md-4">
+              <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+              {% render_field field class="form-control" placeholder=field.label %}
+            </div>
+            {% endif %}
+            {% endfor %}
+            {% for field in form_inscription %}
+            <div class="form-group col-md-4">
+              <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
+              {% render_field field class="form-control" placeholder=field.label %}
+            </div>
+            {% endfor %}
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-cancel" id="cancelBtn">
+              <span class="emoji-icon">❌</span> Annuler
+            </button>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-plus-circle"></i> Ajouter
+            </button>
+          </div>
+          <!--======== generate's inscription form-->
+          {% elif form_type == 'excel_file' %}
+          <div class="form-row">
+            {% for field in form_inscription %}
+            <div class="form-field">
+              <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
+              {% render_field field class="form-control" placeholder=field.label %}
+            </div>
+            {% endfor %}
+            <div class="form-row" id="generate_button_container" style="display:none;">
+              <button type="submit" class="btn btn-success" id="generate_button">
+                <i class="fas fa-file-excel"></i>
+              </button>
+              <hr>
+              <button type="button" class="btn btn-continue" id="cancelBtn">
+                <span class="emoji-icon">➡️</span>
+              </button>
+            </div>
+          </div>
+          {% else %}
+          <div class="form-actions">
+            <h2>Opération sans formulaire</h2>
+            <button style="margin-right: 20px;" type="button" class="btn btn-cancel" id="cancelBtn">
+              <span class="emoji-icon">❌</span> Quitter
+            </button>
+          </div>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+    <div class="table-container">
+      <!--================= Affichage des eleves -->
+      {% if inscriptions %}
+      <div class="col-md-12">
+        <div class="card-body ep-card">
+          <div class="table-header">
+            <h3>Informations sur les élèves inscrits</h3>
+          </div>
+          <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+            <table id="basic-datatables" class="display table table-striped table-hover">
+              <thead>
+                <tr>
+                  <th>Nom</th>
+                  <th>Prénom</th>
+                  <th>Sexe</th>
+                  <th style="display: none;">Date naissance</th>
+                  <th style="display: none;">Telephone</th>
+                  <th>Matricule</th>
+                  <th>Email</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              {% for inscr in inscriptions %}
+              <tbody id="studentTable">
+                <tr>
+                  <td class="fw-bold text-primary text-start">{{inscr.nom}}</td>
+                  <td class="fw-bold text-primary text-start">{{inscr.prenom|default:""}}</td>
+                  <td>{{inscr.genre|default:""}}</td>
+                  <td style="display: none;">{{inscr.date_naissance|default:""}}</td>
+                  <td style="display: none;">{{inscr.telephone|default:""}}</td>
+                  <td>{{inscr.matricule|default:""}}</td>
+                  <td>{{inscr.email|default:""}}</td>
+                  <td>
+                    <a href="{% url 'edit_eleve' inscr.id_eleve %}"
+                      class="btn btn-sm btn-outline-primary me-2 btn-edit-personnel">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                    <a style="display: none;" href="#" class="btn btn-sm btn-outline-danger">
+                      <i class="fas fa-trash"></i>
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+              {% endfor %}
+            </table>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      {% if form_type == 'edition_eleve' %}
+      <div class="col-md-12">
+        <div class="card-body ep-card">
+          <div class="table-header">
+            <h3>Modifications des informations de l'élève</h3>
+          </div>
+          <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+            <form method="POST" enctype="multipart/form-data">
+              {% csrf_token %}
+              <div class="form-row">
+                {% for field in form_eleve %}
+                {% if field.name not in champs_a_masquer %}
+                <div class="form-field">
+                  <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                  {% render_field field class="form-control" placeholder=field.label %}
+                </div>
+                {% endif %}
+                {% endfor %}
+              </div>
+              <div class="form-actions">
+                <button type="button" class="btn btn-secondary" id="cancelBtn"
+                  onclick="redirectToAjouterEleve()">Annuler</button>
+
+                <button type="submit" class="btn btn-success">Mettre à jour</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      {% if form_type == 'import_file' %}
+      <div class="col-md-6">
+        <div class="card-body">
+          <div class="table-header">
+            <h3></h3>
+          </div>
+          <div class="table-responsive">
+            <form method="POST" enctype="multipart/form-data" action="{% url 'import_inscription' %}">
+              {% csrf_token %}
+              <label for="excel_file" style="font-style: italic;">📂 Sélectionner un fichier Excel :</label>
+              <input type="file" name="excel_file" id="excel_file" class="form-control" required>
+              <br>
+              <br>
+              <br>
+              <center><button type="submit" class="btn btn-success">
+                  <i class="fas fa-upload"></i>Cliquer ici pour importer
+                </button></center>
+            </form>
+
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- js section -->
+  <script src="{% static 'js/main.js' %}"></script>
+  <script src="{% static 'js/modal.js' %}"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <!-- ====================generate excel's file -->
+  
+  <!-- ======================displaying by data disponible -->
+  
+  <!-- ================== Annuler Edition eleve button -->
+{% endblock %}
+
+{% block page_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+      const currentUrl = window.location.pathname;
+
+      if (!currentUrl.includes('inscription_excel_file')) {
+        return;
+      }
+
+      const idAnnee = document.getElementById("id_id_annee") || null;
+      const idCampus = document.getElementById("id_id_campus") || null;
+      const idClasseCycle = document.getElementById("id_id_classe_cycle") || null;
+      const idClasse = document.getElementById("id_id_classe") || null;
+      const trimestre = document.getElementById("id_id_trimestre") || null;
+      const modal = document.getElementById("modalContainer");
+
+
+      function saveToSession(key, value) {
+        sessionStorage.setItem(key, value);
+      }
+
+      function hideFields(...fields) {
+        fields.forEach(field => {
+          if (field) {
+            field.parentElement.style.display = "none";
+            field.disabled = true;
+          }
+        });
+      }
+
+      function showField(field) {
+        if (field) {
+          field.parentElement.style.display = "block";
+          field.disabled = false;
+        }
+      }
+
+
+      function updateDropdown(url, dropdown, idKey, nameKey) {
+        if (!dropdown) {
+          console.error("Dropdown non trouvé !");
+          return;
+        }
+
+        fetch(url)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error("Erreur de réponse du serveur");
+            }
+            return response.json();
+          })
+          .then(data => {
+            dropdown.innerHTML = '<option value="">------</option>';
+            if (data.length > 0) {
+              data.forEach(item => {
+                let option = document.createElement("option");
+                option.value = item[idKey];
+                option.textContent = item[nameKey];
+                dropdown.appendChild(option);
+              });
+              showField(dropdown);
+            } else {
+              alert("Aucune donnée trouvée selon ce que vous selectionner !");
+            }
+          })
+          .catch(error => {
+            console.error("Erreur lors du chargement :", error);
+            showField(dropdown);
+          });
+      }
+      if (idCampus) {
+        idCampus.addEventListener("change", function () {
+          hideFields(idAnnee, idClasseCycle, idClasse, trimestre);
+          if (this.value) {
+            saveToSession("id_campus", this.value);
+            showField(idAnnee)
+          }
+        });
+      }
+
+      if (idAnnee) {
+        idAnnee.addEventListener("change", function () {
+          const campusId = document.getElementById("id_campus")?.value || sessionStorage.getItem("id_campus") || "";
+
+          hideFields(idClasseCycle, idClasse, trimestre);
+
+          if (this.value) {
+            saveToSession("id_annee", this.value);
+            let url = `/get_cycles_parAnnee?id_annee=${this.value}&id_campus=${campusId}`;
+            updateDropdown(url, idClasseCycle, 'id_cycle_actif', 'cycle');
+          }
+        });
+      }
+
+      if (idClasseCycle) {
+        idClasseCycle.addEventListener("change", function () {
+          const idCycleActifValue = this.value;
+          const campusId = document.getElementById("id_campus")?.value || sessionStorage.getItem("id_campus") || "";
+          let anneeId = idAnnee?.value || sessionStorage.getItem("id_annee") || "";
+          hideFields(idClasse, trimestre);
+
+          if (idCycleActifValue && idCycleActifValue !== "undefined" && idCycleActifValue !== "" && campusId && anneeId) {
+            saveToSession("id_classe_cycle", idCycleActifValue);
+            saveToSession("id_campus", campusId);
+            const url = `/get_classes/?id_classe_cycle=${idCycleActifValue}&id_annee=${anneeId}&id_campus=${campusId}`;
+            updateDropdown(url, idClasse, 'id_classe', 'classe');
+          } else {
+            console.error("Erreur : valeurs invalides", { idCycleActifValue, campusId, anneeId });
+          }
+        });
+      }
+
+      if (idClasse) {
+        idClasse.addEventListener("change", function () {
+          if (this.value) {
+            saveToSession("id_classe", this.value);
+            document.getElementById("generate_button_container").style.display = "block";
+            modal.display.style = "none"
+          } else {
+            document.getElementById("generate_button_container").style.display = "none";
+          }
+        });
+      }
+    });
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+      const idAnnee = document.getElementById("id_id_annee");
+      const idCampus = document.getElementById("id_id_campus");
+      const idClasseCycle = document.getElementById("id_id_classe_cycle");
+      const idClasse = document.getElementById("id_id_classe");
+
+      function saveToSession(key, value) {
+        sessionStorage.setItem(key, value);
+      }
+
+      function hideFields(...fields) {
+        fields.forEach(field => {
+          if (field) {
+            field.parentElement.style.display = "none";
+            field.disabled = true;
+          }
+        });
+      }
+
+      function showField(field) {
+        if (field) {
+          field.parentElement.style.display = "block";
+          field.disabled = false;
+        }
+      }
+
+      function updateDropdown(url, dropdown, idKey, nameKey) {
+        if (!dropdown) {
+          console.error("Dropdown non trouvé !");
+          return;
+        }
+
+        fetch(url)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error("Erreur de réponse du serveur");
+            }
+            return response.json();
+          })
+          .then(data => {
+            dropdown.innerHTML = '<option value="">------</option>';
+            if (data.length > 0) {
+              data.forEach(item => {
+                let option = document.createElement("option");
+                option.value = item[idKey] || '';
+                option.textContent = item[nameKey] || 'Inconnu';
+                option.setAttribute('data-locked', 'true');
+                dropdown.appendChild(option);
+              });
+              showField(dropdown);
+            } else {
+              alert("Aucune donnée trouvée selon ce que vous sélectionnez !");
+              hideFields(dropdown);
+            }
+          })
+          .catch(error => {
+            alert("Erreur lors du chargement :", error);
+            showField(dropdown);
+          });
+      }
+      if (idCampus) {
+        idCampus.addEventListener("change", function () {
+          const campusId = this.value;
+          const idCycleActifValue = idClasseCycle?.value || sessionStorage.getItem("id_classe_cycle") || "";
+          const anneeId = idAnnee?.value || sessionStorage.getItem("id_annee") || "";
+
+
+          if (campusId) {
+            saveToSession("id_campus", campusId);
+            showField(idAnnee)
+
+          }
+        });
+      }
+
+      if (idAnnee) {
+        idAnnee.addEventListener("change", function () {
+          const anneeId = this.value;
+          const campusId = document.getElementById("id_campus")?.value || sessionStorage.getItem("id_campus") || "";
+
+          hideFields(idClasseCycle, idClasse);
+
+          if (anneeId && anneeId !== "undefined" && anneeId !== "") {
+            saveToSession("id_annee", anneeId);
+            let url = `/get_cycles_parAnnee/?id_annee=${anneeId}&id_campus=${campusId}`;
+            updateDropdown(url, idClasseCycle, 'id_cycle_actif', 'cycle');
+          }
+        });
+      }
+
+
+
+      if (idClasseCycle) {
+        idClasseCycle.addEventListener("change", function () {
+          const idCycleActifValue = this.value;
+          const campusId = idCampus?.value || sessionStorage.getItem("id_campus") || "";
+          const anneeId = idAnnee?.value || sessionStorage.getItem("id_annee") || "";
+
+
+
+          hideFields(idClasse);
+
+          if (idCycleActifValue && idCycleActifValue !== "undefined" && idCycleActifValue !== "" && campusId && anneeId) {
+            saveToSession("id_classe_cycle", idCycleActifValue);
+            const url = `/get_classes/?id_classe_cycle=${idCycleActifValue}&id_annee=${anneeId}&id_campus=${campusId}`;
+            updateDropdown(url, idClasse, 'id_classe', 'classe');
+          } else {
+          }
+        });
+      }
+
+
+    });
+</script>
+
+<script>
+function redirectToAjouterEleve() {
+      window.location.href = '{% url "create_inscription" %}';
+    }
+</script>
+
+<script src="{% static 'js/main.js' %}"></script>
+
+<script src="{% static 'js/modal.js' %}"></script>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+{% endblock %}

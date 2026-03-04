@@ -1,0 +1,7 @@
+<ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+    <li><a class="dropdown-item" href="profile.html">Voir le profil</a></li>
+    <form id="logout-form" action="{% url 'log_out' %}" method="POST" style="display: none;">
+      {% csrf_token %} 
+    </form>
+    <li><a class="dropdown-item" href="#" onclick="document.getElementById('logout-form').submit(); return false;">Se déconnecter</a></li>
+  </ul>

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="fr">
+{% load widget_tweaks %}
+{% load static %}
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="{% static 'assets/img/MonEcoleApp-logo.png' %}" rel="icon">
+    <!--moov-->
+    <title>Inscription home</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/enseignement_premium.css' %}">
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Poppins:wght@400;600&display=swap"
+        rel="stylesheet">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+</head>
+
+<body class="ep-premium">
+        <div class="ep-bg-animation">
+        <div class="ep-bg-shape ep-bg-shape-1"></div>
+        <div class="ep-bg-shape ep-bg-shape-2"></div>
+    </div>
+{% if messages %}
+    <div id="message-container" class="container">
+        <div class="message-box">
+            <br>
+            {% for message in messages %}
+            <div class="alert {{ message.tags }} alert-dismissible" role="alert">
+                {{ message|safe }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    <!-- Mobile Toggle Button -->
+    <div class="mobile-nav-toggle">
+        <i class="fas fa-bars"></i>
+    </div>
+    <!-- ===================Sidebar mobile -->
+    <div class="sidebar">
+        {% include 'partials/title_logo.html' %}
+        {% include 'inscription/side_bar.html' %}
+
+    </div>
+    <!-- ===================Bottom Navigation Bar en bas -->
+    {% include 'partials/_foot_bar.html' %}
+    <!-- Main Content -->
+    <div class="main-content">
+        {% include 'partials/_profile_bar.html' %}
+        <div id="modalContainer" class="modal">
+
+            <div class="modal-content">
+
+                <span style="display: none;" class="close-btn">&times;</span>
+
+                <form action="#" method="POST" enctype="multipart/form-data">
+
+                    {% csrf_token %}
+                    <!-- ===================== selection pour imprimer un bulletin! -->
+                    {% if form_type == 'select_form_bull' %}
+                    <h2>Séléctionner pas à pas:</h2>
+                    {% if form_select_bulletin.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_select_bulletin.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+
+                        {% for field in form_select_bulletin %}
+
+                        <div class="form-group col-md-4">
+
+                            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
+
+                            {% render_field field class="form-control" placeholder=field.label %}
+
+                        </div>
+
+                        {% endfor %}
+
+                    </div>
+
+                    <div style="display: none;" class="form-actions">
+
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+
+                            <span class="emoji-icon">➡️</span> Continuer
+
+                        </button>
+
+                    </div>
+
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+        <div class="table-container">
+            <!-- =============== Telechargement des fiches des notes -->
+            <div id="table-download-btn" style="display: none;" class="col-md-12">
+            </div>
+            <!-- =============== Affichage des eleves par classe -->
+            <div id="table-display-pupils" style="display: none;" class="col-md-12">
+
+
+                <div class="card ep-card" style="max-height: 600px; overflow-y: auto;">
+
+
+                    <div class="table-header">
+                        <h3>LISTE DES ELEVES INSCRITS DANS LA CLASSE: {{id_classe.classe}}</h3>
+
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <!-- =========== Affichage du tableau contenant des élèves -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="table-declencher-btn" style="display: none;" class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="{% static 'js/main.js' %}"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    {% comment %}
+    <script src="{% static 'assets/vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script> {% endcomment %}
+    <script src="{% static 'js/op_eval.js' %}"></script>
+    <!-- update redoublement -->
+    <script>
+        const updateRedoublement = async (checkbox) => {
+            const eleveId = checkbox.dataset.eleveId;
+            const anneeId = checkbox.dataset.anneeId;
+            const campusId = checkbox.dataset.campusId;
+            const cycleId = checkbox.dataset.cycleId;
+            const classeId = checkbox.dataset.classeId;
+            const redoublement = checkbox.checked;
+
+            try {
+                const response = await fetch('/update_redoublement/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify({
+                        id_eleve: eleveId,
+                        id_annee: anneeId,
+                        id_campus: campusId,
+                        id_cycle: cycleId,
+                        id_classe: classeId,
+                        redoublement: redoublement
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Succès',
+                        text: data.message || `Statut de redoublement mis à jour pour l'élève ${eleveId}.`,
+                        confirmButtonText: 'OK',
+                        timer: 10000
+                    });
+                } else {
+                    throw new Error(data.message || data.error || 'Erreur inconnue lors de la mise à jour.');
+                }
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erreur',
+                    text: `Erreur: : ${error.message}`,
+                    confirmButtonText: 'OK',
+                    timer: 10000
+                });
+                checkbox.checked = !redoublement;
+            }
+        };
+
+
+        const getCsrfToken = () => {
+            const name = 'csrftoken';
+            const cookieValue = document.cookie.split(';')
+                .find(cookie => cookie.trim().startsWith(`${name}=`))
+                ?.split('=')[1];
+            return cookieValue || '';
+        };
+    </script>
+    <!-- update status -->
+    <script>
+        const updateStatus = async (checkbox) => {
+            const eleveId = checkbox.dataset.eleveId;
+            const anneeId = checkbox.dataset.anneeId;
+            const campusId = checkbox.dataset.campusId;
+            const cycleId = checkbox.dataset.cycleId;
+            const classeId = checkbox.dataset.classeId;
+            const status = checkbox.checked;
+
+            try {
+                const response = await fetch('/update_status/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify({
+                        id_eleve: eleveId,
+                        id_annee: anneeId,
+                        id_campus: campusId,
+                        id_cycle: cycleId,
+                        id_classe: classeId,
+                        status: status
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP : ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Succès',
+                        text: `Statut mis à jour pour l'élève ${eleveId} : ${status ? 'Actif' : 'Inactif'}.`,
+                        confirmButtonText: 'OK',
+                        timer: 4000
+                    });
+                } else {
+                    throw new Error(data.error || 'Erreur lors de la mise à jour du statut.');
+                }
+            } catch (error) {
+                console.error('Erreur lors de la mise à jour du statut:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erreur',
+                    text: `Erreur lors de la mise à jour du statut : ${error.message}`,
+                    confirmButtonText: 'OK',
+                    timer: 6000
+                });
+                checkbox.checked = !status;
+            }
+        };
+
+    </script>
+
+    <script>
+
+
+        const generatePupilsPDF = async (anneeId, campusId, cycleId, classeId) => {
+            try {
+                const pupils = [];
+                const rows = document.querySelectorAll('#basic-datatables tbody tr');
+                rows.forEach(row => {
+                    const fullName = row.cells[0].textContent;
+                    const statusCheckbox = row.cells[1].querySelector('.status-checkbox');
+                    const redoublementCheckbox = row.cells[2].querySelector('.redoublement-checkbox');
+                    if (statusCheckbox.checked) {
+                        pupils.push({
+                            nom_complet: fullName,
+                            status: statusCheckbox.checked,
+                            redoublement: redoublementCheckbox.checked
+                        });
+                    }
+                });
+
+                if (pupils.length === 0) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Avertissement',
+                        text: 'Aucun élève actif à inclure dans le rapport.',
+                        confirmButtonText: 'OK',
+                        timer: 3000
+                    });
+                    return;
+                }
+
+                const response = await fetch('/generate_pupils_pdf/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify({
+                        annee_id: anneeId,
+                        campus_id: campusId,
+                        cycle_id: cycleId,
+                        classe_id: classeId,
+                        pupils: pupils
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP : ${response.status}`);
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `liste_eleves_${anneeId}_${classeId}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Succès',
+                    text: 'Le rapport PDF a été généré avec succès.',
+                    confirmButtonText: 'OK',
+                    timer: 4000
+                });
+            } catch (error) {
+                console.error('Erreur lors de la génération du PDF:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erreur',
+                    text: `Erreur lors de la génération du PDF : ${error.message}`,
+                    confirmButtonText: 'OK',
+                    timer: 3000
+                });
+            }
+        };
+
+
+
+    </script>
+
+
+</body>
+</body>
+
+</html>

@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="fr">
+{% load widget_tweaks %}
+{% load static %}
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="{% static 'assets/img/MonEcoleApp-logo.png' %}" rel="icon">
+    <!--moov-->
+    <title>Enseignement home</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/enseignement_premium.css' %}">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Poppins:wght@400;600&display=swap"
+        rel="stylesheet">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+
+</head>
+
+<body class="ep-premium">
+        <div class="ep-bg-animation">
+        <div class="ep-bg-shape ep-bg-shape-1"></div>
+        <div class="ep-bg-shape ep-bg-shape-2"></div>
+    </div>
+{% if messages %}
+    <div id="message-container" class="container">
+        <div class="message-box">
+            <br>
+            {% for message in messages %}
+            <div class="alert {{ message.tags }} alert-dismissible" role="alert">
+                {{ message|safe }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    <div id="ajax-message" class="container mt-3"></div>
+
+    <!-- Mobile Toggle Button -->
+    <div class="mobile-nav-toggle">
+        <i class="fas fa-bars"></i>
+    </div>
+    <!-- ===================Sidebar mobile -->
+    {% include 'enseignement/_sidebar_ensgmnt.html'%}
+    <!-- ===================Bottom Navigation Bar en bas -->
+    {% include 'partials/_foot_bar.html' %}
+
+    <!-- Main Content -->
+    <div class="main-content">
+        {% include 'partials/_profile_bar.html' %}
+        <!--==================== Fenêtre modale for many forms-->
+        <div id="modalContainer" class="modal">
+            <div class="modal-content">
+                <span style="display: none;" class="close-btn">&times;</span> <!-- Bouton Fermer -->
+                <form action="#" method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <!-- =============== course creation's section ================== -->
+                    {% if form_type == 'cours_form' %}
+                    <h2>Formulaire d'enregistrement</h2>
+                    {% if form_crs.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_crs.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_crs %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+                    <!--================= cours_attribuer's section -->
+                    {% elif form_type == 'cours_attribuer_type' %}
+                    <h2>Formulaire d'enregistrement</h2>
+                    {% if form_attrib.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_attrib.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_attrib %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+                    <!--======================= cours par cycle  -->
+                    {% elif form_type == 'cours_form_cycle' %}
+                    <h2>Formulaire d'enregistrement</h2>
+
+                    {% if form_crs_cycle.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_crs_cycle.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_crs_cycle %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+                    <!-- ==================cours classes -->
+                    {% elif form_type == 'cours_classes' %}
+                    <h2>Séléctionner pas à pas</h2>
+                    {% if cours_cl_form.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ cours_cl_form.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in cours_cl_form %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div style="display: none;" class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">➡️</span> Continuer
+                        </button>
+                    </div>
+                    <!-- =================== Attribution cours -->
+                    {% elif form_type == 'cours_attribuer' %}
+                    <h2>Séléctionner pas à pas</h2>
+                    {% if form_attrib.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_attrib.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_attrib %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div style="display: none;" class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">➡️</span> Continuer
+                        </button>
+                    </div>
+                    {% else %}
+                    <div class="form-actions">
+                        <h2>Opération sans formulaire</h2>
+                        <button style="margin-right: 20px;" type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Quitter
+                        </button>
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+        <!--=================== Tableau amélioré pour servir l'affichage! -->
+        <div class="table-container">
+            {% if cours %}
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les cours créees</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success">AJouter</button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+                                        <th>Cours</th>
+                                        <th>Code</th>
+                                        <th>Domaine</th>
+                                        <th>Actions</th>
+
+                                    </tr>
+                                </thead>
+                                <!-- Liste des cours  -->
+                                {% if cours %}
+                                <tbody>
+                                    {% for cours in cours %}
+                                    <tr id="row-cours-{{ cours.id_cours }}">
+                                        <td id="cours-name-{{ cours.id_cours }}">{{ cours.cours }}</td>
+                                        <td id="cours-code-{{ cours.id_cours }}">{{ cours.code_cours|default:"" }}</td>
+                                        <td id="cours-domaine-{{ cours.id_cours }}">{{ cours.domaine|default:"" }}</td>
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-primary edit-btn-cours"
+                                                data-id="{{ cours.id_cours }}">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4">Aucun cours disponible.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                {% endif %}
+
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            <!-- attribution's type -->
+            {% if attrib_type %}
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 600px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations le type d'attribution</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success">AJouter</button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+                                        <th>Type attribution</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                {% for crs in attrib_type %}
+                                <tbody>
+
+                                    <tr class="align-middle">
+                                        <td class="fw-bold text-primary text-start">{{ crs.attribution_type }}
+                                        </td>
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-primary me-2 edit-btn-class">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="#" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                                {% endfor %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+
+            {% if cours_classes or cours_classes|length == 0 %}
+            <div class="col-md-12">
+                <div id="trimestre-table" class="card ep-card" style="max-height: 500px; overflow-y: auto; display: none;">
+                    <div class="table-header">
+                        <h3>Informations sur les cours créées par classe</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive" id="table-container">
+                            <!-- La table sera insérée dynamiquement ici par JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Affichage des cours crees par cycle -->
+            {% if cours_cycles %}
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les cours créees</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
+                            data-bs-target="#coursCycleModal"></button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Campus</th>
+                                        <th>Année</th>
+                                        <th>Cycle</th>
+                                        <th>Cours</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="studentTable">
+                                    {% for cours_cycle in cours_cycles %}
+                                    <tr id="row-cours-cycle-{{ cours_cycle.id_cours_cycle }}">
+                                        <td id="cours-cycle-campus-{{ cours_cycle.id_cours_cycle }}">{{ cours_cycle.id_campus.campus }}</td>
+                                        <td id="cours-cycle-annee-{{ cours_cycle.id_cours_cycle }}">{{ cours_cycle.id_annee.annee }}</td>
+                                        <td id="cours-cycle-cycle-{{ cours_cycle.id_cours_cycle }}">{{ cours_cycle.cycle_id.cycle_id.cycle }}</td>
+                                        <td id="cours-cycle-cours-{{ cours_cycle.id_cours_cycle }}">{{ cours_cycle.cours_id.cours }}</td>
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-primary edit-btn-cours-cycle"
+                                                data-id="{{ cours_cycle.id_cours_cycle }}">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="5">Aucun cours par cycle disponible.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            <!-- Affichage des cours attribuer et les personnels  -->
+            {% if cours_attribution %}
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les attributions faites</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Campus</th>
+                                        <th>Année</th>
+                                        <th>Cycle</th>
+                                        <th>Classe</th>
+                                        <th>Type d’attribution</th>
+                                        <th>Cours</th>
+                                        <th>Personnel</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="studentTable">
+                                    {% for attribution in cours_attribution %}
+                                    <tr id="row-attribution-{{ attribution.id_attribution }}">
+                                        <td id="attribution-campus-{{ attribution.id_attribution }}">{{ attribution.id_campus.campus }}</td>
+                                        <td id="attribution-annee-{{ attribution.id_attribution }}">{{ attribution.id_annee.annee }}</td>
+                                        <td id="attribution-cycle-{{ attribution.id_attribution }}">{{ attribution.id_cycle.cycle_id.cycle }}</td>
+                                        <td id="attribution-classe-{{ attribution.id_attribution }}">{{ attribution.id_classe.classe_id.classe }}{% if attribution.id_classe.groupe %}_{{ attribution.id_classe.groupe }}{% endif %}</td>
+                                        <td id="attribution-type-{{ attribution.id_attribution }}">{{ attribution.attribution_type }}</td>
+                                        <td id="attribution-cours-{{ attribution.id_attribution }}">{{ attribution.id_cours.id_cours.code_cours }}</td>
+                                        <td id="attribution-personnel-{{ attribution.id_attribution }}">{{ attribution.id_personnel.user.first_name }} {{ attribution.id_personnel.user.last_name }}</td>
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-primary edit-btn-attribution"
+                                                data-id="{{ attribution.id_attribution }}"
+                                                data-classe="{{ attribution.id_classe.id_classe_active }}">
+                                                <i class="fas fa-edit"></i> détacher
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="8">Aucune attribution disponible.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            <!-- Affichage des cours par classe -->
+            <div id="table-display-course" style="display: none;" class="col-md-12">
+                <div class="card ep-card" style="max-height: 600px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>LISTE DES COURS DE LA CLASSE: {{id_classe.classe}}</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <!-- =========== Affichage du tableau contenant des élèves -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- affichage des attribution par classe -->
+        <div id="table-display-attributions" class="table-container" style="display: none;">
+
+            <div>
+                <div class="table-header">
+                    <h3></h3>
+                </div>
+                <div class="card ep-card" style="max-height: 600px; overflow-y: auto;">
+
+                    <div class="table-responsive">
+                        <table id="attribution-table" class="display table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Campus</th>
+                                    <th>Année</th>
+                                    <th>Cycle</th>
+                                    <th>Classe</th>
+                                    <th>Type</th>
+                                    <th>Cours</th>
+                                    <th>Enseignant</th>
+                                    <th style="display: none;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <!-- ===============Modal attribution gerer via bootstrap -->
+    <div class="modal fade" id="attributionModal" tabindex="-1" aria-labelledby="attributionModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content custom-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="attributionModalLabel">Attribution de cours</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="form_id" method="POST" action="{% url 'attribution_create' %}">
+                        {% csrf_token %}
+                        <input type="hidden" id="modal_course_id" name="id_cours">
+                        <input type="hidden" id="modal_id_annee" name="id_annee">
+                        <input type="hidden" id="modal_id_campus" name="id_campus">
+                        <input type="hidden" id="modal_id_cycle" name="id_cycle">
+                        <input type="hidden" id="modal_id_classe" name="id_classe">
+                        <div class="form-grid">
+                            <div id="modal_personn_id" class="form-group" style="display: none;">
+                                <label for="{{ form_attrib.id_personnel.id_for_label }}"
+                                    class="form-label">Personnel</label>
+                                {% render_field form_attrib.id_personnel id="modal_id_personnel" name="id_personnel" class="form-control" required=True %}
+                            </div>
+                            <div id="modal_crs_attr_id" class="form-group" style="display: none;">
+                                <label for="{{ form_attrib.attribution_type.id_for_label }}" class="form-label">Type
+                                    d'Attribution</label>
+                                {% render_field form_attrib.attribution_type id="modal_attribution_type" name="attribution_type" class="form-control" required=True %}
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn-cancel" data-bs-dismiss="modal">Fermer</button>
+                            <button type="submit" id="modal_submit_button" class="btn btn-primary">Enregistrer</button>
+                        </div>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <!-- js section -->
+    <script src="{% static 'js/main.js' %}"></script>
+    <script src="{% static 'js/modal.js' %}"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{% static 'assets/vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    {% include 'enseignement/_js_section_e.html' %}
+
+</body>
+
+</html>

@@ -1,0 +1,24 @@
+
+
+<tbody>
+    {% for attribution in cours_attribution %}
+        <tr id="row-attribution-{{ attribution.id_attribution }}">
+            <td id="attribution-campus-{{ attribution.id_attribution }}">{{ attribution.id_campus.campus }}</td>
+            <td id="attribution-annee-{{ attribution.id_attribution }}">{{ attribution.id_annee.annee }}</td>
+            <td id="attribution-cycle-{{ attribution.id_attribution }}">{{ attribution.id_cycle.cycle_id.cycle }}</td>
+            <td id="attribution-classe-{{ attribution.id_attribution }}">{{ attribution.id_classe.classe_id.classe }}</td>
+            <td id="attribution-type-{{ attribution.id_attribution }}">{{ attribution.attribution_type }}</td>
+            <td id="attribution-cours-{{ attribution.id_attribution }}">{{ attribution.id_cours.id_cours.code_cours }}</td>
+            <td id="attribution-personnel-{{ attribution.id_attribution }}">{{ attribution.id_personnel.user.first_name }} {{ attribution.id_personnel.user.last_name }}</td>
+            <td style="display: none;" >
+                <a href="#" class="btn btn-sm btn-outline-primary edit-btn-attribution" data-id="{{ attribution.id_attribution }}" data-classe="{{ attribution.id_classe.id_classe_active }}">
+                    <i class="fas fa-edit"></i> détacher
+                </a>
+            </td>
+        </tr>
+    {% empty %}
+        <tr>
+            <td colspan="8">Aucune attribution disponible.</td>
+        </tr>
+    {% endfor %}
+</tbody>

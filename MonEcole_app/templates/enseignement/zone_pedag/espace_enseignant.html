@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="fr">
+{% load widget_tweaks %}
+{% load static %}
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="{% static 'assets/img/MonEcoleApp-logo.png' %}" rel="icon">
+    <link href="{% static 'assets/img/apple-touch-icon.png' %}" rel="apple-touch-icon">
+    <title>Enseignement home</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/enseignement_premium.css' %}">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Poppins:wght@400;600&display=swap"
+        rel="stylesheet">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <style>
+        .course-card {
+            background: white;
+            border-left: 5px solid #06f125;
+            border-radius: 10px;
+            padding: 15px;
+            width: 250px;
+            margin-right: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: 0.3s;
+            flex-shrink: 0;
+        }
+
+        .course-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .course-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+        }
+
+        .course-info {
+            font-size: 0.9rem;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .horizontal-scroll {
+            display: flex;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            margin-top: 10px;
+        }
+
+        .horizontal-scroll::-webkit-scrollbar {
+            height: 20px;
+        }
+
+        .horizontal-scroll::-webkit-scrollbar-thumb {
+            background-color: #bbb;
+            border-radius: 4px;
+        }
+
+        .badge {
+            font-size: 0.8rem;
+            padding: 5px 10px;
+            border-radius: 20px;
+        }
+    </style>
+</head>
+
+<body class="ep-premium">
+        <div class="ep-bg-animation">
+        <div class="ep-bg-shape ep-bg-shape-1"></div>
+        <div class="ep-bg-shape ep-bg-shape-2"></div>
+    </div>
+{% if messages %}
+    <div id="message-container" class="container">
+        <div class="message-box">
+            <br>
+            {% for message in messages %}
+            <div class="alert {{ message.tags }} alert-dismissible" role="alert">
+                {{ message|safe }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    <!-- Mobile Toggle Button -->
+    <div class="mobile-nav-toggle">
+        <i class="fas fa-bars"></i>
+    </div>
+    <!-- ===================Sidebar mobile -->
+    {% include 'enseignement/zone_pedag/_sidebar.html' %}
+
+    <!-- ===================Bottom Navigation Bar en bas -->
+    {% include 'partials/_foot_bar.html' %}
+
+    <!-- Main Content -->
+    <div class="main-content">
+        {% include 'partials/_profile_bar.html' %}
+        <!--==================== Fenêtre modale for many forms-->
+        <div id="modalContainer" class="modal">
+            <div class="modal-content">
+                <span style="display: none;" class="close-btn">&times;</span> <!-- Bouton Fermer -->
+                <form action="#" method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <!-- =========== evaluation submit's form -->
+                    {% if form_type == 'form_evaluation' %}
+                    <input type="hidden" name="id_annee" id="form_id_annee">
+                    <input type="hidden" name="id_campus" id="form_id_campus">
+                    <input type="hidden" name="id_cycle_actif" id="form_id_cycle">
+                    <input type="hidden" name="id_classe_active" id="form_id_classe">
+                    <input type="hidden" name="id_cours_classe" id="form_id_cours">
+                    <input type="hidden" name="ponderer_eval" id="form_ponderer_eval">
+                    <input type="hidden" name="date_eval" id="form_date_eval">
+                    <input type="hidden" name="date_soumission" id="form_date_soumission">
+                    <input type="hidden" name="id_type_note" id="form_id_type_note">
+                    <input type="hidden" name="contenu_evaluation" id="form_contenu_evaluation">
+                    <input type="hidden" name="id_session" id="form_id_session">
+                    <input type="hidden" name="id_trimestre" id="form_id_trimestre">
+                    <input type="hidden" name="id_periode" id="form_id_periode">
+                    <input type="hidden" name="title" id="form_title">
+                    <h2>Séléctionner pas à pas :</h2>
+                    {% if evaluation_form.errors %}
+                    <div class="alert alert-danger">
+                        {% for field in evaluation_form %}
+                        {% if field.errors %}
+                        <p>{{ field.label }}: {{ field.errors }}</p>
+                        {% endif %}
+                        {% endfor %}
+                        {% if evaluation_form.non_field_errors %}
+                        <p>{{ evaluation_form.non_field_errors }}</p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in evaluation_form %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div id="btnsubmit" class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+                    <!-- ===================== selection pour creer un fichier des notes! -->
+                    {% elif form_type == 'select_form' %}
+                    <h2>Séléctionner pas à pas:</h2>
+                    {% if form_select.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_select.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_select %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div style="display: none;" class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">➡️</span> Continuer
+                        </button>
+                    </div>
+                    <!-- ===================== selection pour reclammations! -->
+                    {% elif form_type == 'select_form_reclam' %}
+                    <h2>Séléctionner pour faire les reclammations:</h2>
+                    {% if form_select_reclam.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_select_reclam.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_select_reclam %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div style="display: none;" class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">➡️</span> Continuer
+                        </button>
+                    </div>
+                    <!-- ====================== selection pour repechages -->
+
+                    {% elif form_type == 'select_form_repechag' %}
+                    <h2>Séléctionner pour faire les reclammations:</h2>
+                    {% if form_select_repechag.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_select_repechag.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_select_repechag %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div style="display: none;" class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">➡️</span> Continuer
+                        </button>
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+        <div class="table-container">
+            <!-- =============== Telechargement des fiches des notes -->
+            <div id="table-download-btn" style="display: none;" class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Téléchargement d'une fiche des notes</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success">AJouter</button>
+                        <div class="table-responsive">
+                            <div style="text-align: center; margin-bottom: 10px;">
+                                <form id="downloadForm" action="/generate_excel/" method="get">
+                                    <input type="hidden" name="id_annee" id="form_id_annee">
+                                    <input type="hidden" name="id_campus" id="form_id_campus">
+                                    <input type="hidden" name="id_cycle" id="form_id_cycle">
+                                    <input type="hidden" name="id_classe" id="form_id_classe">
+                                    <input type="hidden" name="id_cours" id="form_id_cours">
+                                    <input type="hidden" name="id_type_note" id="form_id_type_note">
+                                    <input type="hidden" name="id_trimestre" id="form_id_trimestre">
+                                    <input type="hidden" name="id_periode" id="form_id_periode">
+                                    <input type="hidden" name="id_session" id="form_id_session">
+                                    <input type="hidden" name="id_evaluation" id="form_id_evaluation">
+                                    <button id="downloadBtn" type="submit" style="font-size: 40px; 
+                                            background: none; 
+                                            border: none; 
+                                            cursor: pointer;" title="Télécharger les données">
+                                        ⬇️
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- =============== importation des notes :  -->
+            {% if notes_form %}
+            <div class="card-body">
+                <div class="table-header">
+                    <h3></h3>
+                </div>
+                <div class="table-responsive">
+                    <form method="POST" enctype="multipart/form-data" action="{% url 'import_file_note' %}">
+                        {% csrf_token %}
+                        <label for="excel_file" style="font-style: italic;">📂 Sélectionner un fichier Excel(.xlsx)
+                            :</label>
+                        <input type="file" name="file" class="form-control" required>
+                        <br>
+                        <br>
+                        <br>
+                        <center><button type="submit" class="btn btn-success">
+                                <i class="fas fa-upload"></i>Cliquer ici pour importer
+                            </button></center>
+                    </form>
+
+                </div>
+            </div>
+            {% endif %}
+            {% if note_type_list %}
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les cours créees</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
+                            data-bs-target="#coursCycleModal"></button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+
+                                        <th>Type de note</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                {% for note in note_type_list %}
+                                <tbody>
+
+                                    <tr class="align-middle">
+                                        <td class="fw-bold text-primary text-start">{{ note.type }}
+
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-primary me-2 edit-btn-class">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="#" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                                {% endfor %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            <!-- ============session displaying -->
+            {% if session_list %}
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les sessions créees</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
+                            data-bs-target="#coursCycleModal"></button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+
+                                        <th>Session</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for session in session_list %}
+                                    <tr>
+                                        <td>{{ session.session }}</td>
+                                        <td>
+                                            <button class="btn btn-primary edit-btn-session" data-bs-toggle="modal"
+                                                data-bs-target="#editSessionModal"
+                                                data-session-id="{{ session.id_session }}"
+                                                data-session="{{ session.session }}">
+                                                Modifier
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            <!-- ============ Mention displaying -->
+            {% if mentions %}
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les mentions créees</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
+                            data-bs-target="#coursCycleModal"></button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+
+                                        <th>Mention</th>
+                                        <th>Abréviations</th>
+                                        <th>Minimum</th>
+                                        <th>Maximum</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for mention in mentions %}
+                                    <tr>
+                                        <td>{{ mention.mention }}</td>
+                                        <td>{{ mention.abbreviation }}</td>
+                                        <td>{{ mention.min|floatformat:0 }}</td>
+                                        <td>{{ mention.max|floatformat:0}}</td>
+                                        <td>
+                                            <button class="btn btn-primary edit-btn-mention" data-bs-toggle="modal"
+                                                data-bs-target="#editMentionModal"
+                                                data-mention-id="{{ mention.id_mention }}"
+                                                data-mention="{{ mention.mention }}"
+                                                data-abbreviation="{{ mention.abbreviation }}"
+                                                data-min="{{ mention.min }}" data-max="{{ mention.max }}">
+                                                Modifier
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- ============ Mentionplaying -->
+            {% if type_deliberat_list %}
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les types de délibération</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
+                            data-bs-target="#coursCycleModal"></button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+                                        <th>Type de déliberation</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for deliberation_type in type_deliberat_list %}
+                                    <tr>
+                                        <td>{{ deliberation_type.type }}</td>
+                                        <td>
+                                            <button class="btn btn-primary edit-btn-deliberation-type"
+                                                data-bs-toggle="modal" data-bs-target="#editDeliberationTypeModal"
+                                                data-deliberation-type-id="{{ deliberation_type.id_deliberation_type }}"
+                                                data-type="{{ deliberation_type.type }}">
+                                                Modifier
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if finalit_deliberat_list %}
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les finalités créees</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
+                            data-bs-target="#coursCycleModal"></button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Finalité</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for finalite in finalit_deliberat_list %}
+                                    <tr>
+                                        <td>{{ finalite.finalite }}</td>
+                                        <td>
+                                            <button class="btn btn-primary edit-btn-finalite" data-bs-toggle="modal"
+                                                data-bs-target="#editFinaliteModal"
+                                                data-finalite-id="{{ finalite.id_finalite }}"
+                                                data-finalite="{{ finalite.finalite }}">
+                                                Modifier
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if condit_deliberat_list %}
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les conditions de délibération</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
+                            data-bs-target="#coursCycleModal"></button>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover text-center shadow-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Année</th>
+                                        <th>Campus</th>
+                                        <th>Cycle</th>
+                                        <th>Classe</th>
+                                        <th>Finalité</th>
+                                        <th>Décision</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for condition in condit_deliberat_list %}
+                                    <tr>
+                                        <td>{{ condition.id_annee }}</td>
+                                        <td>{{ condition.id_campus }}</td>
+                                        <td>{{ condition.id_cycle }}</td>
+                                        <td>{{ condition.id_classe }}</td>
+                                        <td>{{ condition.id_finalite }}</td>
+                                        <td>{{ condition.decision }}</td>
+                                        <td>
+                                            <button class="btn btn-primary edit-btn-condition" data-bs-toggle="modal"
+                                                data-bs-target="#editConditionModal"
+                                                data-id-decision="{{ condition.id_decision }}"
+                                                data-id-annee="{{ condition.id_annee_id }}"
+                                                data-id-campus="{{ condition.id_campus_id }}"
+                                                data-id-cycle="{{ condition.id_cycle_id }}"
+                                                data-id-classe="{{ condition.id_classe_id }}"
+                                                data-id-finalite="{{ condition.id_finalite_id }}"
+                                                data-pourcentage-requis-reussite="{{ condition.pourcentage_requis_reussite }}"
+                                                data-max-echecs-acceptable="{{ condition.max_echecs_acceptable }}"
+                                                data-seuil-profondeur-echec="{{ condition.seuil_profondeur_echec }}"
+                                                data-decision="{{ condition.decision }}"
+                                                data-sigle="{{ condition.sigle }}"
+                                                data-sanction-disciplinaire="{{ condition.sanction_disciplinaire }}">
+                                                Modifier
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="7">Aucune condition enregistrée.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+        <!--=================== Tableau amélioré pour servir l'affichage! -->
+        <div class="table-container">
+            {% if cours_by_cycle %}
+            <div class="col-md-12">
+                <div class="card shadow-sm" style="background-color: #f4f4f4; max-height: 600px; overflow-y: auto;">
+                    <div class="table-header p-3 bg-dark text-white rounded-top">
+                        <h3 class="mb-0">📚 Les cours que vous dispensez </h3>
+                    </div>
+                    <div class="card-body">
+
+                        {% for cycle, cours_list in cours_by_cycle.items %}
+                        <h5 class="text-primary mt-4">{{ cycle }}</h5>
+                        <div class="horizontal-scroll">
+                            {% for cours in cours_list %}
+                            <div class="course-card">
+                                <h6 class="course-title">{{ cours.cours }}</h6>
+                                <p class="course-info">Enseigné en : {{ cours.classe }}</p>
+                                <p class="course-info">Heures/sem : {{ cours.heures_par_semaine }}h</p>
+                                <span class="badge 
+                                                    {% if cours.etat == 'Actif' %}bg-success
+                                                    {% elif cours.etat == 'En attente' %}bg-warning text-dark
+                                                    {% elif cours.etat == 'Archivé' %}bg-secondary
+                                                    {% else %}bg-info
+                                                    {% endif %}">Etat du cours : {{ cours.etat }}
+                                </span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+
+
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            <!-- =========================reclammations sectionns -->
+            <div class="col-md-12 hidden" id="evaluationsSection">
+                <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les évaluations</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display:none" class="btn btn-success mb-3" onclick="enableEditing()">Éditer les
+                            évaluations</button>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover text-center" id="evaluationsTable">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Cours</th>
+                                        <th>Evaluation/Type</th>
+                                        <th>Title evaluation</th>
+                                        <th>Note</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="evaluationsTbody">
+                                    <!-- Les lignes seront ajoutées dynamiquement -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- =========================repechages sections -->
+            <div class="col-md-12 hidden" id="repechageSection">
+                <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les rêpechâges de l'élève <strong>{{nom}} {{prenom}}</strong> </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover text-center" id="repechageTable">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Cours</th>
+                                        <th>Note</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="repechageTbody">
+                                    <!-- Les lignes seront ajoutées dynamiquement -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- =========================Fiches desnotes sectionns -->
+            {% comment %} <div class="col-md-12 hidden" id="AffichageNote">
+                <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Fiche des points</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display:none" class="btn btn-success mb-3" onclick="enableEditing()">Éditer les
+                            évaluations</button>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover text-center" id="evaluationsTable">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Nom et prenom</th>
+                                        <th>Type</th>
+                                        <th>Title evaluation</th>
+                                        <th>Total</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="AffichageNoteTbody">
+                                    <!-- Les lignes seront ajoutées dynamiquement -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div> {% endcomment %}
+
+            <div class="col-md-12 hidden" id="AffichageNote">
+                <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Fiche des points</h3>
+                        <button class="btn btn-primary mb-3" onclick="generatePDF()">Exporter les notes</button>
+                    </div>
+                    <div class="card-body">
+                        <button style="display:none" class="btn btn-success mb-3" onclick="enableEditing()">Éditer les
+                            évaluations</button>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover text-center" id="evaluationsTable">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Nom et prenom</th>
+                                        <!-- Colonnes dynamiques -->
+                                        <th>Note</th>
+                                        <th>Title</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="AffichageNoteTbody">
+                                    <!-- Les lignes seront ajoutées dynamiquement -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ===============Modal attribution gerer via bootstrap -->
+    <!-- js section -->
+    <script src="{% static 'js/main.js' %}"></script>
+    <script src="{% static 'js/inst_space.js' %}"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{% static 'js/op_eval.js' %}"></script>
+
+    <!-- ================ reclammat script: -->
+    <script>
+        if (window.location.pathname === "/reclammations/") {
+            const fields = {
+                idAnnee: document.getElementById('id_id_annee'),
+                idClasse: document.getElementById('id_id_classe_active'),
+                idCampus: document.getElementById('id_id_campus'),
+                idCycle: document.getElementById('id_id_cycle_actif'),
+                idEleve: document.getElementById('id_id_eleve'),
+                idTrimestre: document.getElementById('id_id_trimestre'),
+                idPeriode: document.getElementById('id_id_periode'),
+                idSession: document.getElementById('id_id_session'),
+                idTypeNote: document.getElementById('id_id_type_note'),
+                idCours: document.getElementById('id_id_cours_classe'),
+                idEvaluation: document.getElementById('id_id_evaluation'),
+                evaluationsSection: document.getElementById('evaluationsSection'),
+
+
+            };
+            // Initialisation
+            hideFields(
+                fields.idCampus, fields.idCycle, fields.idEvaluation,
+                fields.idClasse, fields.idEleve, fields.idTrimestre, fields.idPeriode,
+                fields.idSession, fields.idTypeNote, fields.idCours
+            );
+            fields.evaluationsSection.classList.add('hidden');
+
+            // Mettre à jour les dropdowns
+            async function updateDropdown(url, element, valueKey, labelKey) {
+                try {
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    element.innerHTML = '<option value="">------</option>';
+                    // Gérer les clés 'data', 'sessions', ou clé vide ''
+                    const items = data.data || data.sessions || data[""] || data;
+                    if (!Array.isArray(items)) {
+                        // console.error('Les données reçues ne sont pas un tableau:', items);
+                        return;
+                    }
+                    items.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item[valueKey];
+                        option.textContent = item[labelKey];
+                        if (item.id_campus) option.dataset.campus = item.id_campus;
+                        if (item.id_cycle) option.dataset.cycle = item.id_cycle;
+                        element.appendChild(option);
+                    });
+                    showField(element);
+                } catch (error) {
+                    console.error('Erreur:', error);
+                }
+            }
+
+            // Événements
+            fields.idAnnee.addEventListener('change', async function () {
+                hideFields(
+                    fields.idClasse, fields.idEleve, fields.idTrimestre, fields.idPeriode,
+                    fields.idCampus, fields.idCycle, fields.idEvaluation,
+                    fields.idSession, fields.idTypeNote, fields.idCours
+                );
+                fields.evaluationsSection.classList.add('hidden');
+                if (this.value) {
+                    await updateDropdown(
+                        `/get_all_classes_deliberate_by_year/?id_annee=${this.value}`,
+                        fields.idClasse,
+                        'id',
+                        'label'
+                    );
+                }
+            });
+
+            fields.idClasse.addEventListener('change', async function () {
+                hideFields(
+                    fields.idEleve, fields.idTrimestre, fields.idPeriode,
+                    fields.idSession, fields.idTypeNote, fields.idCours,
+                    fields.idCampus, fields.idCycle, fields.idEvaluation
+                );
+                fields.evaluationsSection.classList.add('hidden');
+                if (this.value) {
+                    fields.idClasse.parentElement.after(fields.idEleve.parentElement);
+                    const selectedOption = this.options[this.selectedIndex];
+                    const campusId = selectedOption.dataset.campus;
+                    const cycleId = selectedOption.dataset.cycle;
+                    const anneeId = fields.idAnnee.value;
+                    fields.idCampus.value = campusId;
+                    fields.idCycle.value = cycleId;
+
+                    // Récupérer les élèves
+                    await updateDropdown(
+                        `/get_pupils_registred_classe/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe_active=${this.value}`,
+                        fields.idEleve,
+                        'id_eleve',
+                        'nom_complet'
+                    );
+
+
+
+                }
+            });
+
+            fields.idEleve.addEventListener('change', async function () {
+                if (this.value) {
+                    fields.idEleve.parentElement.after(fields.idTrimestre.parentElement);
+                    showField(fields.idTrimestre);
+
+                    const anneeId = fields.idAnnee.value;
+                    const campusId = fields.idCampus.value;
+                    const cycleId = fields.idCycle.value;
+                    const classeId = fields.idClasse.value;
+
+                    await updateDropdown(
+                        `/get_trimestres_par_classe_with_notes/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}`,
+                        fields.idTrimestre,
+                        'id',
+                        'label'
+                    );
+                }
+            });
+
+
+            fields.idTrimestre.addEventListener('change', async function () {
+                hideFields(
+                    fields.idPeriode, fields.idSession, fields.idTypeNote,
+                    fields.idCours, fields.idCampus, fields.idCycle, fields.idEvaluation
+                );
+                fields.evaluationsSection.classList.add('hidden');
+                if (this.value) {
+                    fields.idTrimestre.parentElement.after(fields.idPeriode.parentElement);
+                    const selectedOption = fields.idClasse.options[fields.idClasse.selectedIndex];
+                    const campusId = selectedOption.dataset.campus;
+                    const cycleId = selectedOption.dataset.cycle;
+                    const anneeId = fields.idAnnee.value;
+                    const classeId = fields.idClasse.value;
+
+                    await updateDropdown(
+                        `/get_periodes_par_classe_with_notes/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}&id_trimestre_annee=${this.value}`,
+                        fields.idPeriode,
+                        'id',
+                        'label'
+                    );
+                }
+            });
+
+            fields.idPeriode.addEventListener('change', async function () {
+                hideFields(
+                    fields.idSession, fields.idTypeNote, fields.idCours,
+                    fields.idCampus, fields.idCycle, fields.idEvaluation
+                );
+                fields.evaluationsSection.classList.add('hidden');
+                if (this.value) {
+                    fields.idPeriode.parentElement.after(fields.idSession.parentElement);
+                    const selectedOption = fields.idClasse.options[fields.idClasse.selectedIndex];
+                    const campusId = selectedOption.dataset.campus;
+                    const cycleId = selectedOption.dataset.cycle;
+                    const anneeId = fields.idAnnee.value;
+                    const classeId = fields.idClasse.value;
+
+                    await updateDropdown(
+                        `/get_sessions_reclammations/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}`,
+                        fields.idSession,
+                        'id',
+                        'name'
+                    );
+                }
+            });
+
+            fields.idSession.addEventListener('change', async function () {
+                hideFields(
+                    fields.idTypeNote, fields.idCours, fields.idCampus,
+                    fields.idCycle, fields.idEvaluation
+                );
+                fields.evaluationsSection.classList.add('hidden');
+                if (this.value) {
+                    fields.idSession.parentElement.after(fields.idTypeNote.parentElement);
+                    await updateDropdown(
+                        `/get_types_notes/`,
+                        fields.idTypeNote,
+                        'id',
+                        'label'
+                    );
+                }
+            });
+
+            fields.idTypeNote.addEventListener('change', async function () {
+                hideFields(
+                    fields.idCours, fields.idCampus, fields.idCycle, fields.idEvaluation
+                );
+                fields.evaluationsSection.classList.add('hidden');
+                if (this.value) {
+
+                    fields.idTypeNote.parentElement.after(fields.idCours.parentElement);
+                    const selectedOption = fields.idClasse.options[fields.idClasse.selectedIndex];
+                    const campusId = selectedOption.dataset.campus;
+                    const cycleId = selectedOption.dataset.cycle;
+                    const anneeId = fields.idAnnee.value;
+                    const classeId = fields.idClasse.value;
+                    const typeId = fields.idTypeNote.value;
+
+                    await updateDropdown(
+                        `/get_cours_by_classe_with_typeNotes/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}&id_type_note=${typeId}`,
+                        fields.idCours,
+                        'id',
+                        'label'
+                    );
+                }
+            });
+
+            fields.idCours.addEventListener('change', async function () {
+                fields.evaluationsSection.classList.add('hidden');
+                const modal = document.getElementById("modalContainer");
+
+                if (this.value) {
+                    if (modal) modal.style.display = "none";
+                    const selectedOption = fields.idClasse.options[fields.idClasse.selectedIndex];
+                    const campusId = selectedOption.dataset.campus;
+                    const cycleId = selectedOption.dataset.cycle;
+                    const anneeId = fields.idAnnee.value;
+                    const classeId = fields.idClasse.value;
+                    const trimestreId = fields.idTrimestre.value;
+                    const periodeId = fields.idPeriode.value;
+                    const sessionId = fields.idSession.value;
+                    const typeNoteId = fields.idTypeNote.value;
+                    const coursId = this.value;
+                    const eleveId = fields.idEleve.value;
+
+                    const url = `/get_evaluations/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}&id_trimestre=${trimestreId}&id_periode=${periodeId}&id_session=${sessionId}&id_type_note=${typeNoteId}&id_cours=${coursId}&id_eleve=${eleveId}`;
+                    try {
+                        const response = await fetch(url);
+                        const { data } = await response.json();
+                        const tbody = document.getElementById('evaluationsTbody');
+                        tbody.innerHTML = '';
+                        if (data.length > 0) {
+                            data.forEach(item => {
+                                const row = `
+                                    <tr data-id-evaluation="${item.id_evaluation}">
+                                        <td>
+                                            <span class="display">${item.cours}</span>
+                                            <input class="form-control hidden edit" type="text" value="${item.cours}" disabled>
+                                        </td>
+                                        <td>
+                                            <span class="display">${item.type_evaluation} (${item.sigle})</span>
+                                            <input class="form-control hidden edit" type="text" value="${item.type_evaluation}" disabled>
+                                        </td>
+                                        <td>
+                                            <span class="display">${item.nom_evaluation}..../${item.ponderation}</span>
+                                            <input class="form-control hidden edit" type="text" value="${item.nom_evaluation}" disabled>
+                                        </td>
+                                        <td>
+                                            <span class="display">${item.note}</span>
+                                            <input class="form-control hidden edit" type="text" value="${item.note}">
+                                        </td>
+                                        <td class="action-icons">
+                                            <button class="btn btn-sm btn-primary display" onclick="editRow(this)">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-success hidden edit" onclick="saveRow(this)">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-danger hidden edit" onclick="cancelEdit(this)">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </td>
+
+                                    </tr>`;
+                                tbody.insertAdjacentHTML('beforeend', row);
+                            });
+                            fields.evaluationsSection.classList.remove('hidden');
+                        } else {
+                            alert('Aucune évaluation trouvée.');
+                        }
+                    } catch (error) {
+                        console.error('Erreur:', error);
+                    }
+                }
+            });
+
+            // Fonctions d'édition
+            function enableEditing() {
+                document.querySelectorAll('#evaluationsTable .display').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('#evaluationsTable .edit').forEach(el => el.classList.remove('hidden'));
+            }
+
+            function editRow(icon) {
+                const row = icon.closest('tr');
+                row.querySelectorAll('.display').forEach(el => el.classList.add('hidden'));
+                row.querySelectorAll('.edit').forEach(el => el.classList.remove('hidden'));
+            }
+
+            function saveRow(icon) {
+                const row = icon.closest('tr');
+                const idEvaluation = row.dataset.idEvaluation;
+                const nomEvaluation = row.querySelectorAll('.edit')[2].value;
+                const note = row.querySelectorAll('.edit')[3].value;
+                const idEleve = fields.idEleve.value;
+
+                // Validation côté client
+                if (!idEleve) {
+                    alert('Veuillez sélectionner un élève.');
+                    return;
+                }
+
+                fetch('/reclammations_submit/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: JSON.stringify({
+                        id_evaluation: idEvaluation,
+                        title: nomEvaluation,
+                        note: note,
+                        id_eleve: idEleve
+                    })
+                })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.success) {
+                            row.querySelectorAll('.display').forEach((el, i) => {
+                                const input = row.querySelectorAll('.edit')[i];
+                                el.textContent = input.value;
+                                el.classList.remove('hidden');
+                                input.classList.add('hidden');
+                            });
+
+                            row.querySelectorAll('.edit').forEach(btn => {
+                                if (btn.tagName === 'BUTTON') {
+                                    btn.classList.add('hidden');
+                                }
+                            });
+
+                            row.querySelectorAll('.display').forEach(btn => {
+                                if (btn.tagName === 'BUTTON') {
+                                    btn.classList.remove('hidden');
+                                }
+                            });
+
+                            alert('Mise à jour effectuée avec succès !');
+                        } else {
+                            alert('Erreur lors de la sauvegarde : ' + result.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erreur:', error);
+                        alert('Une erreur inattendue s\'est produite. Veuillez réessayer.');
+                    });
+            }
+
+            function cancelEdit(icon) {
+                const row = icon.closest('tr');
+
+                row.querySelectorAll('.display').forEach((el, i) => {
+                    const input = row.querySelectorAll('.edit')[i];
+                    input.value = el.textContent;
+                    el.classList.remove('hidden');
+                    input.classList.add('hidden');
+                });
+
+                row.querySelectorAll('.edit').forEach(btn => {
+                    if (btn.tagName === 'BUTTON') {
+                        btn.classList.add('hidden');
+                    }
+                });
+
+                row.querySelectorAll('.display').forEach(btn => {
+                    if (btn.tagName === 'BUTTON') {
+                        btn.classList.remove('hidden');
+                    }
+                });
+            }
+
+
+        }
+    </script>
+    <!-- ================ repech script: -->
+    <script>
+        if (window.location.pathname === "/repechages_notes/") {
+            const fields = {
+                idAnnee: document.getElementById('id_id_annee'),
+                idClasse: document.getElementById('id_id_classe_active'),
+                idCampus: document.getElementById('id_id_campus'),
+                idCycle: document.getElementById('id_id_cycle_actif'),
+                idEleve: document.getElementById('id_id_eleve'),
+                idTrimestre: document.getElementById('id_id_trimestre'),
+                idPeriode: document.getElementById('id_id_periode'),
+                idSession: document.getElementById('id_id_session'),
+                idTypeNote: document.getElementById('id_id_type_note'),
+                idCours: document.getElementById('id_id_cours_classe'),
+                idEvaluation: document.getElementById('id_id_evaluation'),
+                evaluationsSection: document.getElementById('repechageSection'),
+
+            };
+            // Initialisation
+            hideFields(
+                fields.idCampus, fields.idCycle, fields.idEvaluation,
+                fields.idClasse, fields.idEleve, fields.idTrimestre, fields.idPeriode,
+                fields.idSession, fields.idTypeNote, fields.idCours
+            );
+            fields.evaluationsSection.classList.add('hidden');
+            // Mettre à jour les dropdowns
+            async function updateDropdown(url, element, valueKey, labelKey) {
+                try {
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    element.innerHTML = '<option value="">------</option>';
+                    // Gérer les clés 'data', 'sessions', ou clé vide ''
+                    const items = data.data || data.sessions || data[""] || data;
+                    if (!Array.isArray(items)) {
+                        console.error('Les données reçues ne sont pas un tableau:', items);
+                        return;
+                    }
+                    items.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item[valueKey];
+                        option.textContent = item[labelKey];
+                        if (item.id_campus) option.dataset.campus = item.id_campus;
+                        if (item.id_cycle) option.dataset.cycle = item.id_cycle;
+                        element.appendChild(option);
+                    });
+                    showField(element);
+                } catch (error) {
+                    console.error('Erreur:', error);
+                }
+            }
+
+            fields.idAnnee.addEventListener('change', async function () {
+                hideFields(
+                    fields.idClasse, fields.idEleve, fields.idTrimestre, fields.idPeriode,
+                    fields.idCampus, fields.idCycle, fields.idEvaluation,
+                    fields.idSession, fields.idTypeNote, fields.idCours
+                );
+                fields.evaluationsSection.classList.add('hidden');
+                if (this.value) {
+                    await updateDropdown(
+                        `/get_all_classes_deliberate_by_year/?id_annee=${this.value}`,
+                        fields.idClasse,
+                        'id',
+                        'label'
+                    );
+                }
+            });
+
+            fields.idClasse.addEventListener('change', async function () {
+                hideFields(
+                    fields.idEleve, fields.idTrimestre, fields.idPeriode,
+                    fields.idSession, fields.idTypeNote, fields.idCours,
+                    fields.idCampus, fields.idCycle, fields.idEvaluation
+                );
+                fields.evaluationsSection.classList.add('hidden');
+                if (this.value) {
+                    fields.idClasse.parentElement.after(fields.idTrimestre.parentElement);
+                    const selectedOption = this.options[this.selectedIndex];
+                    const campusId = selectedOption.dataset.campus;
+                    const cycleId = selectedOption.dataset.cycle;
+                    const anneeId = fields.idAnnee.value;
+                    fields.idCampus.value = campusId;
+                    fields.idCycle.value = cycleId;
+                    await updateDropdown(
+                        `/get_last_trimestre_par_classe/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${this.value}`,
+                        fields.idTrimestre,
+                        'id',
+                        'label'
+                    );
+
+                }
+            });
+
+            fields.idTrimestre.addEventListener('change', async function () {
+                hideFields(
+                    fields.idPeriode, fields.idSession, fields.idTypeNote,
+                    fields.idCours, fields.idCampus, fields.idCycle, fields.idEvaluation
+                );
+                fields.evaluationsSection.classList.add('hidden');
+                if (this.value) {
+                    fields.idTrimestre.parentElement.after(fields.idPeriode.parentElement);
+                    const selectedOption = fields.idClasse.options[fields.idClasse.selectedIndex];
+                    const campusId = selectedOption.dataset.campus;
+                    const cycleId = selectedOption.dataset.cycle;
+                    const anneeId = fields.idAnnee.value;
+                    const classeId = fields.idClasse.value;
+
+                    await updateDropdown(
+                        `/get_periodes_table/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}&id_trimestre_annee=${this.value}`,
+                        fields.idPeriode,
+                        'id_periode',
+                        'periode__periode'
+                    );
+                }
+            });
+
+            fields.idPeriode.addEventListener('change', async function () {
+                hideFields(
+                    fields.idSession, fields.idTypeNote, fields.idCours,
+                    fields.idCampus, fields.idCycle, fields.idEvaluation
+                );
+                fields.evaluationsSection.classList.add('hidden');
+                if (this.value) {
+                    fields.idPeriode.parentElement.after(fields.idSession.parentElement);
+                    const selectedOption = fields.idClasse.options[fields.idClasse.selectedIndex];
+                    const campusId = selectedOption.dataset.campus;
+                    const cycleId = selectedOption.dataset.cycle;
+                    const anneeId = fields.idAnnee.value;
+                    const classeId = fields.idClasse.value;
+
+                    await updateDropdown(
+                        `/get_sessions_repechage/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}`,
+                        fields.idSession,
+                        'id',
+                        'name'
+                    );
+                }
+            });
+
+            fields.idSession.addEventListener('change', async function () {
+                hideFields(
+                    fields.idTypeNote, fields.idCours, fields.idCampus,
+                    fields.idCycle, fields.idEvaluation
+                );
+                fields.evaluationsSection.classList.add('hidden');
+                if (this.value) {
+                    fields.idSession.parentElement.after(fields.idTypeNote.parentElement);
+                    await updateDropdown(
+                        `/get_types_notes_repechages/`,
+                        fields.idTypeNote,
+                        'id',
+                        'label'
+                    );
+                }
+            });
+
+            fields.idTypeNote.addEventListener('change', async function () {
+                hideFields(
+                    fields.idCours, fields.idCampus, fields.idCycle, fields.idEvaluation
+                );
+                fields.evaluationsSection.classList.add('hidden');
+                if (this.value) {
+
+                    fields.idTypeNote.parentElement.after(fields.idEleve.parentElement);
+                    const selectedOption = fields.idClasse.options[fields.idClasse.selectedIndex];
+                    const campusId = selectedOption.dataset.campus;
+                    const cycleId = selectedOption.dataset.cycle;
+                    const anneeId = fields.idAnnee.value;
+                    const classeId = fields.idClasse.value;
+
+                    await updateDropdown(
+                        `/get_pupils_to_complaint/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe_active=${classeId}`,
+                        fields.idEleve,
+                        'id_eleve',
+                        'nom_complet'
+                    );
+                }
+            });
+
+            fields.idEleve.addEventListener('change', async function () {
+                const repechageSection = document.getElementById('repechageSection');
+                const tbody = document.getElementById('repechageTbody');
+                const modal = document.getElementById("modalContainer");
+
+                if (this.value) {
+                    const selectedOption = this.options[this.selectedIndex];
+                    const campusId = selectedOption.dataset.campus;
+                    const cycleId = selectedOption.dataset.cycle;
+                    const anneeId = fields.idAnnee.value;
+                    const classeId = fields.idClasse.value;
+                    const eleveId = this.value;
+                    const url = `/get_course_to_complaint_by_pupil/?id_eleve=${eleveId}&id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}`;
+                    if (modal) modal.style.display = "none";
+
+                    try {
+                        const response = await fetch(url);
+                        if (!response.ok) {
+                            throw new Error(`Erreur HTTP: ${response.status}`);
+                        }
+                        const data = await response.json();
+
+                        tbody.innerHTML = '';
+
+                        if (data.success && data.courses.length > 0) {
+                            const title = repechageSection.querySelector('h3');
+                            title.innerHTML = `Informations sur les repêchages de l'élève: <strong style='color:#33ff5e'>${data.eleve.nom} ${data.eleve.prenom}</strong>`;
+
+                            data.courses.forEach(cours => {
+                                const row = `
+                                    <tr data-id-eleve="${data.eleve.id_eleve}" data-nom-cours="${cours}">
+                                        <td>
+                                            <span class="display">${cours}</span>
+                                            <input class="form-control hidden edit" type="text" value="${cours}" disabled>
+                                        </td>
+                                        <td>
+                                            <span class="display"></span>
+                                            <input class="form-control hidden edit" type="text" value="" placeholder="Entrer la note">
+                                        </td>
+                                        <td class="action-icons">
+                                            <button class="btn btn-sm btn-primary display" onclick="editRow(this)">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-success hidden edit" onclick="saveRow(this)">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-danger hidden edit" onclick="cancelEdit(this)">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </td>
+                                    </tr>`;
+                                tbody.insertAdjacentHTML('beforeend', row);
+                            });
+
+                            repechageSection.classList.remove('hidden');
+                        } else {
+                            repechageSection.classList.add('hidden');
+                            alert('Aucun cours à repêcher trouvé pour cet élève.');
+                        }
+                    } catch (error) {
+                        alert('Une erreur est survenue lors de la récupération des cours.');
+                        repechageSection.classList.add('hidden');
+                    }
+                } else {
+                    repechageSection.classList.add('hidden');
+                    tbody.innerHTML = '';
+                }
+            });
+
+            function editRow(icon) {
+                const row = icon.closest('tr');
+                row.querySelectorAll('.display').forEach(el => el.classList.add('hidden'));
+                row.querySelectorAll('.edit').forEach(el => el.classList.remove('hidden'));
+            }
+
+            function saveRow(icon) {
+                const row = icon.closest('tr');
+                const idEleve = row.dataset.idEleve;
+                const nomCours = row.dataset.nomCours;
+                const noteInput = row.querySelector('input[placeholder="Entrer la note"]');
+                const note_repech = noteInput.value.trim();
+                const anneeId = fields.idAnnee.value;
+                const campusId = fields.idCampus.value;
+                const cycleId = fields.idCycle.value;
+                const classeId = fields.idClasse.value;
+                const trimestreId = fields.idTrimestre.value;
+                const periodeId = fields.idPeriode.value;
+                const sessionId = fields.idSession.value;
+                const typenoteId = fields.idTypeNote.value;
+
+                if (!idEleve) {
+                    alert('Veuillez sélectionner un élève.');
+                    return;
+                }
+                if (!note_repech || isNaN(note_repech) || note_repech < 0) {
+                    alert('Veuillez entrer une note valide.');
+                    return;
+                }
+                fetch('/repechage_submit/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: JSON.stringify({
+                        id_annee: anneeId,
+                        id_campus: campusId,
+                        id_cycle: cycleId,
+                        id_classe: classeId,
+                        id_trimestre: trimestreId,
+                        id_periode: periodeId,
+                        nom_cours: nomCours,
+                        note_repechage: note_repech,
+                        id_eleve: idEleve,
+                        id_session: sessionId,
+                        id_type_note: typenoteId,
+
+                    })
+                })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.success) {
+
+                            row.querySelectorAll('.display').forEach((el, i) => {
+                                const input = row.querySelectorAll('.edit')[i];
+                                if (input) {
+                                    el.textContent = input.value || el.textContent;
+                                }
+                                el.classList.remove('hidden');
+                                input.classList.add('hidden');
+                                input.disabled = true;
+                            });
+
+                            const editBtn = row.querySelector('button.display');
+                            const saveBtn = row.querySelector('button.btn-success');
+                            const cancelBtn = row.querySelector('button.btn-danger');
+
+                            if (editBtn) editBtn.classList.remove('hidden');
+                            if (saveBtn) saveBtn.classList.add('hidden');
+                            if (cancelBtn) cancelBtn.classList.add('hidden');
+
+                            alert('Note de repêchage enregistrée avec succès !');
+                        } else {
+                            alert('Erreur lors de la sauvegarde : ' + result.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erreur:', error);
+                        alert('Une erreur inattendue s\'est produite. Veuillez réessayer.');
+                    });
+            }
+
+            function cancelEdit(icon) {
+                const row = icon.closest('tr');
+
+                row.querySelectorAll('.display').forEach((el, i) => {
+                    const input = row.querySelectorAll('.edit')[i];
+                    input.value = el.textContent;
+                    el.classList.remove('hidden');
+                    input.classList.add('hidden');
+                });
+
+                row.querySelectorAll('.edit').forEach(btn => {
+                    if (btn.tagName === 'BUTTON') {
+                        btn.classList.add('hidden');
+                    }
+                });
+
+                row.querySelectorAll('.display').forEach(btn => {
+                    if (btn.tagName === 'BUTTON') {
+                        btn.classList.remove('hidden');
+                    }
+                });
+            }
+
+        }
+    </script>
+
+
+
+
+
+</body>
+
+</html>

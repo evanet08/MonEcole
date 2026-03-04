@@ -1,0 +1,582 @@
+{% extends 'base_monecole.html' %}
+{% load widget_tweaks %}
+{% load static %}
+
+{% block title %}Direction{% endblock %}
+
+{% block page_css %}
+<style>
+    .hidden {
+        display: none;
+    }
+
+    /* ---- Styles Généraux ---- */
+    #dashboard_direction {
+        font-family: 'Inter', sans-serif;
+        max-width: 2000px;
+        margin: 0 auto;
+        padding: 20px;
+        border-radius: 12px;
+        background: linear-gradient(145deg, #f8f9fa, #e9ecef);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    #select {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #2c3e50;
+        font-size: 16px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    #select:hover {
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .direction-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    /* ---- Styles des Sections ---- */
+    .dashboard-section {
+        display: none;
+        animation: fadeIn 0.5s ease-in-out;
+    }
+
+    .dashboard-section.active {
+        display: block;
+    }
+
+    .grid-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-top: 15px;
+    }
+
+    .stat-card {
+        background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+        transition: transform 0.3s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .stat-card h3 {
+        margin: 0;
+        font-size: 14px;
+        opacity: 0.9;
+    }
+
+    .stat-card .value {
+        font-size: 28px;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+
+    .chart-container {
+        width: 100%;
+        height: 450px;
+        margin-top: 20px;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 20px;
+        padding: 10px;
+    }
+
+    /* ---- Couleurs par Section ---- */
+    #inscription .stat-card {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+
+    #recouvrement .stat-card {
+        background: linear-gradient(135deg, #f46b45 0%, #eea849 100%);
+    }
+
+    #evaluation .stat-card {
+        background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%);
+    }
+
+    #enseignement .stat-card {
+        background: linear-gradient(135deg, #c31432 0%, #240b36 100%);
+    }
+
+    /* ---- Animations ---- */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .chart-filters {
+        margin: 20px 0 10px 0;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .filter-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .filter-select {
+        flex: 1;
+        min-width: 180px;
+        padding: 10px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        background: white;
+        color: #333;
+        font-size: 14px;
+        transition: all 0.3s;
+    }
+
+    .filter-select:hover {
+        border-color: #6a11cb;
+        box-shadow: 0 2px 8px rgba(106, 17, 203, 0.1);
+    }
+
+    @media (max-width: 768px) {
+        .filter-select {
+            min-width: 100%;
+        }
+    }
+
+    .chart-wrapper {
+        width: 45%;
+        max-width: 300px;
+        margin: 0 auto;
+    }
+
+    .chart-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 15px;
+        margin: 0 auto;
+        max-width: 700px;
+    }
+</style>
+{% endblock %}
+
+{% block page_content %}
+<div id="ajax-message" class="container mt-3"></div>
+
+<div id="dashboard_direction" class="table-container">
+    <select id="select">
+        <option value="">-----------------</option>
+        <option value="inscription">Inscription</option>
+        <option style="display: none;" value="recouvrement">Recouvrement</option>
+        <option style="display: none;" value="evaluation">Evaluation</option>
+        <option style="display: none;" value="enseignement">Enseignement</option>
+    </select>
+
+    <div style="background-color: #f5f7fa; max-height: 650px; overflow-y: auto;" class="direction-card">
+        <!-- Section Inscriptions -->
+        <div id="inscription" class="dashboard-section">
+            <h2>📊 Inscriptions</h2>
+            <div class="chart-filters">
+                <div class="chart-filters">
+                    <div class="filter-row">
+                        <select name="id_annee" class="filter-select" id="filter-annee">
+                            <option value="">----------</option>
+                            {% for annee in annees %}
+                            <option value="{{ annee.id_annee }}">{{ annee.annee }}</option>
+                            {% endfor %}
+                        </select>
+                        <select name="id_campus" class="filter-select hidden" id="filter-campus">
+                            <option value="">----------</option>
+                        </select>
+                        <select name="id_cycle" class="filter-select hidden" id="filter-cycle">
+                            <option value="">----------</option>
+                        </select>
+                        <select name="id_classe" class="filter-select hidden" id="filter-classe">
+                            <option value="">----------</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-container">
+                <div class="stat-card">
+                    <h3>Total Inscriptions</h3>
+                    <div class="value" id="total-inscriptions">0</div>
+                    <small style="display: none;" id="total-inscriptions-trend">0</small>
+                </div>
+                <div class="stat-card">
+                    <h3>Garçons</h3>
+                    <div class="value" id="garcons-count">0</div>
+                    <small id="garcons-percent">0.0 %</small>
+                </div>
+                <div class="stat-card">
+                    <h3>Filles</h3>
+                    <div class="value" id="filles-count">0</div>
+                    <small id="filles-percent"> 0.0 %</small>
+                </div>
+                <div class="stat-card">
+                    <h3>Inscriptions par cycle</h3>
+                    <div class="value" id="cycle-count">-</div>
+                    <small id="cycle-info">Sélectionnez un cycle</small>
+                </div>
+            </div>
+            <br>
+            <div class="chart-container" style="width: 100%; max-width: 600px; margin: 0 auto;">
+                <div class="chart-row">
+                    <div class="chart-wrapper">
+                        <canvas id="chartInscription1" height="150"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="chartInscription2" height="150"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Recouvrement -->
+        <div id="recouvrement" class="dashboard-section">
+            <h2>💰 Recouvrement</h2>
+            <div class="chart-filters">
+                <div class="filter-row">
+                    <select class="filter-select">
+                        <option value="">Année scolaire</option>
+                        <option value="2023-2024">2023-2024</option>
+                        <option value="2022-2023">2022-2023</option>
+                    </select>
+                    <select class="filter-select">
+                        <option value="">Campus</option>
+                        <option value="principal">Principal</option>
+                        <option value="annexe">Annexe</option>
+                    </select>
+                    <select class="filter-select">
+                        <option value="">Cycle</option>
+                        <option value="maternelle">Maternelle</option>
+                        <option value="primaire">Primaire</option>
+                        <option value="secondaire">Secondaire</option>
+                    </select>
+                    <select class="filter-select">
+                        <option value="">Classe</option>
+                        <option value="terminale">Terminale</option>
+                        <option value="premiere">Première</option>
+                        <option value="seconde">Seconde</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid-container">
+                <div class="stat-card">
+                    <h3>Montant Attendus</h3>
+                    <div class="value">24.5M FBU</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Déjà Payé</h3>
+                    <div class="value">18.2M FBU</div><small>74.3%</small>
+                </div>
+                <div class="stat-card">
+                    <h3>Reste à Payer</h3>
+                    <div class="value">6.3M FBU</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Réductions</h3>
+                    <div class="value">1.1M FBU</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Evaluation -->
+        <div id="evaluation" class="dashboard-section">
+            <h2>📝 Evaluations</h2>
+            <div class="chart-filters">
+                <div class="filter-row">
+                    <select class="filter-select">
+                        <option value="">Année scolaire</option>
+                        <option value="2023-2024">2023-2024</option>
+                        <option value="2022-2023">2022-2023</option>
+                    </select>
+                    <select class="filter-select">
+                        <option value="">Campus</option>
+                        <option value="principal">Principal</option>
+                        <option value="annexe">Annexe</option>
+                    </select>
+                    <select class="filter-select">
+                        <option value="">Cycle</option>
+                        <option value="maternelle">Maternelle</option>
+                        <option value="primaire">Primaire</option>
+                        <option value="secondaire">Secondaire</option>
+                    </select>
+                    <select class="filter-select">
+                        <option value="">Classe</option>
+                        <option value="terminale">Terminale</option>
+                        <option value="premiere">Première</option>
+                        <option value="seconde">Seconde</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid-container">
+                <div class="stat-card">
+                    <h3>Taux de Réussite</h3>
+                    <div class="value">78.5%</div><small>+5.2% vs trim. dernier</small>
+                </div>
+                <div class="stat-card">
+                    <h3>Échecs</h3>
+                    <div class="value">21.5%</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Meilleure Classe</h3>
+                    <div class="value">Terminale A</div><small>92% réussite</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Enseignement -->
+        <div id="enseignement" class="dashboard-section">
+            <h2>👨‍🏫 Enseignement</h2>
+            <div class="grid-container">
+                <div class="stat-card">
+                    <h3>Enseignants</h3>
+                    <div class="value">42</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Cours Terminés</h3>
+                    <div class="value">87%</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Cours Restants</h3>
+                    <div class="value">13%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<script src="{% static 'js/main.js' %}"></script>
+<script src="{% static 'js/modal.js' %}"></script>
+
+<script>
+    document.getElementById('select').addEventListener('change', function () {
+        const selectedValue = this.value;
+        document.querySelectorAll('.dashboard-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        if (selectedValue) {
+            document.getElementById(selectedValue).classList.add('active');
+        }
+    });
+
+    document.querySelectorAll('.filter-select').forEach(select => {
+        select.addEventListener('change', function () {
+            const sectionId = this.closest('.dashboard-section').id;
+            console.log(`Filtre changé dans ${sectionId}:`, this.value);
+        });
+    });
+</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        Chart.register(ChartDataLabels);
+
+        const anneeSelect = document.getElementById('filter-annee');
+        const campusSelect = document.getElementById('filter-campus');
+        const cycleSelect = document.getElementById('filter-cycle');
+        const classeSelect = document.getElementById('filter-classe');
+
+        const totalInscriptions = document.getElementById('total-inscriptions');
+        const totalTrend = document.getElementById('total-inscriptions-trend');
+        const garconsCount = document.getElementById('garcons-count');
+        const garconsPercent = document.getElementById('garcons-percent');
+        const fillesCount = document.getElementById('filles-count');
+        const fillesPercent = document.getElementById('filles-percent');
+        const cycleCount = document.getElementById('cycle-count');
+        const cycleInfo = document.getElementById('cycle-info');
+
+        const ctx1 = document.getElementById('chartInscription1').getContext('2d');
+        const chartInscription1 = new Chart(ctx1, {
+            type: 'doughnut',
+            plugins: [ChartDataLabels],
+            data: {
+                labels: ['Filles', 'Garçons'],
+                datasets: [{ data: [0, 0], backgroundColor: ['#FF6384', '#36A2EB'] }]
+            },
+            options: {
+                plugins: {
+                    datalabels: {
+                        formatter: (value) => [`${value}%`, '↑'],
+                        color: '#fff', font: { weight: 'bold' },
+                        anchor: 'end', align: 'start', offset: 10, clip: false
+                    }
+                },
+                cutout: '70%'
+            }
+        });
+
+        const ctx2 = document.getElementById('chartInscription2').getContext('2d');
+        const chartInscription2 = new Chart(ctx2, {
+            type: 'pie',
+            plugins: [ChartDataLabels],
+            data: {
+                labels: ['Nouveaux', 'Réinscriptions'],
+                datasets: [{ data: [0, 0], backgroundColor: ['#FFCE56', '#4BC0C0'] }]
+            },
+            options: {
+                plugins: {
+                    datalabels: {
+                        formatter: (value, context) => {
+                            const percent = context.dataset.data[context.dataIndex];
+                            return [`→ ${percent}%`, '↑'];
+                        },
+                        color: '#333', font: { size: 12 },
+                        anchor: 'end', align: 'end', offset: 20
+                    }
+                },
+                layout: { padding: { right: 30 } }
+            }
+        });
+
+        function resetSelect(select) {
+            select.innerHTML = '<option value="">----------</option>';
+            select.classList.add('hidden');
+            select.value = '';
+        }
+
+        function updateStats() {
+            const params = new URLSearchParams();
+            if (anneeSelect.value) params.append('id_annee', anneeSelect.value);
+            if (campusSelect.value) params.append('id_campus', campusSelect.value);
+            if (cycleSelect.value) params.append('id_cycle', cycleSelect.value);
+            if (classeSelect.value) params.append('id_classe', classeSelect.value);
+
+            fetch(`/api/inscription-stats/?${params.toString()}`)
+                .then(response => response.json())
+                .then(data => {
+                    totalInscriptions.textContent = data.total_inscriptions;
+                    totalTrend.textContent = data.trend;
+                    garconsCount.textContent = data.garcons_count;
+                    garconsPercent.textContent = data.garcons_percent;
+                    fillesCount.textContent = data.filles_count;
+                    fillesPercent.textContent = data.filles_percent;
+                    cycleCount.textContent = data.cycle_count;
+                    cycleInfo.textContent = data.cycle_info;
+
+                    chartInscription1.data.datasets[0].data = [
+                        parseFloat(data.filles_percent),
+                        parseFloat(data.garcons_percent)
+                    ];
+                    chartInscription1.update();
+
+                    chartInscription2.data.datasets[0].data = [
+                        parseFloat(data.nouveaux_percent),
+                        parseFloat(data.reinscriptions_percent)
+                    ];
+                    chartInscription2.update();
+                })
+                .catch(error => console.error('Erreur:', error));
+        }
+
+        anneeSelect.addEventListener('change', function () {
+            resetSelect(campusSelect);
+            resetSelect(cycleSelect);
+            resetSelect(classeSelect);
+            if (this.value) {
+                fetch(`/api/campus-options/?id_annee=${this.value}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.campus.length > 0) {
+                            data.campus.forEach(c => {
+                                const option = document.createElement('option');
+                                option.value = c.id_campus;
+                                option.textContent = c.campus;
+                                campusSelect.appendChild(option);
+                            });
+                            campusSelect.classList.remove('hidden');
+                        }
+                        updateStats();
+                    })
+                    .catch(error => console.error('Erreur:', error));
+            } else {
+                updateStats();
+            }
+        });
+
+        campusSelect.addEventListener('change', function () {
+            resetSelect(cycleSelect);
+            resetSelect(classeSelect);
+            if (this.value) {
+                fetch(`/api/cycle-options/?id_annee=${anneeSelect.value}&id_campus=${this.value}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.cycles.length > 0) {
+                            data.cycles.forEach(c => {
+                                const option = document.createElement('option');
+                                option.value = c.id_cycle_actif;
+                                option.textContent = c.cycle_id__cycle;
+                                cycleSelect.appendChild(option);
+                            });
+                            cycleSelect.classList.remove('hidden');
+                        }
+                        updateStats();
+                    })
+                    .catch(error => console.error('Erreur:', error));
+            } else {
+                updateStats();
+            }
+        });
+
+        cycleSelect.addEventListener('change', function () {
+            resetSelect(classeSelect);
+            if (this.value) {
+                fetch(`/api/classe-options/?id_annee=${anneeSelect.value}&id_campus=${campusSelect.value}&id_cycle=${this.value}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.classes.length > 0) {
+                            data.classes.forEach(c => {
+                                const option = document.createElement('option');
+                                option.value = c.id_classe_active;
+                                if (c.groupe && c.groupe.trim() !== "") {
+                                    option.textContent = `${c.classe_id__classe} - ${c.groupe}`;
+                                } else {
+                                    option.textContent = c.classe_id__classe;
+                                }
+                                classeSelect.appendChild(option);
+                            });
+                            classeSelect.classList.remove('hidden');
+                        }
+                        updateStats();
+                    })
+                    .catch(error => console.error('Erreur:', error));
+            } else {
+                updateStats();
+            }
+        });
+
+        classeSelect.addEventListener('change', function () {
+            updateStats();
+        });
+
+        updateStats();
+    });
+</script>
+{% endblock %}

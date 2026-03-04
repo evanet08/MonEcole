@@ -1,0 +1,228 @@
+
+
+
+
+    <div class="modal fade" id="editMentionModal" tabindex="-1" aria-labelledby="editMentionModalLabel" aria-hidden="true">
+
+        <div class="modal-dialog">
+
+            <div class="modal-content">
+
+                <div class="modal-header">
+
+                    <h5 class="modal-title" id="editMentionModalLabel">Modifier la Mention</h5>
+
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+
+                </div>
+
+                <div class="modal-body">
+
+                    <form id="edit_mention_form" method="POST" action="{% url 'mention_edit' %}">
+
+                        {% csrf_token %}
+
+                        <input type="hidden" id="mention_id" name="id_mention">
+
+                        <div class="mb-3">
+
+                            <label for="mention" class="form-label">Mention</label>
+
+                            <input type="text" class="form-control" id="mention" name="mention" required>
+
+                        </div>
+
+                        <div class="mb-3">
+
+                            <label for="abbreviation" class="form-label">Abréviation</label>
+
+                            <input type="text" class="form-control" id="abbreviation" name="abbreviation" required>
+
+                        </div>
+
+                        <div class="mb-3">
+
+                            <label for="min" class="form-label">Min</label>
+
+                            <input type="number" step="0.01" class="form-control" id="min" name="min" required>
+
+                        </div>
+
+                        <div class="mb-3">
+
+                            <label for="max" class="form-label">Max</label>
+
+                            <input type="number" step="0.01" class="form-control" id="max" name="max" required>
+
+                        </div>
+
+                        <div class="modal-footer">
+
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+
+                            <button type="submit" class="btn btn-primary">Enregistrer</button>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+    <!-- Modal for Editing Session -->
+    <div class="modal fade" id="editSessionModal" tabindex="-1" aria-labelledby="editSessionModalLabel" aria-hidden="true">
+
+        <div class="modal-dialog">
+
+            <div class="modal-content">
+
+                <div class="modal-header">
+
+                    <h5 class="modal-title" id="editSessionModalLabel">Modifier la Session</h5>
+
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+
+                </div>
+
+                <div class="modal-body">
+
+                    <form id="edit_session_form" method="POST" action="{% url 'session_edit' %}">
+
+                        {% csrf_token %}
+
+                        <input type="hidden" id="session_id" name="id_session">
+
+                        <div class="mb-3">
+
+                            <label for="session" class="form-label">Nom de la Session</label>
+
+                            <input type="text" class="form-control" id="session" name="session" required>
+
+                        </div>
+
+                        <div class="modal-footer">
+
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+
+                            <button type="submit" class="btn btn-primary">Enregistrer</button>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+    <!-- Modal for Editing Deliberation Type -->
+    <div class="modal fade" id="editDeliberationTypeModal" tabindex="-1" aria-labelledby="editDeliberationTypeModalLabel" aria-hidden="true">
+
+        <div class="modal-dialog">
+
+            <div class="modal-content">
+
+                <div class="modal-header">
+
+                    <h5 class="modal-title" id="editDeliberationTypeModalLabel">Modifier le Type de Délibération</h5>
+
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+
+                </div>
+
+                <div class="modal-body">
+
+                    <form id="edit_deliberation_type_form" method="POST" action="{% url 'deliberation_type_edit' %}">
+
+                        {% csrf_token %}
+
+                        <input type="hidden" id="deliberation_type_id" name="id_deliberation_type">
+
+                        <div class="mb-3">
+
+                            <label for="type" class="form-label">Type de Délibération</label>
+
+                            <input type="text" class="form-control" id="type" name="type" required>
+
+                        </div>
+
+                        <div class="modal-footer">
+
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+
+                            <button type="submit" class="btn btn-primary">Enregistrer</button>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+        <!-- Modal for Editing Finalité -->
+    <div class="modal fade" id="editFinaliteModal" tabindex="-1" aria-labelledby="editFinaliteModalLabel" aria-hidden="true">
+
+        <div class="modal-dialog">
+
+            <div class="modal-content">
+
+                <div class="modal-header">
+
+                    <h5 class="modal-title" id="editFinaliteModalLabel">Modifier la Finalité</h5>
+
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+
+                </div>
+
+                <div class="modal-body">
+
+                    <form id="edit_finalite_form" method="POST" action="{% url 'deliberation_finalite_edit' %}">
+
+                        {% csrf_token %}
+
+                        <input type="hidden" id="finalite_id" name="id_finalite">
+
+                        <div class="mb-3">
+
+                            <label for="finalite" class="form-label">Finalité</label>
+
+                            <input type="text" class="form-control" id="finalite" name="finalite" required>
+
+                        </div>
+                        <div class="mb-3">
+
+                            <label for="sigle" class="form-label">Sigle</label>
+
+                            <input type="text" class="form-control" id="sigle" name="sigle" required>
+
+                        </div>
+
+                        <div class="modal-footer">
+
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+
+                            <button type="submit" class="btn btn-primary">Enregistrer</button>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+    <!-- Edition condition modal_condition_deliberation !!! -->
+    

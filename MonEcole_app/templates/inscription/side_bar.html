@@ -1,0 +1,48 @@
+<div class="sidebar">
+  <div class="menu">
+    <div style="display: none;" class="menu-item">
+      <a href="#"><span class="emoji-icon">📂</span>Document scolaire<i class="fas fa-chevron-right"></i></a>
+      <div class="submenu">
+        <div class="menu-item">
+          <a href="#"><span class="emoji-icon">🧩</span>Obligatory file</a>
+        </div>
+        <div class="menu-item">
+          <a href="#"><span class="emoji-icon">🏢</span>Requiered file</a>
+        </div>
+      </div>
+    </div>
+    <div class="menu-item">
+      <a href="#"><span class="emoji-icon">📝</span>Inscriptions<i class="fas fa-chevron-right"></i></a>
+      <div class="submenu">
+        <div class="menu-item">
+          <a href="{% url 'create_inscription' %}"><span class="emoji-icon">➕</span>Ajouter un inscrit</a>
+        </div>
+        <div class="menu-item">
+          <a href="{% url 'inscription_excel_file' %}"><span class="emoji-icon">📑</span> Générer fichier(Excel)</a>
+        </div>
+        <div class="menu-item">
+          <a href="{% url 'import_inscription'  %}"><span class="emoji-icon">📥</span> Importation </a>
+        </div>
+        <div style="display: none;" class="menu-item">
+          <a href="{% url 'changer_inscription'%}"><span class="emoji-icon">👀</span> Changer/Visualiser</a>
+        </div>
+      </div>
+
+    </div>
+    <div class="menu-item">
+      <a href="#"><span class="emoji-icon">⚙️</span>Options<i class="fas fa-chevron-right"></i></a>
+      <div class="submenu">
+        <div class="menu-item">
+          <a href="{% url 'changer_inscription'%}"><span class="emoji-icon">👀</span> Changer/Visualiser</a>
+          <a style="display: none;" href="#"><span class="emoji-icon">📝</span>Inscriptions multiple</a>
+        </div>
+      </div>
+    </div>
+    <div class="menu-item">
+      <a href="#"><span class="emoji-icon">🔀</span>Changer vers<i class="fas fa-chevron-right"></i></a>
+      <div class="submenu">{% include 'partials/url_module.html' %}</div>
+    </div>
+  </div>
+  {% include 'partials/log_out_button.html' %}
+
+</div>

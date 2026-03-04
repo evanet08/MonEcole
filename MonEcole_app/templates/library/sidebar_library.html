@@ -1,0 +1,156 @@
+<div class="sidebar">
+    {% include 'partials/title_logo.html' %}
+    <div class="menu">
+        <!-- Item 1 : Gestion des livres -->
+        <div class="menu-item">
+            <a href="#" class="menu-link">
+                <span class="icon-wrapper">📚</span>
+                <span class="menu-text">Gestion des livres</span>
+                <i class="fas fa-chevron-right arrow-icon"></i>
+            </a>
+            <div class="submenu">
+                <div class="menu-item">
+                    <a href="{% url 'library:create_armory_library' %}" class="submenu-link">
+                        <span class="icon-wrapper">🗄️</span>
+                        <span class="menu-text">Armoires & structure</span>
+                    </a>
+
+                </div>
+                <div class="menu-item">
+                    <a href="{% url 'library:create_compartiment_library' %}" class="submenu-link">
+                        <span class="icon-wrapper">🗄️</span>
+                        <span class="menu-text">Compartements</span>
+                    </a>
+                </div>
+                <div class="menu-item">
+                    <a href="{% url 'library:create_category_livre_library' %}" class="submenu-link">
+                        <span class="icon-wrapper">🏷️</span>
+                        <span class="menu-text">Catégories / Domaines</span>
+                    </a>
+                </div>
+                <div class="menu-item">
+                    <a href="{% url 'library:create_livre_library' %}" class="submenu-link">
+                        <span class="icon-wrapper">➕</span>
+                        <span class="menu-text">Ajouter un livre</span>
+                    </a>
+                </div>
+                <div class="menu-item">
+                    <a href="{% url 'library:create_livre_exemplaire_library' %}" class="submenu-link">
+                        <span class="icon-wrapper">📖</span>
+                        <span class="menu-text">Exemplaires d'un livre</span>
+                    </a>
+                </div>
+
+
+            </div>
+        </div>
+
+        <!-- Item 2 : Gestion des emprunts -->
+        <div class="menu-item">
+            <a href="#" class="menu-link">
+                <span class="icon-wrapper">📦</span>
+                <span class="menu-text">Gestion des emprunts</span>
+                <i class="fas fa-chevron-right arrow-icon"></i>
+            </a>
+            <div class="submenu">
+                <div class="menu-item">
+                    <a href="{% url 'library:ajout_emprunt' %}" class="submenu-link">
+                        <span class="icon-wrapper">📝</span>
+                        <span class="menu-text">Nouvel emprunt</span>
+                    </a>
+                </div>
+                <div class="menu-item">
+                    <a href="{% url 'library:list_emprunt' %}" class="submenu-link">
+                        <span class="icon-wrapper">📝</span>
+                        <span class="menu-text">Liste des emprunts</span>
+                    </a>
+                </div>
+                <div class="menu-item">
+                    <a href="{% url 'library:list_emprunt_retour' %}" class="submenu-link">
+                        <span class="icon-wrapper">🔄</span>
+                        <span class="menu-text">Retour d’un livre</span>
+                    </a>
+                </div>
+                <div style="display: none;" class="menu-item">
+                    <a href="#" class="submenu-link">
+                        <span class="icon-wrapper">⏳</span>
+                        <span class="menu-text">Emprunts en cours</span>
+                    </a>
+                </div>
+                <div style="display: none;" class="menu-item">
+                    <a href="#" class="submenu-link">
+                        <span class="icon-wrapper">⚠️</span>
+                        <span class="menu-text">Retards</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Item 3 : Gestion des utilisateurs -->
+        <div style="display: none;" class="menu-item">
+            <a href="#" class="menu-link">
+                <span class="icon-wrapper">👥</span>
+                <span class="menu-text">Utilisateurs</span>
+                <i class="fas fa-chevron-right arrow-icon"></i>
+            </a>
+            <div class="submenu">
+                <div class="menu-item">
+                    <a href="#" class="submenu-link">
+                        <span class="icon-wrapper">🎓</span>
+                        <span class="menu-text">Élèves</span>
+                    </a>
+                </div>
+                <div class="menu-item">
+                    <a href="#" class="submenu-link">
+                        <span class="icon-wrapper">👨‍🏫</span>
+                        <span class="menu-text">Personnel</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Item 4 : Rapports -->
+        <div class="menu-item">
+            <a href="#" class="menu-link">
+                <span class="icon-wrapper">📊</span>
+                <span class="menu-text">Rapports & Statistiques</span>
+                <i class="fas fa-chevron-right arrow-icon"></i>
+            </a>
+            <div class="submenu">
+                <div class="menu-item">
+                    <a href="{% url 'library:report_by_most_land_home' %}" class="submenu-link">
+                        <span class="icon-wrapper">📈</span>
+                        <span class="menu-text">Livres plus empruntés</span>
+                    </a>
+                </div>
+                <div class="menu-item">
+                    <a href="{% url 'library:report_by_periode_home' %}" class="submenu-link">
+                        <span class="icon-wrapper">📅</span>
+                        <span class="menu-text">Etat emprunt/Tous cycles</span>
+                    </a>
+                </div>
+                <div class="menu-item">
+                    <a href="{% url 'library:report_by_eleve_home' %}" class="submenu-link">
+                        <span class="icon-wrapper">👥</span>
+                        <span class="menu-text">Etat Retour/Emprunt</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Item 5 -->
+        <div class="menu-item">
+            <a href="#" class="menu-link">
+                <span class="icon-wrapper">🔄</span>
+                <span class="menu-text">Changer vers</span>
+                <i class="fas fa-chevron-right arrow-icon"></i>
+            </a>
+            <div class="submenu">
+                {% include 'partials/url_module.html' %}
+            </div>
+        </div>
+    </div>
+    {% include 'partials/log_out_button.html' %}
+
+</div>

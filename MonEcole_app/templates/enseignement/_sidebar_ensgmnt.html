@@ -1,0 +1,91 @@
+
+<div class="sidebar">
+    {% include 'partials/title_logo.html' %}
+    <div class="menu">
+        <div style="display: none;" class="menu-item">
+            <a href="#"><span class="emoji-icon">📂</span>Document scolaire<i class="fas fa-chevron-right"></i></a>
+            <div class="submenu">
+                <div class="menu-item">
+                    <a href="#"><span class="emoji-icon">🧩</span>Obligatory file</a>
+                </div>
+                <div class="menu-item">
+                    <a href="#"><span class="emoji-icon">🏢</span>Requiered file</a>
+                </div>
+            </div>
+        </div>
+        <div style="display: none;" class="menu-item">
+            <a href="#"><span class="emoji-icon">📦</span>Accès aux classes<i class="fas fa-chevron-right"></i></a>
+            <div class="submenu">
+                <div class="menu-item">
+                    <a href="#"><span class="emoji-icon">👨‍💼</span>Désigner un délégué</a>
+                </div>
+                <div class="menu-item">
+                    <a href=""><span class="emoji-icon">👨‍🏫</span>Tutilaire
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="menu-item">
+            <a href="#"><span class="emoji-icon">📚</span>Gestion des cours<i class="fas fa-chevron-right"></i></a>
+            <div class="submenu">
+                <div class="menu-item">
+                    <a href="{% url 'create_cours' %}"><span class="emoji-icon">📚</span>Cours</a>
+                </div>
+                <div class="menu-item">
+                    <a href="{% url 'create_cours_cycle' %}"><span class="emoji-icon">👨‍🏫</span>Cours/cycle
+                    </a>
+                </div>
+                <div class="menu-item">
+                    <a href="{% url 'organiser_cours_classes' %}"><span class="emoji-icon">👨‍🏫</span>Cours/Classe
+                    </a>
+                </div>
+                <div class="menu-item">
+                    <a href="{% url 'attribution_type_cours' %}"><span class="emoji-icon">👨‍🏫</span>Type
+                        d'attribution
+                    </a>
+                </div>
+                <div class="menu-item">
+                    <a href="{% url 'attribution_cours' %}"><span class="emoji-icon">👨‍🏫</span>Attribuer un cours
+                    </a>
+                </div>
+                <div class="menu-item">
+                    <a href="{% url 'list_cours_attribution' %}"><span class="emoji-icon">👨‍🏫</span>Toutes attributions
+                    </a>
+                </div>
+                <div class="menu-item">
+                    <a href="{% url 'attribution_par_classe' %}"><span class="emoji-icon">👨‍🏫</span>Attribution/classe
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="menu-item">
+            <a href="#"><span class="emoji-icon">📦</span>Gestion des horaires<i
+                    class="fas fa-chevron-right"></i></a>
+            <div class="submenu">
+                <div style="display: none;" class="menu-item">
+                    <a href="#"><span class="emoji-icon">👨‍💼</span>Etablir un calendrier</a>
+                </div>
+                <div class="menu-item">
+                    <a href="{% url 'type_horaire' %}"><span class="emoji-icon">👨‍🏫</span>type horaire
+                    </a>
+                </div>
+                <div class="menu-item">
+                    <a href="{% url 'create_horaire' %}"><span class="emoji-icon">👨‍🏫</span>Horaire
+                    </a>
+                </div>
+                <div class="menu-item">
+                    <a href="{% url 'afficher_horaire' %}"><span class="emoji-icon">👨‍🏫</span>Imprimer horaire
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="menu-item">
+            <a href="#"><span class="emoji-icon">🔀</span>Changer vers<i class="fas fa-chevron-right"></i></a>
+            <div class="submenu">
+                {% include 'partials/url_module.html' %}
+            </div>
+        </div>
+    </div>
+  {% include 'partials/log_out_button.html' %}
+
+</div>

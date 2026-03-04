@@ -1,0 +1,2646 @@
+<!DOCTYPE html>
+<html lang="fr">
+{% load widget_tweaks %}
+{% load static %}
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="{% static 'assets/img/MonEcoleApp-logo.png' %}" rel="icon">
+    <title>comptability-home</title>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/enseignement_premium.css' %}">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Poppins:wght@400;600&display=swap"
+        rel="stylesheet">
+
+    <meta name="csrf-token" content="{{ csrf_token }}">
+
+    <style>
+        :root {
+            --primary-color: #6a11cb;
+            --secondary-color: #2575fc;
+            --accent-color: #ff6b6b;
+            --light-bg: #f8f9fa;
+            --dark-text: #2c3e50;
+            --light-text: #f8f9fa;
+            --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            --transition: all 0.3s ease;
+        }
+
+
+
+        /* ---- Dashboard Container ---- */
+        #dashboard_direction {
+            max-width: 2000px;
+            margin: 0 auto;
+            padding: 20px;
+            border-radius: 12px;
+            background: white;
+            box-shadow: var(--card-shadow);
+        }
+
+        /* ---- Sélecteur Principal ---- */
+        #select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            background: white;
+            color: var(--dark-text);
+            font-size: 16px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            transition: var(--transition);
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            background-size: 15px;
+        }
+
+        #select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 4px 12px rgba(106, 17, 203, 0.15);
+        }
+
+        /* ---- Cartes ---- */
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 25px;
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        /* ---- Sections du Dashboard ---- */
+        .dashboard-section {
+            display: none;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .active {
+            display: block;
+        }
+
+        /* ---- Statistiques ---- */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 200%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: rotate(30deg);
+            pointer-events: none;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px) scale(1.02);
+        }
+
+        .stat-card h3 {
+            margin: 0;
+            font-size: 15px;
+            opacity: 0.9;
+            font-weight: 400;
+        }
+
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 15px 0;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        /* ---- Graphiques ---- */
+        .chart-container {
+            height: 320px;
+            margin-top: 25px;
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        /* ---- Filtres ---- */
+        .chart-filters {
+            margin: 25px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .filter-select {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+            color: var(--dark-text);
+            font-size: 14px;
+            transition: var(--transition);
+        }
+
+        .filter-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(106, 17, 203, 0.1);
+        }
+
+        /* ---- Disposition des Graphiques ---- */
+        .chart-row {
+            display: flex;
+            gap: 25px;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            margin-bottom: 25px;
+        }
+
+        .chart-wrapper {
+            flex: 1 1 45%;
+            min-width: 300px;
+            position: relative;
+        }
+
+        /* ---- Animations ---- */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ---- Responsive ---- */
+        @media (max-width: 768px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-wrapper {
+                min-width: 100%;
+            }
+
+            .filter-select {
+                min-width: 100%;
+            }
+        }
+
+        /* ---- Messages ---- */
+        #message-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            max-width: 400px;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            position: relative;
+            opacity: 0.95;
+            transition: var(--transition);
+        }
+
+        .alert:hover {
+            opacity: 1;
+            transform: translateY(-2px);
+        }
+
+        /* ---- Sidebar Styles ---- */
+        .sidebar {
+            width: 300px;
+            background: linear-gradient(145deg, #2c3e50, #34495e);
+            color: white;
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: 2px 0 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .menu {
+            padding: 20px 0;
+        }
+
+        .menu-item {
+            margin-bottom: 5px;
+            position: relative;
+        }
+
+        .menu-link,
+        .submenu-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .menu-link:hover,
+        .submenu-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-left-color: var(--primary-color);
+        }
+
+        .icon-wrapper {
+            margin-right: 15px;
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .menu-text {
+            flex-grow: 1;
+            font-size: 15px;
+        }
+
+        .arrow-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .menu-item.active .arrow-icon {
+            transform: rotate(90deg);
+        }
+
+        .submenu {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .menu-item.active .submenu {
+            max-height: 500px;
+        }
+
+        .menu-item.active .arrow-icon {
+            transform: rotate(180deg);
+        }
+
+        .arrow-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .submenu-link {
+            padding-left: 55px;
+            font-size: 14px;
+        }
+
+        /* Logout Button */
+    </style>
+</head>
+
+<body class="ep-premium">
+        <div class="ep-bg-animation">
+        <div class="ep-bg-shape ep-bg-shape-1"></div>
+        <div class="ep-bg-shape ep-bg-shape-2"></div>
+    </div>
+{% if messages %}
+    <div id="message-container" class="container">
+        <div class="message-box">
+            {% for message in messages %}
+            <div class="alert {{ message.tags }} alert-dismissible" role="alert">
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">×</span>
+                </button>
+                {{ message|safe }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div id="ajax-message" class="container mt-3"></div>
+
+    <!-- Mobile Toggle Button -->
+    <div class="mobile-nav-toggle">
+        <i class="fas fa-bars"></i>
+    </div>
+
+    <!-- Sidebar -->
+    {% include 'recouvrement/_sidebar_direct.html'%}
+    <!-- Bottom Navigation -->
+    {% include 'partials/_foot_bar.html' %}
+
+    <!-- Main Content -->
+    <div class="main-content">
+        {% include 'partials/_profile_bar.html' %}
+
+        <div id="modalContainer" class="modal">
+            <div class="modal-content">
+                <span style="display: none;" class="close-btn">&times;</span> <!-- Bouton Fermer -->
+                <form id="variablePrixForm" action="#" method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <!-- =============== variable frais creation's section ================== -->
+                    {% if form_type == 'variablecategorie_form' %}
+                    <h2>Formulaire d'enregistrement</h2>
+                    {% if form_variable_categorie.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_variable_categorie.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_variable_categorie %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label}}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+                    <!-- ================ Variable creation's form: -->
+                    {% elif form_type == 'variable_form' %}
+                    <h2>Formulaire d'enregistrement</h2>
+                    {% if form_variable.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_variable.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_variable %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label}}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+                    <!-- ================ Banque creation's form: -->
+                    {% elif form_type == 'banque_form' %}
+                    <h2>Formulaire d'enregistrement</h2>
+                    {% if form_banque.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_banque.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_banque %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label ">{{ field.label}}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+                    <!-- Compte creation form -->
+                    {% elif form_type == 'compte_form' %}
+                    <h2>Formulaire d'enregistrement</h2>
+                    {% if form_compte.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_compte.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_compte %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label ">{{ field.label}}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+                    <!-- variable prix  creation form -->
+                    {% elif form_type == 'variable_prix_form' %}
+                    <h2>Formulaire d'enregistrement</h2>
+                    {% if form_variable_prix.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_variable_prix.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_variable_prix %}
+                        {% if field.name == 'id_campus' or field.name == 'id_cycle_actif' %}
+                        <div class="form-group col-md-4" style="display:none;">
+                            {% render_field field class="form-control" %}
+                        </div>
+                        {% else %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label ">{{ field.label }}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+                    <!-- ========== derogation -->
+
+                    {% elif form_type == 'derogation_form' %}
+                    <h2>Formulaire d'enregistrement</h2>
+                    {% if form_derogation.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_derogation.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_derogation %}
+                        {% if field.name == 'id_campus' or field.name == 'id_cycle_actif' %}
+                        <div class="form-group col-md-4" style="display:none;">
+                            {% render_field field class="form-control" %}
+                        </div>
+                        {% else %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label ">{{ field.label }}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    <div style="display:none;" class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+
+                    <!-- ========== validation paiement -->
+
+                    {% elif form_type == 'validation_form' %}
+                    <h2>Séléctionnez pour effectuer une validation</h2>
+                    {% if form_paiement_validation.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_paiement_validation.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_paiement_validation %}
+                        {% if field.name == 'id_campus' or field.name == 'id_cycle_actif' %}
+                        <div class="form-group col-md-4" style="display:none;">
+                            {% render_field field class="form-control" %}
+                        </div>
+                        {% else %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label ">{{ field.label }}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    <div style="display:none;" class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+
+                    <!-- ================ reduction -->
+                    {% elif form_type == 'reduction_form' %}
+                    <h2>Formulaire d'enregistrement</h2>
+                    {% if form_reduction.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_reduction.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_reduction %}
+                        {% if field.name == 'id_campus' or field.name == 'id_cycle_actif' %}
+                        <div class="form-group col-md-4" style="display:none;">
+                            {% render_field field class="form-control" %}
+                        </div>
+                        {% else %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label ">{{ field.label }}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    <div style="display:none;" class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+
+                    <!-- ================ butoire -->
+                    {% elif form_type == 'butoire_form' %}
+                    <h2>Formulaire d'enregistrement</h2>
+                    {% if form_butoire.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_butoire.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_butoire %}
+                        {% if field.name == 'id_campus' or field.name == 'id_cycle_actif' %}
+                        <div class="form-group col-md-4" style="display:none;">
+                            {% render_field field class="form-control" %}
+                        </div>
+                        {% else %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label ">{{ field.label }}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    <div style="display:none;" class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+                    <!-- =============paiement -->
+                    {% elif form_type == 'paiement_form' %}
+                    <h2>Formulaire d'enregistrement</h2>
+                    {% if form_paiement.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ form_paiement.non_form_errors }}
+                    </div>
+                    {% endif %}
+                    <div class="form-row">
+                        {% for field in form_paiement %}
+                        {% if field.name == 'id_campus' or field.name == 'id_cycle_actif' %}
+                        <div class="form-group col-md-4" style="display:none;">
+                            {% render_field field class="form-control" %}
+                        </div>
+                        {% else %}
+                        <div class="form-group col-md-4">
+                            <label for="{{ field.id_for_label }}" class="form-label ">{{ field.label }}</label>
+                            {% render_field field class="form-control" placeholder=field.label %}
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelBtn">
+                            <span class="emoji-icon">❌</span> Annuler
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+        <!-- listes des categories_variables crees -->
+        {% if variable_categorie %}
+        <div class="table-container">
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les categories créées</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success">AJouter</button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+                                        <th>Catégorie</th>
+                                        <th>Actions</th>
+
+                                    </tr>
+                                </thead>
+                                <!-- Liste des cours  -->
+                                {% if variable_categorie %}
+                                <tbody>
+                                    {% for categorie in variable_categorie %}
+                                    <tr id="row-categorie-{{ categorie.id_variable_categorie }}">
+                                        <td id="categorie-name-{{ categorie.id_variable_categorie }}">{{ categorie.nom }}</td>
+
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-primary edit-btn-categorie"
+                                                data-id="{{ categorie.id_variable_categorie }}">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4">Aucune categorie n'est disponible.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                {% endif %}
+
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Liste des variables deja crees -->
+        {% if variableList %}
+        <div class="table-container">
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les variables créées</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success">Ajouter</button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+                                        <th>Catégorie</th>
+                                        <th>Variable</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                {% if variableList %}
+                                <tbody>
+                                    {% for variable in variableList %}
+                                    <tr id="row-variable-{{ variable.id_variable }}">
+                                        <td id="categorie-name-{{ variable.id_variable }}">{{ variable.id_variable_categorie.nom }}</td>
+                                        <td id="variable-name-{{ variable.id_variable }}">{{ variable.variable }}</td>
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-primary edit-btn-variable"
+                                                data-id="{{ variable.id_variable }}">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="3">Aucune variable n'est disponible.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                {% endif %}
+
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% csrf_token %}
+        </div>
+        {% endif %}
+
+        <!-- listes des banques crees -->
+        {% if banque_list %}
+
+        <div class="table-container">
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les banques créées</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success">Ajouter</button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+                                        <th>Banque</th>
+                                        <th>Sigle</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                {% if banque_list %}
+                                <tbody>
+                                    {% for banque in banque_list %}
+                                    <tr id="row-banque-{{ banque.id_banque }}">
+                                        <td id="banque-name-{{ banque.id_banque }}">{{ banque.banque }}</td>
+                                        <td id="sigle-name-{{ banque.id_banque }}">{{ banque.sigle }}</td>
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-primary edit-btn-banque"
+                                                data-id="{{ banque.id_banque }}">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="3">Aucune banque n'est disponible.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% csrf_token %}
+        </div>
+        {% endif %}
+
+        <!-- compte -->
+        {% if compte_list %}
+        <div class="table-container">
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les comptes créés</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success">Ajouter</button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+                                        <th>No de compte</th>
+                                        <th>Banque</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                {% if compte_list %}
+                                <tbody>
+                                    {% for compte in compte_list %}
+                                    <tr id="row-compte-{{ compte.id_compte }}">
+                                        <td id="compte-num-{{ compte.id_compte }}">{{ compte.compte }}</td>
+                                        <td id="banque-name-{{ compte.id_compte }}">{{ compte.id_banque.banque }}</td>
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-primary edit-btn-compte"
+                                                data-id="{{ compte.id_compte }}">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="3">Aucun compte n'est disponible pour une banque donnée.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% csrf_token %}
+        </div>
+        {% endif %}
+        <!-- variable prix list  -->
+        {% if variable_prix_list %}
+        <div class="table-container">
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les prix créés</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success">Ajouter</button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+                                        <th>Année</th>
+                                        <th>Campus</th>
+                                        <th>Cycle</th>
+                                        <th>Classe</th>
+                                        <th>Prix</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                {% if variable_prix_list %}
+                                <tbody>
+                                    {% for compte in variable_prix_list %}
+                                    <tr id="row-compte-{{ compte.id_compte }}">
+                                        <td id="compte-num-{{ compte.id_prix }}">{{ compte.id_annee.annee }}</td>
+                                        <td id="compte-num-{{ compte.id_prix }}">{{ compte.id_campus.campus }}</td>
+                                        <td id="compte-num-{{ compte.id_prix }}">{{ compte.id_cycle_actif.cycle_id.cycle }}</td>
+                                        <td id="compte-num-{{ compte.id_prix }}">{{ compte.id_classe_active.classe_id.classe }}</td>
+                                        <td id="compte-num-{{ compte.id_prix }}">{{ compte.prix }}</td>
+
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-primary edit-btn-compte"
+                                                data-id="{{ compte.id_prix }}">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="3">Aucun prix n'est disponible.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% csrf_token %}
+        </div>
+        {% endif %}
+
+        <!-- derogation/butoire/reduction -->
+        {% if variable_list %}
+        <div class="table-container" id="tab_variable_list" style="display: none;">
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>Informations sur les variables créées</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success">Ajouter</button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+                                        <th>Variable</th>
+                                        {% if derogationField or butoireField %}
+                                        <th>date</th>
+                                        {% endif %}
+                                        {% if reductionField %}
+                                        <th>taux réduit</th>
+                                        {% endif %}
+
+
+                                        <th>Actions</th>
+
+                                    </tr>
+                                </thead>
+                                {% if variable_list %}
+                                <tbody>
+                                    {% for variable in variable_list %}
+                                    <tr id="row-variable-{{ variable.id_variable }}">
+                                        <td id="variable-name-{{ variable.id_variable }}">{{ variable.variable }}</td>
+                                        {% if derogationField or butoireField %}
+                                        <td><input type="date"></td>
+                                        {% endif %}
+                                        {% if reductionField %}
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm" min="0" max="100"
+                                                step="1">
+                                        </td>
+                                        {% endif %}
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-success validate-btn"
+                                                data-id="{{ variable.id_variable }}">
+                                                <i class="fas fa-clipboard-check"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="3">Aucune variable n'est disponible.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                {% endif %}
+
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% csrf_token %}
+        </div>
+        {% endif %}
+
+        <!-- all paiements -->
+
+        <div class="table-container" id="tab_paiement_list" style="display: none;">
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>LISTES DES PAIEMENTS A VALIDER</h3>
+                    </div>
+                    <div class="card-body">
+                        <button style="display: none;" class="btn btn-success">Ajouter</button>
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+                                        <th>Nom et prénom de l'élève:</th>
+                                        <th>Motif paiement</th>
+                                        <th>Montant</th>
+                                        <th>Bordereau</th>
+                                        <th>Valider</th>
+                                        <th>Rejetter</th>
+
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    <!-- injections dynamique!!! -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% csrf_token %}
+        </div>
+
+        <!-- ========= liste  -->
+        <div class="table-container" id="tab_paiement_valider" style="display: none;">
+            <div class="col-md-12">
+                <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
+                    <div class="table-header">
+                        <h3>LISTE DES PAIEMENTS DEJA VALIDES</h3>
+                    </div>
+                    <button id="generate_fiche_paie_classe" class="btn btn-success">Situation des paiements déjà
+                        effectues pour cette classe</button>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+                                        <th>Nom et prénom de l'élève:</th>
+                                        <th>Motif paiement</th>
+                                        <th>Montant</th>
+                                        <th>Générer une facture/motif</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    <!-- injections dynamique!!! -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Scripts -->
+    <script src="{% static 'js/main.js' %}"></script>
+    <script src="{% static 'js/modal.js' %}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{% static 'assets/vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    <!-- variable categorie edition script :  -->
+    <script>
+        $(document).ready(function () {
+            $(document).on('click', '.edit-btn-categorie', function (e) {
+                e.preventDefault();
+                var button = $(this);
+                var categorieId = button.data('id');
+                var row = $('#row-categorie-' + categorieId);
+                var nameCell = row.find('td[id="categorie-name-' + categorieId + '"]');
+                var currentName = nameCell.text().trim();
+
+                if (!nameCell.length) {
+                    alert('Erreur : Impossible de trouver la cellule à modifier.');
+                    return;
+                }
+
+                nameCell.html('<input type="text" class="form-control edit-input" value="' + currentName + '">');
+
+                var input = nameCell.find('.edit-input');
+                input.focus();
+
+                input.on('blur keypress', function (e) {
+                    if (e.type === 'blur' || e.which === 13) {
+                        var newName = $(this).val().trim();
+
+                        if (newName === '') {
+                            alert('Le nom de la catégorie ne peut pas être vide.');
+                            nameCell.html(currentName);
+                            return;
+                        }
+
+                        if (newName === currentName) {
+                            nameCell.html(currentName);
+                            return;
+                        }
+
+                        nameCell.html('<span>Enregistrement...</span>');
+
+                        $.ajax({
+                            url: '/update_categorie/' + categorieId + '/',
+                            type: 'POST',
+                            data: {
+                                'nom': newName,
+                                'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val()
+                            },
+                            success: function (response) {
+                                if (response.success) {
+                                    nameCell.html(newName);
+                                    alert('Catégorie mise à jour avec succès !');
+                                } else {
+                                    alert('Erreur : ' + response.error);
+                                    nameCell.html(currentName);
+                                }
+                            },
+                            error: function (xhr, status, error) {
+                                alert('Une erreur est survenue lors de la mise à jour.');
+                                nameCell.html(currentName);
+                            }
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+    <!-- variable creation script: -->
+    <script>
+        $(document).ready(function () {
+            function loadCategories(callback) {
+                $.ajax({
+                    url: '/get_categories/',
+                    type: 'GET',
+                    success: function (response) {
+                        callback(response.categories);
+                    },
+                    error: function () {
+                        console.error('Erreur lors du chargement des catégories');
+                        alert('Impossible de charger les catégories.');
+                        callback([]);
+                    }
+                });
+            }
+
+            $(document).on('click', '.edit-btn-variable', function (e) {
+                e.preventDefault();
+                var button = $(this);
+                var variableId = button.data('id');
+                var row = $('#row-variable-' + variableId);
+                var categorieCell = row.find('td[id="categorie-name-' + variableId + '"]');
+                var variableCell = row.find('td[id="variable-name-' + variableId + '"]');
+                var actionCell = row.find('td:last');
+                var currentCategorie = categorieCell.text().trim();
+                var currentVariable = variableCell.text().trim();
+
+                if (!categorieCell.length || !variableCell.length || !actionCell.length) {
+                    alert('Erreur : Impossible de trouver les cellules à modifier.');
+                    return;
+                }
+
+                button.prop('disabled', true);
+
+                loadCategories(function (categories) {
+                    if (categories.length === 0) {
+                        alert('Aucune catégorie disponible.');
+                        button.prop('disabled', false);
+                        return;
+                    }
+
+                    var selectHtml = '<select class="form-control edit-input-categorie">';
+                    $.each(categories, function (index, cat) {
+                        var selected = cat.nom === currentCategorie ? 'selected' : '';
+                        selectHtml += '<option value="' + cat.id_variable_categorie + '" ' + selected + '>' + cat.nom + '</option>';
+                    });
+                    selectHtml += '</select>';
+
+                    categorieCell.html(selectHtml);
+                    variableCell.html('<input type="text" class="form-control edit-input-variable" value="' + currentVariable + '">');
+                    actionCell.html(
+                        '<button class="btn btn-sm btn-success save-btn-variable" data-id="' + variableId + '">Enregistrer</button>' +
+                        '<button class="btn btn-sm btn-danger cancel-btn-variable" data-id="' + variableId + '">Annuler</button>'
+                    );
+
+                    var inputVariable = variableCell.find('.edit-input-variable');
+                    inputVariable.focus();
+
+                    inputVariable.on('keypress', function (e) {
+                        if (e.which === 13) {
+                            e.preventDefault();
+                            saveChanges(variableId, categorieCell, variableCell, actionCell, currentCategorie, currentVariable, button);
+                        }
+                    });
+
+                    actionCell.find('.save-btn-variable').on('click', function (e) {
+                        e.preventDefault();
+                        saveChanges(variableId, categorieCell, variableCell, actionCell, currentCategorie, currentVariable, button);
+                    });
+
+                    actionCell.find('.cancel-btn-variable').on('click', function (e) {
+                        e.preventDefault();
+                        categorieCell.html(currentCategorie);
+                        variableCell.html(currentVariable);
+                        actionCell.html(
+                            '<a href="#" class="btn btn-sm btn-outline-primary edit-btn-variable" data-id="' + variableId + '">' +
+                            '<i class="fas fa-edit"></i></a>'
+                        );
+                        button.prop('disabled', false);
+                    });
+                });
+            });
+
+            function saveChanges(variableId, categorieCell, variableCell, actionCell, currentCategorie, currentVariable, editButton) {
+                var newCategorieId = categorieCell.find('.edit-input-categorie').val();
+                var newVariable = variableCell.find('.edit-input-variable').val().trim();
+
+                if (!newCategorieId || newVariable === '') {
+                    alert('Les champs ne peuvent pas être vides.');
+                    categorieCell.html(currentCategorie);
+                    variableCell.html(currentVariable);
+                    actionCell.html(
+                        '<a href="#" class="btn btn-sm btn-outline-primary edit-btn-variable" data-id="' + variableId + '">' +
+                        '<i class="fas fa-edit"></i></a>'
+                    );
+                    editButton.prop('disabled', false);
+                    return;
+                }
+
+                if (newVariable === currentVariable && categorieCell.find('option:selected').text() === currentCategorie) {
+                    categorieCell.html(currentCategorie);
+                    variableCell.html(currentVariable);
+                    actionCell.html(
+                        '<a href="#" class="btn btn-sm btn-outline-primary edit-btn-variable" data-id="' + variableId + '">' +
+                        '<i class="fas fa-edit"></i></a>'
+                    );
+                    editButton.prop('disabled', false);
+                    return;
+                }
+
+                categorieCell.html('<span>Enregistrement...</span>');
+                variableCell.html('<span>Enregistrement...</span>');
+
+                $.ajax({
+                    url: '/update_variable/' + variableId + '/',
+                    type: 'POST',
+                    data: {
+                        'categorie_id': newCategorieId,
+                        'variable': newVariable,
+                        'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val()
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            categorieCell.html(response.categorie_nom);
+                            variableCell.html(newVariable);
+                            actionCell.html(
+                                '<a href="#" class="btn btn-sm btn-outline-primary edit-btn-variable" data-id="' + variableId + '">' +
+                                '<i class="fas fa-edit"></i></a>'
+                            );
+                            alert('Variable mise à jour avec succès !');
+                        } else {
+                            alert('Erreur : ' + response.error);
+                            categorieCell.html(currentCategorie);
+                            variableCell.html(currentVariable);
+                            actionCell.html(
+                                '<a href="#" class="btn btn-sm btn-outline-primary edit-btn-variable" data-id="' + variableId + '">' +
+                                '<i class="fas fa-edit"></i></a>'
+                            );
+                        }
+                        editButton.prop('disabled', false);
+                    },
+                    error: function (xhr, status, error) {
+                        alert('Une erreur est survenue lors de la mise à jour.');
+                        categorieCell.html(currentCategorie);
+                        variableCell.html(currentVariable);
+                        actionCell.html(
+                            '<a href="#" class="btn btn-sm btn-outline-primary edit-btn-variable" data-id="' + variableId + '">' +
+                            '<i class="fas fa-edit"></i></a>'
+                        );
+                        editButton.prop('disabled', false);
+                    }
+                });
+            }
+        });
+    </script>
+    <!-- banque edition script -->
+    <script>
+        $(document).ready(function () {
+            $(document).on('click', '.edit-btn-banque', function (e) {
+                e.preventDefault();
+                var button = $(this);
+                var banqueId = button.data('id');
+                var row = $('#row-banque-' + banqueId);
+                var banqueCell = row.find('td[id="banque-name-' + banqueId + '"]');
+                var sigleCell = row.find('td[id="sigle-name-' + banqueId + '"]');
+                var actionCell = row.find('td:last');
+                var currentBanque = banqueCell.text().trim();
+                var currentSigle = sigleCell.text().trim();
+
+                if (!banqueCell.length || !sigleCell.length || !actionCell.length) {
+                    alert('Erreur : Impossible de trouver les cellules à modifier.');
+                    return;
+                }
+
+                button.prop('disabled', true);
+
+                banqueCell.html('<input type="text" class="form-control edit-input-banque" value="' + currentBanque + '">');
+                sigleCell.html('<input type="text" class="form-control edit-input-sigle" value="' + currentSigle + '">');
+                actionCell.html(
+                    '<button class="btn btn-sm btn-success save-btn-banque" data-id="' + banqueId + '">Enregistrer</button>' +
+                    '<button class="btn btn-sm btn-danger cancel-btn-banque" data-id="' + banqueId + '">Annuler</button>'
+                );
+
+                var inputBanque = banqueCell.find('.edit-input-banque');
+                inputBanque.focus();
+
+                sigleCell.find('.edit-input-sigle').on('keypress', function (e) {
+                    if (e.which === 13) {
+                        e.preventDefault();
+                        saveChanges(banqueId, banqueCell, sigleCell, actionCell, currentBanque, currentSigle, button);
+                    }
+                });
+
+                actionCell.find('.save-btn-banque').on('click', function (e) {
+                    e.preventDefault();
+                    saveChanges(banqueId, banqueCell, sigleCell, actionCell, currentBanque, currentSigle, button);
+                });
+
+                actionCell.find('.cancel-btn-banque').on('click', function (e) {
+                    e.preventDefault();
+                    banqueCell.html(currentBanque);
+                    sigleCell.html(currentSigle);
+                    actionCell.html(
+                        '<a href="#" class="btn btn-sm btn-outline-primary edit-btn-banque" data-id="' + banqueId + '">' +
+                        '<i class="fas fa-edit"></i></a>'
+                    );
+                    button.prop('disabled', false);
+                });
+            });
+
+            function saveChanges(banqueId, banqueCell, sigleCell, actionCell, currentBanque, currentSigle, editButton) {
+                var newBanque = banqueCell.find('.edit-input-banque').val().trim();
+                var newSigle = sigleCell.find('.edit-input-sigle').val().trim();
+
+                if (newBanque === '' || newSigle === '') {
+                    alert('Les champs ne peuvent pas être vides.');
+                    banqueCell.html(currentBanque);
+                    sigleCell.html(currentSigle);
+                    actionCell.html(
+                        '<a href="#" class="btn btn-sm btn-outline-primary edit-btn-banque" data-id="' + banqueId + '">' +
+                        '<i class="fas fa-edit"></i></a>'
+                    );
+                    editButton.prop('disabled', false);
+                    return;
+                }
+
+                if (newBanque === currentBanque && newSigle === currentSigle) {
+                    banqueCell.html(currentBanque);
+                    sigleCell.html(currentSigle);
+                    actionCell.html(
+                        '<a href="#" class="btn btn-sm btn-outline-primary edit-btn-banque" data-id="' + banqueId + '">' +
+                        '<i class="fas fa-edit"></i></a>'
+                    );
+                    editButton.prop('disabled', false);
+                    return;
+                }
+
+                banqueCell.html('<span>Enregistrement...</span>');
+                sigleCell.html('<span>Enregistrement...</span>');
+
+                $.ajax({
+                    url: '/update_banque/' + banqueId + '/',
+                    type: 'POST',
+                    data: {
+                        'banque': newBanque,
+                        'sigle': newSigle,
+                        'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val()
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            banqueCell.html(newBanque);
+                            sigleCell.html(newSigle);
+                            actionCell.html(
+                                '<a href="#" class="btn btn-sm btn-outline-primary edit-btn-banque" data-id="' + banqueId + '">' +
+                                '<i class="fas fa-edit"></i></a>'
+                            );
+                            alert('Banque mise à jour avec succès !');
+                        } else {
+                            alert('Erreur : ' + response.error);
+                            banqueCell.html(currentBanque);
+                            sigleCell.html(currentSigle);
+                            actionCell.html(
+                                '<a href="#" class="btn btn-sm btn-outline-primary edit-btn-banque" data-id="' + banqueId + '">' +
+                                '<i class="fas fa-edit"></i></a>'
+                            );
+                        }
+                        editButton.prop('disabled', false);
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Erreur AJAX : ', error);
+                        alert('Une erreur est survenue lors de la mise à jour.');
+                        banqueCell.html(currentBanque);
+                        sigleCell.html(currentSigle);
+                        actionCell.html(
+                            '<a href="#" class="btn btn-sm btn-outline-primary edit-btn-banque" data-id="' + banqueId + '">' +
+                            '<i class="fas fa-edit"></i></a>'
+                        );
+                        editButton.prop('disabled', false);
+                    }
+                });
+            }
+        });
+    </script>
+    <!-- compte edition script : -->
+    <script>
+        $(document).ready(function () {
+            function loadBanques(callback) {
+                $.ajax({
+                    url: '/get_banques/',
+                    type: 'GET',
+                    success: function (response) {
+                        callback(response.banques);
+                    },
+                    error: function () {
+                        alert('Impossible de charger les banques.');
+                        callback([]);
+                    }
+                });
+            }
+
+            $(document).on('click', '.edit-btn-compte', function (e) {
+                e.preventDefault();
+                var button = $(this);
+                var compteId = button.data('id');
+                var row = $('#row-compte-' + compteId);
+                var compteCell = row.find('td[id="compte-num-' + compteId + '"]');
+                var banqueCell = row.find('td[id="banque-name-' + compteId + '"]');
+                var actionCell = row.find('td:last');
+                var currentCompte = compteCell.text().trim();
+                var currentBanque = banqueCell.text().trim();
+
+                if (!compteCell.length || !banqueCell.length || !actionCell.length) {
+                    alert('Erreur : Impossible de trouver les cellules à modifier.');
+                    return;
+                }
+
+                button.prop('disabled', true);
+
+                loadBanques(function (banques) {
+                    if (banques.length === 0) {
+                        alert('Aucune banque disponible.');
+                        button.prop('disabled', false);
+                        return;
+                    }
+
+                    var selectHtml = '<select class="form-control edit-input-banque">';
+                    $.each(banques, function (index, banque) {
+                        var selected = banque.banque === currentBanque ? 'selected' : '';
+                        selectHtml += '<option value="' + banque.id_banque + '" ' + selected + '>' + banque.banque + '</option>';
+                    });
+                    selectHtml += '</select>';
+
+                    compteCell.html('<input type="text" class="form-control edit-input-compte" value="' + currentCompte + '">');
+                    banqueCell.html(selectHtml);
+                    actionCell.html(
+                        '<button class="btn btn-sm btn-success save-btn-compte" data-id="' + compteId + '">Enregistrer</button>' +
+                        '<button class="btn btn-sm btn-danger cancel-btn-compte" data-id="' + compteId + '">Annuler</button>'
+                    );
+
+                    var inputCompte = compteCell.find('.edit-input-compte');
+                    inputCompte.focus();
+
+                    inputCompte.on('keypress', function (e) {
+                        if (e.which === 13) {
+                            e.preventDefault();
+                            saveChanges(compteId, compteCell, banqueCell, actionCell, currentCompte, currentBanque, button);
+                        }
+                    });
+
+                    actionCell.find('.save-btn-compte').on('click', function (e) {
+                        e.preventDefault();
+                        saveChanges(compteId, compteCell, banqueCell, actionCell, currentCompte, currentBanque, button);
+                    });
+
+                    actionCell.find('.cancel-btn-compte').on('click', function (e) {
+                        e.preventDefault();
+                        compteCell.html(currentCompte);
+                        banqueCell.html(currentBanque);
+                        actionCell.html(
+                            '<a href="#" class="btn btn-sm btn-outline-primary edit-btn-compte" data-id="' + compteId + '">' +
+                            '<i class="fas fa-edit"></i></a>'
+                        );
+                        button.prop('disabled', false);
+                    });
+                });
+            });
+
+            function saveChanges(compteId, compteCell, banqueCell, actionCell, currentCompte, currentBanque, editButton) {
+                var newCompte = compteCell.find('.edit-input-compte').val().trim();
+                var newBanqueId = banqueCell.find('.edit-input-banque').val();
+
+                if (!newCompte || !newBanqueId) {
+                    alert('Les champs ne peuvent pas être vides.');
+                    compteCell.html(currentCompte);
+                    banqueCell.html(currentBanque);
+                    actionCell.html(
+                        '<a href="#" class="btn btn-sm btn-outline-primary edit-btn-compte" data-id="' + compteId + '">' +
+                        '<i class="fas fa-edit"></i></a>'
+                    );
+                    editButton.prop('disabled', false);
+                    return;
+                }
+
+                if (newCompte === currentCompte && banqueCell.find('option:selected').text() === currentBanque) {
+                    compteCell.html(currentCompte);
+                    banqueCell.html(currentBanque);
+                    actionCell.html(
+                        '<a href="#" class="btn btn-sm btn-outline-primary edit-btn-compte" data-id="' + compteId + '">' +
+                        '<i class="fas fa-edit"></i></a>'
+                    );
+                    editButton.prop('disabled', false);
+                    return;
+                }
+
+                compteCell.html('<span>Enregistrement...</span>');
+                banqueCell.html('<span>Enregistrement...</span>');
+
+                $.ajax({
+                    url: '/update_compte/' + compteId + '/',
+                    type: 'POST',
+                    data: {
+                        'compte': newCompte,
+                        'banque_id': newBanqueId,
+                        'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val()
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            compteCell.html(newCompte);
+                            banqueCell.html(response.banque_nom);
+                            actionCell.html(
+                                '<a href="#" class="btn btn-sm btn-outline-primary edit-btn-compte" data-id="' + compteId + '">' +
+                                '<i class="fas fa-edit"></i></a>'
+                            );
+                            alert('Compte mis à jour avec succès !');
+                        } else {
+                            alert('Erreur : ' + response.error);
+                            compteCell.html(currentCompte);
+                            banqueCell.html(currentBanque);
+                            actionCell.html(
+                                '<a href="#" class="btn btn-sm btn-outline-primary edit-btn-compte" data-id="' + compteId + '">' +
+                                '<i class="fas fa-edit"></i></a>'
+                            );
+                        }
+                        editButton.prop('disabled', false);
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Erreur AJAX : ', error);
+                        alert('Une erreur est survenue lors de la mise à jour.');
+                        compteCell.html(currentCompte);
+                        banqueCell.html(currentBanque);
+                        actionCell.html(
+                            '<a href="#" class="btn btn-sm btn-outline-primary edit-btn-compte" data-id="' + compteId + '">' +
+                            '<i class="fas fa-edit"></i></a>'
+                        );
+                        editButton.prop('disabled', false);
+                    }
+                });
+            }
+        });
+    </script>
+    <!-- ====== prix/variables -->
+
+    <script>
+        $(document).ready(function () {
+            if (window.location.pathname.includes("create_variable_prix")) {
+                $('#field-id_classe_active').hide();
+                $('#field-id_variable').hide();
+                $('#field-prix').hide();
+                $('#saveBtn').hide();
+
+                let selectedCampusId = null;
+                let selectedCycleId = null;
+
+                $('#id_id_annee').on('change', function () {
+                    var anneeId = $(this).val();
+                    if (!anneeId) {
+                        $('#field-id_classe_active').hide();
+                        $('#field-id_variable').hide();
+                        $('#field-prix').hide();
+                        $('#saveBtn').hide();
+                        selectedCampusId = null;
+                        selectedCycleId = null;
+                        return;
+                    }
+
+                    $.ajax({
+                        url: '/store_annee_session/',
+                        type: 'POST',
+                        data: {
+                            'id_annee': anneeId,
+                            'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val()
+                        },
+                        success: function (response) {
+                            if (response.success) {
+                                updateClasseDropdown(anneeId);
+                            } else {
+                                alert('Erreur : ' + response.error);
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            alert('Une erreur est survenue lors de l\'enregistrement de l\'année.');
+                        }
+                    });
+                });
+
+                function updateClasseDropdown(anneeId) {
+                    var dropdown = $('#id_id_classe_active')[0];
+                    fetch('/get_classes_actives/' + anneeId + '/')
+                        .then(response => response.json())
+                        .then(responseData => {
+                            if (!responseData.success && responseData.error) {
+                                alert('Erreur : ' + responseData.error);
+                                return;
+                            }
+                            const data = responseData.classes || [];
+                            dropdown.innerHTML = '<option value="">------</option>';
+                            if (data.length > 0) {
+                                data.forEach(item => {
+                                    let option = document.createElement("option");
+                                    option.value = item.id_classe_active;
+                                    option.textContent = `${item.campus_nom} - ${item.cycle_nom} - ${item.classe_nom}${item.groupe ? ' (' + item.groupe + ')' : ''}`;
+                                    option.dataset.campusId = item.id_campus;
+                                    option.dataset.cycleId = item.id_cycle;
+                                    dropdown.appendChild(option);
+                                });
+                                $('#field-id_classe_active').show();
+                            } else {
+                                alert(responseData.message || 'Aucune classe active trouvée pour cette année scolaire.');
+                                $('#field-id_classe_active').hide();
+                            }
+                            $('#field-id_variable').hide();
+                            $('#field-prix').hide();
+                            $('#saveBtn').hide();
+                            selectedCampusId = null;
+                            selectedCycleId = null;
+                        })
+                        .catch(error => {
+                            alert('Erreur lors du chargement des classes.');
+                        });
+                }
+
+                $('#id_id_classe_active').on('change', function () {
+                    if ($(this).val()) {
+                        const selectedOption = $(this).find('option:selected');
+                        selectedCampusId = selectedOption.data('campusId');
+                        selectedCycleId = selectedOption.data('cycleId');
+
+                        $('#field-id_variable').show();
+                    } else {
+                        $('#field-id_variable').hide();
+                        $('#field-prix').hide();
+                        $('#saveBtn').hide();
+                        selectedCampusId = null;
+                        selectedCycleId = null;
+                    }
+                });
+
+                $('#id_id_variable').on('change', function () {
+                    if ($(this).val()) {
+                        $('#field-prix').show();
+                    } else {
+                        $('#field-prix').hide();
+                        $('#saveBtn').hide();
+                    }
+                });
+
+                $('#id_prix').on('input', function () {
+                    if ($(this).val().trim() && parseFloat($(this).val()) > 0) {
+                        $('#saveBtn').show();
+                    } else {
+                        $('#saveBtn').hide();
+                    }
+                });
+
+                $('#variablePrixForm').on('submit', function (e) {
+                    e.preventDefault();
+                    var formData = $(this).serializeArray();
+                    formData.push({ name: 'id_campus', value: selectedCampusId });
+                    formData.push({ name: 'id_cycle_actif', value: selectedCycleId });
+
+
+                    $.ajax({
+                        url: '/save_variable_prix/',
+                        type: 'POST',
+                        data: formData,
+
+                        success: function (response) {
+                            if (response.success) {
+                                alert('Frais scolaire enregistré avec succès !');
+                                $('#modalContainer').modal('hide');
+                                window.location.href = "{% url 'create_variable_prix' %}";
+                            } else {
+                                let errorMsg = response.error;
+                                if (response.details) {
+                                    try {
+                                        const errors = JSON.parse(response.details);
+                                        errorMsg += '\nDétails : ' + Object.values(errors).map(field => field.message).join('\n');
+                                    } catch (e) {
+                                        console.error('Erreur lors du parsing des erreurs :', e);
+                                    }
+                                }
+                                alert('Erreur : ' + errorMsg);
+                                // Redirection même en cas d’erreur
+                                window.location.href = "{% url 'create_variable_prix' %}";
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            alert('Une erreur est survenue lors de l\'enregistrement.');
+                        }
+                    });
+                });
+
+                $('#cancelBtn, #cancelBtnForm').on('click', function () {
+                    $('#modalContainer').modal('hide');
+                });
+            };
+        });
+    </script>
+    <!-- ====== derogation / datebutoire script ! -->
+
+    <script>
+        $(document).ready(function () {
+            if (window.location.pathname.includes("create_derogation_classe") || (window.location.pathname.includes('ajouter_date_butoire') || (window.location.pathname.includes("afficher_paiement_submitted") || (window.location.pathname.includes("paiement_valider"))))) {
+
+                let selectedAnneeId = null;
+                let selectedCampusId = null;
+                let selectedCycleId = null;
+                let selectedClasseId = null;
+                let selectedEleveId = null;
+                let modal = document.getElementById("modalContainer");
+
+                $('#field-id_classe_active').hide();
+                $('#field-id_eleve').hide();
+                $('#tab_variable_list').hide();
+                $('#id_id_annee').on('change', function () {
+                    selectedAnneeId = $(this).val();
+                    if (!selectedAnneeId) {
+                        $('#field-id_classe_active').hide();
+                        $('#field-id_eleve').hide();
+                        $('#tab_variable_list').hide();
+                        selectedCampusId = null;
+                        selectedCycleId = null;
+                        selectedClasseId = null;
+                        selectedEleveId = null;
+                        return;
+                    }
+
+                    $.ajax({
+                        url: '/store_annee_session/',
+                        type: 'POST',
+                        data: {
+                            'id_annee': selectedAnneeId,
+                            'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val()
+                        },
+                        success: function (response) {
+                            if (response.success) {
+                                updateClasseDropdown(selectedAnneeId);
+                            } else {
+                                alert('Erreur : ' + response.error);
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            alert('Une erreur est survenue lors de l\'enregistrement de l\'année.');
+                        }
+                    });
+                });
+
+                function updateClasseDropdown(anneeId) {
+                    var dropdown = $('#id_id_classe_active')[0];
+
+                    // Vérifier l'URL courante
+                    let currentPath = window.location.pathname;
+                    let apiUrl = "";
+
+                    if (currentPath.includes("afficher_paiement_submitted")) {
+                        apiUrl = '/get_classes_actives_with_paie/' + anneeId + '/';
+                    }
+                    else if (currentPath.includes("paiement_valider")) {
+                        apiUrl = '/get_classes_actives_with_paie/' + anneeId + '/';
+
+                    }
+                    else {
+                        apiUrl = '/get_classes_actives/' + anneeId + '/';
+                    }
+
+                    fetch(apiUrl)
+                        .then(response => response.json())
+                        .then(responseData => {
+                            if (!responseData.success && responseData.error) {
+                                alert('Erreur : ' + responseData.error);
+                                return;
+                            }
+                            const data = responseData.classes || [];
+                            dropdown.innerHTML = '<option value="">------</option>';
+                            if (data.length > 0) {
+                                data.forEach(item => {
+                                    let option = document.createElement("option");
+                                    option.value = item.id_classe_active;
+                                    option.textContent = `${item.campus_nom} - ${item.cycle_nom} - ${item.classe_nom}${item.groupe ? ' (' + item.groupe + ')' : ''}`;
+                                    option.dataset.campusId = item.id_campus;
+                                    option.dataset.cycleId = item.id_cycle;
+                                    dropdown.appendChild(option);
+                                });
+                                $('#field-id_classe_active').show();
+                            } else {
+                                alert(responseData.message || 'Aucune classe active trouvée pour cette année scolaire.');
+                                $('#field-id_classe_active').hide();
+                            }
+                            $('#field-id_eleve').hide();
+                            $('#tab_variable_list').hide();
+                        })
+                        .catch(error => {
+                            alert('Erreur lors du chargement des classes.');
+                        });
+                }
+                // Fonction pour attacher l'événement aux boutons "Générer"
+                function attachGenerateButtonEvents() {
+                    $(document).off('click', '.btn-generate').on('click', '.btn-generate', function () {
+                        const id_paiement = $(this).data('id');
+
+                        window.location.href = `/generate_invoice/${id_paiement}/`;
+                    });
+                }
+
+
+                function refreshPaiementTable() {
+                    if (!selectedAnneeId || !selectedCampusId || !selectedCycleId || !selectedClasseId) {
+                        $('#tab_paiement_list tbody').empty().append(`<tr><td colspan="6">Veuillez sélectionner une classe.</td></tr>`);
+                        return;
+                    }
+                    // Gérer le clic sur le bouton "Situation des paiements"
+
+
+                    const url = `/get_paiements_submitted/?id_annee=${selectedAnneeId}&id_campus=${selectedCampusId}&id_cycle=${selectedCycleId}&id_classe_active=${selectedClasseId}`;
+                    fetch(url)
+                        .then(response => response.json())
+                        .then(data => {
+                            const tbody = $('#tab_paiement_list tbody');
+                            tbody.empty();
+
+                            if (data.success) {
+                                if (data.data.length > 0) {
+                                    data.data.forEach(p => {
+                                        tbody.append(`
+                                        <tr id="row-paiement-${p.id_paiement}">
+                                            <td>${p.eleve_nom} ${p.eleve_prenom}</td>
+                                            <td>${p.variable}</td>
+                                            <td>${p.montant}Fbu</td>
+                                            <td>${p.bordereau ? `<a href="/media/invoices/${p.bordereau}" target="_blank">Voir</a>` : "Aucun"}</td>
+                                            <td><input type="checkbox" class="update-checkbox" data-id="${p.id_paiement}" data-field="status" ${p.status ? 'checked' : ''}></td>
+                                            <td><input type="checkbox" class="update-checkbox" data-id="${p.id_paiement}" data-field="is_rejected" ${p.is_rejected ? 'checked' : ''}></td>
+                                        </tr>
+                                    `);
+                                    });
+                                } else {
+                                    tbody.append(`<tr><td colspan="6">Aucun paiement trouvé.</td></tr>`);
+                                }
+                            } else {
+                                alert(data.error || "Erreur lors du chargement des paiements.");
+                                tbody.append(`<tr><td colspan="6">Erreur lors du chargement.</td></tr>`);
+                            }
+
+                            if (window.location.pathname.includes("afficher_paiement_submitted")) {
+                                attachCheckboxEvents();
+                            }
+                        })
+                        .catch(err => {
+                            alert("Erreur serveur: " + err);
+                            $('#tab_paiement_list tbody').empty().append(`<tr><td colspan="6">Erreur serveur.</td></tr>`);
+                        });
+                }
+
+                function getPaiementTable() {
+                    if (!selectedAnneeId || !selectedCampusId || !selectedCycleId || !selectedClasseId) {
+                        $('#tab_paiement_valider tbody').empty().append(`<tr><td colspan="6">Veuillez sélectionner une classe.</td></tr>`);
+                        return;
+                    }
+                    $('#generate_fiche_paie_classe').on('click', function () {
+                        if (!selectedAnneeId || !selectedCampusId || !selectedCycleId || !selectedClasseId) {
+                            alert('Veuillez sélectionner une année, un campus, un cycle et une classe.');
+                            return;
+                        }
+
+                        console.log(`✅ Génération de la fiche de paie pour id_annee=${selectedAnneeId}, id_campus=${selectedCampusId}, id_cycle=${selectedCycleId}, id_classe_active=${selectedClasseId}`);
+
+                        // Construire l'URL avec les paramètres
+                        const url = `/generate_fiche_paie_classe/?id_annee=${selectedAnneeId}&id_campus=${selectedCampusId}&id_cycle=${selectedCycleId}&id_classe_active=${selectedClasseId}`;
+
+                        // Rediriger pour télécharger le PDF
+                        window.location.href = url;
+                    });
+
+                    const url = `/get_paiements_validated/?id_annee=${selectedAnneeId}&id_campus=${selectedCampusId}&id_cycle=${selectedCycleId}&id_classe_active=${selectedClasseId}`;
+                    fetch(url)
+                        .then(response => response.json())
+                        .then(data => {
+                            const tbody = $('#tab_paiement_valider tbody');
+                            tbody.empty();
+
+                            if (data.success) {
+                                if (data.data.length > 0) {
+                                    data.data.forEach(p => {
+                                        tbody.append(`
+                                        
+                                        <tr id="row-paiement-${p.id_paiement}">
+                                            <td>${p.eleve_nom} ${p.eleve_prenom}</td>
+                                            <td>${p.variable}</td>
+                                            <td>${p.montant} Fbu</td>
+                                            <td>
+                                                <button style ="color:white" class=" btn btn-primary btn-generate" data-id="${p.id_paiement}">
+                                                    Réçu de cette variable
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `);
+                                    });
+                                } else {
+                                    tbody.append(`<tr><td colspan="6">Aucun paiement trouvé déjà validé !</td></tr>`);
+                                }
+                            } else {
+                                alert(data.error || "Erreur lors du chargement des paiements.");
+                                tbody.append(`<tr><td colspan="6">Erreur lors du chargement.</td></tr>`);
+                            }
+
+                            // Attacher l'événement aux boutons "Générer"
+                            attachGenerateButtonEvents();
+                        })
+                        .catch(err => {
+                            console.error('❌ Erreur lors du chargement des paiements :', err);
+                            alert("Erreur serveur: " + err);
+                            $('#tab_paiement_valider tbody').empty().append(`<tr><td colspan="6">Erreur serveur.</td></tr>`);
+                        });
+                }
+
+
+                function attachCheckboxEvents() {
+                    $(document).off('change', '.update-checkbox').on('change', '.update-checkbox', function () {
+                        var checkbox = $(this);
+                        var id_paiement = checkbox.data('id');
+                        var field = checkbox.data('field');
+                        var value = checkbox.is(':checked');
+
+
+                        checkbox.prop('disabled', true);
+
+                        $.ajax({
+                            url: '/update_paiement_field/',
+                            type: 'POST',
+                            data: {
+                                'id_paiement': id_paiement,
+                                'field': field,
+                                'value': value,
+                                'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val()
+                            },
+                            success: function (response) {
+                                if (response.success) {
+                                    refreshPaiementTable();
+                                } else {
+                                    alert('Erreur : ' + response.error);
+                                    checkbox.prop('checked', !value);
+                                    checkbox.prop('disabled', false);
+                                }
+                            },
+                            error: function (xhr, status, error) {
+                                alert('Une erreur est survenue lors de la mise à jour.');
+                                checkbox.prop('checked', !value);
+                                checkbox.prop('disabled', false);
+                            }
+                        });
+                    });
+                }
+
+                $('#id_id_classe_active').on('change', function () {
+                    selectedClasseId = $(this).val();
+                    if (selectedClasseId) {
+                        const selectedOption = $(this).find('option:selected');
+                        selectedCampusId = selectedOption.data('campusId');
+                        selectedCycleId = selectedOption.data('cycleId');
+
+                        if (window.location.pathname.includes("ajouter_date_butoire")) {
+                            modal.style.display = 'none';
+                            $('#tab_variable_list').show();
+                            return;
+                        }
+
+                        if (window.location.pathname.includes("afficher_paiement_submitted")) {
+                            modal.style.display = 'none';
+                            $('#tab_paiement_list').show();
+                            refreshPaiementTable();
+                            return;
+                        }
+                        if (window.location.pathname.includes("paiement_valider")) {
+                            modal.style.display = 'none';
+                            $('#tab_paiement_valider').show();
+                            getPaiementTable();
+                            return;
+
+                        }
+
+                        updateEleveDropdown();
+                    } else {
+                        $('#field-id_eleve').hide();
+                        $('#tab_variable_list').hide();
+                        $('#tab_paiement_list').hide();
+                        selectedCampusId = null;
+                        selectedCycleId = null;
+                        selectedEleveId = null;
+                    }
+                });
+
+                $('#id_id_annee').on('change', function () {
+                    selectedAnneeId = $(this).val();
+                    if (!selectedAnneeId) {
+                        $('#field-id_classe_active').hide();
+                        $('#field-id_eleve').hide();
+                        $('#tab_variable_list').hide();
+                        $('#tab_paiement_list').hide();
+                        selectedCampusId = null;
+                        selectedCycleId = null;
+                        selectedClasseId = null;
+                        selectedEleveId = null;
+                        return;
+                    }
+
+                    $.ajax({
+                        url: '/store_annee_session/',
+                        type: 'POST',
+                        data: {
+                            'id_annee': selectedAnneeId,
+                            'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val()
+                        },
+                        success: function (response) {
+                            if (response.success) {
+                                updateClasseDropdown(selectedAnneeId);
+                            } else {
+                                alert('Erreur : ' + response.error);
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            alert('Une erreur est survenue lors de l\'enregistrement de l\'année.');
+                        }
+                    });
+                });
+                function updateEleveDropdown() {
+                    var dropdown = $('#id_id_eleve')[0];
+                    const pupilsUrl = `/get_pupils_registred_classe/?id_annee=${selectedAnneeId}&id_campus=${selectedCampusId}&id_cycle=${selectedCycleId}&id_classe_active=${selectedClasseId}`;
+
+                    fetch(pupilsUrl)
+                        .then(response => response.json())
+                        .then(responseData => {
+                            if (!responseData.success) {
+                                alert(responseData.error || "Erreur lors du chargement des élèves.");
+                                $('#field-id_eleve').hide();
+                                return;
+                            }
+                            const data = responseData.data || [];
+                            dropdown.innerHTML = '<option value="">------</option>';
+                            if (data.length > 0) {
+                                data.forEach(item => {
+                                    let option = document.createElement("option");
+                                    option.value = item.id_eleve;
+                                    option.textContent = item.nom_complet;
+                                    dropdown.appendChild(option);
+                                });
+                                $('#field-id_eleve').show();
+                            } else {
+                                alert('Aucun élève trouvé pour cette classe.');
+                                $('#field-id_eleve').hide();
+                            }
+
+                            $('#tab_variable_list').hide();
+                        })
+                        .catch(error => {
+                            alert('Erreur lors du chargement des élèves.');
+                        });
+                }
+
+
+                $('#id_id_eleve').on('change', function () {
+                    selectedEleveId = $(this).val();
+                    if (selectedEleveId) {
+                        modal.style.display = 'none';
+                        $('#tab_variable_list').show();
+                    } else {
+                        $('#tab_variable_list').hide();
+                    }
+                });
+
+                $(document).on('click', '.validate-btn', function (e) {
+                    e.preventDefault();
+                    var variableId = $(this).data('id');
+                    var row = $('#row-variable-' + variableId);
+                    var dateInput = row.find('input[type="date"]');
+                    var dateButoire = dateInput.val();
+
+                    if (!dateButoire) {
+                        alert("Veuillez saisir une date. C'est obligatoire !");
+                        return;
+                    }
+
+                    let ajaxUrl = "";
+                    var formData = {
+                        'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val(),
+                        'id_annee': selectedAnneeId,
+                        'id_campus': selectedCampusId,
+                        'id_cycle_actif': selectedCycleId,
+                        'id_classe_active': selectedClasseId,
+                        'id_variable': variableId,
+                        'date_butoire': dateButoire
+                    };
+
+                    if (window.location.pathname.includes("create_derogation_classe")) {
+                        formData['id_eleve'] = selectedEleveId;
+                        ajaxUrl = "/save_variable_derogation/";
+                    }
+                    else {
+                        ajaxUrl = "/save_date_butoire/";
+                    }
+
+                    $.ajax({
+                        url: ajaxUrl,
+                        type: 'POST',
+                        data: formData,
+                        success: function (response) {
+                            if (response.success) {
+                                if (window.location.pathname.includes("create_derogation_classe")) {
+                                    alert('Dérogation enregistrée avec succès !');
+                                    window.location.href = "{% url 'create_derogation_classe' %}";
+                                } else if (window.location.pathname.includes("ajouter_date_butoire")) {
+                                    alert('Date butoire enregistrée avec succès !');
+                                    window.location.href = "{% url 'ajouter_date_butoire' %}";
+                                }
+                            } else {
+                                alert('Erreur : ' + response.error);
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            alert('Une erreur est survenue lors de l\'enregistrement.');
+                        }
+                    });
+                });
+                $('#cancelBtn, #cancelBtnForm').on('click', function () {
+                    $('#modalContainer').modal('hide');
+                });
+            }
+        });
+    </script>
+
+
+    <!-- ====== reduction date! -->
+
+    <script>
+        $(document).ready(function () {
+            if (window.location.pathname.includes("create_variable_reduction")) {
+
+                let selectedAnneeId = null;
+                let selectedCampusId = null;
+                let selectedCycleId = null;
+                let selectedClasseId = null;
+                let selectedEleveId = null;
+                let modal = document.getElementById("modalContainer");
+
+                $('#field-id_classe_active').hide();
+                $('#field-id_eleve').hide();
+                $('#tab_variable_list').hide();
+                $('#id_id_annee').on('change', function () {
+                    selectedAnneeId = $(this).val();
+                    if (!selectedAnneeId) {
+                        $('#field-id_classe_active').hide();
+                        $('#field-id_eleve').hide();
+                        $('#tab_variable_list').hide();
+                        selectedCampusId = null;
+                        selectedCycleId = null;
+                        selectedClasseId = null;
+                        selectedEleveId = null;
+                        return;
+                    }
+
+                    $.ajax({
+                        url: '/store_annee_session/',
+                        type: 'POST',
+                        data: {
+                            'id_annee': selectedAnneeId,
+                            'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val()
+                        },
+                        success: function (response) {
+                            if (response.success) {
+                                updateClasseDropdown(selectedAnneeId);
+                            } else {
+                                alert('Erreur : ' + response.error);
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            alert('Une erreur est survenue lors de l\'enregistrement de l\'année.');
+                        }
+                    });
+                });
+
+                function updateClasseDropdown(anneeId) {
+                    var dropdown = $('#id_id_classe_active')[0];
+                    fetch('/get_classes_actives/' + anneeId + '/')
+                        .then(response => response.json())
+                        .then(responseData => {
+                            if (!responseData.success && responseData.error) {
+                                alert('Erreur : ' + responseData.error);
+                                return;
+                            }
+                            const data = responseData.classes || [];
+                            dropdown.innerHTML = '<option value="">------</option>';
+                            if (data.length > 0) {
+                                data.forEach(item => {
+                                    let option = document.createElement("option");
+                                    option.value = item.id_classe_active;
+                                    option.textContent = `${item.campus_nom} - ${item.cycle_nom} - ${item.classe_nom}${item.groupe ? ' (' + item.groupe + ')' : ''}`;
+                                    option.dataset.campusId = item.id_campus;
+                                    option.dataset.cycleId = item.id_cycle;
+                                    dropdown.appendChild(option);
+                                });
+                                $('#field-id_classe_active').show();
+                            } else {
+                                alert(responseData.message || 'Aucune classe active trouvée pour cette année scolaire.');
+                                $('#field-id_classe_active').hide();
+                            }
+                            $('#field-id_eleve').hide();
+                            $('#tab_variable_list').hide();
+                        })
+                        .catch(error => {
+                            alert('Erreur lors du chargement des classes.');
+                        });
+                }
+
+                $('#id_id_classe_active').on('change', function () {
+                    selectedClasseId = $(this).val();
+                    if (selectedClasseId) {
+                        const selectedOption = $(this).find('option:selected');
+                        selectedCampusId = selectedOption.data('campusId');
+                        selectedCycleId = selectedOption.data('cycleId');
+
+                        updateEleveDropdown();
+                    } else {
+                        $('#field-id_eleve').hide();
+                        $('#tab_variable_list').hide();
+                        selectedCampusId = null;
+                        selectedCycleId = null;
+                        selectedEleveId = null;
+                    }
+                });
+
+                function updateEleveDropdown() {
+                    var dropdown = $('#id_id_eleve')[0];
+                    const pupilsUrl = `/get_pupils_registred_classe/?id_annee=${selectedAnneeId}&id_campus=${selectedCampusId}&id_cycle=${selectedCycleId}&id_classe_active=${selectedClasseId}`;
+
+                    fetch(pupilsUrl)
+                        .then(response => response.json())
+                        .then(responseData => {
+                            if (!responseData.success) {
+                                alert(responseData.error || "Erreur lors du chargement des élèves.");
+                                $('#field-id_eleve').hide();
+                                return;
+                            }
+                            const data = responseData.data || [];
+                            dropdown.innerHTML = '<option value="">------</option>';
+                            if (data.length > 0) {
+                                data.forEach(item => {
+                                    let option = document.createElement("option");
+                                    option.value = item.id_eleve;
+                                    option.textContent = item.nom_complet;
+                                    dropdown.appendChild(option);
+                                });
+                                $('#field-id_eleve').show();
+                            } else {
+                                alert('Aucun élève trouvé pour cette classe.');
+                                $('#field-id_eleve').hide();
+                            }
+
+                            $('#tab_variable_list').hide();
+                        })
+                        .catch(error => {
+                            alert('Erreur lors du chargement des élèves.');
+                        });
+                }
+
+
+                $('#id_id_eleve').on('change', function () {
+                    selectedEleveId = $(this).val();
+                    if (selectedEleveId) {
+                        modal.style.display = 'none';
+                        $('#tab_variable_list').show();
+                    } else {
+                        $('#tab_variable_list').hide();
+                    }
+                });
+
+                $(document).on('click', '.validate-btn', function (e) {
+                    e.preventDefault();
+                    var variableId = $(this).data('id');
+                    var row = $('#row-variable-' + variableId);
+                    var pourcent = row.find('input[type="number"]');
+                    var pourcent = pourcent.val();
+
+                    if (!pourcent) {
+                        alert('Veuillez saisir le pourcentage.');
+                        return;
+                    }
+
+                    var formData = {
+                        'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val(),
+                        'id_annee': selectedAnneeId,
+                        'id_campus': selectedCampusId,
+                        'id_cycle_actif': selectedCycleId,
+                        'id_classe_active': selectedClasseId,
+                        'id_eleve': selectedEleveId,
+                        'id_variable': variableId,
+                        'pourcentage': pourcent
+                    };
+                    $.ajax({
+                        url: '/save_variable_reduction/',
+                        type: 'POST',
+                        data: formData,
+                        success: function (response) {
+                            if (response.success) {
+                                alert('Réduction parametrée avec succès !');
+                                window.location.href = "{% url 'create_derogation_classe' %}";
+
+                            } else {
+                                alert('Erreur : ' + response.error);
+                                window.location.href = "{% url 'create_derogation_classe' %}";
+
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            alert('Une erreur est survenue lors de l\'enregistrement.');
+                            // window.location.href = "{% url 'create_derogation_classe' %}";
+
+                        }
+                    });
+                });
+
+
+
+                $('#cancelBtn, #cancelBtnForm').on('click', function () {
+                    $('#modalContainer').modal('hide');
+                });
+            }
+        });
+    </script>
+    <!-- ======== Ajout des paiements -->
+    <script>
+        $(document).ready(function () {
+            if (window.location.pathname.includes("ajouter_paiement")) {
+                $('#field-id_classe_active').hide();
+                $('#field-id_eleve').hide();
+                $('#field-id_variable').hide();
+                $('#field-id_banque').hide();
+                $('#field-id_compte').hide();
+                $('#field-montant').hide();
+                $('#field-bordereau').hide();
+                $('#field-date_paie').hide();
+                $('#saveBtn').hide();
+
+                let selectedAnneeId = null;
+                let selectedCampusId = null;
+                let selectedCycleId = null;
+                let selectedClasseId = null;
+                let selectedEleveId = null;
+
+                $('#id_id_annee').on('change', function () {
+                    selectedAnneeId = $(this).val();
+                    if (!selectedAnneeId) {
+                        $('#field-id_classe_active').hide();
+                        $('#field-id_eleve').hide();
+                        $('#field-id_variable').hide();
+                        $('#field-id_banque').hide();
+                        $('#field-id_compte').hide();
+                        $('#field-montant').hide();
+                        $('#field-bordereau').hide();
+                        $('#field-date_paie').hide();
+                        $('#saveBtn').hide();
+                        selectedCampusId = null;
+                        selectedCycleId = null;
+                        selectedClasseId = null;
+                        selectedEleveId = null;
+                        return;
+                    }
+
+                    $.ajax({
+                        url: '/store_annee_session/',
+                        type: 'POST',
+                        data: {
+                            'id_annee': selectedAnneeId,
+                            'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val()
+                        },
+                        success: function (response) {
+                            if (response.success) {
+                                updateClasseDropdown(selectedAnneeId);
+                            } else {
+                                alert('Erreur : ' + response.error);
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            alert('Une erreur est survenue lors de l\'enregistrement de l\'année.');
+                        }
+                    });
+                });
+
+                function updateClasseDropdown(anneeId) {
+                    var dropdown = $('#id_id_classe_active')[0];
+                    fetch('/get_classes_actives/' + anneeId + '/')
+                        .then(response => response.json())
+                        .then(responseData => {
+                            if (!responseData.success && responseData.error) {
+                                alert('Erreur : ' + responseData.error);
+                                return;
+                            }
+                            const data = responseData.classes || [];
+                            dropdown.innerHTML = '<option value="">------</option>';
+                            if (data.length > 0) {
+                                data.forEach(item => {
+                                    let option = document.createElement("option");
+                                    option.value = item.id_classe_active;
+                                    option.textContent = `${item.campus_nom} - ${item.cycle_nom} - ${item.classe_nom}${item.groupe ? ' (' + item.groupe + ')' : ''}`;
+                                    option.dataset.campusId = item.id_campus;
+                                    option.dataset.cycleId = item.id_cycle;
+                                    dropdown.appendChild(option);
+                                });
+                                $('#field-id_classe_active').show();
+                            } else {
+                                alert(responseData.message || 'Aucune classe active trouvée pour cette année scolaire.');
+                                $('#field-id_classe_active').hide();
+                            }
+                            $('#field-id_eleve').hide();
+                            $('#field-id_variable').hide();
+                            $('#field-id_banque').hide();
+                            $('#field-id_compte').hide();
+                            $('#field-montant').hide();
+                            $('#field-bordereau').hide();
+                            $('#field-date_paie').hide();
+                            $('#saveBtn').hide();
+                        })
+                        .catch(error => {
+                            alert('Erreur lors du chargement des classes.');
+                        });
+                }
+
+                $('#id_id_classe_active').on('change', function () {
+                    selectedClasseId = $(this).val();
+                    if (selectedClasseId) {
+                        const selectedOption = $(this).find('option:selected');
+                        selectedCampusId = selectedOption.data('campusId');
+                        selectedCycleId = selectedOption.data('cycleId');
+
+                        updateEleveDropdown();
+                    } else {
+                        $('#field-id_eleve').hide();
+                        $('#field-id_variable').hide();
+                        $('#field-id_banque').hide();
+                        $('#field-id_compte').hide();
+                        $('#field-montant').hide();
+                        $('#field-bordereau').hide();
+                        $('#field-date_paie').hide();
+                        $('#saveBtn').hide();
+                        selectedCampusId = null;
+                        selectedCycleId = null;
+                        selectedClasseId = null;
+                        selectedEleveId = null;
+                    }
+                });
+
+                function updateEleveDropdown() {
+                    var dropdown = $('#id_id_eleve')[0];
+                    const pupilsUrl = `/get_pupils_registred_classe/?id_annee=${selectedAnneeId}&id_campus=${selectedCampusId}&id_cycle=${selectedCycleId}&id_classe_active=${selectedClasseId}`;
+                    fetch(pupilsUrl)
+                        .then(response => response.json())
+                        .then(responseData => {
+                            if (!responseData.success) {
+                                alert(responseData.error || "Erreur lors du chargement des élèves.");
+                                $('#field-id_eleve').hide();
+                                return;
+                            }
+                            const data = responseData.data || [];
+                            dropdown.innerHTML = '<option value="">------</option>';
+                            if (data.length > 0) {
+                                data.forEach(item => {
+                                    let option = document.createElement("option");
+                                    option.value = item.id_eleve;
+                                    option.textContent = item.nom_complet;
+                                    dropdown.appendChild(option);
+                                });
+                                $('#field-id_eleve').show();
+                            } else {
+                                alert('Aucun élève trouvé pour cette classe.');
+                                $('#field-id_eleve').hide();
+                            }
+                        })
+                        .catch(error => {
+                            alert('Erreur lors du chargement des élèves.');
+                        });
+                }
+
+                $('#id_id_eleve').on('change', function () {
+                    selectedEleveId = $(this).val();
+                    if (selectedEleveId) {
+                        $('#field-id_variable').show();
+                    } else {
+                        $('#field-id_variable').hide();
+                        $('#field-id_banque').hide();
+                        $('#field-id_compte').hide();
+                        $('#field-montant').hide();
+                        $('#field-bordereau').hide();
+                        $('#field-date_paie').hide();
+                        $('#saveBtn').hide();
+                    }
+                });
+
+                $('#id_id_variable').on('change', function () {
+                    if ($(this).val()) {
+                        $('#field-id_banque').show();
+                    } else {
+                        $('#field-id_banque').hide();
+                        $('#field-id_compte').hide();
+                        $('#field-montant').hide();
+                        $('#field-bordereau').hide();
+                        $('#field-date_paie').hide();
+                        $('#saveBtn').hide();
+                    }
+                });
+
+                $('#id_id_banque').on('change', function () {
+                    var banqueId = $(this).val();
+                    if (banqueId) {
+                        updateCompteDropdown(banqueId);
+                    } else {
+                        $('#field-id_compte').hide();
+                        $('#field-montant').hide();
+                        $('#field-bordereau').hide();
+                        $('#field-date_paie').hide();
+                        $('#saveBtn').hide();
+                    }
+                });
+
+                function updateCompteDropdown(banqueId) {
+                    var dropdown = $('#id_id_compte')[0];
+                    fetch('/get_comptes_banque/' + banqueId + '/')
+                        .then(response => response.json())
+                        .then(responseData => {
+                            if (!responseData.success && responseData.error) {
+                                alert('Erreur : ' + responseData.error);
+                                return;
+                            }
+                            const data = responseData.comptes || [];
+                            dropdown.innerHTML = '<option value="">------</option>';
+                            if (data.length > 0) {
+                                data.forEach(item => {
+                                    let option = document.createElement("option");
+                                    option.value = item.id_compte;
+                                    option.textContent = item.compte;
+                                    dropdown.appendChild(option);
+                                });
+                                $('#field-id_compte').show();
+                            } else {
+                                alert('Aucun compte trouvé pour cette banque.');
+                                $('#field-id_compte').hide();
+                            }
+                            $('#field-montant').show();
+                            $('#field-bordereau').show();
+                            $('#field-date_paie').show();
+                        })
+                        .catch(error => {
+                            alert('Erreur lors du chargement des comptes.');
+                        });
+                }
+
+                function checkFormValidity() {
+                    var montant = $('#id_montant').val().trim();
+                    var datePaie = $('#id_date_paie').val().trim();
+                    var banque = $('#id_id_banque').val();
+                    var compte = $('#id_id_compte').val();
+                    var variable = $('#id_id_variable').val();
+                    var bordereau = $('#id_bordereau')[0].files.length > 0;
+
+                    if (montant && parseFloat(montant) > 0 && datePaie && banque && compte && variable) {
+                        $('#saveBtn').show();
+                    } else {
+                        $('#saveBtn').hide();
+                    }
+                }
+
+                $('#id_montant, #id_date_paie, #id_id_banque, #id_id_compte, #id_id_variable, #id_bordereau').on('input change', checkFormValidity);
+
+                $('#variablePrixForm').on('submit', function (e) {
+                    e.preventDefault();
+                    var formData = new FormData(this);
+
+
+                    $.ajax({
+                        url: '/save_paiement/',
+                        type: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        success: function (response) {
+                            if (response.success) {
+                                alert('Paiement enregistré avec succès !');
+                                $('#modalContainer').modal('hide');
+                                window.location.href = "{% url 'ajouter_paiement' %}";
+                            } else {
+                                let errorMsg = response.error;
+                                if (response.details) {
+                                    try {
+                                        const errors = JSON.parse(response.details);
+                                        errorMsg += '\nDétails : ' + Object.values(errors).map(field => field.message).join('\n');
+                                    } catch (e) {
+                                        console.error('Erreur lors du parsing des erreurs :', e);
+                                    }
+                                }
+                                alert('Erreur : ' + errorMsg);
+                                window.location.href = "{% url 'ajouter_paiement' %}";
+                            }
+                        },
+                        error: function (xhr, status, error) {
+
+                            alert('Une erreur est survenue lors de l\'enregistrement.');
+                        }
+                    });
+                });
+
+                $('#cancelBtn, #cancelBtnForm').on('click', function () {
+                    $('#modalContainer').modal('hide');
+                });
+            }
+        });
+    </script>
+
+
+
+
+</body>
+
+</html>

@@ -1,0 +1,1992 @@
+<!-- ========edition du cours -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll(".edit-btn-cours").forEach(button => {
+            button.addEventListener("click", function (event) {
+                event.preventDefault();
+                const idCours = this.getAttribute("data-id");
+                if (!idCours || isNaN(idCours)) {
+                    alert("Erreur : ID de cours invalide.");
+                    return;
+                }
+                editCours(idCours);
+            });
+        });
+
+        function editCours(idCours) {
+            const row = document.getElementById(`row-cours-${idCours}`);
+            const coursName = document.getElementById(`cours-name-${idCours}`).textContent.trim();
+            const codeCours = document.getElementById(`cours-code-${idCours}`).textContent.trim();
+            const domaine = document.getElementById(`cours-domaine-${idCours}`).textContent.trim();
+
+            row.innerHTML = `
+                <td>
+                    <input type="text" class="form-control" id="edit-cours-${idCours}" value="${coursName}">
+                </td>
+                <td>
+                    <input type="text" class="form-control" id="edit-code-cours-${idCours}" value="${codeCours}">
+                </td>
+                <td>
+                    <input type="text" class="form-control" id="edit-domaine-${idCours}" value="${domaine}">
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-success me-2" id="save-btn-${idCours}">
+                        <i class="fas fa-check"></i> 
+                    </button>
+                    <button class="btn btn-sm btn-danger" id="cancel-btn-${idCours}">
+                        <i class="fas fa-times"></i> 
+                    </button>
+                </td>
+            `;
+
+            document.getElementById(`save-btn-${idCours}`).addEventListener("click", () => updateCours(idCours));
+            document.getElementById(`cancel-btn-${idCours}`).addEventListener("click", () => cancelEditCours(idCours, coursName, codeCours, domaine));
+        }
+
+        function cancelEditCours(idCours, coursName, codeCours, domaine) {
+            const row = document.getElementById(`row-cours-${idCours}`);
+            row.innerHTML = `
+                <td id="cours-name-${idCours}">${coursName}</td>
+                <td id="cours-code-${idCours}">${codeCours}</td>
+                <td id="cours-domaine-${idCours}">${domaine}</td>
+                <td>
+                    <a href="#" class="btn btn-sm btn-outline-primary edit-btn-cours" data-id="${idCours}">
+                        <i class="fas fa-edit"></i> 
+                    </a>
+                </td>
+            `;
+            window.location.reload();
+
+        }
+
+        function updateCours(idCours) {
+            const cours = document.getElementById(`edit-cours-${idCours}`).value;
+            const codeCours = document.getElementById(`edit-code-cours-${idCours}`).value;
+            const domaine = document.getElementById(`edit-domaine-${idCours}`).value;
+
+            if (!cours) {
+                alert("Le champ cours est requis.");
+                return;
+            }
+
+            fetch(`/update_cours/${idCours}/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCSRFToken()
+                },
+                body: JSON.stringify({
+                    cours: cours,
+                    code_cours: codeCours || null,
+                    domaine: domaine || null
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        window.location.reload();
+                    } else {
+                        alert("Erreur : " + data.error);
+                    }
+                })
+                .catch(error => {
+                    alert("Erreur lors de la mise à jour du cours.");
+                });
+        }
+
+        function getCSRFToken() {
+            const token = document.querySelector('[name=csrfmiddlewaretoken]');
+            return token ? token.value : '';
+        }
+    });
+</script>
+<!-- ======================= displaying and adding course by selected -->
+
+
+<script>
+    if (window.location.pathname.includes("organiser_cours_classes/")) {
+        document.addEventListener("DOMContentLoaded", function () {
+            const ponderationField = document.getElementById("id_ponderation");
+            const CMField = document.getElementById("id_CM");
+            const TDField = document.getElementById("id_TD");
+            const TPField = document.getElementById("id_TP");
+            const TPEField = document.getElementById("id_TPE");
+            const idAnnee = document.getElementById("id_id_annee");
+            const idCampus = document.getElementById("id_id_campus");
+            const idClasseCycle = document.getElementById("id_id_cycle");
+            const idClasse = document.getElementById("id_id_classe");
+            const coursField = document.getElementById("id_id_cours");
+            const trimestreTable = document.getElementById("trimestre-table");
+            let modal = document.getElementById("modalContainer");
+
+            function saveToSession(key, value) {
+                sessionStorage.setItem(key, value);
+            }
+
+            function hideFields(...fields) {
+                fields.forEach(field => {
+                    if (field) {
+                        field.parentElement.style.display = "none";
+                        field.disabled = true;
+                    }
+                });
+            }
+
+            function showField(field) {
+                if (field) {
+                    field.parentElement.style.display = "block";
+                    field.style.display = "block";
+                    field.disabled = false;
+                }
+            }
+
+
+
+            hideFields(idClasseCycle, idClasse, coursField, ponderationField, CMField, TDField, TPField, TPEField);
+            trimestreTable.style.display = "none";
+
+            function updateDropdown(url, dropdown, idKey, nameKey) {
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        dropdown.innerHTML = '<option value="">------</option>';
+                        if (data.length > 0) {
+                            data.forEach(item => {
+                                let option = document.createElement("option");
+                                option.value = item[idKey];
+                                option.textContent = item[nameKey];
+                                dropdown.appendChild(option);
+                            });
+                            showField(dropdown);
+                        } else {
+                            alert("Aucune donnée trouvée");
+                        }
+                    })
+                    .catch(error => console.error("Erreur lors du chargement :", error));
+            }
+
+
+
+            function updateSecondSemester(checkbox) {
+                const id_cours_classe = checkbox.dataset.id;
+                const is_second_semester = checkbox.checked;
+
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                if (!csrfToken) {
+                    alert("Token CSRF manquant.");
+                    checkbox.checked = !checkbox.checked;
+                    return;
+                }
+
+                fetch('/update_is_second_semester/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        id_cours_classe: parseInt(id_cours_classe, 10),
+                        is_second_semester: is_second_semester
+                    }),
+                    credentials: 'same-origin'
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message || "Mise à jour réussie !");
+
+                            refreshTable();
+
+
+                        } else {
+                            alert("Erreur : " + (data.message || "Échec de la mise à jour"));
+                            checkbox.checked = !checkbox.checked;
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Erreur AJAX :", error);
+                        alert("Erreur réseau lors de la mise à jour.");
+                        checkbox.checked = !checkbox.checked;
+                    });
+            }
+
+            async function refreshTable() {
+                const idClasse = sessionStorage.getItem('id_classe');
+                const idCycle = sessionStorage.getItem('id_classe_cycle');
+                const idAnnee = sessionStorage.getItem('id_annee');
+                const idCampus = sessionStorage.getItem('id_campus');
+
+                if (!idClasse || !idCycle || !idAnnee || !idCampus) {
+                    console.error("Données manquantes pour refreshTable");
+                    return;
+                }
+
+                const localisation = await getLocalisation();
+                const tableBody = document.getElementById("tbody-trimestres");
+                const coursSelect = document.getElementById("new-course");
+
+                if (coursSelect) {
+                    coursSelect.innerHTML = '<option value="">---------</option>';
+                    try {
+                        const res = await fetch(`/get_cours_par_annnee?id_annee=${idAnnee}&id_campus=${idCampus}&id_cycle=${idCycle}&id_classe=${idClasse}`);
+                        const data = await res.json();
+                        data.forEach(c => {
+                            const opt = document.createElement("option");
+                            opt.value = c.id_cours;
+                            opt.textContent = c.cours;
+                            coursSelect.appendChild(opt);
+                        });
+                    } catch (e) {
+                        console.error("Erreur reload cours", e);
+                    }
+                }
+
+                try {
+                    const res = await fetch(`/get_cours_table?id_annee=${idAnnee}&id_campus=${idCampus}&id_cycle=${idCycle}&id_classe=${idClasse}`);
+                    const data = await res.json();
+
+                    tableBody.innerHTML = "";
+
+                    data.cours.forEach(course => {
+                        const tr = document.createElement("tr");
+                        tr.id = `row-cours-${course.id_cours_classe}`;
+
+                        let cells = `
+                            <td class="fw-bold text-primary" style="font-size: 18px;">${course.id_cours__cours}</td>
+                        `;
+
+                        if (localisation === "BDI") {
+                            cells += `
+                                <td>${course.ponderation || ''}</td>
+                                <td>${course.TP || ''}</td>
+                                <td>${course.TPE || ''}</td>
+                            `;
+                        } else {
+                            cells += `
+                                <td>${course.TP || ''}</td>
+                                <td>${course.TPE || ''}</td>
+                                <td>${course.ponderation || ''}</td>
+                                <td>${course.heure_semaine || ''}</td>
+                                <td>${course.credits || ''}</td>
+                                <td>${course.ordre_cours || ''}</td>
+                                <td>
+                                    <input type="checkbox"
+                                        class="form-check-input second-semester-checkbox"
+                                        data-id="${course.id_cours_classe}"
+                                        ${course.is_second_semester ? 'checked' : ''}
+                                        onchange="updateSecondSemester(this)">
+                                </td>
+                            `;
+                        }
+
+                        cells += `
+                            <td>
+                                <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary me-2 edit-btn-cours"
+                                data-id="${course.id_cours_classe}" onclick="editCours(event)">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </td>
+                        `;
+
+                        tr.innerHTML = cells;
+                        tableBody.appendChild(tr);
+                    });
+                } catch (err) {
+                    console.error("Erreur refresh table", err);
+                }
+            }
+
+
+            if (idCampus) {
+                idCampus.addEventListener("change", function () {
+                    hideFields(idAnnee, idClasseCycle, idClasse, coursField, ponderationField, CMField, TDField, TPField, TPEField);
+                    if (this.value) {
+                        saveToSession("id_campus", this.value);
+                        showField(idAnnee);
+
+                        fetch(`/get_campus_localisation?id_campus=${this.value}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                const localisation = data.localisation;
+                                saveToSession("localisation", localisation);
+                                let tableHtml = '';
+
+                                if (localisation === "BDI") {
+                                    tableHtml = `
+                                        <table id="trimestre-table-inner" class="table table-bordered table-hover text-center shadow-sm" style="table-layout: fixed; width: 100%; white-space: nowrap;">
+                                            <thead class="bg-primary text-white">
+                                                <tr>
+                                                    <th  style="min-width: 220px; width: 35%; text-align: left;">Cours</th>
+                                                    <th style="width: 15%;">Ponderation</th>
+                                                    <th style="width: 15%;">TJ</th>
+                                                    <th style="width: 15%;">Examen</th>
+                                                    <th style="width: 15%;">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <input type="hidden" id="selected-cours-id" value="">
+                                            <tbody id="tbody-trimestres">
+                                                <!-- Les lignes seront insérées ici dynamiquement -->
+                                            </tbody>
+                                            <tfoot id="tfoot-trimestre" style="display: table-footer-group;">
+                                                <tr style="display: table-row; white-space: nowrap;">
+                                                    <td style="display: table-cell; padding: 2px; vertical-align: middle;">
+                                                        <select id="new-course" class="form-control" form="form-trimestre" style="width: 100%; min-width: 120px; max-width: 200px; height: 30px; font-size: 14px;">
+                                                            <option value="">-------</option>
+                                                        </select>
+                                                    </td>
+                                                    <td style="display: table-cell; padding: 2px; vertical-align: middle;">
+                                                        <input type="text" id="new-ponderation" class="form-control" placeholder="Pond." form="form-trimestre" style="width: 100%; min-width: 60px; max-width: 100px; height: 30px; font-size: 14px;">
+                                                    </td>
+                                                    <td style="display: table-cell; padding: 2px; vertical-align: middle;">
+                                                        <input type="text" id="new-TJ" class="form-control" placeholder="TJ" form="form-trimestre" style="width: 100%; min-width: 60px; max-width: 100px; height: 30px; font-size: 14px;">
+                                                    </td>
+                                                    <td style="display: table-cell; padding: 2px; vertical-align: middle;">
+                                                        <input type="text" id="new-TPE" class="form-control" placeholder="Ex." form="form-trimestre" style="width: 100%; min-width: 60px; max-width: 100px; height: 30px; font-size: 14px;">
+                                                    </td>
+                                                    <td style="display: table-cell; padding: 2px; vertical-align: middle;">
+                                                        <button type="submit" id="add-course-btn" class="btn btn-primary btn-sm" form="form-trimestre" style="width: auto; min-width: 30px; height: 30px; padding: 0 5px;"><i class="fa fa-plus" style="font-size: 14px;"></i></button>
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                        <form id="form-trimestre" method="POST" style="display: none;"></form>`;
+                                } else if (localisation === "RDC") {
+                                    tableHtml = `
+                                        <table id="trimestre-table-inner" class="table table-bordered table-hover text-center shadow-sm" style="width: 100%; table-layout: auto;">
+                                            <!-- thead manquant dans ton extrait, mais je suppose qu'il est là -->
+                                            <thead class="bg-primary text-white">
+                                                <tr>
+                                                    <th style="min-width: 220px; width: 60%; text-align: left;">Cours</th>
+                                                    <th style="width: 5%;">Max1</th>
+                                                    <th style="width: 5%;">Max2</th>
+                                                    <th style="width: 10%;">Examen</th>
+                                                    <th style="width: 15%;">H/semaine</th>
+                                                    <th style="width: 10%;">Crédit</th>
+                                                    <th style="width: 10%;">Ordre</th>
+                                                    <th style="width: 10%;">semestre 2</th>
+                                                    <th style="width: 15%;">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <input type="hidden" id="selected-cours-id" value="">
+                                            <tbody id="tbody-trimestres">
+                                                <!-- Les lignes seront insérées ici dynamiquement -->
+                                            </tbody>
+                                            <tfoot id="tfoot-trimestre">
+                                                <tr class="d-flex align-items-center flex-nowrap">  <!-- ← clé ici -->
+                                                    <td class="flex-grow-1" style="padding: 2px; vertical-align: middle; min-width: 140px;">
+                                                        <select id="new-course" class="form-control" form="form-trimestre">
+                                                            <option value="">-------</option>
+                                                        </select>
+                                                    </td>
+                                                    <td style="padding: 2px; vertical-align: middle; min-width: 70px;">
+                                                        <input type="text" id="new-max1" class="form-control" placeholder="Max1" form="form-trimestre" >
+                                                    </td>
+                                                    <td style="padding: 2px; vertical-align: middle; min-width: 70px;">
+                                                        <input type="text" id="new-max2" class="form-control" placeholder="Max2" form="form-trimestre" style="height: 30px; font-size: 14px; white-space: nowrap;">
+                                                    </td>
+                                                    <td style="padding: 2px; vertical-align: middle; min-width: 70px;">
+                                                        <input type="text" id="new-examen" class="form-control" placeholder="Ex./Pond.trim" form="form-trimestre" style="height: 30px; font-size: 14px; white-space: nowrap;">
+                                                    </td>
+                                                    <td style="padding: 2px; vertical-align: middle; min-width: 100px;">
+                                                        <input type="text" id="new-heure-semaine" class="form-control" placeholder="H/sem." form="form-trimestre" style="height: 30px; font-size: 14px; white-space: nowrap;">
+                                                    </td>
+                                                    <td style="padding: 2px; vertical-align: middle; min-width: 70px;">
+                                                        <input type="text" id="new-credits" class="form-control" placeholder="Créd." form="form-trimestre" style="height: 30px; font-size: 14px; white-space: nowrap;">
+                                                    </td>
+                                                    <td style="padding: 2px; vertical-align: middle; min-width: 70px;">
+                                                        <input type="text" id="new-ordre" class="form-control" placeholder="Ordre" form="form-trimestre" style="height: 30px; font-size: 14px; white-space: nowrap;">
+                                                    </td>
+                                                    <td style="padding: 2px; vertical-align: middle; min-width: 50px; flex-shrink: 0;">
+                                                        <button type="submit" id="add-course-btn" class="btn btn-primary btn-sm" form="form-trimestre" style="height: 30px; padding: 0 8px;">
+                                                            <i class="fa fa-plus" style="font-size: 14px;"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                        <form id="form-trimestre" method="POST" style="display: none;"></form>`;
+                                }
+                                document.getElementById("table-container").innerHTML = tableHtml;
+                                document.addEventListener('click', function (event) {
+                                    const addBtn = event.target.closest('#add-course-btn');
+                                    if (!addBtn) return;
+
+                                    event.preventDefault();
+
+                                    if (addBtn.disabled) return;
+                                    addBtn.disabled = true;
+                                    const originalHtml = addBtn.innerHTML;
+                                    addBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ajout...';
+
+                                    const localisation = sessionStorage.getItem('localisation') ||
+                                        document.getElementById('id_localisation')?.value ||
+                                        'BDI';
+
+                                    const courseSelect = document.getElementById('new-course');
+                                    const idClasseElement = document.getElementById('id_id_classe');
+                                    const idClasseValue = idClasseElement?.value || sessionStorage.getItem('id_classe');
+                                    const idClasseCycle = sessionStorage.getItem('id_classe_cycle');
+                                    const idAnnee = sessionStorage.getItem('id_annee');
+                                    const idCampusElement = document.getElementById('id_id_campus');
+                                    const idCampus = idCampusElement?.value || sessionStorage.getItem('id_campus');
+
+                                    if (!idClasseCycle || !idAnnee || !idClasseValue || !idCampus || !courseSelect?.value) {
+                                        alert("Champs manquants (cycle, année, classe, campus ou cours).");
+                                        resetButton();
+                                        return;
+                                    }
+
+                                    const dataToSend = {
+                                        cours: parseInt(courseSelect.value, 10),
+                                        id_classe: parseInt(idClasseValue, 10),
+                                        id_classe_cycle: parseInt(idClasseCycle, 10),
+                                        id_annee: parseInt(idAnnee, 10),
+                                        id_campus: parseInt(idCampus, 10),
+                                        compte_au_nombre_echec: false,
+                                        total_considerable_trimestre: false
+                                    };
+
+                                    if (localisation === "BDI") {
+                                        const ponderation = document.getElementById('new-ponderation');
+                                        const tj = document.getElementById('new-TJ');
+                                        const tpe = document.getElementById('new-TPE');
+
+                                        if (!ponderation || !tj || !tpe) {
+                                            alert("Champs manquants pour BDI (ponderation, TJ, TPE).");
+                                            resetButton();
+                                            return;
+                                        }
+
+                                        dataToSend.ponderation = ponderation.value.trim() ? parseInt(ponderation.value.trim(), 10) : null;
+                                        dataToSend.TP = tj.value.trim() ? parseInt(tj.value.trim(), 10) : null;
+                                        dataToSend.TPE = tpe.value.trim() ? parseInt(tpe.value.trim(), 10) : null;
+
+                                    } else if (localisation === "RDC") {
+                                        const max1 = document.getElementById('new-max1');
+                                        const max2 = document.getElementById('new-max2');
+                                        const examen = document.getElementById('new-examen');
+                                        const heureSemaine = document.getElementById('new-heure-semaine');
+                                        const credits = document.getElementById('new-credits');
+                                        const ordre = document.getElementById('new-ordre');
+
+                                        if (!max1 || !max2 || !examen || !heureSemaine || !credits || !ordre) {
+                                            alert("Champs manquants pour RDC (Max1, Max2, Examen, Heure/semaine, Crédit ou ordre).");
+                                            resetButton();
+                                            return;
+                                        }
+
+                                        dataToSend.TP = max1.value.trim() ? parseInt(max1.value.trim(), 10) : null;
+                                        dataToSend.TPE = max2.value.trim() ? parseInt(max2.value.trim(), 10) : null;
+                                        dataToSend.ponderation = examen.value.trim() ? parseInt(examen.value.trim(), 10) : null;
+                                        dataToSend.heure_semaine = heureSemaine.value.trim() ? parseInt(heureSemaine.value.trim(), 10) : null;
+                                        dataToSend.credits = credits.value.trim() ? parseInt(credits.value.trim(), 10) : null;
+                                        dataToSend.ordre_cours = ordre.value.trim() ? parseInt(ordre.value.trim(), 10) : null;
+
+                                    } else {
+                                        alert("Localisation inconnue.");
+                                        resetButton();
+                                        return;
+                                    }
+
+                                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                                    if (!csrfToken) {
+                                        alert("Le token CSRF est manquant.");
+                                        resetButton();
+                                        return;
+                                    }
+
+                                    fetch('/organiser_cours_classes/', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRFToken': csrfToken
+                                        },
+                                        body: JSON.stringify(dataToSend),
+                                        credentials: 'same-origin'
+                                    })
+                                        .then(response => {
+                                            if (!response.ok) {
+                                                return response.text().then(text => {
+                                                    let errorData;
+                                                    try {
+                                                        errorData = JSON.parse(text);
+                                                    } catch {
+                                                        errorData = { message: text.substring(0, 200) };
+                                                    }
+                                                    throw new Error(`Erreur serveur ${response.status}: ${errorData.message || 'Détails inconnus'}`);
+                                                });
+                                            }
+                                            return response.json();
+                                        })
+                                        .then(data => {
+                                            if (data.success) {
+
+                                                refreshTable();
+                                                document.getElementById('form-trimestre')?.reset();
+
+                                            } else {
+
+                                                alert("Erreur lors de l'ajout : " + (data.message || "Erreur inconnue"));
+                                                refreshTable();
+                                                document.getElementById('form-trimestre')?.reset();
+                                            }
+                                        })
+                                        .catch(error => {
+                                            console.error("Erreur ajout cours :", error);
+                                            alert('Erreur lors de l\'ajout du cours : ' + error.message);
+                                            refreshTable();
+                                        })
+                                        .finally(() => {
+                                            resetButton();
+                                        });
+
+                                    function resetButton() {
+                                        addBtn.disabled = false;
+                                        addBtn.innerHTML = originalHtml;
+                                    }
+                                });
+
+                            })
+                            .catch(error => console.error("Erreur lors du chargement de la localisation :", error));
+                    }
+                });
+            }
+
+            idAnnee.addEventListener("change", function () {
+                hideFields(idClasseCycle, idClasse, coursField, ponderationField, CMField, TDField, TPField, TPEField);
+                trimestreTable.style.display = "none";
+                const campusId = document.getElementById("id_campus")?.value || sessionStorage.getItem("id_campus") || "";
+
+                if (this.value) {
+                    saveToSession("id_annee", this.value);
+                    let url = `/get_cycles_parAnnee?id_annee=${this.value}&id_campus=${campusId}`;
+                    updateDropdown(url, idClasseCycle, 'id_cycle_actif', 'cycle');
+                }
+            });
+
+
+
+            idClasseCycle.addEventListener("change", function () {
+                hideFields(idClasse, coursField, ponderationField, CMField, TDField, TPField, TPEField);
+                trimestreTable.style.display = "none";
+                const anneeId = idAnnee.value;
+                const campusId = document.getElementById("id_campus")?.value || sessionStorage.getItem("id_campus") || "";
+
+                if (this.value && anneeId && campusId) {
+                    saveToSession("id_classe_cycle", this.value);
+                    let url = `/get_classes?id_annee=${anneeId}&id_campus=${campusId}&id_classe_cycle=${this.value}`;
+                    updateDropdown(url, idClasse, 'id_classe', 'classe');
+                }
+            });
+
+            idClasse.addEventListener("change", async function () {
+                const anneeId = idAnnee.value;
+                const cycleId = idClasseCycle.value;
+                const classeId = this.value;
+                modal.style.display = "none"
+                const campusId = document.getElementById("id_campus")?.value || sessionStorage.getItem("id_campus") || "";
+
+                if (!anneeId || !cycleId || !campusId || !classeId) {
+                    return;
+                }
+
+                saveToSession("id_classe", classeId);
+
+                const coursSelect = document.getElementById("new-course");
+                if (!coursSelect) {
+                    return;
+                }
+
+                coursSelect.innerHTML = '<option value="">---------</option>';
+
+                try {
+                    const resCours = await fetch(
+                        `/get_cours_par_annnee?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}`
+                    );
+
+                    if (!resCours.ok) {
+                        throw new Error(`Erreur chargement liste cours : ${resCours.status}`);
+                    }
+
+                    const coursList = await resCours.json();
+
+                    coursList.forEach(cr => {
+                        const option = document.createElement("option");
+                        option.value = cr.id_cours;
+                        option.textContent = cr.cours;
+                        coursSelect.appendChild(option);
+                    });
+
+                } catch (err) {
+                    alert("Impossible de charger la liste des cours disponibles.");
+                }
+
+                try {
+                    const resTable = await fetch(
+                        `/get_cours_table?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}`
+                    );
+
+                    if (!resTable.ok) {
+                        throw new Error(`Erreur chargement table : ${resTable.status}`);
+                    }
+
+                    const data = await resTable.json();
+                    const tbody = document.getElementById("tbody-trimestres");
+
+                    if (!tbody) {
+                        console.error("tbody #tbody-trimestres introuvable");
+                        return;
+                    }
+
+                    tbody.innerHTML = "";
+
+                    const localisation = data.localisation || "BDI";
+                    const trimestreTable = document.getElementById("trimestre-table");
+
+                    if (trimestreTable) {
+                        trimestreTable.style.display = "block";
+                    }
+
+
+                    let fieldsToShow = [];
+
+                    if (localisation === "BDI") {
+                        fieldsToShow = [
+                            document.getElementById("new-ponderation"),
+                            document.getElementById("new-TJ"),
+                            document.getElementById("new-TPE"),
+                            document.getElementById("add-course-btn")
+                        ];
+                    } else if (localisation === "RDC") {
+                        fieldsToShow = [
+                            document.getElementById("new-max1"),
+                            document.getElementById("new-max2"),
+                            document.getElementById("new-examen"),
+                            document.getElementById("new-heure-semaine"),
+                            document.getElementById("new-credits"),
+                            document.getElementById("new-ordre"),
+                            document.getElementById("add-course-btn")
+                        ];
+                    }
+
+                    fieldsToShow.forEach(field => {
+                        if (field) showField(field);
+                    });
+
+                    const tfoot = document.getElementById("tfoot-trimestre");
+                    if (tfoot) {
+                        tfoot.style.display = fieldsToShow.some(f => f) ? "table-footer-group" : "none";
+                    }
+
+                    if (data.cours?.length > 0) {
+                        data.cours.forEach(course => {
+                            let rowHtml = `
+                                <tr id="row-cours-${course.id_cours_classe}">
+                                    <td class="fw-bold text-primary" style="font-size: 18px;">
+                                        ${course.id_cours__cours}
+                                    </td>
+                            `;
+
+                            if (localisation === "BDI") {
+                                rowHtml += `
+                                    <td>${course.ponderation || ''}</td>
+                                    <td>${course.TP || ''}</td>
+                                    <td>${course.TPE || ''}</td>
+                                `;
+                            } else if (localisation === "RDC") {
+                                rowHtml += `
+                                    <td>${course.TP || ''}</td>
+                                    <td>${course.TPE || ''}</td>
+                                    <td>${course.ponderation || ''}</td>
+                                    <td>${course.heure_semaine || ''}</td>
+                                    <td>${course.credits || ''}</td>
+                                    <td>${course.ordre_cours || ''}</td>
+                                    <td>
+                                        <input type="checkbox"
+                                            class="form-check-input second-semester-checkbox"
+                                            data-id="${course.id_cours_classe}"
+                                            ${course.is_second_semester ? 'checked' : ''}
+                                            onchange="updateSecondSemester(this)">
+                                    </td>
+                                `;
+                            }
+
+                            rowHtml += `
+                                    <td>
+                                        <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary me-2 edit-btn-cours"
+                                        data-id="${course.id_cours_classe}" onclick="editCours(event)">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            `;
+
+                            tbody.innerHTML += rowHtml;
+                        });
+                    }
+                   
+
+                } catch (err) {
+                    console.error("Erreur lors du chargement de la table :", err);
+                    alert("Erreur lors du chargement des cours de la classe.");
+                }
+            });
+            document.addEventListener("click", function (event) {
+                if (event.target.closest(".edit-btn-cours")) {
+                    let idCours = event.target.closest(".edit-btn-cours").getAttribute("data-id");
+                    editCours(event, idCours);
+                }
+            });
+        });
+    }
+</script>
+
+
+
+<!-- ======================= Edition du cours par classe ======================-->
+<script>
+
+    // ================================================================
+    // 1. Récupération de la localisation (BDI / RDC)
+    // ================================================================
+    async function getLocalisation() {
+        let loc = sessionStorage.getItem('localisation');
+        if (!loc) {
+            const idCampus = sessionStorage.getItem('id_campus');
+            if (idCampus) {
+                try {
+                    const response = await fetch(`/get_campus_localisation?id_campus=${idCampus}`);
+                    const data = await response.json();
+                    loc = data.localisation || 'BDI';
+                    sessionStorage.setItem('localisation', loc);
+                } catch (e) {
+                    console.error("Impossible de récupérer la localisation", e);
+                    loc = 'BDI';
+                }
+            } else {
+                loc = 'BDI';
+            }
+        }
+        return loc;
+    }
+
+    // ================================================================
+    // 2. Mise à jour de la case "Second Semester"
+    // ================================================================
+    function updateSecondSemester(checkbox) {
+        const id_cours_classe = checkbox.dataset.id;
+        const is_second_semester = checkbox.checked;
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (!csrfToken) {
+            alert("Token CSRF manquant.");
+            checkbox.checked = !checkbox.checked;
+            return;
+        }
+
+        fetch('/update_is_second_semester/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                id_cours_classe: parseInt(id_cours_classe, 10),
+                is_second_semester: is_second_semester
+            }),
+            credentials: 'same-origin'
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    alert("Erreur : " + (data.message || "Échec de la mise à jour"));
+                    checkbox.checked = !checkbox.checked;
+                }
+            })
+            .catch(error => {
+                console.error("Erreur AJAX :", error);
+                alert("Erreur réseau.");
+                checkbox.checked = !checkbox.checked;
+            });
+    }
+
+    // ================================================================
+    // 3. Edition d'une ligne
+    // ================================================================
+    async function editCours(event) {
+        event.preventDefault();
+        let button = event.target.closest('a.edit-btn-cours') ||
+            event.currentTarget.closest('a.edit-btn-cours');
+
+        if (!button) {
+            console.error("Impossible de trouver le bouton d'édition");
+            alert("Erreur : bouton d'édition introuvable.");
+            return;
+        }
+
+        const id_cours_classe = button.getAttribute("data-id");
+        if (!id_cours_classe) {
+            alert("ID du cours non défini !");
+            return;
+        }
+
+        const localisation = await getLocalisation();
+
+        const id_cycle = sessionStorage.getItem('id_classe_cycle');
+        const id_annee = sessionStorage.getItem('id_annee');
+        const id_campus = sessionStorage.getItem('id_campus');
+        const id_classe = sessionStorage.getItem('id_classe');
+
+        if (!id_cycle || !id_annee || !id_campus || !id_classe) {
+            alert("Paramètres manquants (cycle, année, campus ou classe) !");
+            return;
+        }
+
+        const row = button.closest("tr");
+        if (!row) return;
+
+        row.id = `row-cours-${id_cours_classe}`;
+
+        const cells = row.querySelectorAll("td");
+
+        cells.forEach((cell, index) => {
+            if (index < cells.length - 1 && !cell.querySelector('input[type="checkbox"]')) {
+                const originalValue = cell.textContent.trim();
+                cell.dataset.originalValue = originalValue;
+                cell.dataset.cellIndex = index;
+            }
+        });
+
+        cells.forEach((cell, index) => {
+            if (index < cells.length - 1 && !cell.querySelector('input[type="checkbox"]')) {
+                cell.innerHTML = "";
+
+                let input;
+                if (index === 0) {
+                    input = document.createElement("select");
+                    input.className = "form-select form-select-sm";
+                    input.id = `edit-cours-${id_cours_classe}`;
+
+                    const defaultOpt = document.createElement("option");
+                    defaultOpt.value = "";
+                    defaultOpt.textContent = "------------";
+                    input.appendChild(defaultOpt);
+
+                    fetch(`/get_cours_par_annnee?id_annee=${id_annee}&id_campus=${id_campus}&id_cycle=${id_cycle}&id_classe=${id_classe}`)
+                        .then(res => res.json())
+                        .then(coursList => {
+                            coursList.forEach(c => {
+                                const opt = document.createElement("option");
+                                opt.value = c.id_cours;
+                                opt.textContent = c.cours;
+                                if (c.cours === cell.dataset.originalValue) opt.selected = true;
+                                input.appendChild(opt);
+                            });
+                        })
+                        .catch(err => console.error("Erreur chargement cours", err));
+                } else {
+                    input = document.createElement("input");
+                    input.type = "text";
+                    input.className = "form-control form-control-sm";
+                    input.value = cell.dataset.originalValue || "";
+                }
+
+                cell.appendChild(input);
+            }
+        });
+
+        const actionCell = cells[cells.length - 1];
+        actionCell.innerHTML = `
+            <button class="btn btn-sm btn-success me-2" onclick="uploadChanges(${id_cours_classe})">
+                <i class="fas fa-save"></i> Save
+            </button>
+            <button class="btn btn-sm btn-secondary" onclick="cancelEdit(${id_cours_classe})">
+                <i class="fas fa-times"></i> Annuler
+            </button>
+        `;
+    }
+
+    // ================================================================
+    // 4. Annuler l'édition
+    // ================================================================
+    function cancelEdit(id_cours_classe) {
+        const row = document.getElementById(`row-cours-${id_cours_classe}`);
+        if (!row) return;
+
+        const cells = row.querySelectorAll("td");
+
+        cells.forEach(cell => {
+            if (cell.dataset.originalValue !== undefined) {
+                cell.innerHTML = cell.dataset.originalValue;
+            }
+        });
+
+        const actionCell = cells[cells.length - 1];
+        actionCell.innerHTML = `
+            <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary me-2 edit-btn-cours"
+               data-id="${id_cours_classe}" onclick="editCours(event)">
+                <i class="fas fa-edit"></i>
+            </a>
+        `;
+    }
+
+    // ================================================================
+    // 5. Sauvegarde des modifications
+    // ================================================================
+    async function uploadChanges(id_cours_classe) {
+        const row = document.getElementById(`row-cours-${id_cours_classe}`);
+        if (!row) {
+            alert("Ligne introuvable !");
+            return;
+        }
+
+        const localisation = await getLocalisation();
+        const cells = row.querySelectorAll("td");
+
+        const updatedData = {
+            cours: cells[0].querySelector("select")?.value || null,
+            id_classe: sessionStorage.getItem('id_classe'),
+            id_annee: sessionStorage.getItem('id_annee'),
+            id_classe_cycle: sessionStorage.getItem('id_classe_cycle'),
+            id_campus: sessionStorage.getItem('id_campus'),
+        };
+
+        if (localisation === "BDI") {
+            updatedData.ponderation = cells[1].querySelector("input")?.value || null;
+            updatedData.TP = cells[2].querySelector("input")?.value || null;
+            updatedData.TPE = cells[3].querySelector("input")?.value || null;
+        } else if (localisation === "RDC") {
+            updatedData.TP = cells[1].querySelector("input")?.value || null;
+            updatedData.TPE = cells[2].querySelector("input")?.value || null;
+            updatedData.ponderation = cells[3].querySelector("input")?.value || null;
+            updatedData.heure_semaine = cells[4].querySelector("input")?.value || null;
+            updatedData.credits = cells[5].querySelector("input")?.value || null;
+            updatedData.ordre_cours = cells[6].querySelector("input")?.value || null;
+        }
+
+        if (!updatedData.cours) {
+            alert("Le cours est obligatoire.");
+            return;
+        }
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (!csrfToken) {
+            alert("Token CSRF manquant !");
+            return;
+        }
+
+        fetch(`/update_cours_classe/${id_cours_classe}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify(updatedData)
+        })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(`Erreur HTTP ${response.status}: ${text.substring(0, 200)}...`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === "success" || data.success) {
+                    alert("Mise à jour réussie !");
+
+                    cancelEdit(id_cours_classe);
+                    refreshTable();
+
+                } else {
+                    alert("Erreur : " + (data.message || data.error || "Erreur inconnue"));
+                }
+            })
+            .catch(err => {
+                console.error("Erreur lors de la sauvegarde :", err);
+                alert("Erreur serveur : " + err.message);
+            });
+    }
+    // ================================================================
+    // 6. Rafraîchissement complet de la table
+    // ================================================================
+    async function refreshTable() {
+        const idClasse = sessionStorage.getItem('id_classe');
+        const idCycle = sessionStorage.getItem('id_classe_cycle');
+        const idAnnee = sessionStorage.getItem('id_annee');
+        const idCampus = sessionStorage.getItem('id_campus');
+
+        if (!idClasse || !idCycle || !idAnnee || !idCampus) {
+            console.error("Données manquantes pour refreshTable");
+            return;
+        }
+
+        const localisation = await getLocalisation();
+        const tableBody = document.getElementById("tbody-trimestres");
+        const coursSelect = document.getElementById("new-course");
+
+        if (coursSelect) {
+            coursSelect.innerHTML = '<option value="">---------</option>';
+            try {
+                const res = await fetch(`/get_cours_par_annnee?id_annee=${idAnnee}&id_campus=${idCampus}&id_cycle=${idCycle}&id_classe=${idClasse}`);
+                const data = await res.json();
+                data.forEach(c => {
+                    const opt = document.createElement("option");
+                    opt.value = c.id_cours;
+                    opt.textContent = c.cours;
+                    coursSelect.appendChild(opt);
+                });
+            } catch (e) {
+                console.error("Erreur reload cours", e);
+            }
+        }
+
+        try {
+            const res = await fetch(`/get_cours_table?id_annee=${idAnnee}&id_campus=${idCampus}&id_cycle=${idCycle}&id_classe=${idClasse}`);
+            const data = await res.json();
+
+            tableBody.innerHTML = "";
+
+            data.cours.forEach(course => {
+                const tr = document.createElement("tr");
+                tr.id = `row-cours-${course.id_cours_classe}`;
+
+                let cells = `
+                    <td class="fw-bold text-primary" style="font-size: 18px;">${course.id_cours__cours}</td>
+                `;
+
+                if (localisation === "BDI") {
+                    cells += `
+                        <td>${course.ponderation || ''}</td>
+                        <td>${course.TP || ''}</td>
+                        <td>${course.TPE || ''}</td>
+                    `;
+                } else { // RDC
+                    cells += `
+                        <td>${course.TP || ''}</td>
+                        <td>${course.TPE || ''}</td>
+                        <td>${course.ponderation || ''}</td>
+                        <td>${course.heure_semaine || ''}</td>
+                        <td>${course.credits || ''}</td>
+                        <td>${course.ordre_cours || ''}</td>
+                        <td>
+                            <input type="checkbox"
+                                   class="form-check-input second-semester-checkbox"
+                                   data-id="${course.id_cours_classe}"
+                                   ${course.is_second_semester ? 'checked' : ''}
+                                   onchange="updateSecondSemester(this)">
+                        </td>
+                    `;
+                }
+
+                cells += `
+                    <td>
+                        <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary me-2 edit-btn-cours"
+                           data-id="${course.id_cours_classe}" onclick="editCours(event)">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                    </td>
+                `;
+
+                tr.innerHTML = cells;
+                tableBody.appendChild(tr);
+            });
+        } catch (err) {
+            console.error("Erreur refresh table", err);
+        }
+    }
+
+
+
+</script>
+
+<!-- ======================= Pop'dynamism course's attribute selected -->
+
+<script>
+    document.addEventListener("click", function (e) {
+        if (e.target.closest(".edit-btn-class")) {
+            const button = e.target.closest(".edit-btn-class");
+            const courseId = button.getAttribute("data-course-id");
+            const id_annee = sessionStorage.getItem("id_annee");
+            const id_campus = sessionStorage.getItem("id_campus");
+            const id_cycle = sessionStorage.getItem("id_cycle");
+            const id_classe = sessionStorage.getItem("id_classe");
+            document.getElementById("modal_course_id").value = courseId || '';
+            document.getElementById("modal_id_annee").value = id_annee || '';
+            document.getElementById("modal_id_campus").value = id_campus || '';
+            document.getElementById("modal_id_cycle").value = id_cycle || '';
+            document.getElementById("modal_id_classe").value = id_classe || '';
+            document.getElementById("modal_personn_id").style.display = "block";
+            document.getElementById("modal_crs_attr_id").style.display = "block";
+
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Attacher les listeners après l'ouverture du modal
+        const modal = document.querySelector('.modal');
+        if (!modal) {
+            console.error('Modal not found');
+            return;
+        }
+
+        modal.addEventListener('shown.bs.modal', function () {
+            // Sélection des champs
+            const personnelField = document.querySelector('select[name="id_personnel"]');
+            const attributionTypeField = document.querySelector('select[name="attribution_type"]');
+            const btnSubmit = document.getElementById('modal_submit_button');
+            const courseField = document.getElementById("modal_course_id");
+            const anneeField = document.getElementById("modal_id_annee");
+            const campusField = document.getElementById("modal_id_campus");
+            const cycleField = document.getElementById("modal_id_cycle");
+            const classeField = document.getElementById("modal_id_classe");
+            const form = document.getElementById('form_id');
+
+
+            // Debugging: Vérifier les options des dropdowns
+            if (personnelField) {
+                alert('id_personnel options:', personnelField.options.length, Array.from(personnelField.options).map(opt => ({ value: opt.value, text: opt.text })));
+            } else {
+                alert('personnelField not found in modal');
+            }
+            if (attributionTypeField) {
+                alert('attribution_type options:', attributionTypeField.options.length, Array.from(personnelField.options).map(opt => ({ value: opt.value, text: opt.text })));
+            } else {
+                alert('attributionTypeField not found in modal');
+            }
+
+            // Debugging: Vérifier les sélections des dropdowns
+            if (personnelField) {
+                personnelField.addEventListener('change', function () {
+                    alert('personnelField changed:', { personnelValue: personnelField.value });
+                });
+            }
+            if (attributionTypeField) {
+                attributionTypeField.addEventListener('change', function () {
+                    alert('attributionTypeField changed:', { attributionTypeValue: attributionTypeField.value });
+                });
+            }
+
+            // Gestion de la soumission AJAX
+            if (form) {
+                //console.log('Form submit listener attached');
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault(); // Prevent default form submission
+                    alert('Form submit event triggered');
+
+                    const formData = new FormData(form);
+
+
+
+                    const personnelValue = personnelField ? personnelField.value : '';
+                    const attributionTypeValue = attributionTypeField ? attributionTypeField.value : '';
+                    if (!personnelValue || !attributionTypeValue) {
+
+                        alert('Veuillez sélectionner un personnel et un type d\'attribution.');
+                        return;
+                    }
+
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.text();
+                        })
+                        .then(text => {
+                            try {
+                                const data = JSON.parse(text);
+                                alert(data.message);
+                                window.location.href = data.redirect;
+                            } catch (e) {
+                                throw new Error(`JSON parse error: ${e.message}`);
+                            }
+                        })
+                        .catch(error => {
+                            alert('Erreur lors de la soumission du formulaire : ' + error.message);
+                            window.location.href = '/attribution_cours';
+                        });
+                });
+            } else {
+                alert('Form not found');
+            }
+        });
+    });
+</script>
+<!-- ======================= save cours's attribution -->
+
+<script>
+    $(document).ready(function () {
+        $('#attributionModal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget);
+            var courseId = button.data('course-id');
+            $(this).find('#course_id').val(courseId);
+            $(this).find('.modal-body #course-id').text(courseId);
+        });
+
+        $('#submit_button').click(function (e) {
+            e.preventDefault();
+            var formData = $('#form_id').serialize();
+
+            $.ajax({
+                type: 'POST',
+                url: '{% url "attribution_create" %}',
+                data: formData,
+
+                success: function (response) {
+
+                    if (response.message) {
+                        $('#ajax-message').html(`
+                            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                                ${response.message}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        `);
+                    }
+
+
+                },
+
+                error: function (xhr, status, error) {
+                    alert("Erreur lors de l'enregistrement : " + error);
+                }
+            });
+        });
+    });
+</script>
+<!--======================= reset form pop up! -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modal = document.getElementById('attributionModal');
+        const form = document.getElementById('form_id');
+
+        modal.addEventListener('hidden.bs.modal', function () {
+            form.reset();
+            document.getElementById('cycle_id').style.display = 'none';
+            document.getElementById('classe_id').style.display = 'none';
+            document.getElementById('personn_id').style.display = 'none';
+            document.getElementById('crs_attr_id').style.display = 'none';
+            document.getElementById('btn_id').style.display = 'none';
+        });
+    });
+</script>
+<!-- =========== create cours by cycle depend of year id -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        if (window.location.pathname === "/create_cours_cycle/") {
+            const idAnnee = document.getElementById("id_id_annee");
+            const idCampus = document.getElementById("id_id_campus") || null;
+            const cycleField = document.getElementById("id_cycle_id");
+
+            // Vérifier la présence du champ cycle_id
+            if (!cycleField) {
+                console.error("Le champ 'id_cycle_id' n'a pas été trouvé.");
+                return;
+            }
+
+            // Fonction pour mettre à jour les cycles
+            function updateCycles(anneeId, campusId) {
+                /*if (!anneeId || !campusId) {
+                    alert("annee ou campus manquant :", { anneeId, campusId });
+                    cycleField.innerHTML = "<option value=''>---------</option>";
+                    return;
+                }*/
+
+                const url = `/get_cycles_parAnnee/?id_annee=${anneeId}&id_campus=${campusId}`;
+
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error("Erreur de réponse du serveur");
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        cycleField.innerHTML = "<option value=''>---------</option>";
+                        if (data.length > 0) {
+                            data.forEach(cycle => {
+                                const option = document.createElement("option");
+                                option.value = cycle.id_cycle_actif;
+                                option.textContent = cycle.cycle;
+                                cycleField.appendChild(option);
+                            });
+                        } else {
+                            alert("Aucun cycle trouvé pour id_annee =", anneeId, "et id_campus =", campusId);
+                        }
+                    })
+
+                    .catch(error => {
+                        alert("Erreur lors du chargement des cycles :", error);
+                        cycleField.innerHTML = "<option value=''>---------</option>";
+                    });
+            }
+
+            // Écouteur pour idCampus
+            if (idCampus) {
+                idCampus.addEventListener("change", function () {
+                    const campusId = this.value;
+                    const anneeId = idAnnee?.value || "";
+
+
+
+                    if (campusId && anneeId) {
+                        updateCycles(anneeId, campusId);
+                    }
+                });
+            }
+
+            // Écouteur pour idAnnee
+            if (idAnnee) {
+                idAnnee.addEventListener("change", function () {
+                    const anneeId = this.value;
+                    const campusId = idCampus?.value || "";
+
+                    console.log("Année sélectionnée :", anneeId);
+
+                    if (anneeId && campusId) {
+                        updateCycles(anneeId, campusId);
+                    } else {
+                        alert("id_annee ou id_campus manquant pour mise à jour des cycles :", { anneeId, campusId });
+                        cycleField.innerHTML = "<option value=''>---------</option>";
+                    }
+                });
+            }
+        }
+    });
+</script>
+
+<!-- ========edition du cours_cycle -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll(".edit-btn-cours-cycle").forEach(button => {
+            button.addEventListener("click", function (event) {
+                event.preventDefault();
+                const idCoursCycle = this.getAttribute("data-id");
+                if (!idCoursCycle || isNaN(idCoursCycle)) {
+                    alert("Erreur : ID de cours par cycle invalide.");
+                    return;
+                }
+                editCoursCycle(idCoursCycle);
+            });
+        });
+
+        function editCoursCycle(idCoursCycle) {
+            const row = document.getElementById(`row-cours-cycle-${idCoursCycle}`);
+            const campusName = document.getElementById(`cours-cycle-campus-${idCoursCycle}`).textContent.trim();
+            const anneeName = document.getElementById(`cours-cycle-annee-${idCoursCycle}`).textContent.trim();
+            const cycleName = document.getElementById(`cours-cycle-cycle-${idCoursCycle}`).textContent.trim();
+            const coursName = document.getElementById(`cours-cycle-cours-${idCoursCycle}`).textContent.trim();
+
+            // Charger les options pour campus, années, cours
+            Promise.all([
+                fetch('/get_active_campus/').then(res => res.json()),
+                fetch('/get_active_annees/').then(res => res.json()),
+                fetch('/get_active_cours/').then(res => res.json())
+            ])
+                .then(([campusData, anneesData, coursData]) => {
+                    const campusOptions = `<option value="">---------</option>` + campusData.campus.map(c => `
+                        <option value="${c.id_campus}" ${c.campus === campusName ? 'selected' : ''}>${c.campus}</option>
+                    `).join('');
+                    const anneeOptions = `<option value="">---------</option>` + anneesData.annees.map(a => `
+                        <option value="${a.id_annee}" ${a.annee === anneeName ? 'selected' : ''}>${a.annee}</option>
+                    `).join('');
+                    const coursOptions = `<option value="">---------</option>` + coursData.cours.map(c => `
+                        <option value="${c.id_cours}" ${c.cours === coursName ? 'selected' : ''}>${c.cours}</option>
+                    `).join('');
+                    const cycleOptions = `<option value="">---------</option>`;
+
+                    row.innerHTML = `
+                        <td>
+                            <select class="form-control" id="edit-campus-${idCoursCycle}">${campusOptions}</select>
+                        </td>
+                        <td>
+                            <select class="form-control" id="edit-annee-${idCoursCycle}">${anneeOptions}</select>
+                        </td>
+                        <td>
+                            <select class="form-control" id="edit-cycle-${idCoursCycle}" disabled>${cycleOptions}</select>
+                        </td>
+                        <td>
+                            <select class="form-control" id="edit-cours-${idCoursCycle}">${coursOptions}</select>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-success me-2" id="save-btn-${idCoursCycle}">
+                                <i class="fas fa-check"></i> 
+                            </button>
+                            <button class="btn btn-sm btn-danger" id="cancel-btn-${idCoursCycle}">
+                                <i class="fas fa-times"></i> 
+                            </button>
+                        </td>
+                    `;
+
+                    const campusSelect = document.getElementById(`edit-campus-${idCoursCycle}`);
+                    const anneeSelect = document.getElementById(`edit-annee-${idCoursCycle}`);
+                    const cycleSelect = document.getElementById(`edit-cycle-${idCoursCycle}`);
+
+                    function updateCycles() {
+                        const idCampus = campusSelect.value;
+                        const idAnnee = anneeSelect.value;
+                        if (idCampus && idAnnee) {
+                            fetch(`/get_cycles_parAnnee/?id_annee=${idAnnee}&id_campus=${idCampus}`)
+                                .then(res => res.json())
+                                .then(data => {
+                                    cycleSelect.innerHTML = `<option value="">---------</option>` + data.map(c => `
+                                        <option value="${c.id_cycle_actif}" ${c.cycle === cycleName ? 'selected' : ''}>${c.cycle}</option>
+                                    `).join('');
+                                    cycleSelect.disabled = data.length === 0;
+                                })
+                                .catch(error => {
+                                    alert("Erreur lors du chargement des cycles.");
+                                    cycleSelect.innerHTML = `<option value="">---------</option>`;
+                                    cycleSelect.disabled = true;
+                                });
+                        } else {
+                            cycleSelect.innerHTML = `<option value="">---------</option>`;
+                            cycleSelect.disabled = true;
+                        }
+                    }
+
+                    campusSelect.addEventListener('change', updateCycles);
+                    anneeSelect.addEventListener('change', updateCycles);
+
+                    // Initialiser les cycles
+                    updateCycles();
+
+                    document.getElementById(`save-btn-${idCoursCycle}`).addEventListener("click", () => updateCoursCycle(idCoursCycle));
+                    document.getElementById(`cancel-btn-${idCoursCycle}`).addEventListener("click", () => cancelEditCoursCycle(idCoursCycle, campusName, anneeName, cycleName, coursName));
+                })
+                .catch(error => {
+                    alert("Erreur lors du chargement des données initiales.");
+                });
+        }
+
+        function cancelEditCoursCycle(idCoursCycle, campusName, anneeName, cycleName, coursName) {
+            const row = document.getElementById(`row-cours-cycle-${idCoursCycle}`);
+            row.innerHTML = `
+                <td id="cours-cycle-campus-${idCoursCycle}">${campusName}</td>
+                <td id="cours-cycle-annee-${idCoursCycle}">${anneeName}</td>
+                <td id="cours-cycle-cycle-${idCoursCycle}">${cycleName}</td>
+                <td id="cours-cycle-cours-${idCoursCycle}">${coursName}</td>
+                <td>
+                    <a href="#" class="btn btn-sm btn-outline-primary edit-btn-cours-cycle" data-id="${idCoursCycle}">
+                        <i class="fas fa-edit"></i> 
+                    </a>
+                </td>
+            `;
+            window.location.reload();
+
+        }
+
+        function updateCoursCycle(idCoursCycle) {
+            const idCampus = document.getElementById(`edit-campus-${idCoursCycle}`).value;
+            const idAnnee = document.getElementById(`edit-annee-${idCoursCycle}`).value;
+            const idCycle = document.getElementById(`edit-cycle-${idCoursCycle}`).value;
+            const idCours = document.getElementById(`edit-cours-${idCoursCycle}`).value;
+
+            if (!idCampus || !idAnnee || !idCours || !idCycle) {
+                alert("Tous les champs sont requis.");
+                return;
+            }
+
+            console.log(`Envoi de la mise à jour pour cours par cycle ID: ${idCoursCycle}, campus: ${idCampus}, annee: ${idAnnee}, cycle: ${idCycle}, cours: ${idCours}`);
+            fetch(`/update_cours_par_cycle/${idCoursCycle}/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCSRFToken()
+                },
+                body: JSON.stringify({
+                    id_campus: idCampus,
+                    id_annee: idAnnee,
+                    cours_id: idCours,
+                    cycle_id: idCycle
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        window.location.reload();
+                    } else {
+                        alert("Erreur : " + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error("Erreur lors de la mise à jour :", error);
+                    alert("Erreur lors de la mise à jour du cours par cycle.");
+                });
+        }
+
+        function getCSRFToken() {
+            const token = document.querySelector('[name=csrfmiddlewaretoken]');
+            return token ? token.value : '';
+        }
+    });
+</script>
+
+<!-- =========== displaying  course by class -->
+<script>
+    if (window.location.pathname.includes("/attribution_cours/")) {
+        document.addEventListener("DOMContentLoaded", function () {
+            const idAnnee = document.getElementById("id_id_annee");
+            const idCampus = document.getElementById("id_id_campus");
+            const idClasseCycle = document.getElementById("id_id_cycle");
+            const idClasse = document.getElementById("id_id_classe");
+            const idPersonnel = document.getElementById("id_id_personnel");
+            const attribution_type = document.getElementById("id_attribution_type");
+
+            // =============== field hidden==================
+            const coursField = document.getElementById("id_id_cours");
+
+            // =============== field hidden==================             
+            // const trimestreTable = document.getElementById("table-download-btn");
+            const coursesContainer = document.getElementById("table-display-course");
+            const tableContent = coursesContainer.querySelector(".table-responsive");
+            const modal = document.getElementById("modalContainer"); // Sélection du modal
+
+            function saveToSession(key, value) {
+                sessionStorage.setItem(key, value);
+            }
+
+            function getFromSession(key) {
+                return sessionStorage.getItem(key);
+            }
+
+            function hideFields(...fields) {
+                fields.forEach(field => {
+                    if (field) {
+                        field.parentElement.style.display = "none";
+                        field.disabled = true;
+                    }
+                });
+            }
+
+            function showField(field) {
+                if (field) {
+                    field.parentElement.style.display = "block";
+                    field.style.display = "block";
+                    field.disabled = false;
+                }
+            }
+
+            function updateDropdown(url, dropdown, idKey, nameKey) {
+                fetch(url)
+                    .then(response => response.json())
+                    .then(responseData => {
+                        const data = responseData.data || responseData || [];
+                        dropdown.innerHTML = '<option value="">------</option>';
+                        if (data.length > 0) {
+                            data.forEach(item => {
+                                let option = document.createElement("option");
+                                option.value = item[idKey];
+                                option.textContent = item[nameKey];
+                                if (item.id_campus) option.dataset.campus = item.id_campus;
+                                if (item.id_cycle) option.dataset.cycle = item.id_cycle;
+                                if (item.id_classe) option.dataset.classe = item.id_classe;
+                                dropdown.appendChild(option);
+                            });
+                            showField(dropdown);
+                        } else {
+                            alert("Aucune donnée correspondante qui est trouvée pour cette selection effectuée");
+                        }
+                    })
+                    .catch(error => alert("Erreur lors du chargement :", error));
+            }
+
+            function loadRegisteredPupils(anneeId, campusId, cycleId, classeId) {
+                const url = `/get_cours_non_attribuer_by_classe/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}`;
+
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        const cours = data.cours_list || [];
+                        const selectedOption = idClasse.options[idClasse.selectedIndex];
+                        const className = selectedOption.textContent;
+
+                        const tableHeader = coursesContainer.querySelector(".table-header h3");
+                        tableHeader.textContent = `LISTE DES COURS NON ATTRIBUES DANS LA CLASSE: ${className}`;
+
+                        let html = `
+                            <table id="basic-datatables" class="display table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>cours</th>
+                                        <th>code</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+
+                        if (cours.length > 0) {
+                            cours.forEach(cr => {
+                                html += `
+                                    <tr>
+                                        <td>${cr.label || ''}</td>
+                                        <td>${cr.code || ''}</td>
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-primary me-2 edit-btn-class"
+                                                data-bs-toggle="modal" data-bs-target="#attributionModal"
+                                                data-course-id="${cr.id}">
+                                                <i class="fas fa-paperclip"></i>
+                                            </a>
+                                        </td>
+                                    </tr>`;
+                            });
+                        } else {
+                            html += `
+                                <tr>
+                                    <td colspan="3" class="text-center">Aucun Cours trouvé tous les cours crées sont déjà attribués</td>
+                                </tr>`;
+                        }
+
+                        html += `</tbody></table>`;
+                        tableContent.innerHTML = html;
+                        coursesContainer.style.display = "block";
+                        if (modal) modal.style.display = "none";
+                    })
+                    .catch(error => {
+                        alert("Erreur lors du chargement des cours:", error);
+                        tableContent.innerHTML = '<div class="alert alert-danger">Erreur lors du chargement des cours</div>';
+                        coursesContainer.style.display = "block";
+                    });
+
+            }
+
+            hideFields(idCampus, idClasseCycle, idClasse, coursField, idPersonnel, attribution_type);
+            coursesContainer.style.display = "none";
+            if (modal) modal.style.display = "none";
+
+            const savedAnnee = getFromSession("id_annee");
+            if (savedAnnee) {
+                idAnnee.value = savedAnnee;
+                updateDropdown(`/get_classes_year_by_tutilaire?id_annee=${savedAnnee}`, idClasse, 'id', 'label');
+            }
+
+            idAnnee.addEventListener("change", function () {
+                hideFields(idCampus, idClasseCycle, idClasse, coursField, idPersonnel, attribution_type);
+                coursesContainer.style.display = "none";
+
+                if (this.value) {
+                    saveToSession("id_annee", this.value);
+                    document.getElementById("id_id_annee").value = this.value;
+                    let url = `/get_classes_year_by_tutilaire?id_annee=${this.value}`;
+                    updateDropdown(url, idClasse, 'id', 'label');
+                }
+            });
+
+            idClasse.addEventListener("change", function () {
+                const selectedOption = this.options[this.selectedIndex];
+                const campusId = selectedOption.dataset.campus;
+                const cycleId = selectedOption.dataset.cycle;
+                const classeId = this.value;
+                const anneeId = idAnnee.value;
+
+                hideFields(idCampus, idClasseCycle, coursField);
+                coursesContainer.style.display = "none";
+                if (classeId && campusId && cycleId) {
+                    const selectedData = {
+                        id_annee: anneeId,
+                        id_campus: campusId,
+                        id_cycle: cycleId,
+                        id_classe: classeId
+                    };
+                    saveToSession("selected_classe_data", JSON.stringify(selectedData));
+
+                    document.getElementById("id_id_campus").value = campusId;
+                    document.getElementById("id_id_cycle").value = cycleId;
+                    document.getElementById("id_id_classe").value = classeId;
+
+                    sessionStorage.setItem("id_campus", campusId);
+                    sessionStorage.setItem("id_cycle", cycleId);
+                    sessionStorage.setItem("id_classe", classeId);
+
+
+                    loadRegisteredPupils(anneeId, campusId, cycleId, classeId);
+                }
+            });
+
+        });
+
+
+    }
+
+
+</script>
+
+<!-- ============ attribution detacher un cours() -->
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll(".edit-btn-attribution").forEach(button => {
+            button.addEventListener("click", function (event) {
+                event.preventDefault();
+                const idAttribution = this.getAttribute("data-id");
+                const idClasse = this.getAttribute("data-classe");
+                if (!idAttribution || isNaN(idAttribution) || !idClasse || isNaN(idClasse)) {
+                    console.error(`ID invalide: idAttribution=${idAttribution}, idClasse=${idClasse}`);
+                    alert("Erreur : ID d'attribution ou de classe invalide.");
+                    return;
+                }
+                editAttribution(idAttribution, idClasse);
+            });
+        });
+
+        function editAttribution(idAttribution, idClasse) {
+            const row = document.getElementById(`row-attribution-${idAttribution}`);
+            const campusName = document.getElementById(`attribution-campus-${idAttribution}`).textContent.trim();
+            const anneeName = document.getElementById(`attribution-annee-${idAttribution}`).textContent.trim();
+            const cycleName = document.getElementById(`attribution-cycle-${idAttribution}`).textContent.trim();
+            const classeName = document.getElementById(`attribution-classe-${idAttribution}`).textContent.trim();
+            const typeName = document.getElementById(`attribution-type-${idAttribution}`).textContent.trim();
+            const coursName = document.getElementById(`attribution-cours-${idAttribution}`).textContent.trim();
+            const personnelName = document.getElementById(`attribution-personnel-${idAttribution}`).textContent.trim();
+            Promise.all([
+                fetch('/get_active_attribution_types/').then(res => res.json()),
+                fetch('/get_active_personnel/').then(res => res.json())
+            ])
+                .then(([typeData, personnelData]) => {
+                    const typeOptions = `<option value="">---------</option>` + typeData.types.map(t => `
+                        <option value="${t.id_attribution_type}" ${t.attribution_type === typeName ? 'selected' : ''}>${t.attribution_type}</option>
+                    `).join('');
+                    const personnelOptions = `<option value="">---------</option>` + personnelData.personnel.map(p => `
+                        <option value="${p.id_personnel}" ${`${p.user__first_name} ${p.user__last_name}` === personnelName ? 'selected' : ''}>${p.user__first_name} ${p.user__last_name}</option>
+                    `).join('');
+
+                    row.innerHTML = `
+                        <td>${campusName}</td>
+                        <td>${anneeName}</td>
+                        <td>${cycleName}</td>
+                        <td>${classeName}</td>
+                        <td>
+                            <select class="form-control" id="edit-type-${idAttribution}">${typeOptions}</select>
+                        </td>
+                        <td>${coursName}</td>
+                        <td>
+                            <select class="form-control" id="edit-personnel-${idAttribution}">${personnelOptions}</select>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-success me-2" id="save-btn-${idAttribution}">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" id="cancel-btn-${idAttribution}">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </td>
+                    `;
+
+                    document.getElementById(`save-btn-${idAttribution}`).addEventListener("click", () => updateAttribution(idAttribution));
+                    document.getElementById(`cancel-btn-${idAttribution}`).addEventListener("click", () => cancelEditAttribution(idAttribution, idClasse, campusName, anneeName, cycleName, classeName, typeName, coursName, personnelName));
+                })
+                .catch(error => {
+                    console.error("Erreur lors du chargement des données initiales :", error);
+                    alert("Erreur lors du chargement des données initiales.");
+                });
+        }
+
+        function cancelEditAttribution(idAttribution, idClasse, campusName, anneeName, cycleName, classeName, typeName, coursName, personnelName) {
+            const row = document.getElementById(`row-attribution-${idAttribution}`);
+            row.innerHTML = `
+                <td id="attribution-campus-${idAttribution}">${campusName}</td>
+                <td id="attribution-annee-${idAttribution}">${anneeName}</td>
+                <td id="attribution-cycle-${idAttribution}">${cycleName}</td>
+                <td id="attribution-classe-${idAttribution}">${classeName}</td>
+                <td id="attribution-type-${idAttribution}">${typeName}</td>
+                <td id="attribution-cours-${idAttribution}">${coursName}</td>
+                <td id="attribution-personnel-${idAttribution}">${personnelName}</td>
+                <td>
+                    <a href="#" class="btn btn-sm btn-outline-primary edit-btn-attribution" data-id="${idAttribution}" data-classe="${idClasse}">
+                        <i class="fas fa-edit"></i> détacher
+                    </a>
+                </td>
+            `;
+            window.location.reload();
+
+        }
+
+        function updateAttribution(idAttribution) {
+            const attributionType = document.getElementById(`edit-type-${idAttribution}`).value;
+            const idPersonnel = document.getElementById(`edit-personnel-${idAttribution}`).value;
+
+            if (!attributionType || !idPersonnel) {
+                alert("Tous les champs modifiables sont requis.");
+                return;
+            }
+
+            console.log(`Envoi de la mise à jour pour attribution ID: ${idAttribution}, type: ${attributionType}, personnel: ${idPersonnel}`);
+            fetch(`/update_attribution_cours/${idAttribution}/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCSRFToken()
+                },
+                body: JSON.stringify({
+                    attribution_type: attributionType,
+                    id_personnel: idPersonnel
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        window.location.reload();
+                    } else {
+                        alert("Erreur : " + data.error);
+                    }
+                })
+                .catch(error => {
+                    alert("Erreur lors de la mise à jour de l'attribution.");
+                });
+        }
+
+        function getCSRFToken() {
+            const token = document.querySelector('[name=csrfmiddlewaretoken]');
+            return token ? token.value : '';
+        }
+    });
+</script>
+<!-- ============ Afficher les attributions/classes -->
+<script>
+    if (window.location.pathname.includes("/attribution_par_classe/")) {
+        document.addEventListener("DOMContentLoaded", function () {
+            const idAnnee = document.getElementById("id_id_annee");
+            const idCampus = document.getElementById("id_id_campus");
+            const idClasseCycle = document.getElementById("id_id_cycle");
+            const idClasse = document.getElementById("id_id_classe");
+            const idPersonnel = document.getElementById("id_id_personnel");
+            const attribution_type = document.getElementById("id_attribution_type");
+            // =============== field hidden==================
+            const coursField = document.getElementById("id_id_cours");
+
+            // =============== field hidden==================             
+            const coursesContainer = document.getElementById("table-display-attributions");
+            const tableContent = coursesContainer.querySelector(".table-responsive");
+            const modal = document.getElementById("modalContainer"); // Sélection du modal
+
+            function saveToSession(key, value) {
+                sessionStorage.setItem(key, value);
+            }
+
+            function getFromSession(key) {
+                return sessionStorage.getItem(key);
+            }
+
+            function hideFields(...fields) {
+                fields.forEach(field => {
+                    if (field) {
+                        field.parentElement.style.display = "none";
+                        field.disabled = true;
+                    }
+                });
+            }
+
+            function showField(field) {
+                if (field) {
+                    field.parentElement.style.display = "block";
+                    field.style.display = "block";
+                    field.disabled = false;
+                }
+            }
+
+            function updateDropdown(url, dropdown, idKey, nameKey) {
+                fetch(url)
+                    .then(response => response.json())
+                    .then(responseData => {
+                        const data = responseData.data || responseData || [];
+                        dropdown.innerHTML = '<option value="">------</option>';
+                        if (data.length > 0) {
+                            data.forEach(item => {
+                                let option = document.createElement("option");
+                                option.value = item[idKey];
+                                option.textContent = item[nameKey];
+                                if (item.id_campus) option.dataset.campus = item.id_campus;
+                                if (item.id_cycle) option.dataset.cycle = item.id_cycle;
+                                if (item.id_classe) option.dataset.classe = item.id_classe;
+                                dropdown.appendChild(option);
+                            });
+                            showField(dropdown);
+                        } else {
+                            alert("Aucune donnée trouvée pour cette selection effectuée");
+                        }
+                    })
+                    .catch(error => alert("Erreur lors du chargement :", error));
+            }
+
+
+            function loadAttributions(anneeId, campusId, cycleId, classeId) {
+                const url = `/get_attributions_by_classe/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}`;
+
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) throw new Error("Erreur réseau");
+                        return response.text();
+                    })
+                    .then(html => {
+                        const selectedOption = document.getElementById("id_id_classe").options[document.getElementById("id_id_classe").selectedIndex];
+                        const className = selectedOption.textContent;
+
+                        const tableHeader = document.querySelector("#table-display-attributions .table-header h3");
+                        tableHeader.textContent = `ATTRIBUTIONS FAITES POUR LA CLASSE : ${className}`;
+
+                        document.querySelector("#attribution-table tbody").outerHTML = html;
+
+                        document.getElementById("table-display-attributions").style.display = "block";
+                        const modal = document.getElementById("modalContainer");
+                        if (modal) modal.style.display = "none";
+                    })
+                    .catch(error => {
+                        alert("Erreur lors du chargement des attributions:", error);
+                        document.querySelector("#table-display-attributions .table-responsive").innerHTML = '<div class="alert alert-danger">Erreur lors du chargement des attributions</div>';
+                        document.getElementById("table-display-attributions").style.display = "block";
+                    });
+            }
+
+            hideFields(idCampus, idClasseCycle, idClasse, coursField, idPersonnel, attribution_type);
+            coursesContainer.style.display = "none";
+            if (modal) modal.style.display = "none";
+            const savedAnnee = getFromSession("id_annee");
+            if (savedAnnee) {
+                idAnnee.value = savedAnnee;
+                updateDropdown(`/get_classes_year_by_tutilaire?id_annee=${savedAnnee}`, idClasse, 'id', 'label');
+            }
+
+            idAnnee.addEventListener("change", function () {
+                hideFields(idCampus, idClasseCycle, idClasse, coursField, idPersonnel, attribution_type);
+                coursesContainer.style.display = "none";
+
+                if (this.value) {
+                    saveToSession("id_annee", this.value);
+                    document.getElementById("id_id_annee").value = this.value;
+                    let url = `get_classes_year_by_tutilaire?id_annee=${this.value}`;
+                    updateDropdown(url, idClasse, 'id', 'label');
+                }
+            });
+
+            idClasse.addEventListener("change", function () {
+                const classeId = this.value;
+                const anneeId = idAnnee.value;
+                const campusId = this.selectedOptions[0].dataset.campus;
+                const cycleId = this.selectedOptions[0].dataset.cycle;
+
+                if (classeId) {
+                    sessionStorage.setItem("id_classe", classeId);
+                    sessionStorage.setItem("id_annee", anneeId);
+                    sessionStorage.setItem("id_campus", campusId);
+                    sessionStorage.setItem("id_cycle", cycleId);
+                    modal.style.display = 'none'
+
+                    loadAttributions(anneeId, campusId, cycleId, classeId);
+                }
+            });
+
+        });
+
+
+    }
+
+</script>

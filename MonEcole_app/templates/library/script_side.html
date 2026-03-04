@@ -1,0 +1,1285 @@
+<!-- =====edit emprunt -->
+<script>
+    $(document).ready(function() {
+    function loadAnnees(callback) {
+        $.ajax({
+            url: '/library/api/get_annees/',
+            method: 'GET',
+            success: function(response) {
+                callback(response.annees || []);
+            },
+            error: function(xhr) {
+                console.error('Erreur lors du chargement des années:', xhr.responseText);
+                callback([]);
+            }
+        });
+    }
+
+    function loadCampus(callback) {
+        $.ajax({
+            url: '/library/api/campus-options/',
+            method: 'GET',
+            success: function(response) {
+                callback(response.campus || []);
+            },
+            error: function(xhr) {
+                console.error('Erreur lors du chargement des campus:', xhr.responseText);
+                callback([]);
+            }
+        });
+    }
+
+    function loadCycles(idAnnee, idCampus, callback) {
+        if (!idAnnee || !idCampus) {
+            callback([]);
+            return;
+        }
+        $.ajax({
+            url: '/api/cycle-options/',
+            method: 'GET',
+            data: { id_annee: idAnnee, id_campus: idCampus },
+            success: function(response) {
+                callback(response.cycles || []);
+            },
+            error: function(xhr) {
+                console.error('Erreur lors du chargement des cycles:', xhr.responseText);
+                callback([]);
+            }
+        });
+    }
+
+    function loadClasses(idAnnee, idCampus, idCycle, callback) {
+            if (!idAnnee || !idCampus || !idCycle) {
+                callback([]);
+                return;
+            }
+            $.ajax({
+                url: '/api/classe-options/',
+                method: 'GET',
+                data: { id_annee: idAnnee, id_campus: idCampus, id_cycle: idCycle },
+                success: function(response) {
+                    const classes = (response.classes || []).map(function(cls) {
+                        return {
+                            id_classe_active: cls["id_classe_active"],
+                            classe: cls["classe_id__classe"],   
+                            groupe: cls["groupe"] || ""       
+                        };
+                    });
+
+                    console.log("Classes après map:", classes);
+                    callback(classes);
+                },
+                error: function(xhr) {
+                    console.error('Erreur lors du chargement des classes:', xhr.responseText);
+                    callback([]);
+                }
+            });
+
+
+        }
+
+
+    function loadEleves(idAnnee, idCampus, idCycle, idClasse, callback) {
+        if (!idAnnee || !idCampus || !idCycle || !idClasse) {
+            callback([]);
+            return;
+        }
+        $.ajax({
+            url: '/get_pupils_registred_classe/',
+            method: 'GET',
+            data: {
+                id_annee: idAnnee,
+                id_campus: idCampus,
+                id_cycle: idCycle,
+                id_classe_active: idClasse
+            },
+            success: function(response) {
+                callback(response.data || []);
+            },
+            error: function(xhr) {
+                console.error('Erreur lors du chargement des élèves:', xhr.responseText);
+                callback([]);
+            }
+        });
+    }
+
+    function loadLivres(callback) {
+        $.ajax({
+            url: '/library/api/livres/',
+            method: 'GET',
+            success: function(response) {
+                callback(response.livres || []);
+            },
+            error: function(xhr) {
+                console.error('Erreur lors du chargement des livres:', xhr.responseText);
+                callback([]);
+            }
+        });
+    }
+
+    $('.emprunt-validate-btn').click(function(e) {
+        e.preventDefault();
+        const id = $(this).data('id');
+        const anneeCell = $(`#emprunt-annee-${id}`);
+        const campusCell = $(`#emprunt-campus-${id}`);
+        const cycleCell = $(`#emprunt-cycle-${id}`);
+        const classeCell = $(`#emprunt-classe-${id}`);
+        const eleveCell = $(`#emprunt-eleve-${id}`);
+        const livreCell = $(`#emprunt-livre-${id}`);
+        const dateEmpruntCell = $(`#emprunt-date-emprunt-${id}`);
+        const dateRetourCell = $(`#emprunt-date-retour-${id}`);
+        const originalAnnee = anneeCell.text().trim();
+        const originalCampus = campusCell.text().trim();
+        const originalCycle = cycleCell.text().trim();
+        const originalClasse = classeCell.text().trim();
+        const originalEleve = eleveCell.text().trim();
+        const originalLivre = livreCell.text().trim();
+        const originalDateEmprunt = dateEmpruntCell.text().trim();
+        const originalDateRetour = dateRetourCell.text().trim();
+
+        loadAnnees(function(annees) {
+            let anneeOptions = '<select class="form-control edit-annee">';
+            annees.forEach(function(annee) {
+                anneeOptions += `<option value="${annee.id_annee}" ${annee.annee === originalAnnee ? 'selected' : ''}>${annee.annee}</option>`;
+            });
+            anneeOptions += '</select>';
+
+            loadCampus(function(campus) {
+                let campusOptions = '<select class="form-control edit-campus">';
+                campus.forEach(function(c) {
+                    campusOptions += `<option value="${c.id_campus}" ${c.campus === originalCampus ? 'selected' : ''}>${c.campus}</option>`;
+                });
+                campusOptions += '</select>';
+
+                const selectedAnneeId = annees.find(a => a.annee === originalAnnee)?.id_annee;
+                const selectedCampusId = campus.find(c => c.campus === originalCampus)?.id_campus;
+                loadCycles(selectedAnneeId, selectedCampusId, function(cycles) {
+                    let cycleOptions = '<select class="form-control edit-cycle">';
+                    cycles.forEach(function(cycle) {
+                        cycleOptions += `<option value="${cycle.id_cycle_actif}" ${cycle.cycle_id__cycle === originalCycle ? 'selected' : ''}>${cycle.cycle_id__cycle}</option>`;
+                    });
+                    cycleOptions += '</select>';
+
+                    const selectedCycleId = cycles.find(c => c.cycle_id__cycle === originalCycle)?.id_cycle_actif;
+                    loadClasses(selectedAnneeId, selectedCampusId, selectedCycleId, function(classes) {
+                        let classeOptions = '<select class="form-control edit-classe">';
+                        classes.forEach(function(classe) {
+                            let label = classe.classe;
+                            if (classe.groupe) {
+                                label += " " + classe.groupe;
+                            }
+                            classeOptions += `<option value="${classe.id_classe_active}" ${classe.classe === originalClasse ? 'selected' : ''}>${label}</option>`;
+                        });
+                        classeOptions += '</select>';
+
+
+                        const selectedClasseId = classes.find(c => c.classe_id__classe === originalClasse)?.id_classe_active;
+                        loadEleves(selectedAnneeId, selectedCampusId, selectedCycleId, selectedClasseId, function(eleves) {
+                            let eleveOptions = '<select class="form-control edit-eleve">';
+                            eleves.forEach(function(eleve) {
+                                const eleveLabel = eleve.nom_complet;
+                                eleveOptions += `<option value="${eleve.id_eleve}" ${eleveLabel === originalEleve ? 'selected' : ''}>${eleveLabel}</option>`;
+                            });
+                            eleveOptions += '</select>';
+
+                            loadLivres(function(livres) {
+                                let livreOptions = '<select class="form-control edit-livre">';
+                                livres.forEach(function(livre) {
+                                    livreOptions += `<option value="${livre.id}" ${livre.titre === originalLivre ? 'selected' : ''}>${livre.titre}</option>`;
+                                });
+                                livreOptions += '</select>';
+
+                                anneeCell.html(anneeOptions);
+                                campusCell.html(campusOptions);
+                                cycleCell.html(cycleOptions);
+                                classeCell.html(classeOptions);
+                                eleveCell.html(eleveOptions);
+                                livreCell.html(livreOptions);
+                                dateEmpruntCell.html(`<input type="date" class="form-control edit-date-emprunt" value="${originalDateEmprunt}">`);
+                                dateRetourCell.html(`<input type="date" class="form-control edit-date-retour" value="${originalDateRetour}">`);
+
+                                $(`.emprunt-validate-btn[data-id="${id}"]`).hide();
+                                $(`#edit-actions-emprunt-${id}`).show();
+
+                                function updateCycles() {
+                                    const newAnneeId = $(`.edit-annee`, anneeCell).val();
+                                    const newCampusId = $(`.edit-campus`, campusCell).val();
+                                    loadCycles(newAnneeId, newCampusId, function(newCycles) {
+                                        let newCycleOptions = '<select class="form-control edit-cycle">';
+                                        newCycles.forEach(function(cycle) {
+                                            newCycleOptions += `<option value="${cycle.id_cycle_actif}">${cycle.cycle_id__cycle}</option>`;
+                                        });
+                                        newCycleOptions += '</select>';
+                                        cycleCell.html(newCycleOptions);
+                                        classeCell.html('<select class="form-control edit-classe"></select>');
+                                        eleveCell.html('<select class="form-control edit-eleve"></select>');
+                                        updateClasses();
+                                    });
+                                }
+
+                                function updateClasses() {
+                                    const newAnneeId = $(`.edit-annee`, anneeCell).val();
+                                    const newCampusId = $(`.edit-campus`, campusCell).val();
+                                    const newCycleId = $(`.edit-cycle`, cycleCell).val();
+
+                                    loadClasses(newAnneeId, newCampusId, newCycleId, function(newClasses) {
+                                        let newClasseOptions = '<select class="form-control edit-classe">';
+                                        newClasses.forEach(function(classe) {
+                                            let label = classe.classe;
+                                            if (classe.groupe) {
+                                                label += " " + classe.groupe;
+                                            }
+                                            newClasseOptions += `<option value="${classe.id_classe_active}">${label}</option>`;
+                                        });
+                                        newClasseOptions += '</select>';
+                                        
+                                        classeCell.html(newClasseOptions);
+                                        eleveCell.html('<select class="form-control edit-eleve"></select>');
+                                        updateEleves();
+                                    });
+                                }
+
+                                function updateEleves() {
+                                    const newAnneeId = $(`.edit-annee`, anneeCell).val();
+                                    const newCampusId = $(`.edit-campus`, campusCell).val();
+                                    const newCycleId = $(`.edit-cycle`, cycleCell).val();
+                                    const newClasseId = $(`.edit-classe`, classeCell).val();
+                                    loadEleves(newAnneeId, newCampusId, newCycleId, newClasseId, function(newEleves) {
+                                        let newEleveOptions = '<select class="form-control edit-eleve">';
+                                        newEleves.forEach(function(eleve) {
+                                            newEleveOptions += `<option value="${eleve.id_eleve}">${eleve.nom_complet}</option>`;
+                                        });
+                                        newEleveOptions += '</select>';
+                                        eleveCell.html(newEleveOptions);
+                                    });
+                                }
+
+                                $(`.edit-annee`, anneeCell).change(updateCycles);
+                                $(`.edit-campus`, campusCell).change(updateCycles);
+                                $(`.edit-cycle`, cycleCell).change(updateClasses);
+                                $(`.edit-classe`, classeCell).change(updateEleves);
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
+
+    $('.emprunt-cancel-btn').click(function() {
+        const id = $(this).data('id');
+        const anneeCell = $(`#emprunt-annee-${id}`);
+        const campusCell = $(`#emprunt-campus-${id}`);
+        const cycleCell = $(`#emprunt-cycle-${id}`);
+        const classeCell = $(`#emprunt-classe-${id}`);
+        const eleveCell = $(`#emprunt-eleve-${id}`);
+        const livreCell = $(`#emprunt-livre-${id}`);
+        const dateEmpruntCell = $(`#emprunt-date-emprunt-${id}`);
+        const dateRetourCell = $(`#emprunt-date-retour-${id}`);
+        const originalAnnee = anneeCell.find('.edit-annee option:selected').text();
+        const originalCampus = campusCell.find('.edit-campus option:selected').text();
+        const originalCycle = cycleCell.find('.edit-cycle option:selected').text();
+        const originalClasse = classeCell.find('.edit-classe option:selected').text();
+        const originalEleve = eleveCell.find('.edit-eleve option:selected').text();
+        const originalLivre = livreCell.find('.edit-livre option:selected').text();
+        const originalDateEmprunt = dateEmpruntCell.find('.edit-date-emprunt').val();
+        const originalDateRetour = dateRetourCell.find('.edit-date-retour').val();
+
+        anneeCell.html(originalAnnee);
+        campusCell.html(originalCampus);
+        cycleCell.html(originalCycle);
+        classeCell.html(originalClasse);
+        eleveCell.html(originalEleve);
+        livreCell.html(originalLivre);
+        dateEmpruntCell.html(originalDateEmprunt);
+        dateRetourCell.html(originalDateRetour);
+        $(`#edit-actions-emprunt-${id}`).hide();
+        $(`.emprunt-validate-btn[data-id="${id}"]`).show();
+    });
+
+    $('.emprunt-save-btn').click(function() {
+        const id = $(this).data('id');
+        const anneeCell = $(`#emprunt-annee-${id}`);
+        const campusCell = $(`#emprunt-campus-${id}`);
+        const cycleCell = $(`#emprunt-cycle-${id}`);
+        const classeCell = $(`#emprunt-classe-${id}`);
+        const eleveCell = $(`#emprunt-eleve-${id}`);
+        const livreCell = $(`#emprunt-livre-${id}`);
+        const dateEmpruntCell = $(`#emprunt-date-emprunt-${id}`);
+        const dateRetourCell = $(`#emprunt-date-retour-${id}`);
+        const newAnneeId = anneeCell.find('.edit-annee').val();
+        const newCampusId = campusCell.find('.edit-campus').val();
+        const newCycleId = cycleCell.find('.edit-cycle').val();
+        const newClasseId = classeCell.find('.edit-classe').val();
+        const newEleveId = eleveCell.find('.edit-eleve').val();
+        const newLivreId = livreCell.find('.edit-livre').val();
+        const newDateEmprunt = dateEmpruntCell.find('.edit-date-emprunt').val();
+        const newDateRetour = dateRetourCell.find('.edit-date-retour').val();
+
+        $.ajax({
+            url: `/library/api/emprunt/${id}/update/`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                id_annee: newAnneeId,
+                id_campus: newCampusId,
+                id_cycle_actif: newCycleId,
+                id_classe_active: newClasseId,
+                id_eleve: newEleveId,
+                id_livre: newLivreId,
+                date_emprunt: newDateEmprunt,
+                date_retour_prevue: newDateRetour
+            }),
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.success) {
+                    alert('Modification réusssie avec succès')
+                    anneeCell.html(anneeCell.find('.edit-annee option:selected').text());
+                    campusCell.html(campusCell.find('.edit-campus option:selected').text());
+                    cycleCell.html(cycleCell.find('.edit-cycle option:selected').text());
+                    classeCell.html(classeCell.find('.edit-classe option:selected').text());
+                    eleveCell.html(eleveCell.find('.edit-eleve option:selected').text());
+                    livreCell.html(livreCell.find('.edit-livre option:selected').text());
+                    dateEmpruntCell.html(newDateEmprunt);
+                    dateRetourCell.html(newDateRetour);
+                    $(`#edit-actions-emprunt-${id}`).hide();
+                    $(`.emprunt-validate-btn[data-id="${id}"]`).show();
+                } else {
+                    alert(response.error || 'Erreur lors de la sauvegarde.');
+                }
+            },
+            error: function(xhr) {
+                console.log('Erreur AJAX :', xhr.responseText);
+                const errorMsg = xhr.responseJSON?.error || 'Une erreur s\'est produite.';
+                alert(errorMsg);
+            }
+        });
+    });
+});
+</script>
+
+<!-- save empurnt -->
+<script>
+    $(document).ready(function () {
+    let selectedAnneeId = null;
+    let selectedCampusId = null;
+    let selectedCycleId = null;
+    let selectedClasseId = null;
+    let selectedEleveId = null;
+    let selectedBookId = null;
+
+    function getCsrfToken() {
+        const token = $('input[name=csrfmiddlewaretoken]').val();
+        if (!token) console.error('Token CSRF manquant');
+        return token;
+    }
+
+    function fetchCategoriesAndBooks(armoireId) {
+        const $container = $('#documents-container');
+        if (!armoireId) {
+            $container.html('<p class="no-selection">Veuillez sélectionner une armoire pour afficher les catégories.</p>');
+            return;
+        }
+
+        $.ajax({
+            url: `/library/api/categories-and-books/?armoire_id=${armoireId}`,
+            type: 'GET',
+            headers: { 'X-CSRFToken': getCsrfToken() },
+            success: function (data) {
+                if (!data) {
+                    $container.html('<p class="error-message">Réponse vide du serveur.</p>');
+                    return;
+                }
+                if (data.error) {
+                    $container.html(`<p class="error-message">${data.error}</p>`);
+                    renderFolders([]);
+                    return;
+                }
+                renderFolders(data.categories || []);
+            },
+            error: function (xhr) {
+                console.error('Erreur AJAX (categories):', xhr.responseText);
+                $container.html('<p class="error-message">Une erreur est survenue lors du chargement des données.</p>');
+            }
+        });
+    }
+
+    function renderFolders(folders) {
+        const $container = $('#documents-container');
+        $container.empty();
+
+        folders.forEach(folder => {
+            const $folderElement = $(`
+                <div class="folder-item" data-folder-id="${folder.id}">
+                    <div class="folder-icon"><i class="fas fa-folder"></i></div>
+                    <div class="folder-name">${folder.name}</div>
+                </div>
+            `);
+            $folderElement.on('click', () => openFolder(folder));
+            $container.append($folderElement);
+        });
+    }
+
+    function openFolder(folder) {
+        const $modal = $('#folder-modal');
+        const $modalTitle = $('#modal-title');
+        const $booksContainer = $('#books-container');
+
+        $modalTitle.text(folder.name);
+        $booksContainer.empty();
+
+        folder.books.forEach(book => {
+            const iconClass = {
+                'pdf': 'fa-file-pdf',
+                'doc': 'fa-file-word',
+                'xls': 'fa-file-excel'
+            }[book.type] || 'fa-file';
+
+            const $bookElement = $(`
+                <div class="book-item" data-book-id="${book.id}">
+                    <div class="book-icon"><i class="fas ${iconClass}"></i></div>
+                    <div class="book-title">${book.title}</div>
+                    <div class="book-author">${book.author}</div>
+                </div>
+            `);
+            $bookElement.on('click', () => openBookModal(book));
+            $booksContainer.append($bookElement);
+        });
+
+        $modal.show();
+    }
+
+    function openBookModal(book) {
+        const $modal = $('#book-modal');
+        selectedBookId = book.id;
+        $('#selected-book-id').text(book.id); 
+
+        $('#annee').val('');
+        $('#classe-container').hide();
+        $('#eleve-container').hide();
+        $('#date_retour_prevue').val('');
+
+        selectedAnneeId = null;
+        selectedCampusId = null;
+        selectedCycleId = null;
+        selectedClasseId = null;
+        selectedEleveId = null;
+
+        $modal.show();
+    }
+
+    $('#annee').on('change', function () {
+        selectedAnneeId = $(this).val();
+        if (!selectedAnneeId) {
+            $('#classe-container').hide();
+            $('#eleve-container').hide();
+            selectedCampusId = null;
+            selectedCycleId = null;
+            selectedClasseId = null;
+            selectedEleveId = null;
+            return;
+        }
+
+        $.ajax({
+            url: '/store_annee_session/',
+            type: 'POST',
+            data: {
+                'id_annee': selectedAnneeId,
+                'csrfmiddlewaretoken': getCsrfToken()
+            },
+            success: function (response) {
+                if (!response) {
+                    alert('Erreur : Réponse vide du serveur.');
+                    return;
+                }
+                if (response.success) {
+                    updateClasseDropdown(selectedAnneeId);
+                } else {
+                    alert('Erreur : ' + (response.error || 'Erreur inconnue lors de l\'enregistrement de l\'année.'));
+                }
+            },
+            error: function (xhr) {
+                console.error('Erreur AJAX (store_annee_session):', xhr.responseText);
+                alert('Une erreur est survenue lors de l\'enregistrement de l\'année.');
+            }
+        });
+    });
+
+    function updateClasseDropdown(anneeId) {
+        const $dropdown = $('#id_classe_active');
+        $.ajax({
+            url: `/get_classes_actives/${anneeId}/`,
+            type: 'GET',
+            success: function (response) {
+                if (!response) {
+                    alert('Erreur : Réponse vide du serveur.');
+                    return;
+                }
+                if (!response.success && response.error) {
+                    alert('Erreur : ' + response.error);
+                    return;
+                }
+                const data = response.classes || [];
+                $dropdown.empty().append('<option value="">------</option>');
+                if (data.length > 0) {
+                    data.forEach(item => {
+                        const $option = $(`<option value="${item.id_classe_active}">
+                            ${item.campus_nom} - ${item.cycle_nom} - ${item.classe_nom}${item.groupe ? ' (' + item.groupe + ')' : ''}
+                        </option>`);
+                        $option.data('campusId', item.id_campus);
+                        $option.data('cycleId', item.id_cycle);
+                        $dropdown.append($option);
+                    });
+                    $('#classe-container').show();
+                } else {
+                    alert(response.message || 'Aucune classe active trouvée pour cette année scolaire.');
+                    $('#classe-container').hide();
+                }
+                $('#eleve-container').hide();
+            },
+            error: function (xhr) {
+                console.error('Erreur AJAX (get_classes_actives):', xhr.responseText);
+                alert('Erreur lors du chargement des classes.');
+            }
+        });
+    }
+
+    $('#id_classe_active').on('change', function () {
+        selectedClasseId = $(this).val();
+        if (selectedClasseId) {
+            const $selectedOption = $(this).find('option:selected');
+            selectedCampusId = $selectedOption.data('campusId');
+            selectedCycleId = $selectedOption.data('cycleId');
+            updateEleveDropdown();
+        } else {
+            $('#eleve-container').hide();
+            selectedCampusId = null;
+            selectedCycleId = null;
+            selectedEleveId = null;
+        }
+    });
+
+    function updateEleveDropdown() {
+        const $dropdown = $('#id_id_eleve');
+        const pupilsUrl = `/get_pupils_registred_classe/?id_annee=${selectedAnneeId}&id_campus=${selectedCampusId}&id_cycle=${selectedCycleId}&id_classe_active=${selectedClasseId}`;
+
+        $.ajax({
+            url: pupilsUrl,
+            type: 'GET',
+            success: function (response) {
+                if (!response) {
+                    alert('Erreur : Réponse vide du serveur.');
+                    return;
+                }
+                if (!response.success) {
+                    alert(response.error || 'Erreur lors du chargement des élèves.');
+                    $dropdown.hide();
+                    return;
+                }
+                const data = response.data || [];
+                $dropdown.empty().append('<option value="">------</option>');
+                if (data.length > 0) {
+                    data.forEach(item => {
+                        $dropdown.append(`<option value="${item.id_eleve}">${item.nom_complet}</option>`);
+                    });
+                    $('#eleve-container').show();
+                } else {
+                    alert('Aucun élève trouvé pour cette classe.');
+                    $('#eleve-container').hide();
+                }
+            },
+            error: function (xhr) {
+                console.error('Erreur AJAX (get_pupils_registred_classe):', xhr.responseText);
+                alert('Erreur lors du chargement des élèves.');
+            }
+        });
+    }
+
+    $('#id_id_eleve').on('change', function () {
+        selectedEleveId = $(this).val();
+    });
+
+    $('#save-book-form').on('click', function () {
+        const dateRetourPrevue = $('#date_retour_prevue').val();
+
+        if (!selectedBookId || !selectedAnneeId || !selectedClasseId || !selectedEleveId || !dateRetourPrevue) {
+            alert('Veuillez remplir tous les champs (année, classe, élève, date de retour).');
+            return;
+        }
+
+        const formData = {
+            id_livre: selectedBookId,
+            id_annee: selectedAnneeId,
+            id_campus: selectedCampusId,
+            id_cycle_actif: selectedCycleId,
+            id_classe_active: selectedClasseId,
+            id_eleve: selectedEleveId,
+            date_retour_prevue: dateRetourPrevue
+        };
+
+        $.ajax({
+            url: '/library/api/save-emprunt/',
+            type: 'POST',
+            headers: { 'X-CSRFToken': getCsrfToken() },
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            success: function (response) {
+                if (!response) {
+                    alert('Erreur : Réponse vide du serveur.');
+                    return;
+                }
+                if (response.success) {
+                    alert('Emprunt enregistré avec succès !');
+                    window.location.href = "/library/ajout_emprunt/";
+
+                    $('#book-modal').hide();
+                } else {
+                    alert('Erreur : ' + (response.error || 'Erreur inconnue lors de l\'enregistrement.'));
+                }
+            },
+            error: function (xhr) {
+                console.error('Erreur AJAX (save_emprunt):', xhr.responseText);
+                alert('Une erreur est survenue lors de l\'enregistrement de l\'emprunt.');
+            }
+        });
+    });
+
+    $('#close-book-modal, #cancel-book-form').on('click', function () {
+        $('#book-modal').hide();
+    });
+
+    $('#folder-modal .close').on('click', function () {
+        $('#folder-modal').hide();
+    });
+
+    $(window).on('click', function (event) {
+        if (event.target.id === 'book-modal') {
+            $('#book-modal').hide();
+        }
+        if (event.target.id === 'folder-modal') {
+            $('#folder-modal').hide();
+        }
+    });
+
+    $('#search-input').on('input', function () {
+        const searchTerm = $(this).val().toLowerCase();
+        const armoireId = $('#armoire_id').val();
+
+        $.ajax({
+            url: `/library/api/categories-and-books/?armoire_id=${armoireId}`,
+            type: 'GET',
+            success: function (data) {
+                if (!data) return;
+                const filteredFolders = (data.categories || []).filter(folder =>
+                    folder.name.toLowerCase().includes(searchTerm)
+                );
+                renderFolders(filteredFolders);
+            }
+        });
+    });
+
+    const initialArmoireId = $('#armoire_id').val() || '';
+    fetchCategoriesAndBooks(initialArmoireId);
+
+    $('#armoire_id').on('change', function () {
+        fetchCategoriesAndBooks($(this).val());
+    });
+});
+</script>
+
+
+
+<!-- Cupbroad editing -->
+<script>
+    $(document).ready(function() {
+    $('.validate-btn').click(function(e) {
+        e.preventDefault();
+        const id = $(this).data('id');
+        const cell = $(`#variable-name-${id}`);
+        const originalValue = cell.text().trim();
+
+        cell.html(`<input type="text" class="form-control edit-input" value="${originalValue}">`);
+        
+        $(this).hide();
+        $(`#edit-actions-${id}`).show();
+    });
+
+    $('.cancel-btn').click(function() {
+        const id = $(this).data('id');
+        const cell = $(`#variable-name-${id}`);
+        const originalValue = cell.find('.edit-input').val(); 
+
+        cell.html(originalValue);
+        $(`#edit-actions-${id}`).hide();
+        $(`.validate-btn[data-id="${id}"]`).show();
+    });
+
+    $('.save-btn').click(function() {
+    const id = $(this).data('id');
+    const cell = $(`#variable-name-${id}`);
+    const newValue = cell.find('.edit-input').val();
+
+    $.ajax({
+        url: `/library/api/armoire/${id}/update/`,
+        method: 'POST',
+        contentType: 'application/json', 
+        data: JSON.stringify({ nom: newValue }), 
+        headers: {
+            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val() 
+        },
+        success: function(response) {
+            if (response.success) {
+                alert("Modification réussie avec success");
+                cell.html(newValue);
+                $(`#edit-actions-${id}`).hide();
+                $(`.validate-btn[data-id="${id}"]`).show();
+            } else {
+                alert(response.error || 'Erreur lors de la sauvegarde.');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.log('Erreur AJAX :', xhr.responseText);
+            const errorMsg = xhr.responseJSON?.error || 'Une erreur s\'est produite : ' + error;
+            alert(errorMsg);
+        }
+    });
+});
+});
+</script>
+
+<!-- =====compartement script : -->
+
+<script>
+    $(document).ready(function() {
+    function loadArmoires(callback) {
+        $.ajax({
+            url: '/library/api/armoires/',
+            method: 'GET',
+            success: function(response) {
+                callback(response.armoires);
+            },
+            error: function() {
+                console.error('Erreur lors du chargement des armoires');
+            }
+        });
+    }
+
+    $('.compartiment-validate-btn').click(function(e) {
+        e.preventDefault();
+        const id = $(this).data('id');
+        const armoireCell = $(`#compartiment-armoire-${id}`);
+        const numeroCell = $(`#compartiment-numero-${id}`);
+        const capaciteCell = $(`#compartiment-capacite-${id}`);
+        const originalArmoire = armoireCell.text().trim();
+        const originalNumero = numeroCell.text().trim();
+        const originalCapacite = capaciteCell.text().trim();
+
+        loadArmoires(function(armoires) {
+            let selectOptions = '<select class="form-control edit-armoire">';
+            armoires.forEach(function(armoire) {
+                selectOptions += `<option value="${armoire.id}" ${armoire.nom === originalArmoire ? 'selected' : ''}>${armoire.nom}</option>`;
+            });
+            selectOptions += '</select>';
+
+            armoireCell.html(selectOptions);
+            numeroCell.html(`<input type="text" class="form-control edit-numero" value="${originalNumero}">`);
+            capaciteCell.html(`<input type="number" class="form-control edit-capacite" value="${originalCapacite}" min="1">`);
+
+            $(`.compartiment-validate-btn[data-id="${id}"]`).hide();
+            $(`#edit-actions-compartiment-${id}`).show();
+        });
+    });
+    $('.compartiment-cancel-btn').click(function() {
+        const id = $(this).data('id');
+        const armoireCell = $(`#compartiment-armoire-${id}`);
+        const numeroCell = $(`#compartiment-numero-${id}`);
+        const capaciteCell = $(`#compartiment-capacite-${id}`);
+        const originalArmoire = armoireCell.find('.edit-armoire option:selected').text();
+        const originalNumero = numeroCell.find('.edit-numero').val();
+        const originalCapacite = capaciteCell.find('.edit-capacite').val();
+
+        armoireCell.html(originalArmoire);
+        numeroCell.html(originalNumero);
+        capaciteCell.html(originalCapacite);
+        $(`#edit-actions-compartiment-${id}`).hide();
+        $(`.compartiment-validate-btn[data-id="${id}"]`).show();
+    });
+
+    $('.compartiment-save-btn').click(function() {
+        const id = $(this).data('id');
+        const armoireCell = $(`#compartiment-armoire-${id}`);
+        const numeroCell = $(`#compartiment-numero-${id}`);
+        const capaciteCell = $(`#compartiment-capacite-${id}`);
+        const newArmoireId = armoireCell.find('.edit-armoire').val();
+        const newNumero = numeroCell.find('.edit-numero').val();
+        const newCapacite = capaciteCell.find('.edit-capacite').val();
+
+        $.ajax({
+            url: `/library/api/compartiment/${id}/update/`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                armoire_id: newArmoireId,
+                numero: newNumero,
+                capacite: newCapacite
+            }),
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.success) {
+                   alert("Le compartement edité avec succès!")
+
+                    armoireCell.html(armoireCell.find('.edit-armoire option:selected').text());
+                    numeroCell.html(newNumero);
+                    capaciteCell.html(newCapacite);
+                    $(`#edit-actions-compartiment-${id}`).hide();
+                    $(`.compartiment-validate-btn[data-id="${id}"]`).show();
+                } else {
+                    alert(response.error || 'Erreur lors de la sauvegarde.');
+                }
+            },
+            error: function(xhr) {
+                console.log('Erreur AJAX :', xhr.responseText);
+                const errorMsg = xhr.responseJSON?.error || 'Une erreur s\'est produite.';
+                alert(errorMsg);
+            }
+        });
+    });
+});
+</script>
+<!-- ======Categorie lvre -->
+
+<script>
+    $(document).ready(function() {
+    $('.categorie-validate-btn').click(function(e) {
+        e.preventDefault();
+        const id = $(this).data('id');
+        const nomCell = $(`#categorie-nom-${id}`);
+        const originalNom = nomCell.text().trim();
+
+        nomCell.html(`<input type="text" class="form-control edit-nom" value="${originalNom}">`);
+
+        $(`.categorie-validate-btn[data-id="${id}"]`).hide();
+        $(`#edit-actions-categorie-${id}`).show();
+    });
+
+    $('.categorie-cancel-btn').click(function() {
+        const id = $(this).data('id');
+        const nomCell = $(`#categorie-nom-${id}`);
+        const originalNom = nomCell.find('.edit-nom').val();
+
+        nomCell.html(originalNom);
+        $(`#edit-actions-categorie-${id}`).hide();
+        $(`.categorie-validate-btn[data-id="${id}"]`).show();
+    });
+
+    $('.categorie-save-btn').click(function() {
+        const id = $(this).data('id');
+        const nomCell = $(`#categorie-nom-${id}`);
+        const newNom = nomCell.find('.edit-nom').val();
+
+        $.ajax({
+            url: `/library/api/categorie/${id}/update/`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                nom: newNom
+            }),
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+
+                if (response.success) {
+                    alert("Categorie modifié avec succès!")
+                    nomCell.html(newNom);
+                    $(`#edit-actions-categorie-${id}`).hide();
+                    $(`.categorie-validate-btn[data-id="${id}"]`).show();
+                } else {
+                    alert(response.error || 'Erreur lors de la sauvegarde.');
+                }
+            },
+            error: function(xhr) {
+                console.log('Erreur AJAX :', xhr.responseText);
+                const errorMsg = xhr.responseJSON?.error || 'Une erreur s\'est produite.';
+                alert(errorMsg);
+            }
+        });
+    });
+});
+</script>
+
+<!-- =======livre script -->
+
+<script>
+    $(document).ready(function() {
+    function loadCategories(callback) {
+        $.ajax({
+            url: '/library/api/categories/',
+            method: 'GET',
+            success: function(response) {
+                callback(response.categories);
+            },
+            error: function() {
+                console.error('Erreur lors du chargement des catégories');
+            }
+        });
+    }
+
+    function loadCompartiments(callback) {
+        $.ajax({
+            url: '/library/api/compartiments/',
+            method: 'GET',
+            success: function(response) {
+                callback(response.compartiments);
+            },
+            error: function() {
+                console.error('Erreur lors du chargement des compartiments');
+            }
+        });
+    }
+
+    $('.livre-validate-btn').click(function(e) {
+        e.preventDefault();
+        const id = $(this).data('id');
+        const titreCell = $(`#livre-titre-${id}`);
+        const auteurCell = $(`#livre-auteur-${id}`);
+        const isbnCell = $(`#livre-isbn-${id}`);
+        const categorieCell = $(`#livre-categorie-${id}`);
+        const compartimentCell = $(`#livre-compartiment-${id}`);
+        const etatCell = $(`#livre-etat-${id}`);
+        const exemplairesCell = $(`#livre-exemplaires-${id}`);
+        const originalTitre = titreCell.text().trim();
+        const originalAuteur = auteurCell.text().trim();
+        const originalIsbn = isbnCell.text().trim() === '-' ? '' : isbnCell.text().trim();
+        const originalCategorie = categorieCell.text().trim();
+        const originalCompartiment = compartimentCell.text().trim();
+        const originalEtat = etatCell.text().trim();
+        const originalExemplaires = exemplairesCell.text().trim();
+
+        loadCategories(function(categories) {
+            loadCompartiments(function(compartiments) {
+                let categorieOptions = '<select class="form-control edit-categorie">';
+                categories.forEach(function(categorie) {
+                    categorieOptions += `<option value="${categorie.id}" ${categorie.nom === originalCategorie ? 'selected' : ''}>${categorie.nom}</option>`;
+                });
+                categorieOptions += '</select>';
+
+                let compartimentOptions = '<select class="form-control edit-compartiment">';
+                compartiments.forEach(function(compartiment) {
+                    const compartimentLabel = `${compartiment.armoire_nom}_${compartiment.numero}`;
+                    compartimentOptions += `<option value="${compartiment.id}" ${compartimentLabel === originalCompartiment ? 'selected' : ''}>${compartimentLabel}</option>`;
+                });
+                compartimentOptions += '</select>';
+
+                const etatOptions = `
+                    <select class="form-control edit-etat">
+                        <option value="NEUF" ${originalEtat === 'Neuf' ? 'selected' : ''}>Neuf</option>
+                        <option value="BON" ${originalEtat === 'Bon' ? 'selected' : ''}>Bon</option>
+                        <option value="USÉ" ${originalEtat === 'Usé' ? 'selected' : ''}>Usé</option>
+                        <option value="ENDOMMAGÉ" ${originalEtat === 'Endommagé' ? 'selected' : ''}>Endommagé</option>
+                    </select>
+                `;
+
+                titreCell.html(`<input type="text" class="form-control edit-titre" value="${originalTitre}">`);
+                auteurCell.html(`<input type="text" class="form-control edit-auteur" value="${originalAuteur}">`);
+                isbnCell.html(`<input type="text" class="form-control edit-isbn" value="${originalIsbn}">`);
+                categorieCell.html(categorieOptions);
+                compartimentCell.html(compartimentOptions);
+                etatCell.html(etatOptions);
+                exemplairesCell.html(`<input type="number" class="form-control edit-exemplaires" value="${originalExemplaires}" min="1">`);
+
+                $(`.livre-validate-btn[data-id="${id}"]`).hide();
+                $(`#edit-actions-livre-${id}`).show();
+            });
+        });
+    });
+
+    $('.livre-cancel-btn').click(function() {
+        const id = $(this).data('id');
+        const titreCell = $(`#livre-titre-${id}`);
+        const auteurCell = $(`#livre-auteur-${id}`);
+        const isbnCell = $(`#livre-isbn-${id}`);
+        const categorieCell = $(`#livre-categorie-${id}`);
+        const compartimentCell = $(`#livre-compartiment-${id}`);
+        const etatCell = $(`#livre-etat-${id}`);
+        const exemplairesCell = $(`#livre-exemplaires-${id}`);
+        const originalTitre = titreCell.find('.edit-titre').val();
+        const originalAuteur = auteurCell.find('.edit-auteur').val();
+        const originalIsbn = isbnCell.find('.edit-isbn').val() || '-';
+        const originalCategorie = categorieCell.find('.edit-categorie option:selected').text();
+        const originalCompartiment = compartimentCell.find('.edit-compartiment option:selected').text();
+        const originalEtat = etatCell.find('.edit-etat option:selected').text();
+        const originalExemplaires = exemplairesCell.find('.edit-exemplaires').val();
+
+        titreCell.html(originalTitre);
+        auteurCell.html(originalAuteur);
+        isbnCell.html(originalIsbn);
+        categorieCell.html(originalCategorie);
+        compartimentCell.html(originalCompartiment);
+        etatCell.html(originalEtat);
+        exemplairesCell.html(originalExemplaires);
+        $(`#edit-actions-livre-${id}`).hide();
+        $(`.livre-validate-btn[data-id="${id}"]`).show();
+    });
+
+    $('.livre-save-btn').click(function() {
+        const id = $(this).data('id');
+        const titreCell = $(`#livre-titre-${id}`);
+        const auteurCell = $(`#livre-auteur-${id}`);
+        const isbnCell = $(`#livre-isbn-${id}`);
+        const categorieCell = $(`#livre-categorie-${id}`);
+        const compartimentCell = $(`#livre-compartiment-${id}`);
+        const etatCell = $(`#livre-etat-${id}`);
+        const exemplairesCell = $(`#livre-exemplaires-${id}`);
+        const newTitre = titreCell.find('.edit-titre').val();
+        const newAuteur = auteurCell.find('.edit-auteur').val();
+        const newIsbn = isbnCell.find('.edit-isbn').val();
+        const newCategorieId = categorieCell.find('.edit-categorie').val();
+        const newCompartimentId = compartimentCell.find('.edit-compartiment').val();
+        const newEtat = etatCell.find('.edit-etat').val();
+        const newExemplaires = exemplairesCell.find('.edit-exemplaires').val();
+
+        $.ajax({
+            url: `/library/api/livre/${id}/update/`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                titre: newTitre,
+                auteur: newAuteur,
+                isbn: newIsbn,
+                categorie_id: newCategorieId,
+                compartiment_id: newCompartimentId,
+                etat: newEtat,
+                nombre_exemplaires: newExemplaires
+            }),
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                
+                if (response.success) {
+                    alert("Livre modifie avec succes")
+                    titreCell.html(newTitre);
+                    auteurCell.html(newAuteur);
+                    isbnCell.html(newIsbn || '-');
+                    categorieCell.html(categorieCell.find('.edit-categorie option:selected').text());
+                    compartimentCell.html(compartimentCell.find('.edit-compartiment option:selected').text());
+                    etatCell.html(newEtat === 'NEUF' ? 'Neuf' : newEtat === 'BON' ? 'Bon' : newEtat === 'USÉ' ? 'Usé' : 'Endommagé');
+                    exemplairesCell.html(newExemplaires);
+                    $(`#edit-actions-livre-${id}`).hide();
+                    $(`.livre-validate-btn[data-id="${id}"]`).show();
+                } else {
+                    alert(response.error || 'Erreur lors de la sauvegarde.');
+                }
+            },
+            error: function(xhr) {
+                console.log('Erreur AJAX :', xhr.responseText);
+                const errorMsg = xhr.responseJSON?.error || 'Une erreur s\'est produite.';
+                alert(errorMsg);
+            }
+        });
+    });
+});
+</script>
+
+<!-- =====exemplaire des livres -->
+
+
+<script>
+    $(document).ready(function() {
+    function loadLivres(callback) {
+        $.ajax({
+            url: '/library/api/livres/',
+            method: 'GET',
+            success: function(response) {
+                callback(response.livres);
+            },
+            error: function() {
+                console.error('Erreur lors du chargement des livres');
+            }
+        });
+    }
+
+    $('.livre-exemplaire-validate-btn').click(function(e) {
+        e.preventDefault();
+        const id = $(this).data('id');
+        const livreCell = $(`#livre-exemplaire-livre-${id}`);
+        const numeroCell = $(`#livre-exemplaire-numero-${id}`);
+        const etatCell = $(`#livre-exemplaire-etat-${id}`);
+        const originalLivre = livreCell.text().trim();
+        const originalNumero = numeroCell.text().trim();
+        const originalEtat = etatCell.text().trim();
+
+        loadLivres(function(livres) {
+            let livreOptions = '<select class="form-control edit-livre">';
+            livres.forEach(function(livre) {
+                livreOptions += `<option value="${livre.id}" ${livre.titre === originalLivre ? 'selected' : ''}>${livre.titre}</option>`;
+            });
+            livreOptions += '</select>';
+
+            const etatOptions = `
+                <select class="form-control edit-etat">
+                    <option value="NEUF" ${originalEtat === 'Neuf' ? 'selected' : ''}>Neuf</option>
+                    <option value="BON" ${originalEtat === 'Bon' ? 'selected' : ''}>Bon</option>
+                    <option value="USÉ" ${originalEtat === 'Usé' ? 'selected' : ''}>Usé</option>
+                    <option value="ENDOMMAGÉ" ${originalEtat === 'Endommagé' ? 'selected' : ''}>Endommagé</option>
+                </select>
+            `;
+
+            livreCell.html(livreOptions);
+            numeroCell.html(`<input type="text" class="form-control edit-numero" value="${originalNumero}">`);
+            etatCell.html(etatOptions);
+
+            $(`.livre-exemplaire-validate-btn[data-id="${id}"]`).hide();
+            $(`#edit-actions-livre-exemplaire-${id}`).show();
+        });
+    });
+
+    $('.livre-exemplaire-cancel-btn').click(function() {
+        const id = $(this).data('id');
+        const livreCell = $(`#livre-exemplaire-livre-${id}`);
+        const numeroCell = $(`#livre-exemplaire-numero-${id}`);
+        const etatCell = $(`#livre-exemplaire-etat-${id}`);
+        const originalLivre = livreCell.find('.edit-livre option:selected').text();
+        const originalNumero = numeroCell.find('.edit-numero').val();
+        const originalEtat = etatCell.find('.edit-etat option:selected').text();
+
+        // Restaurer les valeurs originales
+        livreCell.html(originalLivre);
+        numeroCell.html(originalNumero);
+        etatCell.html(originalEtat);
+        $(`#edit-actions-livre-exemplaire-${id}`).hide();
+        $(`.livre-exemplaire-validate-btn[data-id="${id}"]`).show();
+    });
+
+    $('.livre-exemplaire-save-btn').click(function() {
+        const id = $(this).data('id');
+        const livreCell = $(`#livre-exemplaire-livre-${id}`);
+        const numeroCell = $(`#livre-exemplaire-numero-${id}`);
+        const etatCell = $(`#livre-exemplaire-etat-${id}`);
+        const newLivreId = livreCell.find('.edit-livre').val();
+        const newNumero = numeroCell.find('.edit-numero').val();
+        const newEtat = etatCell.find('.edit-etat').val();
+
+        $.ajax({
+            url: `/library/api/livre-exemplaire/${id}/update/`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                livre_id: newLivreId,
+                numero_inventaire: newNumero,
+                etat: newEtat
+            }),
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.success) {
+                    alert('Exemplaire modifie avec succes')
+                    livreCell.html(livreCell.find('.edit-livre option:selected').text());
+                    numeroCell.html(newNumero);
+                    etatCell.html(newEtat === 'NEUF' ? 'Neuf' : newEtat === 'BON' ? 'Bon' : newEtat === 'USÉ' ? 'Usé' : 'Endommagé');
+                    $(`#edit-actions-livre-exemplaire-${id}`).hide();
+                    $(`.livre-exemplaire-validate-btn[data-id="${id}"]`).show();
+                } else {
+                    alert(response.error || 'Erreur lors de la sauvegarde.');
+                }
+            },
+            error: function(xhr) {
+                console.log('Erreur AJAX :', xhr.responseText);
+                const errorMsg = xhr.responseJSON?.error || 'Une erreur s\'est produite.';
+                alert(errorMsg);
+            }
+        });
+    });
+});
+</script>
+
+
+<!-- =========== update retour livre  -->
+
+
+<script>
+    $(document).on("change", ".update_rendu_livre", function() {
+    const checkbox = $(this);
+    const empruntId = checkbox.data("id");
+
+    if (checkbox.is(":checked")) {
+        // Stocker l'ID de l'emprunt dans le champ caché du modal
+            $("#empruntId").val(empruntId);
+            
+            // Ouvrir le modal
+            $("#dateRetourModal").modal("show");
+
+            // Lorsqu'on clique sur "Confirmer"
+            $("#confirmDateRetour").off("click").on("click", function() {
+                const dateRetour = $("#dateRetour").val();
+                
+                if (!dateRetour) {
+                    alert("Veuillez sélectionner une date.");
+                    return;
+                }
+
+                $.ajax({
+                    url: "/library/update-rendu/",
+                    method: "POST",
+                    data: {
+                        id: empruntId,
+                        date_retour_effective: dateRetour,
+                        csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken]").val()
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            alert("Retour enregistré avec succès !");
+                            $("#dateRetourModal").modal("hide"); // Fermer le modal
+                            window.location.href = "/library/list_emprunt_retour/";
+                        } else {
+                            alert("Erreur : " + response.error);
+                        }
+                    },
+                    error: function(xhr) {
+                        console.error("Erreur AJAX:", xhr.responseText);
+                        alert("Une erreur est survenue lors de l'enregistrement.");
+                    }
+                });
+            });
+
+            // Si l'utilisateur annule, décocher la checkbox
+            $("#dateRetourModal").on("hidden.bs.modal", function() {
+                if (!$("#dateRetour").val()) {
+                    checkbox.prop("checked", false);
+                }
+            });
+        }
+    });
+</script>
+<!-- ===============Limiter la date -->
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Obtenir la date actuelle au format YYYY-MM-DD
+        const today = new Date().toISOString().split('T')[0];
+
+        // Définir la date maximale pour start_date et end_date
+        document.getElementById('start_date').setAttribute('max', today);
+        document.getElementById('end_date').setAttribute('max', today);
+
+        // Optionnel : S'assurer que end_date n'est pas antérieur à start_date
+        document.getElementById('start_date').addEventListener('change', function() {
+            const startDate = this.value;
+            const endDateInput = document.getElementById('end_date');
+            endDateInput.setAttribute('min', startDate);
+        });
+
+        // Optionnel : Réinitialiser min de end_date si start_date est effacé
+        document.getElementById('start_date').addEventListener('input', function() {
+            if (!this.value) {
+                document.getElementById('end_date').removeAttribute('min');
+            }
+        });
+    });
+</script>

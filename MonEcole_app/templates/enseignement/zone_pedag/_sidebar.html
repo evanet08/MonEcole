@@ -1,0 +1,109 @@
+
+<div class="sidebar">
+    {% include 'partials/title_logo.html' %}
+    <div class="menu">
+        <div class="menu-item">
+            <a href="#"><span class="emoji-icon">🗓️</span>Gestion évaluations<i class="fas fa-chevron-right"></i></a>
+            <div class="submenu">
+                <div class="menu-item">
+                    <a href="{% url 'add_evaluation' %}"><span class="emoji-icon">📤</span>Dépôt évaluation</a>
+                </div>
+                <div class="menu-item">
+                    <a href="{% url 'soumettre_devoir' %}"><span class="emoji-icon">📤</span>Soumettre un devoir</a>
+                </div>
+                <div style="display: none;" class="menu-item">
+                    <a href="#"><span class="emoji-icon">📘</span>Voir mes cours</a>
+                </div>
+                <div style="display: none;"  class="menu-item">
+                    <a href="#"><span class="emoji-icon">➕</span>Ajouter un cours</a>
+                </div>
+                <div style="display: none;" class="menu-item">
+                    <a href="#"><span class="emoji-icon">📂</span>Documents du cours</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Saisie des notes -->
+        <div class="menu-item">
+            <a href=""><span class="emoji-icon">📝</span>Gestion des notes<i class="fas fa-chevron-right"></i></a>
+            <div class="submenu">
+                
+                <div class="menu-item">
+                    <a href="{% url 'generer_excel_file' %}"><span class="emoji-icon">📝</span> Fiche des notes</a>
+                </div>
+                <div  class="menu-item">
+                    <a href="{% url 'import_file_note' %}"><span class="emoji-icon">📥</span> Importer les notes</a>
+                </div>
+                <div  class="menu-item">
+                    <a href="{% url 'affichage_notes' %}"><span class="emoji-icon">📈</span>Voir les importations</a>
+                </div>
+                <div class="menu-item">
+                <a href="{% url 'reclammations' %}"><span class="emoji-icon">📊</span>Reclammations</a>
+                </div>
+                <div class="menu-item">
+                <a href="{% url 'repechages_notes' %}"><span class="emoji-icon">🧪</span>Repêchage</a>
+                </div>
+                <div style="display:none" class="menu-item">
+                    <a href="#"><span class="emoji-icon">🧾</span>Exporter les notes</a>
+                </div>
+            </div>
+        </div>
+        {% comment %} reclammations sections {% endcomment %}
+        <div style="display:none" class="menu-item">
+            <a href="#"><span class="emoji-icon">📝</span> Réclamations <i class="fas fa-chevron-right"></i></a>
+            <div class="submenu">
+                
+                <div style ="display:none" class="menu-item">
+                <a href="#"><span class="emoji-icon">🔁</span> Examen après repêchage</a>
+                </div>
+            </div>
+        </div>
+        <!-- Suivi des présences -->
+        <div style="display:none" class="menu-item">
+            <a href="#"><span class="emoji-icon">📋</span>Suivi des élèves<i class="fas fa-chevron-right"></i></a>
+            <div class="submenu">
+                <div class="menu-item">
+                    <a href="#"><span class="emoji-icon">🟢</span>Présence du jour</a>
+                </div>
+                <div class="menu-item">
+                    <a href="#"><span class="emoji-icon">📆</span>Historique</a>
+                </div>
+            </div>
+        </div>
+         <!-- Tableau de bord -->
+         <div style="display:none" class="menu-item">
+            <a href="#"><span class="emoji-icon">📊</span>Tableau de bord<i class="fas fa-chevron-right"></i></a>
+            <div class="submenu">
+                <div class="menu-item">
+                    <a href="#"><span class="emoji-icon">📈</span>Statistiques de cours</a>
+                </div>
+                <div class="menu-item">
+                    <a href="#"><span class="emoji-icon">🧑‍🎓</span>Suivi des élèves</a>
+                </div>
+            </div>
+        </div>
+        <!-- Communication -->
+        <div style="display:none" class="menu-item">
+            <a href="#"><span class="emoji-icon">💬</span>Communication<i class="fas fa-chevron-right"></i></a>
+            <div class="submenu">
+                <div class="menu-item">
+                    <a href="#"><span class="emoji-icon">📨</span>Envoyer un message</a>
+                </div>
+                <div class="menu-item">
+                    <a href="#"><span class="emoji-icon">📥</span>Boîte de réception</a>
+                </div>
+            </div>
+        </div>
+        {% if request.user.is_authenticated  %}
+            <div class="menu-item">
+                <a href="#"><span class="emoji-icon">🔀</span>Changer vers<i class="fas fa-chevron-right"></i></a>
+                <div class="submenu">
+                    {% include 'partials/url_module.html' %}
+                </div>
+            </div>
+        {% endif %}
+
+    </div>
+  {% include 'partials/log_out_button.html' %}
+
+</div>
