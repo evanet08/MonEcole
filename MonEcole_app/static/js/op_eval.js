@@ -36,16 +36,17 @@ const showField = (field) => {
 };
 
 const updateDropdown = (url, dropdown, idKey, nameKey, extraData = {}) => {
-  fetch(url)
+  return fetch(url)
     .then((response) => {
       if (!response.ok) throw new Error("Erreur réseau ou serveur");
       return response.json();
     })
     .then((responseData) => {
-      const data = responseData.data || responseData || [];
+      const data = responseData.data || responseData.cours_list || responseData.trimestres || responseData.sessions || responseData || [];
+      const items = Array.isArray(data) ? data : [];
       dropdown.innerHTML = '<option value="">------</option>';
-      if (data.length > 0) {
-        data.forEach((item) => {
+      if (items.length > 0) {
+        items.forEach((item) => {
           const option = document.createElement("option");
           option.value = item[idKey];
           option.textContent = item[nameKey];
@@ -55,11 +56,16 @@ const updateDropdown = (url, dropdown, idKey, nameKey, extraData = {}) => {
           dropdown.appendChild(option);
         });
         showField(dropdown);
+        return { hasData: true, count: items.length };
       } else {
         console.log("Aucune donnée trouvée pour cette sélection effectuée");
+        return { hasData: false, count: 0 };
       }
     })
-    .catch((error) => console.error("Erreur lors du chargement :", error));
+    .catch((error) => {
+      console.error("Erreur lors du chargement :", error);
+      return { hasData: false, count: 0, error: true };
+    });
 };
 
 // Gestion du modal (global)
@@ -264,7 +270,13 @@ const setupExcelFile = () => {
       saveToSession("id_cours", coursId);
       fields.coursField.parentElement.after(fields.typeNoteField.parentElement);
       const url = `/get_types_notes_par_evaluation/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe_active=${classeId}&id_cours=${coursId}`;
-      updateDropdown(url, fields.typeNoteField, "id", "label");
+      updateDropdown(url, fields.typeNoteField, "id", "label").then((result) => {
+        if (!result.hasData) {
+          // No type notes found — close modal and show download action
+          if (fields.modal) fields.modal.style.display = "none";
+          fields.trimestreTable.style.display = "block";
+        }
+      });
     }
   });
 
@@ -297,7 +309,12 @@ const setupExcelFile = () => {
     if (typeNoteId && coursId && campusId && cycleId && classeId && anneeId) {
       saveToSession("id_type_note", typeNoteId);
       const url = `/get_trimestre_by_evaluation/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe_active=${classeId}&id_cours=${coursId}&id_type_note=${typeNoteId}`;
-      updateDropdown(url, fields.horaireTypeField, "id", "label");
+      updateDropdown(url, fields.horaireTypeField, "id", "label").then((result) => {
+        if (!result.hasData) {
+          if (fields.modal) fields.modal.style.display = "none";
+          fields.trimestreTable.style.display = "block";
+        }
+      });
     }
   });
 
@@ -323,7 +340,12 @@ const setupExcelFile = () => {
     if (trimestreId && typeNoteId && coursId && campusId && cycleId && classeId && anneeId) {
       saveToSession("id_trimestre", trimestreId);
       const url = `/get_periode_by_trimestre_coursEvaluer/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe_active=${classeId}&id_cours=${coursId}&id_type_note=${typeNoteId}&id_trimestre=${trimestreId}`;
-      updateDropdown(url, fields.periodeField, "id", "label");
+      updateDropdown(url, fields.periodeField, "id", "label").then((result) => {
+        if (!result.hasData) {
+          if (fields.modal) fields.modal.style.display = "none";
+          fields.trimestreTable.style.display = "block";
+        }
+      });
     }
   });
 
@@ -350,7 +372,12 @@ const setupExcelFile = () => {
       saveToSession("id_periode", periodeId);
       fields.periodeField.parentElement.after(fields.jrField.parentElement);
       const url = `/get_sessions_par_coursEvaluer/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe_active=${classeId}&id_cours=${coursId}&id_type_note=${typeNoteId}&id_trimestre=${trimestreId}&id_periode=${periodeId}`;
-      updateDropdown(url, fields.jrField, "id", "label");
+      updateDropdown(url, fields.jrField, "id", "label").then((result) => {
+        if (!result.hasData) {
+          if (fields.modal) fields.modal.style.display = "none";
+          fields.trimestreTable.style.display = "block";
+        }
+      });
     }
   });
 
@@ -1070,7 +1097,13 @@ const setupAddEvaluation = () => {
       const classeId = fields.idClasse.value;
       const url = `/get_trimestres_par_classe/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}`;
 
-      updateDropdown(url, fields.horaireTypeField, "id", "label");
+      updateDropdown(url, fields.horaireTypeField, "id", "label").then((result) => {
+        if (!result.hasData) {
+          // No trimestres found — show submit button so user isn't stuck
+          fields.trimestreTable.style.display = "block";
+          if (fields.modal) fields.modal.style.display = "none";
+        }
+      });
     }
   });
 
@@ -1100,7 +1133,12 @@ const setupAddEvaluation = () => {
         fields.periodeField,
         "id",
         "label"
-      );
+      ).then((result) => {
+        if (!result.hasData) {
+          fields.trimestreTable.style.display = "block";
+          if (fields.modal) fields.modal.style.display = "none";
+        }
+      });
     }
   });
 
@@ -1119,7 +1157,12 @@ const setupAddEvaluation = () => {
       saveToSession("id_periode", this.value);
       fields.formPeriodeField.value = this.value;
       fields.periodeField.parentElement.after(fields.jrField.parentElement);
-      updateDropdown("/get_all_sessions_without_repechage/", fields.jrField, "id", "label");
+      updateDropdown("/get_all_sessions_without_repechage/", fields.jrField, "id", "label").then((result) => {
+        if (!result.hasData) {
+          fields.trimestreTable.style.display = "block";
+          if (fields.modal) fields.modal.style.display = "none";
+        }
+      });
     }
   });
 
