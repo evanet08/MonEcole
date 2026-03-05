@@ -4,19 +4,19 @@ const saveToSession = (key, value) => sessionStorage.setItem(key, value);
 const getFromSession = (key) => sessionStorage.getItem(key);
 
 function sanitize(str) {
-    return String(str).replace(/[&<>"'`=\/]/g, function (s) {
-      return {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;',
-        '`': '&#96;',
-        '=': '&#61;',
-        '/': '&#47;',
-      }[s];
-    });
-  }
+  return String(str).replace(/[&<>"'`=\/]/g, function (s) {
+    return {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+      '`': '&#96;',
+      '=': '&#61;',
+      '/': '&#47;',
+    }[s];
+  });
+}
 
 const hideFields = (...fields) => {
   fields.forEach((field) => {
@@ -125,9 +125,9 @@ const setupExcelFile = () => {
     evaluationField: document.getElementById("id_id_evaluation"),
     trimestreTable: document.getElementById("table-download-btn"),
     modal: document.getElementById("modalContainer"),
-    downloadBtn: document.getElementById("downloadBtn"), 
+    downloadBtn: document.getElementById("downloadBtn"),
     idEleve: document.getElementById('id_id_eleve'),
-    
+
   };
 
   if (!fields.idAnnee || !fields.trimestreTable) {
@@ -327,8 +327,8 @@ const setupExcelFile = () => {
     const coursId = fields.coursField.value;
     const typeNoteId = fields.typeNoteField.value;
     const trimestreId = this.value;
-    
-    hideFields(fields.idCampus, fields.idClasseCycle, fields.evaluationField, fields.jrField,fields.idEleve);
+
+    hideFields(fields.idCampus, fields.idClasseCycle, fields.evaluationField, fields.jrField, fields.idEleve);
     fields.trimestreTable.style.display = "none";
 
     if (campusId && cycleId && classeId) {
@@ -360,7 +360,7 @@ const setupExcelFile = () => {
     const trimestreId = fields.horaireTypeField.value;
     const periodeId = this.value;
 
-    hideFields(fields.idCampus, fields.idClasseCycle, fields.evaluationField,fields.idEleve, fields.jrField);
+    hideFields(fields.idCampus, fields.idClasseCycle, fields.evaluationField, fields.idEleve, fields.jrField);
 
     if (campusId && cycleId && classeId) {
       document.getElementById("id_id_campus").value = campusId;
@@ -393,7 +393,7 @@ const setupExcelFile = () => {
     const periodeId = fields.periodeField.value;
     const sessionId = this.value;
 
-    hideFields(fields.idCampus,fields.idEleve, fields.idClasseCycle, fields.evaluationField);
+    hideFields(fields.idCampus, fields.idEleve, fields.idClasseCycle, fields.evaluationField);
 
     if (sessionId && periodeId && trimestreId && typeNoteId && coursId && campusId && cycleId && classeId && anneeId) {
       saveToSession("id_session", sessionId);
@@ -424,7 +424,7 @@ const setupExcelFile = () => {
   });
 
   fields.evaluationField?.addEventListener("change", function () {
-    hideFields(fields.idCampus,fields.idEleve, fields.idClasseCycle);
+    hideFields(fields.idCampus, fields.idEleve, fields.idClasseCycle);
     if (this.value) {
       saveToSession("id_evaluation", this.value);
       if (fields.modal) fields.modal.style.display = "none";
@@ -618,7 +618,7 @@ const setupAffichageNotes = () => {
     const cycleId = selectedClasseData.id_cycle;
     const classeId = selectedClasseData.id_classe;
     const anneeId = fields.idAnnee.value;
-    
+
 
     hideFields(
       fields.typeNoteField,
@@ -630,8 +630,8 @@ const setupAffichageNotes = () => {
       saveToSession("id_cours", this.value);
       fields.formCoursField.value = this.value;
       fields.trimestreTable.style.display = "none";
-      
-       
+
+
       updateDropdown(
         `/get_notes_type_with_notes/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe_active=${classeId}&id_cours_classe=${this.value}`,
         fields.typeNoteField,
@@ -649,13 +649,13 @@ const setupAffichageNotes = () => {
     const anneeId = fields.idAnnee.value;
     const coursId = fields.coursField.value;
 
-    
+
     hideFields(
       fields.horaireTypeField,
       fields.periodeField,
       fields.jrField
     );
-  fields.trimestreTable.style.display = "none";
+    fields.trimestreTable.style.display = "none";
 
     if (this.value && coursId && campusId && cycleId && classeId && anneeId) {
       saveToSession("id_type_note", this.value);
@@ -669,7 +669,13 @@ const setupAffichageNotes = () => {
         fields.horaireTypeField,
         "id",
         "label"
-      );
+      ).then((result) => {
+        if (!result.hasData) {
+          // No trimestres with notes — show table directly
+          document.getElementById("AffichageNote")?.classList.remove("hidden");
+          if (fields.modal) fields.modal.style.display = "none";
+        }
+      });
     }
   });
 
@@ -700,7 +706,12 @@ const setupAffichageNotes = () => {
         fields.periodeField,
         "id",
         "label"
-      );
+      ).then((result) => {
+        if (!result.hasData) {
+          document.getElementById("AffichageNote")?.classList.remove("hidden");
+          if (fields.modal) fields.modal.style.display = "none";
+        }
+      });
     }
   });
 
@@ -713,8 +724,8 @@ const setupAffichageNotes = () => {
     const coursId = fields.coursField.value;
     const typeNoteId = fields.typeNoteField.value;
     const trimestreId = fields.horaireTypeField.value;
-    
-    
+
+
 
     hideFields(fields.jrField);
     if (this.value && coursId && campusId && cycleId && classeId && anneeId && typeNoteId) {
@@ -727,163 +738,168 @@ const setupAffichageNotes = () => {
         fields.jrField,
         "id",
         "label"
-      );
+      ).then((result) => {
+        if (!result.hasData) {
+          document.getElementById("AffichageNote")?.classList.remove("hidden");
+          if (fields.modal) fields.modal.style.display = "none";
+        }
+      });
     }
   });
 
- 
-  fields.jrField?.addEventListener("change", function () {
-  if (this.value) {
-    saveToSession("id_session", this.value);
-    fields.formJrField.value = this.value;
 
+  fields.jrField?.addEventListener("change", function () {
+    if (this.value) {
+      saveToSession("id_session", this.value);
+      fields.formJrField.value = this.value;
+
+      const anneeId = fields.idAnnee.value;
+      const campusId = fields.formIdCampus.value;
+      const cycleId = fields.formIdCycle.value;
+      const classeId = fields.idClasse.value;
+      const trimestreId = fields.horaireTypeField.value;
+      const periodeId = fields.periodeField.value;
+      const sessionId = this.value;
+      const coursId = fields.coursField.value;
+      const typeNoteId = fields.typeNoteField.value;
+
+      // Récupérer les élèves
+      const pupilsUrl = `/get_pupils_registred_classe/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe_active=${classeId}`;
+      fetch(pupilsUrl)
+        .then((response) => response.json())
+        .then((pupilsData) => {
+          const pupils = pupilsData.data || pupilsData || [];
+          if (pupils.length === 0) {
+            console.warn("Aucun élève trouvé");
+            fields.modal.style.display = "none";
+            document.getElementById("AffichageNote").classList.remove("hidden");
+            document.getElementById("AffichageNoteTbody").innerHTML = "<tr><td colspan='5'>Aucun élève trouvé</td></tr>";
+            return;
+          }
+
+          // Récupérer les notes
+          const notesUrl = `/get_notes_by_selection/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle_actif=${cycleId}&id_classe_active=${classeId}&id_trimestre=${trimestreId}&id_periode=${periodeId}&id_session=${sessionId}&id_cours_classe=${coursId}&id_type_note=${typeNoteId}`;
+          fetch(notesUrl)
+            .then((response) => response.json())
+            .then((notesData) => {
+              const notes = notesData.data || notesData || [];
+              const tbody = document.getElementById("AffichageNoteTbody");
+              tbody.innerHTML = "";
+
+              const notesByType = {};
+              notes.forEach((note) => {
+                const key = `${note.id_type_note}_${note.id_cours_classe}_${note.id_evaluation}`;
+                if (!notesByType[key]) {
+                  notesByType[key] = {
+                    type: note.type,
+                    ponderer_eval: parseFloat(note.ponderer_eval) || 20,
+                    notes: [],
+                  };
+                }
+                notesByType[key].notes.push(note);
+              });
+
+              // Créer les colonnes dynamiques
+              const typeColumns = Object.values(notesByType);
+              const thead = document.querySelector("#evaluationsTable thead tr");
+              thead.innerHTML = "<th>Nom et prénom</th>";
+              if (typeColumns.length === 0) {
+                thead.innerHTML += "<th>Notes</th>";
+              } else {
+                typeColumns.forEach((typeData, index) => {
+                  const typeName = typeData.type || `Type ${index + 1}`;
+                  const ponderation = typeData.ponderer_eval || 20;
+                  thead.innerHTML += `<th>${typeName}/${ponderation}</th>`;
+                });
+              }
+              thead.innerHTML += "<th>Titre évaluation</th><th>Total</th><th>Actions</th>";
+
+              // Grouper les notes par élève
+              const notesByEleve = {};
+              notes.forEach((note) => {
+                if (!notesByEleve[note.id_eleve]) {
+                  notesByEleve[note.id_eleve] = [];
+                }
+                notesByEleve[note.id_eleve].push(note);
+              });
+
+              // Construire les lignes du tableau
+              pupils.forEach((eleve) => {
+                const row = document.createElement("tr");
+                const fullName = eleve.nom_complet ? sanitize(eleve.nom_complet) : '';
+                //const nomPrenom = `${eleve.nom} ${eleve.prenom}`;
+                row.innerHTML = `<td>${fullName}</td>`;
+
+                let total = 0;
+                let ponderationTotale = 0;
+                let titreEvaluation = "";
+
+                if (typeColumns.length === 0) {
+                  row.innerHTML += "<td></td>";
+                } else {
+                  typeColumns.forEach((typeData) => {
+                    const note = notesByEleve[eleve.id_eleve]?.find(
+                      (n) =>
+                        n.id_type_note === typeData.notes[0]?.id_type_note &&
+                        n.id_cours_classe === typeData.notes[0]?.id_cours_classe &&
+                        n.id_evaluation === typeData.notes[0]?.id_evaluation
+                    );
+                    if (note) {
+                      const noteValue = parseFloat(note.note) || parseFloat(note.note_repechage) || 0;
+                      row.innerHTML += `<td>${noteValue ? noteValue.toFixed(2) + "/" + typeData.ponderer_eval : ""}</td>`;
+                      total += noteValue;
+                      ponderationTotale += typeData.ponderer_eval;
+                      titreEvaluation = note.title || titreEvaluation;
+                    } else {
+                      row.innerHTML += "<td></td>";
+                    }
+                  });
+                }
+
+                row.innerHTML += `<td>${titreEvaluation}</td>`;
+                row.innerHTML += `<td>${total.toFixed(2)}/${ponderationTotale}</td>`;
+                row.innerHTML += `<td><button class="btn btn-sm btn-primary" style="display:none" onclick="editNote(${eleve.id})">Éditer</button></td>`;
+
+                tbody.appendChild(row);
+              });
+
+              // Afficher le tableau et masquer le modal
+              document.getElementById("AffichageNote").classList.remove("hidden");
+              fields.modal.style.display = "none";
+            })
+            .catch((error) => {
+              console.error("Erreur lors du chargement des notes :", error);
+              document.getElementById("AffichageNote").classList.remove("hidden");
+              document.getElementById("AffichageNoteTbody").innerHTML = "<tr><td colspan='5'>Erreur lors du chargement des notes</td></tr>";
+              fields.modal.style.display = "none";
+            });
+        })
+        .catch((error) => {
+          console.error("Erreur lors du chargement des élèves :", error);
+          document.getElementById("AffichageNote").classList.remove("hidden");
+          document.getElementById("AffichageNoteTbody").innerHTML = "<tr><td colspan='5'>Aucun élève trouvé</td></tr>";
+          fields.modal.style.display = "none";
+        });
+    }
+  });
+  // Fonction pour générer le PDF
+  window.generatePDF = function () {
     const anneeId = fields.idAnnee.value;
     const campusId = fields.formIdCampus.value;
     const cycleId = fields.formIdCycle.value;
     const classeId = fields.idClasse.value;
     const trimestreId = fields.horaireTypeField.value;
     const periodeId = fields.periodeField.value;
-    const sessionId = this.value;
+    const sessionId = fields.jrField.value;
     const coursId = fields.coursField.value;
     const typeNoteId = fields.typeNoteField.value;
 
-    // Récupérer les élèves
-    const pupilsUrl = `/get_pupils_registred_classe/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe_active=${classeId}`;
-    fetch(pupilsUrl)
-      .then((response) => response.json())
-      .then((pupilsData) => {
-        const pupils = pupilsData.data || pupilsData || [];
-        if (pupils.length === 0) {
-          console.warn("Aucun élève trouvé");
-          fields.modal.style.display = "none";
-          document.getElementById("AffichageNote").classList.remove("hidden");
-          document.getElementById("AffichageNoteTbody").innerHTML = "<tr><td colspan='5'>Aucun élève trouvé</td></tr>";
-          return;
-        }
+    // Construire l'URL pour générer le PDF
+    const pdfUrl = `/generate_notes_pdf/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle_actif=${cycleId}&id_classe_active=${classeId}&id_trimestre=${trimestreId}&id_periode=${periodeId}&id_session=${sessionId}&id_cours_classe=${coursId}&id_type_note=${typeNoteId}`;
 
-        // Récupérer les notes
-        const notesUrl = `/get_notes_by_selection/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle_actif=${cycleId}&id_classe_active=${classeId}&id_trimestre=${trimestreId}&id_periode=${periodeId}&id_session=${sessionId}&id_cours_classe=${coursId}&id_type_note=${typeNoteId}`;
-        fetch(notesUrl)
-          .then((response) => response.json())
-          .then((notesData) => {
-            const notes = notesData.data || notesData || [];
-            const tbody = document.getElementById("AffichageNoteTbody");
-            tbody.innerHTML = ""; 
-
-            const notesByType = {};
-            notes.forEach((note) => {
-              const key = `${note.id_type_note}_${note.id_cours_classe}_${note.id_evaluation}`;
-              if (!notesByType[key]) {
-                notesByType[key] = {
-                  type: note.type,
-                  ponderer_eval: parseFloat(note.ponderer_eval) || 20,
-                  notes: [],
-                };
-              }
-              notesByType[key].notes.push(note);
-            });
-
-            // Créer les colonnes dynamiques
-            const typeColumns = Object.values(notesByType);
-            const thead = document.querySelector("#evaluationsTable thead tr");
-            thead.innerHTML = "<th>Nom et prénom</th>";
-            if (typeColumns.length === 0) {
-              thead.innerHTML += "<th>Notes</th>";
-            } else {
-              typeColumns.forEach((typeData, index) => {
-                const typeName = typeData.type || `Type ${index + 1}`;
-                const ponderation = typeData.ponderer_eval || 20;
-                thead.innerHTML += `<th>${typeName}/${ponderation}</th>`;
-              });
-            }
-            thead.innerHTML += "<th>Titre évaluation</th><th>Total</th><th>Actions</th>";
-
-            // Grouper les notes par élève
-            const notesByEleve = {};
-            notes.forEach((note) => {
-              if (!notesByEleve[note.id_eleve]) {
-                notesByEleve[note.id_eleve] = [];
-              }
-              notesByEleve[note.id_eleve].push(note);
-            });
-
-            // Construire les lignes du tableau
-            pupils.forEach((eleve) => {
-              const row = document.createElement("tr");
-              const fullName = eleve.nom_complet ? sanitize(eleve.nom_complet) : '';
-              //const nomPrenom = `${eleve.nom} ${eleve.prenom}`;
-              row.innerHTML = `<td>${fullName}</td>`;
-
-              let total = 0;
-              let ponderationTotale = 0;
-              let titreEvaluation = "";
-
-              if (typeColumns.length === 0) {
-                row.innerHTML += "<td></td>";
-              } else {
-                typeColumns.forEach((typeData) => {
-                  const note = notesByEleve[eleve.id_eleve]?.find(
-                    (n) =>
-                      n.id_type_note === typeData.notes[0]?.id_type_note &&
-                      n.id_cours_classe === typeData.notes[0]?.id_cours_classe &&
-                      n.id_evaluation === typeData.notes[0]?.id_evaluation
-                  );
-                  if (note) {
-                    const noteValue = parseFloat(note.note) || parseFloat(note.note_repechage) || 0;
-                    row.innerHTML += `<td>${noteValue ? noteValue.toFixed(2) + "/" + typeData.ponderer_eval : ""}</td>`;
-                    total += noteValue;
-                    ponderationTotale += typeData.ponderer_eval;
-                    titreEvaluation = note.title || titreEvaluation;
-                  } else {
-                    row.innerHTML += "<td></td>";
-                  }
-                });
-              }
-
-              row.innerHTML += `<td>${titreEvaluation}</td>`;
-              row.innerHTML += `<td>${total.toFixed(2)}/${ponderationTotale}</td>`;
-              row.innerHTML += `<td><button class="btn btn-sm btn-primary" style="display:none" onclick="editNote(${eleve.id})">Éditer</button></td>`;
-
-              tbody.appendChild(row);
-            });
-
-            // Afficher le tableau et masquer le modal
-            document.getElementById("AffichageNote").classList.remove("hidden");
-            fields.modal.style.display = "none";
-          })
-          .catch((error) => {
-            console.error("Erreur lors du chargement des notes :", error);
-            document.getElementById("AffichageNote").classList.remove("hidden");
-            document.getElementById("AffichageNoteTbody").innerHTML = "<tr><td colspan='5'>Erreur lors du chargement des notes</td></tr>";
-            fields.modal.style.display = "none";
-          });
-      })
-      .catch((error) => {
-        console.error("Erreur lors du chargement des élèves :", error);
-        document.getElementById("AffichageNote").classList.remove("hidden");
-        document.getElementById("AffichageNoteTbody").innerHTML = "<tr><td colspan='5'>Aucun élève trouvé</td></tr>";
-        fields.modal.style.display = "none";
-      });
-  }
-});
-// Fonction pour générer le PDF
-window.generatePDF = function () {
-  const anneeId = fields.idAnnee.value;
-  const campusId = fields.formIdCampus.value;
-  const cycleId = fields.formIdCycle.value;
-  const classeId = fields.idClasse.value;
-  const trimestreId = fields.horaireTypeField.value;
-  const periodeId = fields.periodeField.value;
-  const sessionId = fields.jrField.value;
-  const coursId = fields.coursField.value;
-  const typeNoteId = fields.typeNoteField.value;
-
-  // Construire l'URL pour générer le PDF
-  const pdfUrl = `/generate_notes_pdf/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle_actif=${cycleId}&id_classe_active=${classeId}&id_trimestre=${trimestreId}&id_periode=${periodeId}&id_session=${sessionId}&id_cours_classe=${coursId}&id_type_note=${typeNoteId}`;
-  
-  // Rediriger vers l'URL pour télécharger le PDF
-  window.location.href = pdfUrl;
-};
+    // Rediriger vers l'URL pour télécharger le PDF
+    window.location.href = pdfUrl;
+  };
 
 };
 
@@ -1064,13 +1080,13 @@ const setupAddEvaluation = () => {
     fields.trimestreTable.style.display = "none";
     if (this.value) {
       const url = isDevoir
-         ?`/get_types_notes_devoir`:
-         `/get_types_notes/`
-         ;
+        ? `/get_types_notes_devoir` :
+        `/get_types_notes/`
+        ;
       saveToSession("id_cours", this.value);
       fields.formCoursField.value = this.value;
       fields.coursField.parentElement.after(fields.typeNoteField.parentElement);
-      
+
       updateDropdown(url, fields.typeNoteField, "id", "label");
     }
   });
@@ -1093,7 +1109,7 @@ const setupAddEvaluation = () => {
       fields.formTypeNoteField.value = this.value;
       const anneeId = fields.idAnnee.value;
       const campusId = fields.idCampus.value;
-      const cycleId  = fields.idClasseCycle.value;
+      const cycleId = fields.idClasseCycle.value;
       const classeId = fields.idClasse.value;
       const url = `/get_trimestres_par_classe/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}`;
 
@@ -1124,10 +1140,10 @@ const setupAddEvaluation = () => {
       fields.formHoraireTypeField.value = this.value;
       const anneeId = fields.idAnnee.value;
       const campusId = fields.idCampus.value;
-      const cycleId  = fields.idClasseCycle.value;
+      const cycleId = fields.idClasseCycle.value;
       const classeId = fields.idClasse.value;
       const url = `/get_periodes_par_classe/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}&id_trimestre=${this.value}`;
-      
+
       updateDropdown(
         url,
         fields.periodeField,
@@ -1289,21 +1305,21 @@ const setupBulletinEleve = () => {
     console.error("Éléments requis manquants pour /generer_bulletin_eleve/");
     return;
   }
-  
+
   const loadRegisteredPupils = (anneeId, campusId, cycleId, classeId) => {
     const url = `/get_pupils_registred_classe/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe_active=${classeId}`;
     fetch(url)
-        .then((response) => response.json())
-        .then((data) => {
-            const pupils = data.data || data || [];
-            const selectedOption = fields.idClasse.options[fields.idClasse.selectedIndex];
-            const className = selectedOption.textContent;
-            const tableHeader = fields.elevesContainer.querySelector(".table-header h3");
-            if (tableHeader) {
-                tableHeader.textContent = `LISTE DES ELEVES INSCRITS DANS LA CLASSE ${className}`;
-            }
+      .then((response) => response.json())
+      .then((data) => {
+        const pupils = data.data || data || [];
+        const selectedOption = fields.idClasse.options[fields.idClasse.selectedIndex];
+        const className = selectedOption.textContent;
+        const tableHeader = fields.elevesContainer.querySelector(".table-header h3");
+        if (tableHeader) {
+          tableHeader.textContent = `LISTE DES ELEVES INSCRITS DANS LA CLASSE ${className}`;
+        }
 
-            let html = `
+        let html = `
                 <div class="mb-3 text-end">
                     <button id="btn-generate-selected" class="btn btn-success" disabled>
                         📄 Générer les bulletins sélectionnés (<span id="selected-count">0</span>)
@@ -1319,74 +1335,74 @@ const setupBulletinEleve = () => {
                     </thead>
                     <tbody>`;
 
-            if (pupils.length > 0) {
-                pupils.forEach((pupil) => {
-                    const fullName = pupil.nom_complet ? sanitize(pupil.nom_complet) : '';
-                    html += `
+        if (pupils.length > 0) {
+          pupils.forEach((pupil) => {
+            const fullName = pupil.nom_complet ? sanitize(pupil.nom_complet) : '';
+            html += `
                         <tr data-eleve-id="${pupil.id_eleve}">
                             <td>
                                 <input type="checkbox" class="eleve-checkbox" value="${pupil.id_eleve}">
                             </td>
                             <td>${fullName}</td>
                         </tr>`;
-                });
-            } else {
-                html += `
+          });
+        } else {
+          html += `
                     <tr>
                         <td colspan="2" class="text-center text-muted">Aucun élève trouvé.</td>
                     </tr>`;
-            }
+        }
 
-            html += `</tbody></table>`;
-            fields.tableContent.innerHTML = html;
-            fields.elevesContainer.style.display = "block";
-            if (fields.modal) fields.modal.style.display = "none";
+        html += `</tbody></table>`;
+        fields.tableContent.innerHTML = html;
+        fields.elevesContainer.style.display = "block";
+        if (fields.modal) fields.modal.style.display = "none";
 
-            
-            const selectAll = document.getElementById("select-all");
-            const checkboxes = document.querySelectorAll(".eleve-checkbox");
-            const btnGenerate = document.getElementById("btn-generate-selected");
-            const countSpan = document.getElementById("selected-count");
 
-            const updateCount = () => {
-                const checked = document.querySelectorAll(".eleve-checkbox:checked").length;
-                countSpan.textContent = checked;
-                btnGenerate.disabled = checked === 0;
-            };
+        const selectAll = document.getElementById("select-all");
+        const checkboxes = document.querySelectorAll(".eleve-checkbox");
+        const btnGenerate = document.getElementById("btn-generate-selected");
+        const countSpan = document.getElementById("selected-count");
 
-            selectAll.addEventListener("change", () => {
-                checkboxes.forEach(cb => cb.checked = selectAll.checked);
-                updateCount();
-            });
+        const updateCount = () => {
+          const checked = document.querySelectorAll(".eleve-checkbox:checked").length;
+          countSpan.textContent = checked;
+          btnGenerate.disabled = checked === 0;
+        };
 
-            checkboxes.forEach(cb => {
-                cb.addEventListener("change", () => {
-                    if (!cb.checked) selectAll.checked = false;
-                    else if (document.querySelectorAll(".eleve-checkbox:checked").length === checkboxes.length) {
-                        selectAll.checked = true;
-                    }
-                    updateCount();
-                });
-            });
-
-            btnGenerate.addEventListener("click", () => {
-                const selectedIds = Array.from(document.querySelectorAll(".eleve-checkbox:checked"))
-                    .map(cb => cb.value);
-
-                if (selectedIds.length === 0) return;
-
-                generateBulletinsForMultiple(selectedIds);
-            });
-
-            updateCount(); 
-        })
-        .catch((error) => {
-            console.error("Erreur lors du chargement des élèves:", error);
-            fields.tableContent.innerHTML = '<div class="alert alert-danger">Erreur lors du chargement des élèves</div>';
-            fields.elevesContainer.style.display = "block";
+        selectAll.addEventListener("change", () => {
+          checkboxes.forEach(cb => cb.checked = selectAll.checked);
+          updateCount();
         });
-};
-  
+
+        checkboxes.forEach(cb => {
+          cb.addEventListener("change", () => {
+            if (!cb.checked) selectAll.checked = false;
+            else if (document.querySelectorAll(".eleve-checkbox:checked").length === checkboxes.length) {
+              selectAll.checked = true;
+            }
+            updateCount();
+          });
+        });
+
+        btnGenerate.addEventListener("click", () => {
+          const selectedIds = Array.from(document.querySelectorAll(".eleve-checkbox:checked"))
+            .map(cb => cb.value);
+
+          if (selectedIds.length === 0) return;
+
+          generateBulletinsForMultiple(selectedIds);
+        });
+
+        updateCount();
+      })
+      .catch((error) => {
+        console.error("Erreur lors du chargement des élèves:", error);
+        fields.tableContent.innerHTML = '<div class="alert alert-danger">Erreur lors du chargement des élèves</div>';
+        fields.elevesContainer.style.display = "block";
+      });
+  };
+
   hideFields(
     fields.idCampus,
     fields.idClasseCycle,
@@ -1407,7 +1423,7 @@ const setupBulletinEleve = () => {
   if (savedAnnee && fields.idAnnee) {
     fields.idAnnee.value = savedAnnee;
     updateDropdown(
-     // `/get_all_classes_by_year?id_annee=${this.value}`,
+      // `/get_all_classes_by_year?id_annee=${this.value}`,
       `/get_all_classes_deliberate_by_year_tutulaire?id_annee=${savedAnnee}`,
       fields.idClasse,
       "id",
@@ -1435,8 +1451,8 @@ const setupBulletinEleve = () => {
       saveToSession("id_annee", this.value);
       document.getElementById("id_id_annee").value = this.value;
       updateDropdown(
-      // `/get_all_classes_by_year?id_annee=${this.value}`,
-       `/get_all_classes_deliberate_by_year_tutulaire?id_annee=${this.value}`,
+        // `/get_all_classes_by_year?id_annee=${this.value}`,
+        `/get_all_classes_deliberate_by_year_tutulaire?id_annee=${this.value}`,
         fields.idClasse,
         "id",
         "label"
@@ -1461,7 +1477,7 @@ const setupBulletinEleve = () => {
       fields.periodeField,
       fields.typeNoteField,
       fields.idEleve,
-       
+
     );
     fields.trimestreTable.style.display = "none";
     fields.elevesContainer.style.display = "none";
@@ -1484,66 +1500,66 @@ const setupBulletinEleve = () => {
   });
 };
 
-window.generateBulletinsForMultiple = (eleveIds) => {   
-    const fields = {
-        idAnnee: document.getElementById("id_id_annee"),
-        idCampus: document.getElementById("id_id_campus"),
-        idClasseCycle: document.getElementById("id_id_cycle_actif"),
-        idClasse: document.getElementById("id_id_classe_active"),
-    };
+window.generateBulletinsForMultiple = (eleveIds) => {
+  const fields = {
+    idAnnee: document.getElementById("id_id_annee"),
+    idCampus: document.getElementById("id_id_campus"),
+    idClasseCycle: document.getElementById("id_id_cycle_actif"),
+    idClasse: document.getElementById("id_id_classe_active"),
+  };
 
-    const selectedData = JSON.parse(getFromSession("selected_classe_data") || "{}");
-    const id_annee  = selectedData.id_annee  || fields.idAnnee?.value;
-    const id_campus = selectedData.id_campus || fields.idCampus?.value;
-    const id_cycle  = selectedData.id_cycle  || fields.idClasseCycle?.value;
-    const id_classe = selectedData.id_classe || fields.idClasse?.value;
+  const selectedData = JSON.parse(getFromSession("selected_classe_data") || "{}");
+  const id_annee = selectedData.id_annee || fields.idAnnee?.value;
+  const id_campus = selectedData.id_campus || fields.idCampus?.value;
+  const id_cycle = selectedData.id_cycle || fields.idClasseCycle?.value;
+  const id_classe = selectedData.id_classe || fields.idClasse?.value;
 
-    if (!id_annee || !id_campus || !id_cycle || !id_classe) {
-        alert("Erreur : Année, campus, cycle ou classe non sélectionnés.");
-        return;
-    }
+  if (!id_annee || !id_campus || !id_cycle || !id_classe) {
+    alert("Erreur : Année, campus, cycle ou classe non sélectionnés.");
+    return;
+  }
 
-    if (eleveIds.length === 0) {
-        alert("Aucun élève sélectionné.");
-        return;
-    }
+  if (eleveIds.length === 0) {
+    alert("Aucun élève sélectionné.");
+    return;
+  }
 
-    const form = document.createElement("form");
-    form.method = "POST";
-    form.action = "/generer_bulletin_pdf/";
-    form.target = "_blank";   
-    const commonParams = { id_annee, id_campus, id_cycle, id_classe };
-    for (const [key, value] of Object.entries(commonParams)) {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = key;
-        input.value = value;
-        form.appendChild(input);
-    }
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = "/generer_bulletin_pdf/";
+  form.target = "_blank";
+  const commonParams = { id_annee, id_campus, id_cycle, id_classe };
+  for (const [key, value] of Object.entries(commonParams)) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = key;
+    input.value = value;
+    form.appendChild(input);
+  }
 
 
-    eleveIds.forEach(id => {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = "id_eleve";         
-        input.value = id;
-        form.appendChild(input);
-    });
+  eleveIds.forEach(id => {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = "id_eleve";
+    input.value = id;
+    form.appendChild(input);
+  });
 
-  
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ||
-                      document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-    if (csrfToken) {
-        const csrfInput = document.createElement("input");
-        csrfInput.type = "hidden";
-        csrfInput.name = "csrfmiddlewaretoken";
-        csrfInput.value = csrfToken;
-        form.appendChild(csrfInput);
-    }
 
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ||
+    document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+  if (csrfToken) {
+    const csrfInput = document.createElement("input");
+    csrfInput.type = "hidden";
+    csrfInput.name = "csrfmiddlewaretoken";
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+  }
+
+  document.body.appendChild(form);
+  form.submit();
+  document.body.removeChild(form);
 };
 
 
@@ -1574,30 +1590,30 @@ const setupChangerInscriptionEleve = () => {
 
 
 
- const loadRegisteredPupils = (anneeId, campusId, cycleId, classeId) => {
+  const loadRegisteredPupils = (anneeId, campusId, cycleId, classeId) => {
     const url = `/get_pupils_registred_classe/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe_active=${classeId}`;
     fetch(url)
       .then((response) => {
-          if (!response.ok) {
-              throw new Error(`Erreur HTTP : ${response.status}`);
-          }
-          return response.json();
+        if (!response.ok) {
+          throw new Error(`Erreur HTTP : ${response.status}`);
+        }
+        return response.json();
       })
       .then((data) => {
-          const pupils = (data.data || data || []).filter(pupil => pupil.status === true)
-          //const pupils = data.data || data || [];
-          const selectedOption = fields.idClasse.options[fields.idClasse.selectedIndex];
-          const className = selectedOption.textContent;
-          const tableHeader = fields.elevesContainer.querySelector(".table-header h3");
-          if (tableHeader) {
-              tableHeader.innerHTML = `
+        const pupils = (data.data || data || []).filter(pupil => pupil.status === true)
+        //const pupils = data.data || data || [];
+        const selectedOption = fields.idClasse.options[fields.idClasse.selectedIndex];
+        const className = selectedOption.textContent;
+        const tableHeader = fields.elevesContainer.querySelector(".table-header h3");
+        if (tableHeader) {
+          tableHeader.innerHTML = `
                   LISTE DES ELEVES INSCRITS DANS LA CLASSE ${className}
                   <button class="btn btn-secondary btn-sm" style="margin-left: 10px;" onclick="generatePupilsPDF('${anneeId}', '${campusId}', '${cycleId}', '${classeId}')">
                       Générer la liste de cette classe
                   </button>`;
-          }
+        }
 
-          let html = `
+        let html = `
               <table id="basic-datatables" class="display table table-striped table-hover">
                   <thead>
                       <tr>
@@ -1609,13 +1625,13 @@ const setupChangerInscriptionEleve = () => {
                   </thead>
                   <tbody>`;
 
-          if (pupils.length > 0) {
-              pupils.forEach((pupil) => {
-                  const fullName = pupil.nom_complet ? sanitize(pupil.nom_complet) : '';
-                  const statusChecked = pupil.status ? 'checked' : '';
-                  const redoublementChecked = pupil.redoublement ? 'checked' : '';
+        if (pupils.length > 0) {
+          pupils.forEach((pupil) => {
+            const fullName = pupil.nom_complet ? sanitize(pupil.nom_complet) : '';
+            const statusChecked = pupil.status ? 'checked' : '';
+            const redoublementChecked = pupil.redoublement ? 'checked' : '';
 
-                  html += `
+            html += `
                       <tr>
                           <td>${fullName}</td>
                           <td>
@@ -1644,37 +1660,37 @@ const setupChangerInscriptionEleve = () => {
                               </button>
                           </td>
                       </tr>`;
-              });
-          } else {
-              html += `
+          });
+        } else {
+          html += `
                   <tr>
                       <td colspan="4" class="text-center text-muted">Aucun élève trouvé.</td>
                   </tr>`;
-          }
+        }
 
-          html += `
+        html += `
                   </tbody>
               </table>`;
-          fields.tableContent.innerHTML = html;
-          fields.elevesContainer.style.display = "block";
-          if (fields.modal) fields.modal.style.display = "none";
+        fields.tableContent.innerHTML = html;
+        fields.elevesContainer.style.display = "block";
+        if (fields.modal) fields.modal.style.display = "none";
       })
       .catch((error) => {
-          console.error("Erreur lors du chargement des élèves:", error);
-          fields.tableContent.innerHTML = '<div class="alert alert-danger">Erreur lors du chargement des élèves</div>';
-          fields.elevesContainer.style.display = "block";
-          Swal.fire({
-              icon: 'error',
-              title: 'Erreur',
-              text: `Erreur lors du chargement des élèves : ${error.message}`,
-              confirmButtonText: 'OK',
-              timer: 6000
-          });
+        console.error("Erreur lors du chargement des élèves:", error);
+        fields.tableContent.innerHTML = '<div class="alert alert-danger">Erreur lors du chargement des élèves</div>';
+        fields.elevesContainer.style.display = "block";
+        Swal.fire({
+          icon: 'error',
+          title: 'Erreur',
+          text: `Erreur lors du chargement des élèves : ${error.message}`,
+          confirmButtonText: 'OK',
+          timer: 6000
+        });
       });
-};
-   
+  };
 
-// Initialisation
+
+  // Initialisation
   hideFields(
     fields.idCampus,
     fields.idClasseCycle,
@@ -1748,7 +1764,7 @@ const setupChangerInscriptionEleve = () => {
       fields.periodeField,
       fields.typeNoteField,
       fields.idEleve,
-      
+
     );
     fields.trimestreTable.style.display = "none";
     fields.elevesContainer.style.display = "none";
@@ -1772,18 +1788,18 @@ const setupChangerInscriptionEleve = () => {
 };
 
 window.Update_eleve = (id_eleve) => {
-    // Créer le modal dynamiquement
-    const modal = document.createElement("div");
-    modal.className = "modal";
-    modal.style.display = "block";
-    modal.style.position = "fixed";
-    modal.style.top = "0";
-    modal.style.left = "0";
-    modal.style.width = "100%";
-    modal.style.height = "100%";
-    modal.style.backgroundColor = "rgba(0,0,0,0.5)";
-    modal.style.zIndex = "1000";
-    modal.innerHTML = `
+  // Créer le modal dynamiquement
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  modal.style.display = "block";
+  modal.style.position = "fixed";
+  modal.style.top = "0";
+  modal.style.left = "0";
+  modal.style.width = "100%";
+  modal.style.height = "100%";
+  modal.style.backgroundColor = "rgba(0,0,0,0.5)";
+  modal.style.zIndex = "1000";
+  modal.innerHTML = `
       <div style="background: white; width: 400px; margin: 100px auto; padding: 20px; border-radius: 5px;">
         <h3>Changer l'inscription</h3>
         <form id="updatePupilForm">
@@ -1805,94 +1821,94 @@ window.Update_eleve = (id_eleve) => {
       </div>
     `;
 
-    document.body.appendChild(modal);
+  document.body.appendChild(modal);
 
-    // Charger les années scolaires dans le dropdown
-    const modalAnnee = modal.querySelector("#modal_id_annee");
-    fetch("/get_all_years/") 
-      .then((response) => response.json())
-      .then((data) => {
-        data.forEach((annee) => {
-          const option = document.createElement("option");
-          option.value = annee.id_annee;
-          option.textContent = annee.annee;
-          modalAnnee.appendChild(option);
-        });
+  // Charger les années scolaires dans le dropdown
+  const modalAnnee = modal.querySelector("#modal_id_annee");
+  fetch("/get_all_years/")
+    .then((response) => response.json())
+    .then((data) => {
+      data.forEach((annee) => {
+        const option = document.createElement("option");
+        option.value = annee.id_annee;
+        option.textContent = annee.annee;
+        modalAnnee.appendChild(option);
       });
-
-    // Charger les classes en fonction de l'année sélectionnée
-    modalAnnee.addEventListener("change", function () {
-      const modalClasse = modal.querySelector("#modal_id_classe");
-      modalClasse.innerHTML = '<option value="">Sélectionner une classe</option>';
-      if (this.value) {
-        updateDropdown(
-          `/charger_classes?id_annee=${this.value}`,
-          modalClasse,
-          "id",
-          "label"
-        );
-      }
     });
 
-    // Gérer la soumission du formulaire
-    const form = modal.querySelector("#updatePupilForm");
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const newAnneeId = modalAnnee.value;
-      const newClasseId = modal.querySelector("#modal_id_classe").value;
-      const selectedOption = modal.querySelector("#modal_id_classe").options[modal.querySelector("#modal_id_classe").selectedIndex];
-      const campusId = selectedOption.dataset.campus;
-      const cycleId = selectedOption.dataset.cycle;
+  // Charger les classes en fonction de l'année sélectionnée
+  modalAnnee.addEventListener("change", function () {
+    const modalClasse = modal.querySelector("#modal_id_classe");
+    modalClasse.innerHTML = '<option value="">Sélectionner une classe</option>';
+    if (this.value) {
+      updateDropdown(
+        `/charger_classes?id_annee=${this.value}`,
+        modalClasse,
+        "id",
+        "label"
+      );
+    }
+  });
 
-      if (!newAnneeId || !newClasseId || !campusId || !cycleId) {
-        alert("Veuillez sélectionner une année et une classe.");
-        return;
-      }
+  // Gérer la soumission du formulaire
+  const form = modal.querySelector("#updatePupilForm");
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const newAnneeId = modalAnnee.value;
+    const newClasseId = modal.querySelector("#modal_id_classe").value;
+    const selectedOption = modal.querySelector("#modal_id_classe").options[modal.querySelector("#modal_id_classe").selectedIndex];
+    const campusId = selectedOption.dataset.campus;
+    const cycleId = selectedOption.dataset.cycle;
 
-      // Créer un formulaire pour soumettre les données
-      const submitForm = document.createElement("form");
-      submitForm.method = "POST";
-      submitForm.action = "/update_pupil_inscription/";
-      submitForm.style.display = "none";
+    if (!newAnneeId || !newClasseId || !campusId || !cycleId) {
+      alert("Veuillez sélectionner une année et une classe.");
+      return;
+    }
 
-      const fieldsToSubmit = {
-        id_eleve,
-        id_annee: newAnneeId,
-        id_campus: campusId,
-        id_cycle: cycleId,
-        id_classe: newClasseId,
-      };
-     
+    // Créer un formulaire pour soumettre les données
+    const submitForm = document.createElement("form");
+    submitForm.method = "POST";
+    submitForm.action = "/update_pupil_inscription/";
+    submitForm.style.display = "none";
 
-      for (const [key, value] of Object.entries(fieldsToSubmit)) {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = key;
-        input.value = value;
-        submitForm.appendChild(input);
-      }
+    const fieldsToSubmit = {
+      id_eleve,
+      id_annee: newAnneeId,
+      id_campus: campusId,
+      id_cycle: cycleId,
+      id_classe: newClasseId,
+    };
 
-      // Ajouter le jeton CSRF
-      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-      if (csrfToken) {
-        const csrfInput = document.createElement("input");
-        csrfInput.type = "hidden";
-        csrfInput.name = "csrfmiddlewaretoken";
-        csrfInput.value = csrfToken;
-        submitForm.appendChild(csrfInput);
-      }
 
-      document.body.appendChild(submitForm);
-      submitForm.submit();
-      modal.remove();
-    });
+    for (const [key, value] of Object.entries(fieldsToSubmit)) {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = key;
+      input.value = value;
+      submitForm.appendChild(input);
+    }
+
+    // Ajouter le jeton CSRF
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    if (csrfToken) {
+      const csrfInput = document.createElement("input");
+      csrfInput.type = "hidden";
+      csrfInput.name = "csrfmiddlewaretoken";
+      csrfInput.value = csrfToken;
+      submitForm.appendChild(csrfInput);
+    }
+
+    document.body.appendChild(submitForm);
+    submitForm.submit();
+    modal.remove();
+  });
 };
 
 const init = () => {
   setupModal();
   if (window.location.pathname.includes("/generer_excel_file/")) {
     setupExcelFile();
-  } else if (window.location.pathname.includes("/add_evaluation/")|| window.location.pathname.includes("/soumettre_devoir/")) {
+  } else if (window.location.pathname.includes("/add_evaluation/") || window.location.pathname.includes("/soumettre_devoir/")) {
     setupAddEvaluation();
   } else if (window.location.pathname.includes("/generer_bulletin_eleve/")) {
     setupBulletinEleve();

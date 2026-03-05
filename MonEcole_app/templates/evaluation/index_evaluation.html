@@ -1395,7 +1395,8 @@
                                     <td>{{ finalite.sigle }}</td>
                                     <td>
                                         <input type="checkbox" class="update-checkbox-finalite"
-                                            data-id="{{ finalite.id_finalite }}" {% if finalite.droit_avancement %}checked{% endif %}>
+                                            data-id="{{ finalite.id_finalite }}" {% if finalite.droit_avancement
+                                            %}checked{% endif %}>
                                     </td>
                                     <td>
                                         <button class="btn btn-primary edit-btn-finalite" data-bs-toggle="modal"
@@ -1702,9 +1703,10 @@
                     })
                     .then(responseData => {
                         const data = responseData.data || responseData || [];
+                        const items = Array.isArray(data) ? data : [];
                         dropdown.innerHTML = '<option value="">------</option>';
-                        if (data.length > 0) {
-                            data.forEach(item => {
+                        if (items.length > 0) {
+                            items.forEach(item => {
                                 const option = document.createElement("option");
                                 option.value = item[idKey];
                                 option.textContent = item[nameKey];
@@ -1715,8 +1717,8 @@
                             });
                             showField(dropdown);
                         } else {
-                            console.warn("Aucune donnée trouvée pour la sélection effectuée");
-                            hideFields(dropdown);
+                            dropdown.innerHTML = '<option value="">Aucune donnée trouvée</option>';
+                            showField(dropdown);
                         }
                     })
                     .catch(error => console.error("Erreur lors du chargement :", error));
@@ -2057,9 +2059,10 @@
                     .then(response => response.json())
                     .then(responseData => {
                         const data = responseData[isDeliberationAnnuelle ? 'sessions' : 'trimestres'] || responseData.data || responseData || [];
+                        const items = Array.isArray(data) ? data : [];
                         dropdown.innerHTML = '<option value="">------</option>';
-                        if (data.length > 0) {
-                            data.forEach(item => {
+                        if (items.length > 0) {
+                            items.forEach(item => {
                                 let option = document.createElement("option");
                                 option.value = item[idKey];
                                 option.textContent = item[nameKey];
@@ -2071,10 +2074,15 @@
                             showField(dropdown);
                         }
                         else {
-                            alert("Aucune donnée trouvée pour cette sélection.");
+                            dropdown.innerHTML = '<option value="">Aucune donnée trouvée</option>';
+                            showField(dropdown);
                         }
                     })
-                    .catch(error => alert("Erreur lors du chargement :", error));
+                    .catch(error => {
+                        console.error("Erreur lors du chargement :", error);
+                        dropdown.innerHTML = '<option value="">Erreur de chargement</option>';
+                        showField(dropdown);
+                    });
             }
 
             hideFields(idCampus, idClasseCycle, idClasse, idTrimestreOrSession);
@@ -2365,7 +2373,8 @@
                         });
                         showField(dropdown);
                     } else {
-                        console.log("Aucune donnée trouvée pour cette sélection effectuée");
+                        dropdown.innerHTML = '<option value="">Aucune donnée trouvée</option>';
+                        showField(dropdown);
                     }
                 })
                 .catch((error) => console.error("Erreur lors du chargement :", error));

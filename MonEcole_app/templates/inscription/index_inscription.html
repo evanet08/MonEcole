@@ -963,9 +963,10 @@
     function updateDropdown(url, dd, idKey, nameKey) {
       if (!dd) return;
       fetch(url).then(r => { if (!r.ok) throw new Error; return r.json() }).then(data => {
+        const items = Array.isArray(data) ? data : (data.data || []);
         dd.innerHTML = '<option value="">------</option>';
-        if (data.length > 0) { data.forEach(item => { let o = document.createElement("option"); o.value = item[idKey]; o.textContent = item[nameKey]; dd.appendChild(o); }); showField(dd); }
-        else { alert("Aucune donnée trouvée !"); }
+        if (items.length > 0) { items.forEach(item => { let o = document.createElement("option"); o.value = item[idKey]; o.textContent = item[nameKey]; dd.appendChild(o); }); showField(dd); }
+        else { dd.innerHTML = '<option value="">Aucune donnée trouvée</option>'; showField(dd); }
       }).catch(e => { console.error(e); showField(dd); });
     }
 
@@ -990,10 +991,11 @@
     function updateDropdown(url, dd, idKey, nameKey) {
       if (!dd) return;
       fetch(url).then(r => { if (!r.ok) throw new Error; return r.json() }).then(data => {
+        const items = Array.isArray(data) ? data : (data.data || []);
         dd.innerHTML = '<option value="">------</option>';
-        if (data.length > 0) { data.forEach(item => { let o = document.createElement("option"); o.value = item[idKey] || ''; o.textContent = item[nameKey] || 'Inconnu'; o.setAttribute('data-locked', 'true'); dd.appendChild(o); }); showField(dd); }
-        else { alert("Aucune donnée trouvée !"); hideFields(dd); }
-      }).catch(e => { alert("Erreur de chargement"); showField(dd); });
+        if (items.length > 0) { items.forEach(item => { let o = document.createElement("option"); o.value = item[idKey] || ''; o.textContent = item[nameKey] || 'Inconnu'; o.setAttribute('data-locked', 'true'); dd.appendChild(o); }); showField(dd); }
+        else { dd.innerHTML = '<option value="">Aucune donnée trouvée</option>'; showField(dd); }
+      }).catch(e => { console.error(e); showField(dd); });
     }
 
     if (idCampus) { idCampus.addEventListener("change", function () { if (this.value) { saveToSession("id_campus", this.value); showField(idAnnee); } }); }
