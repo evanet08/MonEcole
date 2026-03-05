@@ -58,7 +58,8 @@ const updateDropdown = (url, dropdown, idKey, nameKey, extraData = {}) => {
         showField(dropdown);
         return { hasData: true, count: items.length };
       } else {
-        console.log("Aucune donnée trouvée pour cette sélection effectuée");
+        dropdown.innerHTML = '<option value="">Aucune donnée trouvée</option>';
+        showField(dropdown);
         return { hasData: false, count: 0 };
       }
     })
