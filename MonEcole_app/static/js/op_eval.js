@@ -671,9 +671,8 @@ const setupAffichageNotes = () => {
         "label"
       ).then((result) => {
         if (!result.hasData) {
-          // No trimestres with notes — show table directly
-          document.getElementById("AffichageNote")?.classList.remove("hidden");
-          if (fields.modal) fields.modal.style.display = "none";
+          // No trimestres with notes — keep modal open, show nothing extra
+          // The user can see the dropdown says "Aucune donnée" 
         }
       });
     }
@@ -708,8 +707,7 @@ const setupAffichageNotes = () => {
         "label"
       ).then((result) => {
         if (!result.hasData) {
-          document.getElementById("AffichageNote")?.classList.remove("hidden");
-          if (fields.modal) fields.modal.style.display = "none";
+          // No periods with notes — keep modal open, user sees "Aucune donnée"
         }
       });
     }
@@ -740,8 +738,7 @@ const setupAffichageNotes = () => {
         "label"
       ).then((result) => {
         if (!result.hasData) {
-          document.getElementById("AffichageNote")?.classList.remove("hidden");
-          if (fields.modal) fields.modal.style.display = "none";
+          // No sessions with notes — keep modal open, user sees "Aucune donnée"
         }
       });
     }
@@ -1115,9 +1112,8 @@ const setupAddEvaluation = () => {
 
       updateDropdown(url, fields.horaireTypeField, "id", "label").then((result) => {
         if (!result.hasData) {
-          // No trimestres found — show submit button so user isn't stuck
+          // No trimestres found — show submit button (it's inside the modal, so keep modal open)
           fields.trimestreTable.style.display = "block";
-          if (fields.modal) fields.modal.style.display = "none";
         }
       });
     }
@@ -1151,8 +1147,8 @@ const setupAddEvaluation = () => {
         "label"
       ).then((result) => {
         if (!result.hasData) {
+          // No periodes found — show submit button (it's inside the modal, so keep modal open)
           fields.trimestreTable.style.display = "block";
-          if (fields.modal) fields.modal.style.display = "none";
         }
       });
     }
@@ -1175,8 +1171,8 @@ const setupAddEvaluation = () => {
       fields.periodeField.parentElement.after(fields.jrField.parentElement);
       updateDropdown("/get_all_sessions_without_repechage/", fields.jrField, "id", "label").then((result) => {
         if (!result.hasData) {
+          // No sessions found — show submit button (it's inside the modal, so keep modal open)
           fields.trimestreTable.style.display = "block";
-          if (fields.modal) fields.modal.style.display = "none";
         }
       });
     }
