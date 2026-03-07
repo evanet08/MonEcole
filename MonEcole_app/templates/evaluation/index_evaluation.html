@@ -1,9 +1,11 @@
 {% extends 'base_monecole.html' %}
 {% load static %}
 {% load widget_tweaks %}
-
 {% block title %}Évaluation{% endblock %}
-
+{% block current_module_name %}Évaluation{% endblock %}
+{% block page_indicator %}<i class="fas fa-clipboard-check"
+    style="color:#94a3b8;font-size:0.82rem;margin-right:6px;"></i>
+Évaluation{% endblock %}
 {% block page_css %}
 <style>
     .section-panel {
@@ -474,128 +476,110 @@
     }
 </style>
 {% endblock %}
-
-{% block module_sidebar %}
-<nav class="module-sidebar">
-    <div class="sidebar-nav">
-        <a class="sidebar-nav-item {% if form_type == 'form_session' or form_type == 'form_note_type' or form_type == 'select_form_note' or form_type == 'import_note' or not form_type %}active{% endif %}"
-            data-section="notes" onclick="switchSection('notes')">
-            <div class="nav-icon" style="background:linear-gradient(135deg,#6366f1,#818cf8);"><i
-                    class="fas fa-clipboard-list"></i></div>
-            <span>Gestion<br>Notes</span>
-        </a>
-        <a class="sidebar-nav-item {% if form_type == 'form_type_delib' or form_type == 'form_mention' or form_type == 'form_finalit_delib' or form_type == 'form_condit_delib' %}active{% endif %}"
-            data-section="criteres" onclick="switchSection('criteres')">
-            <div class="nav-icon" style="background:linear-gradient(135deg,#f59e0b,#fbbf24);"><i
-                    class="fas fa-balance-scale"></i></div>
-            <span>Critères<br>Délibération</span>
-        </a>
-        <div class="sidebar-nav-divider"></div>
-        <a class="sidebar-nav-item {% if form_type == 'select_form' %}active{% endif %}" data-section="deliberations"
-            onclick="switchSection('deliberations')">
-            <div class="nav-icon" style="background:linear-gradient(135deg,#10b981,#34d399);"><i
-                    class="fas fa-gavel"></i></div>
-            <span>Délibérations</span>
-        </a>
-        <a class="sidebar-nav-item {% if form_type == 'select_form_bull' %}active{% endif %}" data-section="resultats"
-            onclick="switchSection('resultats')">
-            <div class="nav-icon" style="background:linear-gradient(135deg,#0ea5e9,#38bdf8);"><i
-                    class="fas fa-chart-line"></i></div>
-            <span>Résultats<br>Scolaires</span>
-        </a>
-    </div>
-</nav>
+{% block sidebar_items %}
+<a href="{% url 'create_session' %}"
+    class="nav-item {% if form_type == 'form_session' or form_type == 'form_note_type' or form_type == 'select_form_note' or form_type == 'import_note' or not form_type %}active{% endif %}"
+    title="Gestion Notes">
+    <i class="fas fa-clipboard-list text-blue"></i>
+    <span class="text-center">Gestion<br>Notes</span>
+</a>
+<a href="{% url 'create_deliberation_type' %}"
+    class="nav-item {% if form_type == 'form_type_delib' or form_type == 'form_mention' or form_type == 'form_finalit_delib' or form_type == 'form_condit_delib' %}active{% endif %}"
+    title="Critères Délibération">
+    <i class="fas fa-balance-scale text-orange"></i>
+    <span class="text-center">Critères<br>Délibération</span>
+</a>
+<a href="{% url 'declencher_deliberation' %}" class="nav-item {% if form_type == 'select_form' %}active{% endif %}"
+    title="Délibérations">
+    <i class="fas fa-gavel text-emerald"></i>
+    <span class="text-center">Délibérations</span>
+</a>
+<a href="{% url 'generer_bulletin_eleve' %}" class="nav-item {% if form_type == 'select_form_bull' %}active{% endif %}"
+    title="Résultats Scolaires">
+    <i class="fas fa-chart-line text-teal"></i>
+    <span class="text-center">Résultats<br>Scolaires</span>
+</a>
 {% endblock %}
-
-{% block page_content %}
-<!-- ========== SECTION: Gestion Notes (palette cards) ========== -->
-<div class="section-panel {% if form_type == 'form_session' or form_type == 'form_note_type' or form_type == 'select_form_note' or form_type == 'import_note' or not form_type %}active{% endif %}"
-    id="section-notes">
-    <div class="palette-container">
-        <a href="{% url 'create_session' %}" class="palette-card">
-            <div class="pc-icon grad-indigo"><i class="fas fa-bookmark"></i></div>
-            <div class="pc-label">Session</div>
-        </a>
-        <a href="{% url 'generer_excel_file' %}" class="palette-card">
-            <div class="pc-icon grad-blue"><i class="fas fa-file-alt"></i></div>
-            <div class="pc-label">Fiche<br>des notes</div>
-        </a>
-        <a href="{% url 'import_file_note' %}" class="palette-card">
-            <div class="pc-icon grad-teal"><i class="fas fa-file-import"></i></div>
-            <div class="pc-label">Importer<br>notes</div>
-        </a>
+{# ===== TAB BAR: Sub-menus ===== #}
+{% block tab_bar %}
+<div class="tab-bar">
+    {% if form_type == 'form_session' or form_type == 'form_note_type' or form_type == 'select_form_note' or form_type == 'import_note' or not form_type %}
+    <a href="{% url 'create_session' %}"
+        class="tab-link {% if form_type == 'form_session' or not form_type %}active{% endif %}">
+        <i class="fas fa-bookmark"></i> Session
+    </a>
+    <a href="{% url 'generer_excel_file' %}" class="tab-link {% if form_type == 'select_form_note' %}active{% endif %}">
+        <i class="fas fa-file-alt"></i> Fiche des notes
+    </a>
+    <a href="{% url 'import_file_note' %}" class="tab-link {% if form_type == 'import_note' %}active{% endif %}">
+        <i class="fas fa-file-import"></i> Importer notes
+    </a>
+    {% elif form_type == 'form_type_delib' or form_type == 'form_mention' or form_type == 'form_finalit_delib' or form_type == 'form_condit_delib' %}
+    <a href="{% url 'create_deliberation_type' %}"
+        class="tab-link {% if form_type == 'form_type_delib' %}active{% endif %}">
+        <i class="fas fa-list-ol"></i> Type Délibération
+    </a>
+    <a href="{% url 'create_mention' %}" class="tab-link {% if form_type == 'form_mention' %}active{% endif %}">
+        <i class="fas fa-award"></i> Mention
+    </a>
+    <a href="{% url 'create_deliberation_finalite' %}"
+        class="tab-link {% if form_type == 'form_finalit_delib' %}active{% endif %}">
+        <i class="fas fa-flag-checkered"></i> Finalité
+    </a>
+    <a href="{% url 'create_deliberation_condition' %}"
+        class="tab-link {% if form_type == 'form_condit_delib' %}active{% endif %}">
+        <i class="fas fa-tasks"></i> Condition
+    </a>
+    {% elif form_type == 'select_form' %}
+    <a href="{% url 'declencher_deliberation' %}" class="tab-link active">
+        <i class="fas fa-calendar-check"></i> Délibérer par Trimestre
+    </a>
+    <a href="{% url 'generer_deliberation_annuelle' %}" class="tab-link">
+        <i class="fas fa-calendar-alt"></i> Délibérer par Année
+    </a>
+    {% elif form_type == 'select_form_bull' %}
+    <a href="{% url 'generer_bulletin_eleve' %}" class="tab-link active">
+        <i class="fas fa-file-pdf"></i> Bulletin par Section
+    </a>
+    {% endif %}
+</div>
+{% endblock %}
+{# ===== PALETTE: Stats cards ===== #}
+{% block palette %}
+<div class="stats-palette" id="stats-palette">
+    <div class="stat-card gradient-blue">
+        <div class="stat-icon"><i class="fas fa-clipboard-list"></i></div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-total">0</div>
+            <div class="stat-label">Évaluations</div>
+        </div>
+    </div>
+    <div class="stat-card gradient-purple">
+        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-actifs">0</div>
+            <div class="stat-label">Sessions</div>
+        </div>
+    </div>
+    <div class="stat-card gradient-teal">
+        <div class="stat-icon"><i class="fas fa-gavel"></i></div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-delib">0</div>
+            <div class="stat-label">Délibérations</div>
+        </div>
     </div>
 </div>
-
-<!-- ========== SECTION: Critères Délibération (palette cards) ========== -->
-<div class="section-panel {% if form_type == 'form_type_delib' or form_type == 'form_mention' or form_type == 'form_finalit_delib' or form_type == 'form_condit_delib' %}active{% endif %}"
-    id="section-criteres">
-    <div class="palette-container">
-        <a href="{% url 'create_deliberation_type' %}" class="palette-card">
-            <div class="pc-icon grad-amber"><i class="fas fa-list-ol"></i></div>
-            <div class="pc-label">Type<br>Délibération</div>
-        </a>
-        <a href="{% url 'create_mention' %}" class="palette-card">
-            <div class="pc-icon grad-purple"><i class="fas fa-award"></i></div>
-            <div class="pc-label">Mention</div>
-        </a>
-        <a href="{% url 'create_deliberation_finalite' %}" class="palette-card">
-            <div class="pc-icon grad-emerald"><i class="fas fa-flag-checkered"></i></div>
-            <div class="pc-label">Finalité</div>
-        </a>
-        <a href="{% url 'create_deliberation_condition' %}" class="palette-card">
-            <div class="pc-icon grad-orange"><i class="fas fa-tasks"></i></div>
-            <div class="pc-label">Condition</div>
-        </a>
-    </div>
-</div>
-
-<!-- ========== SECTION: Délibérations (palette cards) ========== -->
-<div class="section-panel {% if form_type == 'select_form' %}active{% endif %}" id="section-deliberations">
-    <div class="palette-container">
-        <a href="{% url 'declencher_deliberation' %}" class="palette-card">
-            <div class="pc-icon grad-purple"><i class="fas fa-calendar-check"></i></div>
-            <div class="pc-label">Délibérer<br>par Trimestre</div>
-        </a>
-        <a href="{% url 'generer_deliberation_annuelle' %}" class="palette-card">
-            <div class="pc-icon grad-emerald"><i class="fas fa-calendar-alt"></i></div>
-            <div class="pc-label">Délibérer<br>par Année</div>
-        </a>
-        <a href="#" class="palette-card annuler-deliberation">
-            <div class="pc-icon grad-rose"><i class="fas fa-times-circle"></i></div>
-            <div class="pc-label">Annuler<br>Délibération</div>
-        </a>
-    </div>
-</div>
-
-<!-- ========== SECTION: Résultats Scolaires (palette cards) ========== -->
-<div class="section-panel {% if form_type == 'select_form_bull' %}active{% endif %}" id="section-resultats">
-    <div class="palette-container">
-        <a href="{% url 'generer_bulletin_eleve' %}" class="palette-card">
-            <div class="pc-icon grad-blue"><i class="fas fa-file-pdf"></i></div>
-            <div class="pc-label">Bulletin<br>par Section</div>
-        </a>
-        <a href="#" id="openModal1" class="palette-card">
-            <div class="pc-icon grad-amber"><i class="fas fa-arrow-circle-right"></i></div>
-            <div class="pc-label">Avancer<br>d'une classe</div>
-        </a>
-    </div>
-</div>
-
+{% endblock %}
+{% block workspace %}
 <!-- ========== WORKSPACE ========== -->
 <div class="eval-workspace">
     <!--==================== Fenêtre modale for many forms-->
     <div id="modalContainer" class="modal">
-
         <div class="modal-content">
-
             <span class="close-btn" id="evalCloseModal">&times;</span>
-
             <form action="#" method="POST" enctype="multipart/form-data">
-
                 {% csrf_token %}
                 <!-- ===================== selection pour creer un fichier!ou declencher une deliberation /TRIMESTRE-->
-
                 {% if form_type == 'select_form' or form_type == 'select_form_note' %}
                 <h2>Séléctionner pas à pas:</h2>
                 {% if form_select.non_form_errors %}
@@ -625,210 +609,117 @@
                 </div>
                 {% endif %}
                 <div class="form-row">
-
                     {% for field in form_select_bulletin %}
-
                     <div class="form-group col-md-4">
-
                         <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ fi}}</label>
-
                         {% render_field field class="form-control" placeholder=field.label %}
-
                     </div>
-
                     {% endfor %}
-
                 </div>
-
                 <div style="display: none;" class="form-actions">
-
                     <button type="button" class="btn btn-cancel" id="cancelBtn">
-
                         <span class="emoji-icon">➡️</span> Continuer
-
                     </button>
-
                 </div>
                 <!-- =========================== type des notes types -->
                 {% elif form_type == 'form_note_type' %}
                 <h2>Formulaire pour type de notes:</h2>
-
                 {% if type_note_form.non_form_errors %}
-
                 <div class="alert alert-danger">
-
                     {{ type_note_form.non_form_errors }}
-
                 </div>
-
                 {% endif %}
-
                 <div class="form-row">
-
                     {% for field in type_note_form %}
-
                     <div class="form-group col-md-4">
-
                         <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{
                             field.label}}</label>
-
                         {% render_field field class="form-control" placeholder=field.label %}
-
                     </div>
-
                     {% endfor %}
-
                 </div>
-
                 <div class="form-actions">
-
                     <button type="button" class="btn btn-cancel" id="cancelBtn">
-
                         <span class="emoji-icon">❌</span> Annuler
-
                     </button>
-
                     <button type="submit" class="btn btn-primary">
-
                         <i class="fas fa-plus-circle"></i> Ajouter
-
                     </button>
-
                 </div>
-
                 <!-- ========session created's form -->
-
                 {% elif form_type == 'form_session' %}
-
                 <h2>Formulaire pour créer la/les session(s):</h2>
-
                 {% if session_form.non_form_errors %}
-
                 <div class="alert alert-danger">
-
                     {{ session_form.non_form_errors }}
-
                 </div>
                 {% endif %}
-
                 <div class="form-row">
-
                     {% for field in session_form %}
-
                     <div class="form-group col-md-4">
-
                         <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{
                             field.label}}</label>
-
                         {% render_field field class="form-control" placeholder=field.label %}
-
                     </div>
-
                     {% endfor %}
-
                 </div>
-
                 <div class="form-actions">
-
                     <button type="button" class="btn btn-cancel" id="cancelBtn">
-
                         <span class="emoji-icon">❌</span> Annuler
-
                     </button>
-
                     <button type="submit" class="btn btn-primary">
-
                         <i class="fas fa-plus-circle"></i> Ajouter
-
                     </button>
-
                 </div>
-
                 <!-- ========Mention created's form -->
-
                 {% elif form_type == 'form_mention' %}
-
                 <h2>Formulaire pour créer la/les mention(s):</h2>
-
                 {% if form_mention.non_form_errors %}
-
                 <div class="alert alert-danger">
-
                     {{ form_mention.non_form_errors }}
-
                 </div>
                 {% endif %}
                 <div class="form-row">
-
                     {% for field in form_mention %}
-
                     <div class="form-group col-md-4">
-
                         <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{
                             field.label}}</label>
-
                         {% render_field field class="form-control" placeholder=field.label %}
-
                     </div>
-
                     {% endfor %}
-
                 </div>
                 <div class="form-actions">
-
                     <button type="button" class="btn btn-cancel" id="cancelBtn">
-
                         <span class="emoji-icon">❌</span> Annuler
-
                     </button>
-
                     <button type="submit" class="btn btn-primary">
-
                         <i class="fas fa-plus-circle"></i> Ajouter
-
                     </button>
-
                 </div>
                 <!-- ========type de deliberation created's form -->
                 {% elif form_type == 'form_type_delib' %}
                 <h2>Formulaire pour créer le type de deliberation(s):</h2>
                 {% if form_type_delib.non_form_errors %}
                 <div class="alert alert-danger">
-
                     {{ form_type_delib.non_form_errors }}
-
                 </div>
                 {% endif %}
                 <div class="form-row">
-
                     {% for field in form_type_delib %}
-
                     <div class="form-group col-md-4">
-
                         <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{
                             field.label}}</label>
-
                         {% render_field field class="form-control" placeholder=field.label %}
-
                     </div>
-
                     {% endfor %}
-
                 </div>
                 <div class="form-actions">
-
                     <button type="button" class="btn btn-cancel" id="cancelBtn">
-
                         <span class="emoji-icon">❌</span> Annuler
-
                     </button>
-
                     <button type="submit" class="btn btn-primary">
-
                         <i class="fas fa-plus-circle"></i> Ajouter
-
                     </button>
-
                 </div>
                 <!-- ========Finality de deliberation annuelle created's form -->
                 {% elif form_type == 'form_finalit_delib' %}
@@ -873,52 +764,29 @@
                 </div>
                 {% endif %}
                 <form method="POST" action="{% url 'create_deliberation_condition' %}">
-
                     {% csrf_token %}
-
                     <div class="form-row">
-
                         {% for field in form_condit_delib %}
-
                         <div class="form-group col-md-4">
-
                             <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{
                                 field.label}}</label>
-
                             {% render_field field class="form-control" placeholder=field.label %}
-
                             {% if field.errors %}
-
                             <div class="alert alert-danger">
-
                                 {{ field.errors }}
-
                             </div>
-
                             {% endif %}
-
                         </div>
-
                         {% endfor %}
-
                     </div>
-
                     <div class="form-actions">
-
                         <button type="button" class="btn btn-cancel" id="cancelBtn">
-
                             <span class="emoji-icon">❌</span> Annuler
-
                         </button>
-
                         <button id="button_used" type="submit" class="btn btn-primary">
-
                             <i class="fas fa-plus-circle"></i> Ajouter
-
                         </button>
-
                     </div>
-
                 </form>
                 {% endif %}
             </form>
@@ -927,29 +795,18 @@
     <div class="table-container">
         <!-- =============== Telechargement des fiches des notes -->
         <div id="table-download-btn" style="display: none;" class="col-md-12">
-
             <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
-
                 <div class="table-header">
-
                     <h3>Téléchargement d'une fiche des notes</h3>
-
                 </div>
-
                 <div class="card-body">
-
                     <div class="table-responsive">
                         <div style="text-align: center; margin-bottom: 10px;">
                             <form id="downloadForm" action="/generate_excel/" method="get">
-
                                 <input type="hidden" name="id_annee" id="form_id_annee">
-
                                 <input type="hidden" name="id_campus" id="form_id_campus">
-
                                 <input type="hidden" name="id_cycle" id="form_id_cycle">
-
                                 <input type="hidden" name="id_classe" id="form_id_classe">
-
                                 <input type="hidden" name="id_cours" id="form_id_cours">
                                 <input type="hidden" name="id_type_note" id="form_id_type_note">
                                 <input type="hidden" name="id_trimestre" id="form_id_trimestre">
@@ -957,51 +814,29 @@
                                 <input type="hidden" name="id_session" id="form_id_session">
                                 <input type="hidden" name="id_evaluation" id="form_id_evaluation">
                                 <button id="downloadBtn" type="submit" style="font-size: 40px; 
-
                                             background: none; 
-
                                             border: none; 
-
                                             cursor: pointer;" title="Télécharger les données">
-
                                     ⬇️
-
                                 </button>
-
                             </form>
-
                         </div>
-
                     </div>
-
                 </div>
-
             </div>
-
         </div>
         <!-- =============== Affichage des eleves par classe -->
         <div id="table-display-pupils" style="display: none;" class="col-md-12">
-
             <div class="card ep-card" style="max-height: 600px; overflow-y: auto;">
-
                 <div class="table-header">
-
                     <h3>LISTE DES ELEVES INSCRITS DANS LA CLASSE: {{id_classe.classe}}</h3>
-
                 </div>
-
                 <div class="card-body">
-
                     <div class="table-responsive">
-
                         <!-- =========== Affichage du tableau contenant des élèves -->
-
                     </div>
-
                 </div>
-
             </div>
-
         </div>
         <!-- =============== Declencher une deliberation dans une classe donnée -->
         <div id="table-declencher-btn" style="display: none;" class="col-md-12">
@@ -1043,323 +878,186 @@
         <!-- =============== importation des notes :  -->
         {% if notes_form %}
         <div class="card-body">
-
             <div class="table-header">
-
                 <h3></h3>
-
             </div>
-
             <div class="table-responsive">
-
                 <form method="POST" enctype="multipart/form-data" action="{% url 'import_file_note' %}">
-
                     {% csrf_token %}
-
                     <label for="excel_file" style="font-style: italic;">📂 Sélectionner un fichier Excel(.xlsx)
                         :</label>
-
                     <input type="file" name="file" class="form-control" required>
-
                     <br>
-
                     <br>
-
                     <br>
-
                     <center><button type="submit" class="btn btn-success">
-
                             <i class="fas fa-upload"></i>Cliquer ici pour importer
-
                         </button></center>
-
                 </form>
-
             </div>
-
         </div>
         {% endif %}
         {% if note_type_list %}
         <div class="col-md-12">
             <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
-
                 <div class="table-header">
-
                     <h3>Informations sur les cours créees</h3>
-
                 </div>
-
                 <div class="card-body">
-
                     <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
                         data-bs-target="#coursCycleModal"></button>
-
                     <div class="table-responsive">
-
                         <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
-
                             <thead class="bg-primary text-white">
-
                                 <tr>
-
                                     <th>Type de note</th>
-
                                     <th style="display: none;">Actions</th>
-
                                 </tr>
-
                             </thead>
-
                             {% for note in note_type_list %}
-
                             <tbody>
-
                                 <tr class="align-middle">
-
                                     <td class="fw-bold text-primary text-start">{{ note.type }}
-
                                     <td style="display: none;">
-
                                         <a href="#" class="btn btn-sm btn-outline-primary me-2 edit-btn-class">
-
                                             <i class="fas fa-edit"></i>
-
                                         </a>
-
                                         <a href="#" class="btn btn-sm btn-outline-danger">
-
                                             <i class="fas fa-trash"></i>
-
                                         </a>
-
                                     </td>
-
                                 </tr>
-
                             </tbody>
-
                             {% endfor %}
-
                         </table>
-
                     </div>
-
                 </div>
-
             </div>
-
         </div>
         {% endif %}
         <!-- ============session displaying -->
         {% if session_list %}
         <div class="col-md-12">
             <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
-
                 <div class="table-header">
-
                     <h3>Informations sur les sessions créees</h3>
-
                 </div>
-
                 <div class="card-body">
-
                     <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
                         data-bs-target="#coursCycleModal"></button>
-
                     <div class="table-responsive">
-
                         <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
-
                             <thead class="bg-primary text-white">
-
                                 <tr>
-
                                     <th>Session</th>
-
                                     <th style="display: none;">Actions</th>
-
                                 </tr>
-
                             </thead>
-
                             <tbody>
-
                                 {% for session in session_list %}
-
                                 <tr>
-
                                     <td>{{ session.session }}</td>
-
                                     <td style="display: none;">
-
                                         <button class="btn btn-primary edit-btn-session" data-bs-toggle="modal"
                                             data-bs-target="#editSessionModal"
                                             data-session-id="{{ session.id_session }}"
                                             data-session="{{ session.session }}">
-
                                             Modifier
-
                                         </button>
-
                                     </td>
-
                                 </tr>
-
                                 {% endfor %}
-
                             </tbody>
-
                         </table>
-
                     </div>
-
                 </div>
-
             </div>
-
         </div>
         {% endif %}
         <!-- ============ Mention displaying -->
         {% if mentions %}
         <div class="col-md-12">
             <div class="card ep-card" style="max-height: 500px; overflow-y: auto;">
-
                 <div class="table-header">
-
                     <h3>Informations sur les mentions créees</h3>
-
                 </div>
-
                 <div class="card-body">
-
                     <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
                         data-bs-target="#coursCycleModal"></button>
-
                     <div class="table-responsive">
-
                         <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
                             <thead class="bg-primary text-white">
                                 <tr>
                                     <th>Mention</th>
-
                                     <th>Abréviations</th>
-
                                     <th>Minimum</th>
-
                                     <th>Maximum</th>
-
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-
                                 {% for mention in mentions %}
-
                                 <tr>
-
                                     <td>{{ mention.mention }}</td>
-
                                     <td>{{ mention.abbreviation }}</td>
-
                                     <td>{{ mention.min}}</td>
-
                                     <td>{{ mention.max}}</td>
-
                                     <td>
-
                                         <button class="btn btn-primary edit-btn-mention" data-bs-toggle="modal"
                                             data-bs-target="#editMentionModal"
                                             data-mention-id="{{ mention.id_mention }}"
                                             data-mention="{{ mention.mention }}"
                                             data-abbreviation="{{ mention.abbreviation }}" data-min="{{ mention.min }}"
                                             data-max="{{ mention.max }}">
-
                                             Modifier
-
                                         </button>
-
                                     </td>
-
                                 </tr>
-
                                 {% endfor %}
-
                             </tbody>
-
                         </table>
-
                     </div>
-
                 </div>
-
             </div>
-
         </div>
         {% endif %}
         <!-- ============ type deliberation playing -->
         {% if type_deliberat_list %}
         <div class="col-md-12">
             <div class="card ep-card" style="max-height: 650px; overflow-y: auto;">
-
                 <div class="table-header">
                     <h3>Informations sur les types de délibération</h3>
-
                 </div>
                 <div class="card-body">
                     <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
                         data-bs-target="#coursCycleModal"></button>
-
                     <div class="table-responsive">
-
                         <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
-
                             <thead class="bg-primary text-white">
-
                                 <tr>
-
                                     <th>Type de déliberation</th>
-
                                     <th style="display: none;">Actions</th>
-
                                 </tr>
-
                             </thead>
-
                             <tbody>
-
                                 {% for deliberation_type in type_deliberat_list %}
-
                                 <tr>
-
                                     <td>{{ deliberation_type.type }}</td>
-
                                     <td style="display: none;">
-
                                         <button class="btn btn-primary edit-btn-deliberation-type"
                                             data-bs-toggle="modal" data-bs-target="#editDeliberationTypeModal"
                                             data-deliberation-type-id="{{ deliberation_type.id_deliberation_type }}"
                                             data-type="{{ deliberation_type.type }}">
-
                                             Modifier
-
                                         </button>
-
                                     </td>
-
                                 </tr>
-
                                 {% endfor %}
-
                             </tbody>
-
                         </table>
-
                     </div>
-
                 </div>
-
             </div>
-
         </div>
         {% endif %}
         {% if finalit_deliberat_list %}
@@ -1372,22 +1070,15 @@
                     <button style="display: none;" class="btn btn-success" data-bs-toggle="modal"
                         data-bs-target="#coursCycleModal"></button>
                     <div class="table-responsive">
-
                         <table id="basic-datatables" class="table table-bordered table-hover text-center shadow-sm">
-
                             <thead>
-
                                 <tr>
-
                                     <th>Finalité</th>
                                     <th>sigle</th>
                                     <th>Droit d'avancer</th>
                                     <th>Actions</th>
-
                                 </tr>
-
                             </thead>
-
                             <tbody>
                                 {% for finalite in finalit_deliberat_list %}
                                 <tr>
@@ -1395,8 +1086,7 @@
                                     <td>{{ finalite.sigle }}</td>
                                     <td>
                                         <input type="checkbox" class="update-checkbox-finalite"
-                                            data-id="{{ finalite.id_finalite }}" {% if finalite.droit_avancement
-                                            %}checked{% endif %}>
+                                            data-id="{{ finalite.id_finalite }}" {% if finalite.droit_avancement %}checked{% endif %}>
                                     </td>
                                     <td>
                                         <button class="btn btn-primary edit-btn-finalite" data-bs-toggle="modal"
@@ -1453,9 +1143,7 @@
                                     <td>{{ condition.id_finalite.sigle }}</td>
                                     <td>{{ condition.id_mention.mention }}</td>
                                     <td>{{ condition.max_echecs_acceptable }}</td>
-
                                     <td>{{ condition.seuil_profondeur_echec }}</td>
-
                                     <td>
                                         <button class="btn btn-primary edit-btn-condition"
                                             data-id-decision="{{ condition.id_decision }}"
@@ -1489,7 +1177,6 @@
                     <!-- Bouton pour activer l'édition -->
                     <button class="btn btn-success mb-3" onclick="enableEditing()">Éditer les
                         réclamations</button>
-
                     <!-- Tableau des réclamations -->
                     <div class="table-responsive">
                         <table class="table table-bordered table-hover text-center" id="reclamationsTable">
@@ -1511,7 +1198,6 @@
                                         <input class="form-control hidden edit" type="text" value="12">
                                     </td>
                                     <td class="action-icons">
-
                                         <i class="display" onclick="editRow(this)">✏️</i>
                                         <i class="hidden edit text-success" onclick="saveRow(this)">✅</i>
                                         <i class="hidden edit text-danger" onclick="cancelEdit(this)">❌</i>
@@ -1521,7 +1207,6 @@
                             </tbody>
                         </table>
                     </div>
-
                 </div>
             </div>
         </div>
@@ -1529,7 +1214,6 @@
     </div>
     {% include 'evaluation/edit_modal.html'%}
 </div>
-
 <!-- ================== Annulation des deliberations pop up -->
 <div id="annulerDeliberationModal" class="modal"
     style="display: none; background: rgba(0,0,0,0.5); position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000;">
@@ -1579,27 +1263,17 @@
 <script src="{% static 'assets/vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
 <script src="{% static 'js/deliberation_crit.js' %}"></script>
 <script src="{% static 'js/op_eval.js' %}"></script>
-
 <!-- ======================= create_condition_deliberation :  -->
-
 <!-- Add type notes: -->
-
 {% if reset_session %}
-
 {% endif %}
 <!-- ======================= Deliberationv annuelle scripts -->
-
 <!-- ======================= Reclammations scripts: -->
-
 <!-- ======================= Annulation des deliberations deja declenchees!! -->
-
 <!-- ======================= Edition condition deliberation -->
-
 <!-- ======================== droit avancer toggle -->
-
-</div><!-- /workspace -->
+</div><!-- /eval-workspace -->
 {% endblock %}
-
 {% block page_js %}
 <script>
     // ===== Sidebar Section Switcher =====
@@ -1615,11 +1289,9 @@
         const item = document.querySelector(`.sidebar-nav-item[data-section="${sectionName}"]`);
         if (item) item.classList.add('active');
     }
-
     // Auto-activate first section if none active
     document.addEventListener('DOMContentLoaded', function () {
         if (!document.querySelector('.sidebar-nav-item.active')) switchSection('notes');
-
         // ===== Auto-open modal when a form_type is present =====
         var formType = '{{ form_type|default:"" }}';
         var modalFormTypes = [
@@ -1632,7 +1304,6 @@
             modal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
         }
-
         // Close modal handlers (always set up)
         if (modal) {
             var closeModal = function () {
@@ -1664,18 +1335,15 @@
                 sanctDisplineField: document.getElementById("id_sanction_disciplinaire"),
                 boutonSub: document.getElementById("button_used")
             };
-
             // Vérification que tous les champs existent
             for (const [key, field] of Object.entries(fields)) {
                 if (!field) {
                     console.error(`Champ ${key} introuvable dans le DOM`);
                 }
             }
-
             // Fonctions utilitaires
             const saveToSession = (key, value) => sessionStorage.setItem(key, value);
             const getFromSession = key => sessionStorage.getItem(key);
-
             const hideFields = (...fieldsToHide) => {
                 fieldsToHide.forEach(field => {
                     if (field) {
@@ -1684,7 +1352,6 @@
                     }
                 });
             };
-
             const showField = field => {
                 if (field) {
                     field.parentElement.style.display = "block";
@@ -1694,7 +1361,6 @@
                     console.error(`Champ non trouvé pour affichage : ${field}`);
                 }
             };
-
             const updateDropdown = (url, dropdown, idKey, nameKey) => {
                 fetch(url)
                     .then(response => {
@@ -1723,16 +1389,13 @@
                     })
                     .catch(error => console.error("Erreur lors du chargement :", error));
             };
-
             const allFieldsExceptAnnee = Object.values(fields).filter(f => f !== fields.idAnnee);
             hideFields(...allFieldsExceptAnnee);
-
             const savedAnnee = getFromSession("id_annee");
             if (savedAnnee && fields.idAnnee) {
                 fields.idAnnee.value = savedAnnee;
                 updateDropdown(`/get_all_classes_without_condition_by_year?id_annee=${savedAnnee}`, fields.idClasse, 'id', 'label');
             }
-
             const fieldDependencies = [
                 {
                     field: fields.idAnnee,
@@ -1755,15 +1418,12 @@
                         const campusId = selectedOption.dataset.campus;
                         const cycleId = selectedOption.dataset.cycle;
                         const classeId = fields.idClasse.value;
-
                         if (classeId && campusId && cycleId) {
                             const selectedData = { id_campus: campusId, id_cycle: cycleId, id_classe: classeId };
                             saveToSession("selected_classe_data", JSON.stringify(selectedData));
-
                             fields.idCampus.value = campusId;
                             fields.idClasseCycle.value = cycleId;
                             fields.idClasse.value = classeId;
-
                             const annee_id = getFromSession("id_annee");
                             if (annee_id && campusId && cycleId && classeId) {
                                 fetch(`/get_available_finalites?id_annee=${annee_id}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}`)
@@ -1865,7 +1525,6 @@
                     }
                 }
             ];
-
             // Ajout des écouteurs d'événements
             fieldDependencies.forEach(({ field, action, hideOnChange }) => {
                 if (field) {
@@ -1875,7 +1534,6 @@
                     });
                 }
             });
-
             // Gestion de la soumission du formulaire
             fields.boutonSub.addEventListener("click", (event) => {
                 const form = fields.boutonSub.closest("form");
@@ -1886,7 +1544,6 @@
                     if (fields.idClasseCycle) {
                         fields.idClasseCycle.disabled = false;
                     }
-
                     // Validation côté client avant soumission
                     let isValid = true;
                     for (const [key, field] of Object.entries(fields)) {
@@ -1904,7 +1561,6 @@
                     event.preventDefault();
                 }
             });
-
             const cancelBtn = document.getElementById("cancelBtn");
             if (cancelBtn) {
                 cancelBtn.addEventListener("click", () => {
@@ -1920,7 +1576,6 @@
         });
     }
 </script>
-
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         if (window.location.pathname === "/add_types_notes/") {
@@ -1937,7 +1592,6 @@
                 '5ème Période': '5e P',
                 '6ème Période': '6e P'
             };
-
             moduleSelect.addEventListener('change', function () {
                 const selectedModule = this.value;
                 const expectedUrlName = mapping[selectedModule] || '';
@@ -1953,64 +1607,36 @@
         }
     });
 </script>
-
 <script>
     sessionStorage.clear();
     const fields = {
-
         idAnnee: document.getElementById("id_id_annee"),
-
         idCampus: document.getElementById("id_id_campus"),
-
         idClasseCycle: document.getElementById("id_id_cycle"),
-
         idClasse: document.getElementById("id_id_classe"),
-
         pourcentField: document.getElementById("id_id_mention"),
-
         maxEchecField: document.getElementById("id_max_echecs_acceptable"),
-
         seuilEchecField: document.getElementById("id_seuil_profondeur_echec"),
-
         sanctDisplineField: document.getElementById("id_sanction_disciplinaire"),
-
         finalitField: document.getElementById("id_id_finalite"),
-
         boutonSub: document.getElementById("button_used")
-
     };
-
     const allFields = Object.values(fields);
-
     allFields.forEach(field => {
-
         if (field !== fields.idAnnee) {
-
             field.parentElement.style.display = "none";
-
             field.disabled = true;
-
         }
-
         if (field.type !== "submit" && field.type !== "button") {
-
             field.value = "";
-
         }
-
     });
-
     if (fields.idAnnee) {
-
         fields.idAnnee.parentElement.style.display = "block";
-
         fields.idAnnee.style.display = "block";
-
         fields.idAnnee.disabled = false;
-
     }
 </script>
-
 <script>
     if (window.location.pathname.includes("/declencher_deliberation/") || window.location.pathname.includes("/generer_deliberation_annuelle/")) {
         document.addEventListener("DOMContentLoaded", function () {
@@ -2028,11 +1654,9 @@
             function saveToSession(key, value) {
                 sessionStorage.setItem(key, value);
             }
-
             function getFromSession(key) {
                 return sessionStorage.getItem(key);
             }
-
             function hideFields(...fields) {
                 fields.forEach(field => {
                     if (field) {
@@ -2041,7 +1665,6 @@
                     }
                 });
             }
-
             function showField(field) {
                 if (field) {
                     field.parentElement.style.display = "block";
@@ -2049,7 +1672,6 @@
                     field.disabled = false;
                 }
             }
-
             function updateDropdown(url, dropdown, idKey, nameKey) {
                 if (!dropdown) {
                     console.error("Dropdown non fourni pour updateDropdown.");
@@ -2084,10 +1706,8 @@
                         showField(dropdown);
                     });
             }
-
             hideFields(idCampus, idClasseCycle, idClasse, idTrimestreOrSession);
             if (btnDeclencher) btnDeclencher.style.display = "none";
-
             const savedAnnee = getFromSession("id_annee");
             if (savedAnnee && idAnnee) {
                 idAnnee.value = savedAnnee;
@@ -2096,7 +1716,6 @@
                     : `/get_classes_year_by_tutilaire?id_annee=${savedAnnee}`;
                 updateDropdown(url, idClasse, 'id', 'label');
             }
-
             if (idAnnee) {
                 idAnnee.addEventListener("change", function () {
                     hideFields(idCampus, idClasseCycle, idClasse, idTrimestreOrSession);
@@ -2111,7 +1730,6 @@
                     }
                 });
             }
-
             if (idClasse) {
                 idClasse.addEventListener("change", function () {
                     const selectedOption = this.options[this.selectedIndex];
@@ -2119,30 +1737,24 @@
                     const cycleId = selectedOption?.dataset.cycle;
                     const classeId = this.value;
                     const anneeId = idAnnee?.value;
-
                     hideFields(idCampus, idClasseCycle, idTrimestreOrSession);
                     if (btnDeclencher) btnDeclencher.style.display = "none";
-
                     if (classeId && campusId && cycleId && anneeId) {
                         const selectedData = {
                             id_campus: campusId,
                             id_cycle: cycleId,
                             id_classe: classeId
                         };
-
                         saveToSession("selected_classe_data", JSON.stringify(selectedData));
-
                         const formAnnee = document.getElementById("form_id_annee");
                         const formCampus = document.getElementById("form_id_campus");
                         const formCycle = document.getElementById("form_id_cycle");
                         const formClasse = document.getElementById("form_id_classe");
                         const formTrimestreOrSession = document.getElementById(isDeliberationAnnuelle ? "form_id_session" : "form_id_trimestre");
-
                         if (formAnnee) formAnnee.value = anneeId;
                         if (formCampus) formCampus.value = campusId;
                         if (formCycle) formCycle.value = cycleId;
                         if (formClasse) formClasse.value = classeId;
-
                         const url = isDeliberationAnnuelle
                             ? `/get_available_sessions/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}`
                             : `/get_available_trimestres/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}`;
@@ -2150,7 +1762,6 @@
                     }
                 });
             }
-
             if (idTrimestreOrSession) {
                 idTrimestreOrSession.addEventListener('change', function () {
                     hideFields(idCampus, idClasseCycle);
@@ -2165,15 +1776,12 @@
                     }
                 });
             }
-
             if (form) {
                 form.addEventListener("submit", function (event) {
                     event.preventDefault();
-
                     const id_annee = getFromSession("id_annee");
                     const selected_classe_data = JSON.parse(getFromSession("selected_classe_data") || "{}");
                     const id_trimestre_or_session = getFromSession(isDeliberationAnnuelle ? "id_session" : "id_trimestre");
-
                     if (
                         id_annee &&
                         selected_classe_data.id_campus &&
@@ -2188,11 +1796,9 @@
                             id_classe: selected_classe_data.id_classe,
                             [isDeliberationAnnuelle ? 'id_session' : 'id_trimestre']: id_trimestre_or_session
                         });
-
                         const url = isDeliberationAnnuelle
                             ? `/deliberation_par_annee/?${params.toString()}`
                             : `/deliberation_par_trimestre/?${params.toString()}`;
-
                         fetch(url, {
                             method: "GET",
                             headers: {
@@ -2253,25 +1859,21 @@
                         });
                     }
                 });
-
             }
         });
     }
 </script>
-
 <script>
     function enableEditing() {
         const table = document.getElementById('reclamationsTable');
         table.querySelectorAll('.edit').forEach(el => el.classList.remove('hidden'));
         table.querySelectorAll('.display').forEach(el => el.classList.add('hidden'));
     }
-
     function editRow(icon) {
         const row = icon.closest('tr');
         row.querySelectorAll('.edit').forEach(el => el.classList.remove('hidden'));
         row.querySelectorAll('.display').forEach(el => el.classList.add('hidden'));
     }
-
     function saveRow(icon) {
         const row = icon.closest('tr');
         const inputs = row.querySelectorAll('input');
@@ -2282,7 +1884,6 @@
         row.querySelectorAll('.edit').forEach(el => el.classList.add('hidden'));
         row.querySelectorAll('.display').forEach(el => el.classList.remove('hidden'));
     }
-
     function cancelEdit(icon) {
         const row = icon.closest('tr');
         const inputs = row.querySelectorAll('input');
@@ -2294,7 +1895,6 @@
         row.querySelectorAll('.display').forEach(el => el.classList.remove('hidden'));
     }
 </script>
-
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const modal = document.getElementById("annulerDeliberationModal");
@@ -2302,20 +1902,17 @@
             console.error("L'élément #annulerDeliberationModal n'est pas trouvé dans le DOM.");
             return;
         }
-
         const modalAnnee = modal.querySelector("#modal_id_annee");
         const modalClasse = modal.querySelector("#modal_id_classe");
         const modalType = modal.querySelector("#modal_id_type");
         const modalTrimestre = modal.querySelector("#modal_id_trimestre");
         const modalPeriode = modal.querySelector("#modal_id_periode");
         const form = modal.querySelector("#AnnulerDeliberation");
-
         const triggerLink = document.querySelector('.annuler-deliberation');
         if (!triggerLink) {
             console.error("L'élément .annuler-deliberation n'est pas trouvé dans le DOM.");
             return;
         }
-
         // Fonction pour initialiser ou réinitialiser les options du champ Type
         function initializeTypeOptions() {
             modalType.innerHTML = `
@@ -2326,32 +1923,26 @@
                 <option value="repechage">Par repêchage</option>
                 `;
         }
-
         // Initialiser les options du champ Type au chargement
         initializeTypeOptions();
-
         triggerLink.addEventListener("click", function (e) {
             e.preventDefault();
             modal.style.display = "block";
             initializeTypeOptions();
             loadAnnees();
         });
-
         const showField = (element) => {
             element.closest(".form-group").style.display = "block";
         };
-
         const hideField = (element) => {
             element.closest(".form-group").style.display = "none";
             if (element !== modalType) {
                 element.innerHTML = '<option value="">----------</option>';
             }
         };
-
         const loadAnnees = () => {
             updateDropdown("/get_all_years/", modalAnnee, "id_annee", "annee");
         };
-
         const updateDropdown = (url, dropdown, idKey, nameKey) => {
             fetch(url)
                 .then((response) => {
@@ -2379,7 +1970,6 @@
                 })
                 .catch((error) => console.error("Erreur lors du chargement :", error));
         };
-
         modalAnnee.addEventListener("change", function () {
             hideField(modalClasse);
             hideField(modalType);
@@ -2394,7 +1984,6 @@
                 );
             }
         });
-
         modalClasse.addEventListener("change", function () {
             if (this.value) {
                 showField(modalType);
@@ -2404,7 +1993,6 @@
                 hideField(modalPeriode);
             }
         });
-
         modalType.addEventListener("change", function () {
             hideField(modalTrimestre);
             hideField(modalPeriode);
@@ -2425,7 +2013,6 @@
                 }
             }
         });
-
         modalTrimestre.addEventListener("change", function () {
             hideField(modalPeriode);
             if (this.value && modalType.value === "periode") {
@@ -2447,7 +2034,6 @@
             e.preventDefault();
             const confirmation = confirm("Êtes-vous sûr de vouloir annuler cette délibération ? Cette action est irréversible.");
             if (!confirmation) return;
-
             const selectedClasse = modalClasse.selectedOptions[0];
             const data = {
                 id_annee: modalAnnee.value,
@@ -2458,7 +2044,6 @@
                 id_trimestre: (modalType.value === "periode" || modalType.value === "trimestre") ? modalTrimestre.value : null,
                 id_periode: modalType.value === "periode" ? modalPeriode.value : null,
             };
-
             fetch("/annuler_deliberation/", {
                 method: "POST",
                 headers: {
@@ -2489,7 +2074,6 @@
                     alert(error.message || "Une erreur s'est produite lors de l'annulation de la délibération.");
                 });
         });
-
         function getCsrfToken() {
             const name = "csrftoken";
             let cookieValue = null;
@@ -2507,26 +2091,21 @@
         }
     });
 </script>
-
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const editButtons = document.querySelectorAll('.edit-btn-condition');
         let originalRowData = {};
         let originalButton = null;
-
         editButtons.forEach(button => {
             button.addEventListener('click', function () {
                 const row = this.closest('tr');
                 const cells = row.querySelectorAll('td:not(:last-child)');
                 const idDecision = this.dataset.idDecision;
-
                 originalButton = this.cloneNode(true);
-
                 originalRowData = {};
                 cells.forEach((cell, index) => {
                     originalRowData[index] = cell.innerHTML;
                 });
-
                 const editableIndices = [6, 7];
                 cells.forEach((cell, index) => {
                     if (editableIndices.includes(index)) {
@@ -2534,26 +2113,22 @@
                         cell.innerHTML = `<input type="number" class="form-control" value="${currentValue}" min="0">`;
                     }
                 });
-
                 const actionCell = row.querySelector('td:last-child');
                 actionCell.innerHTML = `
                         <button class="btn btn-success btn-update" data-id-decision="${idDecision}">Update</button>
                         <button class="btn btn-danger btn-cancel">Cancel</button>
                     `;
-
                 // Gestionnaire pour Update
                 actionCell.querySelector('.btn-update').addEventListener('click', async function () {
                     const updatedData = {
                         max_echecs_acceptable: row.cells[6].querySelector('input')?.value,
                         seuil_profondeur_echec: row.cells[7].querySelector('input')?.value
                     };
-
                     // Validation simple
                     if (!updatedData.max_echecs_acceptable || !updatedData.seuil_profondeur_echec) {
                         alert('Veuillez remplir tous les champs.');
                         return;
                     }
-
                     try {
                         const response = await fetch(`/update_deliberation_condition/${idDecision}/`, {
                             method: 'PUT',
@@ -2563,7 +2138,6 @@
                             },
                             body: JSON.stringify(updatedData)
                         });
-
                         if (response.ok) {
                             cells.forEach((cell, index) => {
                                 if (editableIndices.includes(index)) {
@@ -2583,7 +2157,6 @@
                         restoreOriginalRow(row);
                     }
                 });
-
                 // Gestionnaire pour Cancel
                 actionCell.querySelector('.btn-cancel').addEventListener('click', function () {
                     restoreOriginalRow(row);
@@ -2592,16 +2165,13 @@
                 });
             });
         });
-
         function restoreOriginalRow(row) {
             const cells = row.querySelectorAll('td:not(:last-child)');
             cells.forEach((cell, index) => {
                 cell.innerHTML = originalRowData[index];
             });
             location.reload();
-
         }
-
         function getCookie(name) {
             let cookieValue = null;
             if (document.cookie && document.cookie !== '') {
@@ -2618,14 +2188,12 @@
         }
     });
 </script>
-
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         document.querySelectorAll(".update-checkbox-finalite").forEach(checkbox => {
             checkbox.addEventListener("change", function () {
                 const finaliteId = this.dataset.id;
                 const newValue = this.checked;
-
                 fetch("{% url 'toggle_droit_avancement' %}", {
                     method: "POST",
                     headers: {
@@ -2650,22 +2218,15 @@
                     });
             });
         });
-
         function getCSRFToken() {
             return document.querySelector('[name=csrfmiddlewaretoken]').value;
         }
     });
 </script>
-
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <script src="{% static 'js/main.js' %}"></script>
-
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
 <script src="{% static 'assets/vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
-
 <script src="{% static 'js/deliberation_crit.js' %}"></script>
-
 <script src="{% static 'js/op_eval.js' %}"></script>
 {% endblock %}

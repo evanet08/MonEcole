@@ -4,85 +4,12 @@
 
 {% block title %}Inscription{% endblock %}
 
+{% block current_module_name %}Inscription{% endblock %}
+{% block page_indicator %}<i class="fas fa-user-graduate" style="color:#94a3b8;font-size:0.82rem;margin-right:6px;"></i>
+Inscription{% endblock %}
+
 {% block page_css %}
 <style>
-  .section-panel {
-    display: none;
-  }
-
-  .section-panel.active {
-    display: block;
-  }
-
-  /* ===== PALETTE CARDS ===== */
-  .palette-container {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    padding: 8px 0;
-  }
-
-  .palette-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    text-decoration: none !important;
-    color: #334155;
-    background: #fff;
-    border-radius: 12px;
-    padding: 12px 10px 10px;
-    min-width: 90px;
-    max-width: 110px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, .05);
-    border: 1px solid #e2e8f0;
-    transition: all .2s;
-    cursor: pointer;
-    font-size: .68rem;
-  }
-
-  .palette-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(99, 102, 241, .16);
-    border-color: #c7d2fe;
-    color: #334155;
-  }
-
-  .pc-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-    color: #fff;
-    margin-bottom: 6px;
-  }
-
-  .pc-label {
-    font-size: .68rem;
-    font-weight: 600;
-    line-height: 1.25;
-  }
-
-  .grad-indigo {
-    background: linear-gradient(135deg, #6366f1, #818cf8);
-  }
-
-  .grad-emerald {
-    background: linear-gradient(135deg, #10b981, #34d399);
-  }
-
-  .grad-teal {
-    background: linear-gradient(135deg, #14b8a6, #2dd4bf);
-  }
-
-  .grad-amber {
-    background: linear-gradient(135deg, #f59e0b, #fbbf24);
-  }
-
   /* ===== WORKSPACE ===== */
   .inscr-workspace {
     flex: 1;
@@ -90,7 +17,6 @@
     flex-direction: column;
     align-items: center;
     width: 100%;
-    min-height: calc(100vh - 200px);
     padding: 12px;
   }
 
@@ -592,333 +518,322 @@
 </style>
 {% endblock %}
 
-{% block module_sidebar %}
-<nav class="module-sidebar">
-  <div class="sidebar-nav">
-    <a class="sidebar-nav-item {% if form_type == 'inscriptions' or form_type == 'excel_file' or form_type == 'import_file' or form_type == 'edition_eleve' or not form_type %}active{% endif %}"
-      data-section="eleves" onclick="switchSection('eleves')">
-      <div class="nav-icon" style="background:linear-gradient(135deg,#6366f1,#818cf8);"><i class="fas fa-user-plus"></i>
-      </div>
-      <span>Gestion<br>Élèves</span>
-    </a>
-    <a class="sidebar-nav-item {% if form_type == 'select_form_bull' %}active{% endif %}" data-section="reaffectation"
-      onclick="switchSection('reaffectation')">
-      <div class="nav-icon" style="background:linear-gradient(135deg,#f59e0b,#fbbf24);"><i
-          class="fas fa-exchange-alt"></i></div>
-      <span>Réaffec-<br>tation</span>
-    </a>
-  </div>
-</nav>
+{# ===== SIDEBAR: Glass Cards ===== #}
+{% block sidebar_items %}
+<a href="{% url 'create_inscription' %}"
+  class="nav-item {% if form_type == 'inscriptions' or form_type == 'excel_file' or form_type == 'import_file' or form_type == 'edition_eleve' or not form_type %}active{% endif %}"
+  title="Gestion Élèves">
+  <i class="fas fa-user-plus text-blue"></i>
+  <span class="text-center">Gestion<br>Élèves</span>
+</a>
+<a href="{% url 'changer_inscription' %}" class="nav-item {% if form_type == 'select_form_bull' %}active{% endif %}"
+  title="Réaffectation">
+  <i class="fas fa-exchange-alt text-orange"></i>
+  <span class="text-center">Réaffec-<br>tation</span>
+</a>
 {% endblock %}
 
-{% block page_content %}
+{# ===== TAB BAR: Sub-menus ===== #}
+{% block tab_bar %}
+<div class="tab-bar">
+  {% if form_type == 'inscriptions' or form_type == 'excel_file' or form_type == 'import_file' or form_type == 'edition_eleve' or not form_type %}
+  <a href="{% url 'create_inscription' %}"
+    class="tab-link {% if form_type == 'inscriptions' or not form_type %}active{% endif %}">
+    <i class="fas fa-user-plus"></i> Inscrire
+  </a>
+  <a href="{% url 'inscription_excel_file' %}" class="tab-link {% if form_type == 'excel_file' %}active{% endif %}">
+    <i class="fas fa-file-excel"></i> Fiche Excel
+  </a>
+  <a href="{% url 'import_inscription' %}" class="tab-link {% if form_type == 'import_file' %}active{% endif %}">
+    <i class="fas fa-file-import"></i> Importer
+  </a>
+  {% elif form_type == 'select_form_bull' %}
+  <a href="{% url 'changer_inscription' %}" class="tab-link active">
+    <i class="fas fa-exchange-alt"></i> Changer classe
+  </a>
+  {% endif %}
+</div>
+{% endblock %}
 
-{% if messages %}
-<div id="message-container" style="max-width:650px;margin:8px auto;">
-  {% for message in messages %}
-  <div class="alert {{ message.tags }} alert-dismissible" role="alert"
-    style="border-radius:10px;font-size:.8rem;padding:8px 12px;">
-    {{ message|safe }}
+{# ===== PALETTE: Stats cards ===== #}
+{% block palette %}
+<div class="stats-palette" id="stats-palette">
+  <div class="stat-card gradient-blue">
+    <div class="stat-icon"><i class="fas fa-user-graduate"></i></div>
+    <div class="stat-info">
+      <div class="stat-value" id="stat-total">{{ inscriptions|length|default:"0" }}</div>
+      <div class="stat-label">Inscrits</div>
+    </div>
   </div>
-  {% endfor %}
+  <div class="stat-card gradient-purple">
+    <div class="stat-icon"><i class="fas fa-venus"></i></div>
+    <div class="stat-info">
+      <div class="stat-value" id="stat-filles">0</div>
+      <div class="stat-label">Filles</div>
+    </div>
+  </div>
+  <div class="stat-card gradient-teal">
+    <div class="stat-icon"><i class="fas fa-mars"></i></div>
+    <div class="stat-info">
+      <div class="stat-value" id="stat-garcons">0</div>
+      <div class="stat-label">Garçons</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{# ===== WORKSPACE ===== #}
+{% block workspace %}
+
+<!-- ===== Modal ===== -->
+<div id="modalContainer" class="modal">
+  <div class="modal-content">
+    <span class="close-btn" id="inscrCloseModal">&times;</span>
+    <form action="#" method="POST" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      <!-- ===== Inscription form ===== -->
+      {% if form_type == 'inscriptions' %}
+      <h2><span class="h2-icon"><i class="fas fa-user-plus"></i></span> Enregistrement élève</h2>
+      {% if form_eleve.non_form_errors %}
+      <div class="alert alert-danger">{{ form_eleve.non_form_errors }}</div>
+      {% elif form_inscription.non_form_errors %}
+      <div class="alert alert-danger">{{ form_inscription.non_form_errors }}</div>
+      {% endif %}
+      <div class="form-row">
+        {% for field in form_eleve %}
+        {% if field.name not in champs_a_masquer %}
+        <div class="form-group">
+          <div class="icon-field">
+            <span class="field-icon">
+              {% if field.name == 'nom' %}<i class="fas fa-user"></i>
+              {% elif field.name == 'prenom' %}<i class="fas fa-user-tag"></i>
+              {% elif field.name == 'genre' %}<i class="fas fa-venus-mars"></i>
+              {% elif field.name == 'nationalite' %}<i class="fas fa-flag"></i>
+              {% elif field.name == 'nom_pere' %}<i class="fas fa-male"></i>
+              {% elif field.name == 'prenom_pere' %}<i class="fas fa-male"></i>
+              {% elif field.name == 'nom_mere' %}<i class="fas fa-female"></i>
+              {% elif field.name == 'prenom_mere' %}<i class="fas fa-female"></i>
+              {% elif field.name == 'naissance_region' %}<i class="fas fa-map"></i>
+              {% elif field.name == 'naissance_pays' %}<i class="fas fa-globe-africa"></i>
+              {% elif field.name == 'naissance_province' %}<i class="fas fa-map-marker-alt"></i>
+              {% elif field.name == 'naissance_commune' %}<i class="fas fa-map-pin"></i>
+              {% elif field.name == 'naissance_zone' %}<i class="fas fa-map-signs"></i>
+              {% elif field.name == 'province_actuelle' %}<i class="fas fa-map-marker-alt"></i>
+              {% elif field.name == 'commune_actuelle' %}<i class="fas fa-map-pin"></i>
+              {% elif field.name == 'zone_actuelle' %}<i class="fas fa-map-signs"></i>
+              {% elif field.name == 'email_parent' %}<i class="fas fa-envelope"></i>
+              {% else %}<i class="fas fa-pen"></i>
+              {% endif %}
+            </span>
+            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+            {% render_field field class="form-control" placeholder=field.label %}
+          </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+        {% for field in form_inscription %}
+        <div class="form-group">
+          <div class="icon-field">
+            <span class="field-icon">
+              {% if field.name == 'id_campus' %}<i class="fas fa-school"></i>
+              {% elif field.name == 'id_annee' %}<i class="fas fa-calendar"></i>
+              {% elif field.name == 'id_classe_cycle' %}<i class="fas fa-layer-group"></i>
+              {% elif field.name == 'id_classe' %}<i class="fas fa-chalkboard"></i>
+              {% else %}<i class="fas fa-list"></i>
+              {% endif %}
+            </span>
+            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
+            {% render_field field class="form-control" placeholder=field.label %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-cancel" id="cancelBtn">❌ Annuler</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-plus-circle"></i> Ajouter</button>
+      </div>
+
+      <!-- ===== Excel file form ===== -->
+      {% elif form_type == 'excel_file' %}
+      <h2><span class="h2-icon"><i class="fas fa-file-excel"></i></span> Fiche d'inscription</h2>
+      <div class="form-row">
+        {% for field in form_inscription %}
+        <div class="form-field">
+          <div class="icon-field">
+            <span class="field-icon">
+              {% if field.name == 'id_campus' %}<i class="fas fa-school"></i>
+              {% elif field.name == 'id_annee' %}<i class="fas fa-calendar"></i>
+              {% elif field.name == 'id_classe_cycle' %}<i class="fas fa-layer-group"></i>
+              {% elif field.name == 'id_classe' %}<i class="fas fa-chalkboard"></i>
+              {% else %}<i class="fas fa-list"></i>
+              {% endif %}
+            </span>
+            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
+            {% render_field field class="form-control" placeholder=field.label %}
+          </div>
+        </div>
+        {% endfor %}
+        <div class="form-field" id="generate_button_container" style="display:none;">
+          <button type="submit" class="btn btn-success" id="generate_button"><i class="fas fa-file-excel"></i>
+            Générer</button>
+          <button type="button" class="btn btn-cancel" id="cancelBtn" style="margin-left:6px;">➡️</button>
+        </div>
+      </div>
+
+      <!-- ===== Réaffectation form ===== -->
+      {% elif form_type == 'select_form_bull' %}
+      <h2><span class="h2-icon"><i class="fas fa-exchange-alt"></i></span> Sélectionner pas à pas</h2>
+      {% if form_select_bulletin.non_form_errors %}
+      <div class="alert alert-danger">{{ form_select_bulletin.non_form_errors }}</div>
+      {% endif %}
+      <div class="form-row">
+        {% for field in form_select_bulletin %}
+        <div class="form-group">
+          <div class="icon-field">
+            <span class="field-icon">
+              {% if field.name == 'id_annee' %}<i class="fas fa-calendar"></i>
+              {% elif field.name == 'id_campus' %}<i class="fas fa-school"></i>
+              {% elif field.name == 'id_cycle_actif' %}<i class="fas fa-layer-group"></i>
+              {% elif field.name == 'id_classe_active' %}<i class="fas fa-chalkboard"></i>
+              {% else %}<i class="fas fa-list"></i>
+              {% endif %}
+            </span>
+            <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
+            {% render_field field class="form-control" placeholder=field.label %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div style="display:none;" class="form-actions">
+        <button type="button" class="btn btn-cancel" id="cancelBtn">➡️ Continuer</button>
+      </div>
+
+      {% else %}
+      <div class="form-actions">
+        <h2>Opération sans formulaire</h2>
+        <button type="button" class="btn btn-cancel" id="cancelBtn">❌ Quitter</button>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+<!-- ===== Student list ===== -->
+{% if inscriptions %}
+<div class="ep-card" style="margin-top:10px;">
+  <div class="table-header">
+    <h3><i class="fas fa-users" style="margin-right:6px;"></i> Élèves inscrits ({{ inscriptions|length }})</h3>
+  </div>
+  <div style="padding:8px 10px;">
+    <div class="table-responsive" style="max-height:420px;overflow-y:auto;">
+      <table class="display table table-striped table-hover" id="basic-datatables">
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Prénom</th>
+            <th>Sexe</th>
+            <th>Matricule</th>
+            <th>Email</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="studentTable">
+          {% for inscr in inscriptions %}
+          <tr>
+            <td class="fw-bold text-primary text-start">{{ inscr.nom }}</td>
+            <td class="fw-bold text-primary text-start">{{ inscr.prenom|default:"" }}</td>
+            <td>{{ inscr.genre|default:"" }}</td>
+            <td>{{ inscr.matricule|default:"" }}</td>
+            <td>{{ inscr.email|default:"" }}</td>
+            <td>
+              <a href="{% url 'edit_eleve' inscr.id_eleve %}" class="btn btn-sm btn-outline-primary me-2"><i
+                  class="fas fa-edit"></i></a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 {% endif %}
 
-<!-- ========== SECTION: Gestion Élèves ========== -->
-<div
-  class="section-panel {% if form_type == 'inscriptions' or form_type == 'excel_file' or form_type == 'import_file' or form_type == 'edition_eleve' or not form_type %}active{% endif %}"
-  id="section-eleves">
-  <div class="palette-container">
-    <a href="{% url 'create_inscription' %}" class="palette-card">
-      <div class="pc-icon grad-indigo"><i class="fas fa-user-plus"></i></div>
-      <div class="pc-label">Inscrire</div>
-    </a>
-    <a href="{% url 'inscription_excel_file' %}" class="palette-card">
-      <div class="pc-icon grad-emerald"><i class="fas fa-file-excel"></i></div>
-      <div class="pc-label">Fiche Excel</div>
-    </a>
-    <a href="{% url 'import_inscription' %}" class="palette-card">
-      <div class="pc-icon grad-teal"><i class="fas fa-file-import"></i></div>
-      <div class="pc-label">Importer</div>
-    </a>
+<!-- ===== Edit student form ===== -->
+{% if form_type == 'edition_eleve' %}
+<div class="edit-card">
+  <div class="table-header">
+    <h3><i class="fas fa-user-edit" style="margin-right:6px;"></i> Modifier l'élève</h3>
   </div>
-</div>
-
-<!-- ========== SECTION: Réaffectation ========== -->
-<div class="section-panel {% if form_type == 'select_form_bull' %}active{% endif %}" id="section-reaffectation">
-  <div class="palette-container">
-    <a href="{% url 'changer_inscription' %}" class="palette-card">
-      <div class="pc-icon grad-amber"><i class="fas fa-exchange-alt"></i></div>
-      <div class="pc-label">Changer<br>classe</div>
-    </a>
-  </div>
-</div>
-
-<!-- ========== WORKSPACE ========== -->
-<div class="inscr-workspace">
-
-  <!-- ===== Modal ===== -->
-  <div id="modalContainer" class="modal">
-    <div class="modal-content">
-      <span class="close-btn" id="inscrCloseModal">&times;</span>
-      <form action="#" method="POST" enctype="multipart/form-data">
-        {% csrf_token %}
-
-        <!-- ===== Inscription form ===== -->
-        {% if form_type == 'inscriptions' %}
-        <h2><span class="h2-icon"><i class="fas fa-user-plus"></i></span> Enregistrement élève</h2>
-        {% if form_eleve.non_form_errors %}
-        <div class="alert alert-danger">{{ form_eleve.non_form_errors }}</div>
-        {% elif form_inscription.non_form_errors %}
-        <div class="alert alert-danger">{{ form_inscription.non_form_errors }}</div>
-        {% endif %}
-        <div class="form-row">
-          {% for field in form_eleve %}
-          {% if field.name not in champs_a_masquer %}
-          <div class="form-group">
-            <div class="icon-field">
-              <span class="field-icon">
-                {% if field.name == 'nom' %}<i class="fas fa-user"></i>
-                {% elif field.name == 'prenom' %}<i class="fas fa-user-tag"></i>
-                {% elif field.name == 'genre' %}<i class="fas fa-venus-mars"></i>
-                {% elif field.name == 'nationalite' %}<i class="fas fa-flag"></i>
-                {% elif field.name == 'nom_pere' %}<i class="fas fa-male"></i>
-                {% elif field.name == 'prenom_pere' %}<i class="fas fa-male"></i>
-                {% elif field.name == 'nom_mere' %}<i class="fas fa-female"></i>
-                {% elif field.name == 'prenom_mere' %}<i class="fas fa-female"></i>
-                {% elif field.name == 'naissance_region' %}<i class="fas fa-map"></i>
-                {% elif field.name == 'naissance_pays' %}<i class="fas fa-globe-africa"></i>
-                {% elif field.name == 'naissance_province' %}<i class="fas fa-map-marker-alt"></i>
-                {% elif field.name == 'naissance_commune' %}<i class="fas fa-map-pin"></i>
-                {% elif field.name == 'naissance_zone' %}<i class="fas fa-map-signs"></i>
-                {% elif field.name == 'province_actuelle' %}<i class="fas fa-map-marker-alt"></i>
-                {% elif field.name == 'commune_actuelle' %}<i class="fas fa-map-pin"></i>
-                {% elif field.name == 'zone_actuelle' %}<i class="fas fa-map-signs"></i>
-                {% elif field.name == 'email_parent' %}<i class="fas fa-envelope"></i>
-                {% else %}<i class="fas fa-pen"></i>
-                {% endif %}
-              </span>
-              <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-              {% render_field field class="form-control" placeholder=field.label %}
-            </div>
-          </div>
-          {% endif %}
-          {% endfor %}
-          {% for field in form_inscription %}
-          <div class="form-group">
-            <div class="icon-field">
-              <span class="field-icon">
-                {% if field.name == 'id_campus' %}<i class="fas fa-school"></i>
-                {% elif field.name == 'id_annee' %}<i class="fas fa-calendar"></i>
-                {% elif field.name == 'id_classe_cycle' %}<i class="fas fa-layer-group"></i>
-                {% elif field.name == 'id_classe' %}<i class="fas fa-chalkboard"></i>
-                {% else %}<i class="fas fa-list"></i>
-                {% endif %}
-              </span>
-              <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
-              {% render_field field class="form-control" placeholder=field.label %}
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-        <div class="form-actions">
-          <button type="button" class="btn btn-cancel" id="cancelBtn">❌ Annuler</button>
-          <button type="submit" class="btn btn-primary"><i class="fas fa-plus-circle"></i> Ajouter</button>
-        </div>
-
-        <!-- ===== Excel file form ===== -->
-        {% elif form_type == 'excel_file' %}
-        <h2><span class="h2-icon"><i class="fas fa-file-excel"></i></span> Fiche d'inscription</h2>
-        <div class="form-row">
-          {% for field in form_inscription %}
-          <div class="form-field">
-            <div class="icon-field">
-              <span class="field-icon">
-                {% if field.name == 'id_campus' %}<i class="fas fa-school"></i>
-                {% elif field.name == 'id_annee' %}<i class="fas fa-calendar"></i>
-                {% elif field.name == 'id_classe_cycle' %}<i class="fas fa-layer-group"></i>
-                {% elif field.name == 'id_classe' %}<i class="fas fa-chalkboard"></i>
-                {% else %}<i class="fas fa-list"></i>
-                {% endif %}
-              </span>
-              <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
-              {% render_field field class="form-control" placeholder=field.label %}
-            </div>
-          </div>
-          {% endfor %}
-          <div class="form-field" id="generate_button_container" style="display:none;">
-            <button type="submit" class="btn btn-success" id="generate_button"><i class="fas fa-file-excel"></i>
-              Générer</button>
-            <button type="button" class="btn btn-cancel" id="cancelBtn" style="margin-left:6px;">➡️</button>
-          </div>
-        </div>
-
-        <!-- ===== Réaffectation form ===== -->
-        {% elif form_type == 'select_form_bull' %}
-        <h2><span class="h2-icon"><i class="fas fa-exchange-alt"></i></span> Sélectionner pas à pas</h2>
-        {% if form_select_bulletin.non_form_errors %}
-        <div class="alert alert-danger">{{ form_select_bulletin.non_form_errors }}</div>
-        {% endif %}
-        <div class="form-row">
-          {% for field in form_select_bulletin %}
-          <div class="form-group">
-            <div class="icon-field">
-              <span class="field-icon">
-                {% if field.name == 'id_annee' %}<i class="fas fa-calendar"></i>
-                {% elif field.name == 'id_campus' %}<i class="fas fa-school"></i>
-                {% elif field.name == 'id_cycle_actif' %}<i class="fas fa-layer-group"></i>
-                {% elif field.name == 'id_classe_active' %}<i class="fas fa-chalkboard"></i>
-                {% else %}<i class="fas fa-list"></i>
-                {% endif %}
-              </span>
-              <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
-              {% render_field field class="form-control" placeholder=field.label %}
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-        <div style="display:none;" class="form-actions">
-          <button type="button" class="btn btn-cancel" id="cancelBtn">➡️ Continuer</button>
-        </div>
-
-        {% else %}
-        <div class="form-actions">
-          <h2>Opération sans formulaire</h2>
-          <button type="button" class="btn btn-cancel" id="cancelBtn">❌ Quitter</button>
-        </div>
-        {% endif %}
-      </form>
-    </div>
-  </div>
-
-  <!-- ===== Student list ===== -->
-  {% if inscriptions %}
-  <div class="ep-card" style="margin-top:10px;">
-    <div class="table-header">
-      <h3><i class="fas fa-users" style="margin-right:6px;"></i> Élèves inscrits ({{ inscriptions|length }})</h3>
-    </div>
-    <div style="padding:8px 10px;">
-      <div class="table-responsive" style="max-height:420px;overflow-y:auto;">
-        <table class="display table table-striped table-hover" id="basic-datatables">
-          <thead>
-            <tr>
-              <th>Nom</th>
-              <th>Prénom</th>
-              <th>Sexe</th>
-              <th>Matricule</th>
-              <th>Email</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="studentTable">
-            {% for inscr in inscriptions %}
-            <tr>
-              <td class="fw-bold text-primary text-start">{{ inscr.nom }}</td>
-              <td class="fw-bold text-primary text-start">{{ inscr.prenom|default:"" }}</td>
-              <td>{{ inscr.genre|default:"" }}</td>
-              <td>{{ inscr.matricule|default:"" }}</td>
-              <td>{{ inscr.email|default:"" }}</td>
-              <td>
-                <a href="{% url 'edit_eleve' inscr.id_eleve %}" class="btn btn-sm btn-outline-primary me-2"><i
-                    class="fas fa-edit"></i></a>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- ===== Edit student form ===== -->
-  {% if form_type == 'edition_eleve' %}
-  <div class="edit-card">
-    <div class="table-header">
-      <h3><i class="fas fa-user-edit" style="margin-right:6px;"></i> Modifier l'élève</h3>
-    </div>
-    <div class="form-body">
-      <form method="POST" enctype="multipart/form-data">
-        {% csrf_token %}
-        <div class="form-row">
-          {% for field in form_eleve %}
-          {% if field.name not in champs_a_masquer %}
-          <div class="form-field">
-            <div class="icon-field">
-              <span class="field-icon">
-                {% if field.name == 'nom' %}<i class="fas fa-user"></i>
-                {% elif field.name == 'prenom' %}<i class="fas fa-user-tag"></i>
-                {% elif field.name == 'genre' %}<i class="fas fa-venus-mars"></i>
-                {% elif field.name == 'nationalite' %}<i class="fas fa-flag"></i>
-                {% elif field.name == 'email_parent' %}<i class="fas fa-envelope"></i>
-                {% else %}<i class="fas fa-pen"></i>
-                {% endif %}
-              </span>
-              <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-              {% render_field field class="form-control" placeholder=field.label %}
-            </div>
-          </div>
-          {% endif %}
-          {% endfor %}
-        </div>
-        <div class="form-actions">
-          <button type="button" class="btn btn-secondary" onclick="redirectToAjouterEleve()">Annuler</button>
-          <button type="submit" class="btn btn-success">Mettre à jour</button>
-        </div>
-      </form>
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- ===== Import file ===== -->
-  {% if form_type == 'import_file' %}
-  <div class="import-card">
-    <form method="POST" enctype="multipart/form-data" action="{% url 'import_inscription' %}">
+  <div class="form-body">
+    <form method="POST" enctype="multipart/form-data">
       {% csrf_token %}
-      <label for="excel_file"><i class="fas fa-folder-open" style="margin-right:6px;color:#6366f1;"></i> Sélectionner un
-        fichier Excel</label>
-      <input type="file" name="excel_file" id="excel_file" class="form-control" required>
-      <div style="text-align:center;margin-top:14px;">
-        <button type="submit" class="btn-upload"><i class="fas fa-upload"></i> Importer</button>
+      <div class="form-row">
+        {% for field in form_eleve %}
+        {% if field.name not in champs_a_masquer %}
+        <div class="form-field">
+          <div class="icon-field">
+            <span class="field-icon">
+              {% if field.name == 'nom' %}<i class="fas fa-user"></i>
+              {% elif field.name == 'prenom' %}<i class="fas fa-user-tag"></i>
+              {% elif field.name == 'genre' %}<i class="fas fa-venus-mars"></i>
+              {% elif field.name == 'nationalite' %}<i class="fas fa-flag"></i>
+              {% elif field.name == 'email_parent' %}<i class="fas fa-envelope"></i>
+              {% else %}<i class="fas fa-pen"></i>
+              {% endif %}
+            </span>
+            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+            {% render_field field class="form-control" placeholder=field.label %}
+          </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="redirectToAjouterEleve()">Annuler</button>
+        <button type="submit" class="btn btn-success">Mettre à jour</button>
       </div>
     </form>
   </div>
-  {% endif %}
+</div>
+{% endif %}
 
-  <!-- ===== Reaffectation: tables loaded by op_eval.js ===== -->
-  <div id="table-download-btn" style="display:none;" class="col-md-12"></div>
-  <div id="table-display-pupils" style="display:none;" class="col-md-12">
-    <div class="ep-card" style="max-height:500px;overflow-y:auto;">
-      <div class="table-header">
-        <h3><i class="fas fa-users" style="margin-right:6px;"></i> Élèves de la classe</h3>
-      </div>
-      <div style="padding:8px 10px;">
-        <div class="table-responsive"></div>
-      </div>
+<!-- ===== Import file ===== -->
+{% if form_type == 'import_file' %}
+<div class="import-card">
+  <form method="POST" enctype="multipart/form-data" action="{% url 'import_inscription' %}">
+    {% csrf_token %}
+    <label for="excel_file"><i class="fas fa-folder-open" style="margin-right:6px;color:#6366f1;"></i> Sélectionner un
+      fichier Excel</label>
+    <input type="file" name="excel_file" id="excel_file" class="form-control" required>
+    <div style="text-align:center;margin-top:14px;">
+      <button type="submit" class="btn-upload"><i class="fas fa-upload"></i> Importer</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+<!-- ===== Reaffectation: tables loaded by op_eval.js ===== -->
+<div id="table-download-btn" style="display:none;" class="col-md-12"></div>
+<div id="table-display-pupils" style="display:none;" class="col-md-12">
+  <div class="ep-card" style="max-height:500px;overflow-y:auto;">
+    <div class="table-header">
+      <h3><i class="fas fa-users" style="margin-right:6px;"></i> Élèves de la classe</h3>
+    </div>
+    <div style="padding:8px 10px;">
+      <div class="table-responsive"></div>
     </div>
   </div>
-  <div id="table-declencher-btn" style="display:none;" class="col-md-12">
-    <div class="ep-card" style="max-height:500px;overflow-y:auto;"></div>
-  </div>
-
 </div>
+<div id="table-declencher-btn" style="display:none;" class="col-md-12">
+  <div class="ep-card" style="max-height:500px;overflow-y:auto;"></div>
+</div>
+
 {% endblock %}
 
 {% block page_js %}
 <script>
-  // ===== Sidebar Section Switcher =====
-  function switchSection(sectionName) {
-    document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.sidebar-nav-item').forEach(i => i.classList.remove('active'));
-    var panel = document.getElementById('section-' + sectionName);
-    if (panel) panel.classList.add('active');
-    var item = document.querySelector('[data-section="' + sectionName + '"]');
-    if (item) item.classList.add('active');
-  }
-
   document.addEventListener('DOMContentLoaded', function () {
-    if (!document.querySelector('.sidebar-nav-item.active')) switchSection('eleves');
-
     // Auto-open modal when form_type present
     var formType = '{{ form_type|default:"" }}';
     var modalFormTypes = ['inscriptions', 'excel_file', 'select_form_bull'];

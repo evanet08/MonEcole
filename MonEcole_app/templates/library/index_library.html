@@ -4,6 +4,10 @@
 
 {% block title %}Bibliothèque{% endblock %}
 
+{% block current_module_name %}Bibliothèque{% endblock %}
+{% block page_indicator %}<i class="fas fa-book" style="color:#94a3b8;font-size:0.82rem;margin-right:6px;"></i>
+Bibliothèque{% endblock %}
+
 {% block page_css %}
 <style>
     :root {
@@ -435,7 +439,92 @@
 </style>
 {% endblock %}
 
-{% block page_content %}
+{# ===== SIDEBAR: Glass Cards ===== #}
+{% block sidebar_items %}
+<a href="{% url 'library:create_armory_library' %}"
+    class="nav-item {% if form_type == 'armoire_form' or form_type == 'compartement_form' or not form_type %}active{% endif %}"
+    title="Mobilier">
+    <i class="fas fa-archive text-blue"></i>
+    <span class="text-center">Mobilier</span>
+</a>
+<a href="{% url 'library:create_category_livre_library' %}"
+    class="nav-item {% if form_type == 'category_form' or form_type == 'livre_form' or form_type == 'livre_exemplaire_form' %}active{% endif %}"
+    title="Livres">
+    <i class="fas fa-book text-purple"></i>
+    <span class="text-center">Livres</span>
+</a>
+<a href="{% url 'library:ajout_emprunt' %}" class="nav-item {% if form_type == 'emprunt_form' %}active{% endif %}"
+    title="Emprunts">
+    <i class="fas fa-hand-holding text-orange"></i>
+    <span class="text-center">Emprunts</span>
+</a>
+{% endblock %}
+
+{# ===== TAB BAR ===== #}
+{% block tab_bar %}
+<div class="tab-bar">
+    {% if form_type == 'armoire_form' or form_type == 'compartement_form' or not form_type %}
+    <a href="{% url 'library:create_armory_library' %}"
+        class="tab-link {% if form_type == 'armoire_form' or not form_type %}active{% endif %}">
+        <i class="fas fa-archive"></i> Armoire
+    </a>
+    <a href="{% url 'library:create_compartiment_library' %}"
+        class="tab-link {% if form_type == 'compartement_form' %}active{% endif %}">
+        <i class="fas fa-box"></i> Compartiment
+    </a>
+    {% elif form_type == 'category_form' or form_type == 'livre_form' or form_type == 'livre_exemplaire_form' %}
+    <a href="{% url 'library:create_category_livre_library' %}"
+        class="tab-link {% if form_type == 'category_form' %}active{% endif %}">
+        <i class="fas fa-tags"></i> Catégorie
+    </a>
+    <a href="{% url 'library:create_livre_library' %}"
+        class="tab-link {% if form_type == 'livre_form' %}active{% endif %}">
+        <i class="fas fa-book"></i> Livre
+    </a>
+    <a href="{% url 'library:create_livre_exemplaire_library' %}"
+        class="tab-link {% if form_type == 'livre_exemplaire_form' %}active{% endif %}">
+        <i class="fas fa-copy"></i> Exemplaire
+    </a>
+    {% elif form_type == 'emprunt_form' %}
+    <a href="{% url 'library:ajout_emprunt' %}" class="tab-link active">
+        <i class="fas fa-hand-holding"></i> Nouvel Emprunt
+    </a>
+    <a href="{% url 'library:list_emprunt' %}" class="tab-link">
+        <i class="fas fa-list"></i> Liste
+    </a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{# ===== PALETTE: Stats cards ===== #}
+{% block palette %}
+<div class="stats-palette" id="stats-palette">
+    <div class="stat-card gradient-blue">
+        <div class="stat-icon"><i class="fas fa-book"></i></div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-livres">0</div>
+            <div class="stat-label">Livres</div>
+        </div>
+    </div>
+    <div class="stat-card gradient-purple">
+        <div class="stat-icon"><i class="fas fa-copy"></i></div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-exemplaires">0</div>
+            <div class="stat-label">Exemplaires</div>
+        </div>
+    </div>
+    <div class="stat-card gradient-teal">
+        <div class="stat-icon"><i class="fas fa-hand-holding"></i></div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-emprunts">0</div>
+            <div class="stat-label">Emprunts</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{# ===== WORKSPACE ===== #}
+{% block workspace %}
 {% if messages %}
 <div id="message-container" class="container">
     <div class="message-box">

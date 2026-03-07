@@ -102,8 +102,7 @@ Administration{% endblock %}
 {# ===== TAB BAR: Sub-menus (was: palette cards) ===== #}
 {% block tab_bar %}
 <div class="tab-bar">
-  {% if form_type == 'modules' or form_type == 'institution' or form_type == 'campus' or form_type == 'classes_cycles'
-  or form_type == 'classes' %}
+  {% if form_type == 'modules' or form_type == 'institution' or form_type == 'campus' or form_type == 'classes_cycles' or form_type == 'classes' %}
   <a href="{% url 'create_module' %}" class="tab-link {% if form_type == 'modules' %}active{% endif %}">
     <i class="fas fa-puzzle-piece"></i> Modules
   </a>
@@ -129,8 +128,7 @@ Administration{% endblock %}
   <a href="{% url 'create_periode' %}" class="tab-link {% if form_type == 'periodes' %}active{% endif %}">
     <i class="fas fa-stopwatch"></i> Période
   </a>
-  {% elif form_type == 'classes_cycles_actif' or form_type == 'classes_active' or form_type == 'trimestres_class' or
-  form_type == 'periodes_class' %}
+  {% elif form_type == 'classes_cycles_actif' or form_type == 'classes_active' or form_type == 'trimestres_class' or form_type == 'periodes_class' %}
   <a href="{% url 'create_classes_cycle_active' %}"
     class="tab-link {% if form_type == 'classes_cycles_actif' %}active{% endif %}">
     <i class="fas fa-sync-alt"></i> Cycle(s) actif(s)
@@ -145,8 +143,7 @@ Administration{% endblock %}
   <a href="{% url 'create_annee_periode' %}" class="tab-link {% if form_type == 'periodes_class' %}active{% endif %}">
     <i class="fas fa-stopwatch"></i> Période / Classe
   </a>
-  {% elif form_type == 'diplomes' or form_type == 'specialites' or form_type == 'categories' or form_type == 'vacations'
-  or form_type == 'typersonnels' or form_type == 'personnels' %}
+  {% elif form_type == 'diplomes' or form_type == 'specialites' or form_type == 'categories' or form_type == 'vacations' or form_type == 'typersonnels' or form_type == 'personnels' %}
   <a href="{% url 'ajouter_diplome' %}" class="tab-link {% if form_type == 'diplomes' %}active{% endif %}">
     <i class="fas fa-graduation-cap"></i> Diplôme
   </a>
@@ -184,151 +181,105 @@ Administration{% endblock %}
 </div>
 {% endblock %}
 
-{# ===== WORKSPACE: Forms + Data Display (100% of remaining space) ===== #}
-{% block page_content %}
-<div class="workspace" style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
-  <div class="workspace-body-scroll" style="flex:1; overflow-y:auto; padding: 1.25rem;">
-    <div id="modalContainer" class="modal">
-      <div class="modal-content">
-        <span style="display: none;" class="close-btn">&times;</span>
-        <form action="#" method="POST" enctype="multipart/form-data">
-          {% csrf_token %}
-          <!-- =============== institution's section ================== -->
-          {% if form_type == 'institution' and institution_infos|length == 0 %}
-          <h2>Formulaire d'enregistrement</h2>
-          {% if institution_form.non_form_errors %}
-          <div class="alert alert-danger">
-            {{ institution_form.non_form_errors }}
-          </div>
-          {% endif %}
-          <div class="form-row">
-            {% for field in institution_form %}
-            <div class="form-group col-md-4">
-              <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-              {% render_field field class="form-control" placeholder=field.label %}
-            </div>
-            {% endfor %}
-          </div>
-          <div class="form-actions">
-            <button type="button" class="btn btn-cancel" id="cancelBtn">
-              <span class="emoji-icon">❌</span> Annuler
-            </button>
-            <button type="submit" class="btn btn-primary">
-              <i class="fas fa-plus-circle"></i> Ajouter
-            </button>
-          </div>
-          <!--================= campus's section  -->
-          {% elif form_type == 'campus' %}
-          <h2>Formulaire d'enregistrement</h2>
-          {% if campus_form.non_form_errors %}
-          <div class="alert alert-danger">
-            {{ campus_form.non_form_errors }}
-          </div>
-          {% endif %}
-          <div class="form-row">
-            {% for field in campus_form %}
-            <div class="form-group col-md-4">
-              <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-              {% render_field field class="form-control" placeholder=field.label %}
-            </div>
-            {% endfor %}
-          </div>
-          <div class="form-actions">
-            <button type="button" class="btn btn-cancel" id="cancelBtn">
-              <span class="emoji-icon">❌</span> Annuler
-            </button>
-            <button type="submit" class="btn btn-primary">
-              <i class="fas fa-plus-circle"></i> Ajouter
-            </button>
-          </div>
-          <!-- ================ Module's section -->
-          {% elif form_type == 'modules' %}
-          <h2>Formulaire d'enregistrement</h2>
-          {% if form_module.non_form_errors %}
-          <div class="alert alert-danger">
-            {{ form_module.non_form_errors }}
-          </div>
-          {% endif %}
-          <div class="form-row">
-            {% for field in form_module %}
-            <div class="form-group col-md-4">
-              <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-              {% render_field field class="form-control" placeholder=field.label %}
-            </div>
-            {% if forloop.counter|divisibleby:3 %}
-          </div>
-          <div class="form-row">
-            {% endif %}
-            {% endfor %}
-          </div>
-          <div class="form-actions">
-            <button type="button" class="btn btn-cancel" id="cancelBtn">
-              <span class="emoji-icon">❌</span> Annuler
-            </button>
-            <button type="submit" class="btn btn-primary">
-              <i class="fas fa-plus-circle"></i> Ajouter
-            </button>
-          </div>
-          <!-- =============== assigned's module's form -->
-          {% elif form_type == 'modules_assigner' %}
-          <h2>Assigner un utilisateur à un module:</h2>
-          {% if form_module_assigner.non_form_errors %}
-          <div class="alert alert-danger">
-            {{ form_module_assigner.non_form_errors }}
-          </div>
-          {% elif form_enseignant_assigner_section.non_form_errors %}
-          <div class="alert alert-danger">
-            {{ form_enseignant_assigner_section.non_form_errors }}
-          </div>
-          {% endif %}
-          <div class="form-row">
-            {% for field in form_module_assigner %}
-            <div class="form-group col-md-4">
-              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-              {% render_field field class="form-control" placeholder=field.label %}
-            </div>
-            {% if forloop.counter|divisibleby:3 %}
-          </div>
-          <div class="form-row">
-            {% endif %}
-            {% endfor %}
-          </div>
+{# ===== PALETTE: Stats cards ===== #}
+{% block palette %}
+<div class="stats-palette" id="stats-palette">
+  <div class="stat-card gradient-blue">
+    <div class="stat-icon"><i class="fas fa-school"></i></div>
+    <div class="stat-info">
+      <div class="stat-value" id="stat-campus">{{ campus_list|length|default:"0" }}</div>
+      <div class="stat-label">Campus</div>
+    </div>
+  </div>
+  <div class="stat-card gradient-purple">
+    <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
+    <div class="stat-info">
+      <div class="stat-value" id="stat-cycles">0</div>
+      <div class="stat-label">Cycles</div>
+    </div>
+  </div>
+  <div class="stat-card gradient-teal">
+    <div class="stat-icon"><i class="fas fa-chalkboard"></i></div>
+    <div class="stat-info">
+      <div class="stat-value" id="stat-classes">0</div>
+      <div class="stat-label">Classes</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
 
-          <div class="form-actions">
-            <button type="button" class="btn btn-cancel" id="cancelBtn">❌ Annuler</button>
-            <button type="submit" class="btn btn-primary">
-              <i class="fas fa-plus-circle"></i> Ajouter
-            </button>
-          </div>
-      </div>
-
-      <!-- ==========create personnal field -->
-      {% elif form_type == 'personnels' %}
+{# ===== WORKSPACE ===== #}
+{% block workspace %}
+<div id="modalContainer" class="modal">
+  <div class="modal-content">
+    <span style="display: none;" class="close-btn">&times;</span>
+    <form action="#" method="POST" enctype="multipart/form-data">
+      {% csrf_token %}
+      <!-- =============== institution's section ================== -->
+      {% if form_type == 'institution' and institution_infos|length == 0 %}
       <h2>Formulaire d'enregistrement</h2>
-      {% if form_personnel_user.non_form_errors %}
+      {% if institution_form.non_form_errors %}
       <div class="alert alert-danger">
-        {{ form_personnel_user.non_form_errors }}
-      </div>
-      {% elif form_personnel.non_from_errors %}
-      <div class="alert alert-danger">
-        {{ form_personnel.non_form_errors }}
+        {{ institution_form.non_form_errors }}
       </div>
       {% endif %}
       <div class="form-row">
-        {% for field in form_personnel_user %}
-        {% if field.name not in masq_field_u %}
+        {% for field in institution_form %}
         <div class="form-group col-md-4">
           <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
           {% render_field field class="form-control" placeholder=field.label %}
         </div>
-        {% endif %}
         {% endfor %}
-        {% for field in form_personnel %}
-        {% if field.name not in masq_field_p %}
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-cancel" id="cancelBtn">
+          <span class="emoji-icon">❌</span> Annuler
+        </button>
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-plus-circle"></i> Ajouter
+        </button>
+      </div>
+      <!--================= campus's section  -->
+      {% elif form_type == 'campus' %}
+      <h2>Formulaire d'enregistrement</h2>
+      {% if campus_form.non_form_errors %}
+      <div class="alert alert-danger">
+        {{ campus_form.non_form_errors }}
+      </div>
+      {% endif %}
+      <div class="form-row">
+        {% for field in campus_form %}
         <div class="form-group col-md-4">
           <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
           {% render_field field class="form-control" placeholder=field.label %}
         </div>
+        {% endfor %}
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-cancel" id="cancelBtn">
+          <span class="emoji-icon">❌</span> Annuler
+        </button>
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-plus-circle"></i> Ajouter
+        </button>
+      </div>
+      <!-- ================ Module's section -->
+      {% elif form_type == 'modules' %}
+      <h2>Formulaire d'enregistrement</h2>
+      {% if form_module.non_form_errors %}
+      <div class="alert alert-danger">
+        {{ form_module.non_form_errors }}
+      </div>
+      {% endif %}
+      <div class="form-row">
+        {% for field in form_module %}
+        <div class="form-group col-md-4">
+          <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+          {% render_field field class="form-control" placeholder=field.label %}
+        </div>
+        {% if forloop.counter|divisibleby:3 %}
+      </div>
+      <div class="form-row">
         {% endif %}
         {% endfor %}
       </div>
@@ -340,461 +291,530 @@ Administration{% endblock %}
           <i class="fas fa-plus-circle"></i> Ajouter
         </button>
       </div>
-      <!-- ========== create personnel access field -->
-      {% elif form_type == 'modules_access' %}
-      <h2>Sélectionner une année :</h2>
-
-      {% if form_module_access.non_form_errors %}
+      <!-- =============== assigned's module's form -->
+      {% elif form_type == 'modules_assigner' %}
+      <h2>Assigner un utilisateur à un module:</h2>
+      {% if form_module_assigner.non_form_errors %}
       <div class="alert alert-danger">
-        {{ form_module_access.non_form_errors }}
+        {{ form_module_assigner.non_form_errors }}
+      </div>
+      {% elif form_enseignant_assigner_section.non_form_errors %}
+      <div class="alert alert-danger">
+        {{ form_enseignant_assigner_section.non_form_errors }}
       </div>
       {% endif %}
-
       <div class="form-row">
-        {% for field in form_module_access %}
-        {% if field.name not in masq_field_unused %}
+        {% for field in form_module_assigner %}
         <div class="form-group col-md-4">
           <label for="{{ field.id_for_label }}">{{ field.label }}</label>
           {% render_field field class="form-control" placeholder=field.label %}
         </div>
-
-        {% if forloop.counter|divisibleby:3 and not forloop.last %}
+        {% if forloop.counter|divisibleby:3 %}
       </div>
       <div class="form-row">
-        {% endif %}
         {% endif %}
         {% endfor %}
       </div>
 
-      <div class="form-actions mt-3">
+      <div class="form-actions">
         <button type="button" class="btn btn-cancel" id="cancelBtn">❌ Annuler</button>
         <button type="submit" class="btn btn-primary">
           <i class="fas fa-plus-circle"></i> Ajouter
         </button>
       </div>
+  </div>
 
-      <!-- ==========create vacation field -->
-      {% elif form_type == 'vacations_user' %}
-      <h2>Formulaire d'enregistrement du responsable</h2>
-      {% if form_user_vacation.non_form_errors %}
-      <div class="alert alert-danger">
-        {{ form_user_vacation.non_form_errors }}
-      </div>
-      {% endif %}
-      <div class="form-row">
-        {% for field in form_user_vacation %}
-        <div class="form-group col-md-4">
-          <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-          {% render_field field class="form-control" placeholder=field.label %}
-        </div>
-        {% endfor %}
-        <input type="hidden" name="id_campus" id="id_campus">
-        <input type="hidden" name="id_cycle" id="id_cycle">
-        <input type="hidden" name="personnel_ids" id="personnel_ids" multiple>
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-cancel" id="cancelBtn" data-bs-dismiss="modal">
-          <span class="emoji-icon">❌</span> Annuler
-        </button>
-      </div>
-      <!-- ============vacation's type -->
-      {% elif form_type == 'vacations' %}
-      <h2>Formulaire d'enregistrement</h2>
-      {% if form_pers_vacation.non_form_errors %}
-      <div class="alert alert-danger">
-        {{ form_pers_vacation.non_form_errors }}
-      </div>
-      {% endif %}
-      <div class="form-row">
-        {% for field in form_pers_vacation %}
-        <div class="form-group col-md-4">
-          <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-          {% render_field field class="form-control" placeholder=field.label %}
-        </div>
-        {% endfor %}
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-cancel" id="cancelBtn">
-          <span class="emoji-icon">❌</span> Annuler
-        </button>
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-plus-circle"></i> Ajouter
-        </button>
-      </div>
-      <!-- ============specialite's type -->
-      {% elif form_type == 'specialites' %}
-      <h2>Formulaire d'enregistrement</h2>
-      {% if form_pers_specialite.non_form_errors %}
-      <div class="alert alert-danger">
-        {{ form_pers_specialite.non_form_errors }}
-      </div>
-      {% endif %}
-      <div class="form-row">
-        {% for field in form_pers_specialite %}
-        <div class="form-group col-md-4">
-          <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-          {% render_field field class="form-control" placeholder=field.label %}
-        </div>
-        {% endfor %}
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-cancel" id="cancelBtn">
-          <span class="emoji-icon">❌</span> Annuler
-        </button>
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-plus-circle"></i> Ajouter
-        </button>
-      </div>
-      <!-- ============diplom's type -->
-      {% elif form_type == 'diplomes' %}
-      <h2>Formulaire d'enregistrement</h2>
-      {% if form_pers_diplome.non_form_errors %}
-      <div class="alert alert-danger">
-        {{ form_pers_diplome.non_form_errors }}
-      </div>
-      {% endif %}
-      <div class="form-row">
-        {% for field in form_pers_diplome %}
-        <div class="form-group col-md-4">
-          <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-          {% render_field field class="form-control" placeholder=field.label %}
-        </div>
-        {% endfor %}
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-cancel" id="cancelBtn">
-          <span class="emoji-icon">❌</span> Annuler
-        </button>
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-plus-circle"></i> Ajouter
-        </button>
-      </div>
-      <!-- ============categorie's type -->
-      {% elif form_type == 'categories' %}
-      <h2>Formulaire d'enregistrement</h2>
-      {% if form_pers_categorie.non_form_errors %}
-      <div class="alert alert-danger">
-        {{ form_pers_categorie.non_form_errors }}
-      </div>
-      {% endif %}
-      <div class="form-row">
-        {% for field in form_pers_categorie %}
-        <div class="form-group col-md-4">
-          <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-          {% render_field field class="form-control" placeholder=field.label %}
-        </div>
-        {% endfor %}
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-cancel" id="cancelBtn">
-          <span class="emoji-icon">❌</span> Annuler
-        </button>
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-plus-circle"></i> Ajouter
-        </button>
-      </div>
-      <!--=========== Personnel's type -->
-      {% elif form_type == 'typersonnels' %}
-      <h2>Formulaire d'enregistrement</h2>
-      {% if form_pers_type.non_form_errors %}
-      <div class="alert alert-danger">
-        {{ form_pers_type.non_form_errors }}
-      </div>
-      {% endif %}
-      <div class="form-row">
-        {% for field in form_pers_type %}
-        <div class="form-group col-md-4">
-          <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-          {% render_field field class="form-control" placeholder=field.label %}
-        </div>
-        {% endfor %}
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-cancel" id="cancelBtn">
-          <span class="emoji-icon">❌</span> Annuler
-        </button>
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-plus-circle"></i> Ajouter
-        </button>
-      </div>
-      <!-- =====classes's form -->
-      {% elif form_type == 'classes' %}
-      <h2>Formulaire d'enregistrement</h2>
-      {% if class_form.non_form_errors %}
-      <div class="alert alert-danger">
-        {{ class_form.non_form_errors }}
-      </div>
-      {% endif %}
-      <div class="form-row">
-        {% for field in class_form %}
-        <div class="form-group col-md-4">
-          <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-          {% render_field field class="form-control" placeholder=field.label %}
-        </div>
-        {% endfor %}
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-cancel" id="cancelBtn">
-          <span class="emoji-icon">❌</span> Annuler
-        </button>
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-plus-circle"></i> Ajouter
-        </button>
-      </div>
-      <!-- =====classes's active form -->
-      {% elif form_type == 'classes_active' %}
-      <h2>Formulaire d'enregistrement</h2>
-      {% if class_active_form.non_form_errors %}
-      <div class="alert alert-danger">
-        {{ class_active_form.non_form_errors }}
-      </div>
-      {% endif %}
-      <div class="form-row">
-        {% for field in class_active_form %}
-        <div class="form-group col-md-4 {% if field.name == 'groupe' %}groupe-wrapper{% endif %}">
-          <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-          {% render_field field class="form-control" placeholder=field.label %}
-        </div>
-        {% endfor %}
+  <!-- ==========create personnal field -->
+  {% elif form_type == 'personnels' %}
+  <h2>Formulaire d'enregistrement</h2>
+  {% if form_personnel_user.non_form_errors %}
+  <div class="alert alert-danger">
+    {{ form_personnel_user.non_form_errors }}
+  </div>
+  {% elif form_personnel.non_from_errors %}
+  <div class="alert alert-danger">
+    {{ form_personnel.non_form_errors }}
+  </div>
+  {% endif %}
+  <div class="form-row">
+    {% for field in form_personnel_user %}
+    {% if field.name not in masq_field_u %}
+    <div class="form-group col-md-4">
+      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+      {% render_field field class="form-control" placeholder=field.label %}
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% for field in form_personnel %}
+    {% if field.name not in masq_field_p %}
+    <div class="form-group col-md-4">
+      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+      {% render_field field class="form-control" placeholder=field.label %}
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn btn-cancel" id="cancelBtn">
+      <span class="emoji-icon">❌</span> Annuler
+    </button>
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-plus-circle"></i> Ajouter
+    </button>
+  </div>
+  <!-- ========== create personnel access field -->
+  {% elif form_type == 'modules_access' %}
+  <h2>Sélectionner une année :</h2>
 
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-cancel" id="cancelBtn">
-          <span class="emoji-icon">❌</span> Annuler
-        </button>
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-plus-circle"></i> Ajouter
-        </button>
-      </div>
-      <!-- ===classes_cycle's form -->
-      {% elif form_type == 'classes_cycles' %}
-      <h2>Formulaire d'enregistrement</h2>
-      {% if class_cycle_form.non_form_errors %}
-      <div class="alert alert-danger">
-        {{ class_cycle_form.non_form_errors }}
-      </div>
-      {% endif %}
-      <div class="form-row">
-        {% for field in class_cycle_form %}
-        <div class="form-group col-md-4">
-          <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-          {% render_field field class="form-control" placeholder=field.label %}
-        </div>
-        {% endfor %}
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-cancel" id="cancelBtn">
-          <span class="emoji-icon">❌</span> Annuler
-        </button>
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-plus-circle"></i> Ajouter
-        </button>
-      </div>
-      <!-- ===classes_cycle's active form -->
-      {% elif form_type == 'classes_cycles_actif' %}
-      <h2>Formulaire d'enregistrement</h2>
-      {% if class_cycle_act_form.non_form_errors %}
-      <div class="alert alert-danger">
-        {{ class_cycle_act_form.non_form_errors }}
-      </div>
-      {% endif %}
-      <div class="form-row">
-        {% for field in class_cycle_act_form %}
-        <div class="form-group col-md-4">
-          <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-          {% render_field field class="form-control" placeholder=field.label %}
-        </div>
-        {% endfor %}
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-cancel" id="cancelBtn">
-          <span class="emoji-icon">❌</span> Annuler
-        </button>
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-plus-circle"></i> Ajouter
-        </button>
-      </div>
-      <!-- =========== Annees's form -->
-      {% elif form_type == 'annees' %}
-      <h2>Formulaire d'enregistrement</h2>
-      {% if annee_form.non_form_errors %}
-      <div class="alert alert-danger">
-        {{ annee_form.non_form_errors }}
-      </div>
-      {% endif %}
-      <div class="form-row">
-        {% for field in annee_form %}
-        <div class="form-group col-md-4">
-          <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-          {% render_field field class="form-control" placeholder=field.label %}
-        </div>
-        {% endfor %}
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-cancel" id="cancelBtn">
-          <span class="emoji-icon">❌</span> Annuler
-        </button>
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-plus-circle"></i> Ajouter
-        </button>
-      </div>
-      <!-- =====trim_classes'form  -->
-      {% elif form_type == 'trimestres_class' %}
-      <h2>Séléctionner pas à pas</h2>
-      {% if form_trimestre_class.non_form_errors %}
-      <div class="alert alert-danger">
-        {{ form_trimestre_class.non_form_errors }}
-      </div>
-      {% endif %}
-      <div class="form-row">
-        {% for field in form_trimestre_class %}
-        <div class="form-group col-md-4">
-          <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
-          {% render_field field class="form-control" placeholder=field.label %}
-          <input type="hidden" id="id_campus" value="{{ id_campus }}">
-        </div>
-        {% endfor %}
-      </div>
-      <div style="display: none;" class="form-actions">
-        <button type="button" class="btn btn-continue" id="cancelBtn">
-          <span class="emoji-icon">➡️</span>
-        </button>
-      </div>
-      <!-- =====periode_classes'form  -->
-      {% elif form_type == 'periodes_class' %}
-      <h2>Séléctionner pas à pas</h2>
-      {% if form_periode.non_form_errors %}
-      <div class="alert alert-danger">
-        {{ form_periode.non_form_errors }}
-      </div>
-      {% endif %}
-      <div class="form-row">
-        {% for field in form_periode %}
-        <div class="form-group col-md-4">
-          <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
-          {% render_field field class="form-control" placeholder=field.label %}
-          <input type="hidden" id="id_campus" value="{{ id_campus }}">
-        </div>
-        {% endfor %}
-      </div>
-      <div style="display: none;" class="form-actions">
-        <button type="button" class="btn btn-continue" id="cancelBtn">
-          <span class="emoji-icon">➡️</span>
-        </button>
-      </div>
+  {% if form_module_access.non_form_errors %}
+  <div class="alert alert-danger">
+    {{ form_module_access.non_form_errors }}
+  </div>
+  {% endif %}
 
-      <!-- ========= Periode's form -->
-      {% elif form_type == 'periodes' %}
-      <h2>Formulaire d'enregistrement</h2>
-      {% if periode_form.non_form_errors %}
-      <div class="alert alert-danger">
-        {{ periode_form.non_form_errors }}
-      </div>
-      {% endif %}
-      <div style="display: none;" class="form-group col-md-4">
-        <label for="id_trimestre">Trimestre</label>
-        <select id="id_trimestre" name="id_trimestre" class="form-control">
-          {% for trimestre in trimestres %}
-          <option value="{{ trimestre.id_trimestre }}" data-debut="{{ trimestre.date_ouverture }}"
-            data-fin="{{ trimestre.date_cloture }}">
-            {{ trimestre.trimestre }}
-          </option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="form-row">
-        {% for field in periode_form %}
-        <div class="form-group col-md-4">
-          <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
-          {% render_field field class="form-control" placeholder=field.label %}
-        </div>
-        {% endfor %}
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-cancel" id="cancelBtn">
-          <span class="emoji-icon">❌</span> Annuler
-        </button>
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-plus-circle"></i> Ajouter
-        </button>
-      </div>
-      <!--======== Trimestre's form-->
-      {% elif form_type == 'trimestres' %}
-      <h2>Formulaire d'enregistrement</h2>
-      {% if trimestre_form.non_form_errors %}
-      <div class="alert alert-danger">
-        {{ trimestre_form.non_form_errors }}
-      </div>
-      {% endif %}
-      <div class="form-row">
-        {% for field in trimestre_form %}
-        <div class="form-group col-md-4">
-          <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-          {% render_field field class="form-control" placeholder=field.label %}
-        </div>
-        {% endfor %}
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-cancel" id="cancelBtn">
-          <span class="emoji-icon">❌</span> Annuler
-        </button>
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-plus-circle"></i> Ajouter
-        </button>
-      </div>
-      {% else %}
-      <div class="form-actions">
-        <h2>Opération sans formulaire</h2>
-        <button style="margin-right: 20px;" type="button" class="btn btn-cancel" id="cancelBtn">
-          <span class="emoji-icon">❌</span> Quitter
-        </button>
-      </div>
-      {% endif %}
-      </form>
+  <div class="form-row">
+    {% for field in form_module_access %}
+    {% if field.name not in masq_field_unused %}
+    <div class="form-group col-md-4">
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {% render_field field class="form-control" placeholder=field.label %}
     </div>
 
+    {% if forloop.counter|divisibleby:3 and not forloop.last %}
   </div>
-  <!--=================== SECTION POUR L'AFFICHAGE! -->
-  {% include 'parametrage/display_section.html' %}
-  {% include 'parametrage/_js_section.html' %}
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="{% static 'js/main.js' %}"></script>
-  <script src="{% static 'js/modal.js' %}"></script>
-  <!-- =================== Campus api service -->
+  <div class="form-row">
+    {% endif %}
+    {% endif %}
+    {% endfor %}
+  </div>
 
-  <!--==================== Classe  api service-->
+  <div class="form-actions mt-3">
+    <button type="button" class="btn btn-cancel" id="cancelBtn">❌ Annuler</button>
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-plus-circle"></i> Ajouter
+    </button>
+  </div>
 
-  <!--==================== Cycle api service -->
+  <!-- ==========create vacation field -->
+  {% elif form_type == 'vacations_user' %}
+  <h2>Formulaire d'enregistrement du responsable</h2>
+  {% if form_user_vacation.non_form_errors %}
+  <div class="alert alert-danger">
+    {{ form_user_vacation.non_form_errors }}
+  </div>
+  {% endif %}
+  <div class="form-row">
+    {% for field in form_user_vacation %}
+    <div class="form-group col-md-4">
+      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+      {% render_field field class="form-control" placeholder=field.label %}
+    </div>
+    {% endfor %}
+    <input type="hidden" name="id_campus" id="id_campus">
+    <input type="hidden" name="id_cycle" id="id_cycle">
+    <input type="hidden" name="personnel_ids" id="personnel_ids" multiple>
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn btn-cancel" id="cancelBtn" data-bs-dismiss="modal">
+      <span class="emoji-icon">❌</span> Annuler
+    </button>
+  </div>
+  <!-- ============vacation's type -->
+  {% elif form_type == 'vacations' %}
+  <h2>Formulaire d'enregistrement</h2>
+  {% if form_pers_vacation.non_form_errors %}
+  <div class="alert alert-danger">
+    {{ form_pers_vacation.non_form_errors }}
+  </div>
+  {% endif %}
+  <div class="form-row">
+    {% for field in form_pers_vacation %}
+    <div class="form-group col-md-4">
+      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+      {% render_field field class="form-control" placeholder=field.label %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn btn-cancel" id="cancelBtn">
+      <span class="emoji-icon">❌</span> Annuler
+    </button>
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-plus-circle"></i> Ajouter
+    </button>
+  </div>
+  <!-- ============specialite's type -->
+  {% elif form_type == 'specialites' %}
+  <h2>Formulaire d'enregistrement</h2>
+  {% if form_pers_specialite.non_form_errors %}
+  <div class="alert alert-danger">
+    {{ form_pers_specialite.non_form_errors }}
+  </div>
+  {% endif %}
+  <div class="form-row">
+    {% for field in form_pers_specialite %}
+    <div class="form-group col-md-4">
+      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+      {% render_field field class="form-control" placeholder=field.label %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn btn-cancel" id="cancelBtn">
+      <span class="emoji-icon">❌</span> Annuler
+    </button>
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-plus-circle"></i> Ajouter
+    </button>
+  </div>
+  <!-- ============diplom's type -->
+  {% elif form_type == 'diplomes' %}
+  <h2>Formulaire d'enregistrement</h2>
+  {% if form_pers_diplome.non_form_errors %}
+  <div class="alert alert-danger">
+    {{ form_pers_diplome.non_form_errors }}
+  </div>
+  {% endif %}
+  <div class="form-row">
+    {% for field in form_pers_diplome %}
+    <div class="form-group col-md-4">
+      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+      {% render_field field class="form-control" placeholder=field.label %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn btn-cancel" id="cancelBtn">
+      <span class="emoji-icon">❌</span> Annuler
+    </button>
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-plus-circle"></i> Ajouter
+    </button>
+  </div>
+  <!-- ============categorie's type -->
+  {% elif form_type == 'categories' %}
+  <h2>Formulaire d'enregistrement</h2>
+  {% if form_pers_categorie.non_form_errors %}
+  <div class="alert alert-danger">
+    {{ form_pers_categorie.non_form_errors }}
+  </div>
+  {% endif %}
+  <div class="form-row">
+    {% for field in form_pers_categorie %}
+    <div class="form-group col-md-4">
+      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+      {% render_field field class="form-control" placeholder=field.label %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn btn-cancel" id="cancelBtn">
+      <span class="emoji-icon">❌</span> Annuler
+    </button>
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-plus-circle"></i> Ajouter
+    </button>
+  </div>
+  <!--=========== Personnel's type -->
+  {% elif form_type == 'typersonnels' %}
+  <h2>Formulaire d'enregistrement</h2>
+  {% if form_pers_type.non_form_errors %}
+  <div class="alert alert-danger">
+    {{ form_pers_type.non_form_errors }}
+  </div>
+  {% endif %}
+  <div class="form-row">
+    {% for field in form_pers_type %}
+    <div class="form-group col-md-4">
+      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+      {% render_field field class="form-control" placeholder=field.label %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn btn-cancel" id="cancelBtn">
+      <span class="emoji-icon">❌</span> Annuler
+    </button>
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-plus-circle"></i> Ajouter
+    </button>
+  </div>
+  <!-- =====classes's form -->
+  {% elif form_type == 'classes' %}
+  <h2>Formulaire d'enregistrement</h2>
+  {% if class_form.non_form_errors %}
+  <div class="alert alert-danger">
+    {{ class_form.non_form_errors }}
+  </div>
+  {% endif %}
+  <div class="form-row">
+    {% for field in class_form %}
+    <div class="form-group col-md-4">
+      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+      {% render_field field class="form-control" placeholder=field.label %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn btn-cancel" id="cancelBtn">
+      <span class="emoji-icon">❌</span> Annuler
+    </button>
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-plus-circle"></i> Ajouter
+    </button>
+  </div>
+  <!-- =====classes's active form -->
+  {% elif form_type == 'classes_active' %}
+  <h2>Formulaire d'enregistrement</h2>
+  {% if class_active_form.non_form_errors %}
+  <div class="alert alert-danger">
+    {{ class_active_form.non_form_errors }}
+  </div>
+  {% endif %}
+  <div class="form-row">
+    {% for field in class_active_form %}
+    <div class="form-group col-md-4 {% if field.name == 'groupe' %}groupe-wrapper{% endif %}">
+      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+      {% render_field field class="form-control" placeholder=field.label %}
+    </div>
+    {% endfor %}
 
-  <!-- =================== Annee api service -->
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn btn-cancel" id="cancelBtn">
+      <span class="emoji-icon">❌</span> Annuler
+    </button>
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-plus-circle"></i> Ajouter
+    </button>
+  </div>
+  <!-- ===classes_cycle's form -->
+  {% elif form_type == 'classes_cycles' %}
+  <h2>Formulaire d'enregistrement</h2>
+  {% if class_cycle_form.non_form_errors %}
+  <div class="alert alert-danger">
+    {{ class_cycle_form.non_form_errors }}
+  </div>
+  {% endif %}
+  <div class="form-row">
+    {% for field in class_cycle_form %}
+    <div class="form-group col-md-4">
+      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+      {% render_field field class="form-control" placeholder=field.label %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn btn-cancel" id="cancelBtn">
+      <span class="emoji-icon">❌</span> Annuler
+    </button>
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-plus-circle"></i> Ajouter
+    </button>
+  </div>
+  <!-- ===classes_cycle's active form -->
+  {% elif form_type == 'classes_cycles_actif' %}
+  <h2>Formulaire d'enregistrement</h2>
+  {% if class_cycle_act_form.non_form_errors %}
+  <div class="alert alert-danger">
+    {{ class_cycle_act_form.non_form_errors }}
+  </div>
+  {% endif %}
+  <div class="form-row">
+    {% for field in class_cycle_act_form %}
+    <div class="form-group col-md-4">
+      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+      {% render_field field class="form-control" placeholder=field.label %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn btn-cancel" id="cancelBtn">
+      <span class="emoji-icon">❌</span> Annuler
+    </button>
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-plus-circle"></i> Ajouter
+    </button>
+  </div>
+  <!-- =========== Annees's form -->
+  {% elif form_type == 'annees' %}
+  <h2>Formulaire d'enregistrement</h2>
+  {% if annee_form.non_form_errors %}
+  <div class="alert alert-danger">
+    {{ annee_form.non_form_errors }}
+  </div>
+  {% endif %}
+  <div class="form-row">
+    {% for field in annee_form %}
+    <div class="form-group col-md-4">
+      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+      {% render_field field class="form-control" placeholder=field.label %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn btn-cancel" id="cancelBtn">
+      <span class="emoji-icon">❌</span> Annuler
+    </button>
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-plus-circle"></i> Ajouter
+    </button>
+  </div>
+  <!-- =====trim_classes'form  -->
+  {% elif form_type == 'trimestres_class' %}
+  <h2>Séléctionner pas à pas</h2>
+  {% if form_trimestre_class.non_form_errors %}
+  <div class="alert alert-danger">
+    {{ form_trimestre_class.non_form_errors }}
+  </div>
+  {% endif %}
+  <div class="form-row">
+    {% for field in form_trimestre_class %}
+    <div class="form-group col-md-4">
+      <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
+      {% render_field field class="form-control" placeholder=field.label %}
+      <input type="hidden" id="id_campus" value="{{ id_campus }}">
+    </div>
+    {% endfor %}
+  </div>
+  <div style="display: none;" class="form-actions">
+    <button type="button" class="btn btn-continue" id="cancelBtn">
+      <span class="emoji-icon">➡️</span>
+    </button>
+  </div>
+  <!-- =====periode_classes'form  -->
+  {% elif form_type == 'periodes_class' %}
+  <h2>Séléctionner pas à pas</h2>
+  {% if form_periode.non_form_errors %}
+  <div class="alert alert-danger">
+    {{ form_periode.non_form_errors }}
+  </div>
+  {% endif %}
+  <div class="form-row">
+    {% for field in form_periode %}
+    <div class="form-group col-md-4">
+      <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
+      {% render_field field class="form-control" placeholder=field.label %}
+      <input type="hidden" id="id_campus" value="{{ id_campus }}">
+    </div>
+    {% endfor %}
+  </div>
+  <div style="display: none;" class="form-actions">
+    <button type="button" class="btn btn-continue" id="cancelBtn">
+      <span class="emoji-icon">➡️</span>
+    </button>
+  </div>
 
-  <!-- =================== user_personnal status api service-->
+  <!-- ========= Periode's form -->
+  {% elif form_type == 'periodes' %}
+  <h2>Formulaire d'enregistrement</h2>
+  {% if periode_form.non_form_errors %}
+  <div class="alert alert-danger">
+    {{ periode_form.non_form_errors }}
+  </div>
+  {% endif %}
+  <div style="display: none;" class="form-group col-md-4">
+    <label for="id_trimestre">Trimestre</label>
+    <select id="id_trimestre" name="id_trimestre" class="form-control">
+      {% for trimestre in trimestres %}
+      <option value="{{ trimestre.id_trimestre }}" data-debut="{{ trimestre.date_ouverture }}"
+        data-fin="{{ trimestre.date_cloture }}">
+        {{ trimestre.trimestre }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-row">
+    {% for field in periode_form %}
+    <div class="form-group col-md-4">
+      <label for="{{ field.id_for_label }}" class="form-label hidden-label">{{ field.label }}</label>
+      {% render_field field class="form-control" placeholder=field.label %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn btn-cancel" id="cancelBtn">
+      <span class="emoji-icon">❌</span> Annuler
+    </button>
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-plus-circle"></i> Ajouter
+    </button>
+  </div>
+  <!--======== Trimestre's form-->
+  {% elif form_type == 'trimestres' %}
+  <h2>Formulaire d'enregistrement</h2>
+  {% if trimestre_form.non_form_errors %}
+  <div class="alert alert-danger">
+    {{ trimestre_form.non_form_errors }}
+  </div>
+  {% endif %}
+  <div class="form-row">
+    {% for field in trimestre_form %}
+    <div class="form-group col-md-4">
+      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+      {% render_field field class="form-control" placeholder=field.label %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn btn-cancel" id="cancelBtn">
+      <span class="emoji-icon">❌</span> Annuler
+    </button>
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-plus-circle"></i> Ajouter
+    </button>
+  </div>
+  {% else %}
+  <div class="form-actions">
+    <h2>Opération sans formulaire</h2>
+    <button style="margin-right: 20px;" type="button" class="btn btn-cancel" id="cancelBtn">
+      <span class="emoji-icon">❌</span> Quitter
+    </button>
+  </div>
+  {% endif %}
+  </form>
+</div>
 
-  <!-- =================== cycles's active in drop down api service -->
+</div>
+<!--=================== SECTION POUR L'AFFICHAGE! -->
+{% include 'parametrage/display_section.html' %}
+{% include 'parametrage/_js_section.html' %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="{% static 'js/main.js' %}"></script>
+<script src="{% static 'js/modal.js' %}"></script>
+<!-- =================== Campus api service -->
 
-  <!-- ================== modules_creation by your own url api service -->
+<!--==================== Classe  api service-->
 
-  <!-- =================== trimestre api service: -->
+<!--==================== Cycle api service -->
+
+<!-- =================== Annee api service -->
+
+<!-- =================== user_personnal status api service-->
+
+<!-- =================== cycles's active in drop down api service -->
+
+<!-- ================== modules_creation by your own url api service -->
+
+<!-- =================== trimestre api service: -->
 
 
-  <!-- avec date debut fin  -->
+<!-- avec date debut fin  -->
 
-  <!-- =================== periode api service: -->
+<!-- =================== periode api service: -->
 
 
 
-  <!--  -->
-  <!-- ================== Annuler Edition personnel button -->
+<!--  -->
+<!-- ================== Annuler Edition personnel button -->
 
-  <!-- ================== cycle_actifs_api -->
+<!-- ================== cycle_actifs_api -->
 
-  <!-- ================== classe_active_api -->
+<!-- ================== classe_active_api -->
 
-  <!-- ================== trimestre create:automatized date fields -->
+<!-- ================== trimestre create:automatized date fields -->
 
-  <!-- ================== trimestre annee trimestre-->
-</div><!-- /workspace-body-scroll -->
-</div><!-- /workspace -->
+<!-- ================== trimestre annee trimestre-->
 {% endblock %}
 
 {% block page_js %}

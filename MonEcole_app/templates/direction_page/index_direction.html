@@ -4,6 +4,10 @@
 
 {% block title %}Direction{% endblock %}
 
+{% block current_module_name %}Direction{% endblock %}
+{% block page_indicator %}<i class="fas fa-home" style="color:#94a3b8;font-size:0.82rem;margin-right:6px;"></i>
+Direction{% endblock %}
+
 {% block page_css %}
 <style>
     .hidden {
@@ -181,21 +185,74 @@
 </style>
 {% endblock %}
 
-{% block page_content %}
+{# ===== SIDEBAR: Glass Cards ===== #}
+{% block sidebar_items %}
+<div class="nav-item active" data-section="inscription" onclick="switchSection('inscription')" title="Inscriptions">
+    <i class="fas fa-user-plus text-blue"></i>
+    <span class="text-center">Inscriptions</span>
+</div>
+<div class="nav-item" data-section="recouvrement" onclick="switchSection('recouvrement')" title="Recouvrement">
+    <i class="fas fa-hand-holding-usd text-green"></i>
+    <span class="text-center">Recouvrement</span>
+</div>
+<div class="nav-item" data-section="evaluation" onclick="switchSection('evaluation')" title="Évaluation">
+    <i class="fas fa-clipboard-check text-purple"></i>
+    <span class="text-center">Évaluation</span>
+</div>
+<div class="nav-item" data-section="enseignement" onclick="switchSection('enseignement')" title="Enseignement">
+    <i class="fas fa-chalkboard-teacher text-orange"></i>
+    <span class="text-center">Enseignement</span>
+</div>
+{% endblock %}
+
+{# ===== TAB BAR ===== #}
+{% block tab_bar %}
+<div class="tab-bar">
+    <div class="tab-link active" id="tab-stats" onclick="switchTab('stats')">
+        <i class="fas fa-chart-bar"></i> Statistiques
+    </div>
+    <div class="tab-link" id="tab-charts" onclick="switchTab('charts')">
+        <i class="fas fa-chart-pie"></i> Graphiques
+    </div>
+</div>
+{% endblock %}
+
+{# ===== PALETTE: Stats cards ===== #}
+{% block palette %}
+<div class="stats-palette" id="stats-palette">
+    <div class="stat-card gradient-blue">
+        <div class="stat-icon"><i class="fas fa-users"></i></div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-total-dir">0</div>
+            <div class="stat-label">Inscrits</div>
+        </div>
+    </div>
+    <div class="stat-card gradient-purple">
+        <div class="stat-icon"><i class="fas fa-venus"></i></div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-filles-dir">0</div>
+            <div class="stat-label">Filles</div>
+        </div>
+    </div>
+    <div class="stat-card gradient-teal">
+        <div class="stat-icon"><i class="fas fa-mars"></i></div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-garcons-dir">0</div>
+            <div class="stat-label">Garçons</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{# ===== WORKSPACE ===== #}
+{% block workspace %}
 <div id="ajax-message" class="container mt-3"></div>
 
 <div id="dashboard_direction" class="table-container">
-    <select id="select">
-        <option value="">-----------------</option>
-        <option value="inscription">Inscription</option>
-        <option style="display: none;" value="recouvrement">Recouvrement</option>
-        <option style="display: none;" value="evaluation">Evaluation</option>
-        <option style="display: none;" value="enseignement">Enseignement</option>
-    </select>
 
     <div style="background-color: #f5f7fa; max-height: 650px; overflow-y: auto;" class="direction-card">
         <!-- Section Inscriptions -->
-        <div id="inscription" class="dashboard-section">
+        <div id="inscription" class="dashboard-section active">
             <h2>📊 Inscriptions</h2>
             <div class="chart-filters">
                 <div class="chart-filters">
@@ -377,15 +434,18 @@
 <script src="{% static 'js/modal.js' %}"></script>
 
 <script>
-    document.getElementById('select').addEventListener('change', function () {
-        const selectedValue = this.value;
-        document.querySelectorAll('.dashboard-section').forEach(section => {
-            section.classList.remove('active');
-        });
-        if (selectedValue) {
-            document.getElementById(selectedValue).classList.add('active');
-        }
-    });
+    function switchSection(sectionName) {
+        document.querySelectorAll('.dashboard-section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.nav-item[data-section]').forEach(i => i.classList.remove('active'));
+        var section = document.getElementById(sectionName);
+        if (section) section.classList.add('active');
+        var item = document.querySelector('[data-section="' + sectionName + '"]');
+        if (item) item.classList.add('active');
+    }
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-link').forEach(t => t.classList.remove('active'));
+        document.getElementById('tab-' + tab)?.classList.add('active');
+    }
 
     document.querySelectorAll('.filter-select').forEach(select => {
         select.addEventListener('change', function () {
