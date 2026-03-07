@@ -2,242 +2,192 @@
 {% load static %}
 {% load widget_tweaks %}
 
-{% block title %}Paramétrage{% endblock %}
+{% block title %}Administration{% endblock %}
+
+{% block current_module_name %}Administration{% endblock %}
+{% block page_indicator %}<i class="fas fa-cog" style="color:#94a3b8;font-size:0.82rem;margin-right:6px;"></i>
+Administration{% endblock %}
 
 {% block page_css %}
 <style>
-  /* Tab-specific highlight colors */
-  .module-tab[data-tab="presentation"].active {
-    background: linear-gradient(135deg, #1d4ed8, #60a5fa);
+  /* Keep existing form styles from parametrage */
+  .form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 10px;
   }
 
-  .module-tab[data-tab="structure"].active {
-    background: linear-gradient(135deg, #ea580c, #fb923c);
+  .form-group {
+    flex: 1;
+    min-width: 200px;
   }
 
-  .module-tab[data-tab="activation"].active {
-    background: linear-gradient(135deg, #7c3aed, #a78bfa);
+  .form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    align-items: center;
   }
 
-  .module-tab[data-tab="personnel"].active {
-    background: linear-gradient(135deg, #0d9488, #2dd4bf);
+  .form-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 4px;
+    display: block;
   }
 
-  .module-tab[data-tab="droits"].active {
-    background: linear-gradient(135deg, #db2777, #f472b6);
+  .hidden-label {
+    display: none;
+  }
+
+  .btn-cancel {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+
+  .btn-cancel:hover {
+    background: #e2e8f0;
+  }
+
+  h2 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 1rem;
   }
 </style>
 {% endblock %}
 
+{# ===== SIDEBAR: Glass Cards (was: horizontal tabs) ===== #}
+{% block sidebar_items %}
+<a href="{% url 'create_module' %}"
+  class="nav-item {% if form_type == 'modules' or form_type == 'institution' or form_type == 'campus' or form_type == 'classes_cycles' or form_type == 'classes' %}active{% endif %}"
+  title="Présentation école">
+  <i class="fas fa-school text-blue"></i>
+  <span class="text-center">Présentation<br>école</span>
+</a>
+<a href="{% url 'create_annees' %}"
+  class="nav-item {% if form_type == 'annees' or form_type == 'trimestres' or form_type == 'periodes' %}active{% endif %}"
+  title="Structure scolaire">
+  <i class="fas fa-sitemap text-orange"></i>
+  <span class="text-center">Structure<br>scolaire</span>
+</a>
+<a href="{% url 'create_classes_cycle_active' %}"
+  class="nav-item {% if form_type == 'classes_cycles_actif' or form_type == 'classes_active' or form_type == 'trimestres_class' or form_type == 'periodes_class' %}active{% endif %}"
+  title="Activation annuelle">
+  <i class="fas fa-cog text-purple"></i>
+  <span class="text-center">Activation<br>annuelle</span>
+</a>
+<a href="{% url 'ajouter_diplome' %}"
+  class="nav-item {% if form_type == 'diplomes' or form_type == 'specialites' or form_type == 'categories' or form_type == 'vacations' or form_type == 'typersonnels' or form_type == 'personnels' %}active{% endif %}"
+  title="Gestion personnel">
+  <i class="fas fa-users text-teal"></i>
+  <span class="text-center">Gestion<br>personnel</span>
+</a>
+<a href="{% url 'acces_personnel' %}"
+  class="nav-item {% if form_type == 'modules_access' or form_type == 'modules_assigner' or form_type == 'vacations_user' %}active{% endif %}"
+  title="Droit d'accès">
+  <i class="fas fa-key text-pink"></i>
+  <span class="text-center">Droit<br>d'accès</span>
+</a>
+{% endblock %}
+
+{# ===== TAB BAR: Sub-menus (was: palette cards) ===== #}
+{% block tab_bar %}
+<div class="tab-bar">
+  {% if form_type == 'modules' or form_type == 'institution' or form_type == 'campus' or form_type == 'classes_cycles'
+  or form_type == 'classes' %}
+  <a href="{% url 'create_module' %}" class="tab-link {% if form_type == 'modules' %}active{% endif %}">
+    <i class="fas fa-puzzle-piece"></i> Modules
+  </a>
+  <a href="{% url 'create_institution' %}" class="tab-link {% if form_type == 'institution' %}active{% endif %}">
+    <i class="fas fa-building"></i> École
+  </a>
+  <a href="{% url 'create_campus' %}" class="tab-link {% if form_type == 'campus' %}active{% endif %}">
+    <i class="fas fa-map-marker-alt"></i> Campus
+  </a>
+  <a href="{% url 'create_classes_cycle' %}" class="tab-link {% if form_type == 'classes_cycles' %}active{% endif %}">
+    <i class="fas fa-sync-alt"></i> Cycle
+  </a>
+  <a href="{% url 'create_classes' %}" class="tab-link {% if form_type == 'classes' %}active{% endif %}">
+    <i class="fas fa-chalkboard"></i> Classes
+  </a>
+  {% elif form_type == 'annees' or form_type == 'trimestres' or form_type == 'periodes' %}
+  <a href="{% url 'create_annees' %}" class="tab-link {% if form_type == 'annees' %}active{% endif %}">
+    <i class="fas fa-calendar-alt"></i> Année scolaire
+  </a>
+  <a href="{% url 'create_trimestre' %}" class="tab-link {% if form_type == 'trimestres' %}active{% endif %}">
+    <i class="fas fa-calendar-week"></i> Trimestre
+  </a>
+  <a href="{% url 'create_periode' %}" class="tab-link {% if form_type == 'periodes' %}active{% endif %}">
+    <i class="fas fa-stopwatch"></i> Période
+  </a>
+  {% elif form_type == 'classes_cycles_actif' or form_type == 'classes_active' or form_type == 'trimestres_class' or
+  form_type == 'periodes_class' %}
+  <a href="{% url 'create_classes_cycle_active' %}"
+    class="tab-link {% if form_type == 'classes_cycles_actif' %}active{% endif %}">
+    <i class="fas fa-sync-alt"></i> Cycle(s) actif(s)
+  </a>
+  <a href="{% url 'create_classes_active' %}" class="tab-link {% if form_type == 'classes_active' %}active{% endif %}">
+    <i class="fas fa-chalkboard"></i> Classe(s) active(s)
+  </a>
+  <a href="{% url 'create_trimestre_annee' %}"
+    class="tab-link {% if form_type == 'trimestres_class' %}active{% endif %}">
+    <i class="fas fa-calendar-week"></i> Trimestre / Classe
+  </a>
+  <a href="{% url 'create_annee_periode' %}" class="tab-link {% if form_type == 'periodes_class' %}active{% endif %}">
+    <i class="fas fa-stopwatch"></i> Période / Classe
+  </a>
+  {% elif form_type == 'diplomes' or form_type == 'specialites' or form_type == 'categories' or form_type == 'vacations'
+  or form_type == 'typersonnels' or form_type == 'personnels' %}
+  <a href="{% url 'ajouter_diplome' %}" class="tab-link {% if form_type == 'diplomes' %}active{% endif %}">
+    <i class="fas fa-graduation-cap"></i> Diplôme
+  </a>
+  <a href="{% url 'ajouter_specialite' %}" class="tab-link {% if form_type == 'specialites' %}active{% endif %}">
+    <i class="fas fa-tools"></i> Spécialité
+  </a>
+  <a href="{% url 'ajouter_personnel_categorie' %}"
+    class="tab-link {% if form_type == 'categories' %}active{% endif %}">
+    <i class="fas fa-tags"></i> Catégorie
+  </a>
+  <a href="{% url 'ajouter_vacation' %}" class="tab-link {% if form_type == 'vacations' %}active{% endif %}">
+    <i class="fas fa-calendar-day"></i> Vacation
+  </a>
+  <a href="{% url 'ajouter_type_personnel' %}" class="tab-link {% if form_type == 'typersonnels' %}active{% endif %}">
+    <i class="fas fa-bookmark"></i> Type personnel
+  </a>
+  <a href="{% url 'ajouter_personnel' %}" class="tab-link {% if form_type == 'personnels' %}active{% endif %}">
+    <i class="fas fa-id-card"></i> Infos personnel
+  </a>
+  {% elif form_type == 'modules_access' or form_type == 'modules_assigner' or form_type == 'vacations_user' %}
+  <a href="{% url 'acces_personnel' %}" class="tab-link {% if form_type == 'modules_access' %}active{% endif %}">
+    <i class="fas fa-folder-open"></i> Accès au SI
+  </a>
+  <a href="{% url 'assigner_module' %}" class="tab-link {% if form_type == 'modules_assigner' %}active{% endif %}">
+    <i class="fas fa-puzzle-piece"></i> Modules access
+  </a>
+  <a href="{% url 'classe_active_responsable_form' %}"
+    class="tab-link {% if form_type == 'vacations_user' %}active{% endif %}">
+    <i class="fas fa-chalkboard-teacher"></i> Designer titulaire
+  </a>
+  <a href="{% url 'refus_user' %}" class="tab-link">
+    <i class="fas fa-ban"></i> Refus d'accès
+  </a>
+  {% endif %}
+</div>
+{% endblock %}
+
+{# ===== WORKSPACE: Forms + Data Display (100% of remaining space) ===== #}
 {% block page_content %}
-<!-- ===== MODULE TABS ===== -->
-<div class="module-tabs">
-  <button
-    class="module-tab {% if form_type == 'modules' or form_type == 'institution' or form_type == 'campus' or form_type == 'classes_cycles' or form_type == 'classes' %}active{% endif %}"
-    data-tab="presentation" onclick="switchTab('presentation')">
-    <i class="fas fa-school"></i> Présentation école
-  </button>
-  <button
-    class="module-tab {% if form_type == 'annees' or form_type == 'trimestres' or form_type == 'periodes' %}active{% endif %}"
-    data-tab="structure" onclick="switchTab('structure')">
-    <i class="fas fa-sitemap"></i> Structure scolaire
-  </button>
-  <button
-    class="module-tab {% if form_type == 'classes_cycles_actif' or form_type == 'classes_active' or form_type == 'trimestres_class' or form_type == 'periodes_class' %}active{% endif %}"
-    data-tab="activation" onclick="switchTab('activation')">
-    <i class="fas fa-cog"></i> Activation annuelle
-  </button>
-  <button
-    class="module-tab {% if form_type == 'diplomes' or form_type == 'specialites' or form_type == 'categories' or form_type == 'vacations' or form_type == 'typersonnels' or form_type == 'personnels' %}active{% endif %}"
-    data-tab="personnel" onclick="switchTab('personnel')">
-    <i class="fas fa-users"></i> Gestion personnel
-  </button>
-  <button
-    class="module-tab {% if form_type == 'modules_access' or form_type == 'modules_assigner' or form_type == 'vacations_user' %}active{% endif %}"
-    data-tab="droits" onclick="switchTab('droits')">
-    <i class="fas fa-key"></i> Droit d'accès
-  </button>
-</div>
-
-<!-- ===== PALETTE CONTAINER (sub-items as cards) ===== -->
-<!-- Panel: Présentation école -->
-<div id="panel-presentation" class="tab-panel"
-  style="{% if form_type == 'modules' or form_type == 'institution' or form_type == 'campus' or form_type == 'classes_cycles' or form_type == 'classes' %}display:block{% else %}display:none{% endif %}">
-  <div class="palette-container">
-    <a href="{% url 'create_module' %}" class="palette-card {% if form_type == 'modules' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-blue"><i class="fas fa-puzzle-piece"></i></div>
-      <div class="pc-label">Modules</div>
-      <div class="pc-value">🧩</div>
-    </a>
-    <a href="{% url 'create_institution' %}" class="palette-card {% if form_type == 'institution' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-teal"><i class="fas fa-building"></i></div>
-      <div class="pc-label">Ecole</div>
-      <div class="pc-value">🏢</div>
-    </a>
-    <a href="{% url 'create_campus' %}" class="palette-card {% if form_type == 'campus' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-orange"><i class="fas fa-map-marker-alt"></i></div>
-      <div class="pc-label">Campus</div>
-      <div class="pc-value">📍</div>
-    </a>
-    <a href="{% url 'create_classes_cycle' %}"
-      class="palette-card {% if form_type == 'classes_cycles' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-purple"><i class="fas fa-sync-alt"></i></div>
-      <div class="pc-label">Cycle</div>
-      <div class="pc-value">🔄</div>
-    </a>
-    <a href="{% url 'create_classes' %}" class="palette-card {% if form_type == 'classes' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-emerald"><i class="fas fa-chalkboard"></i></div>
-      <div class="pc-label">Classes</div>
-      <div class="pc-value">🏫</div>
-    </a>
-  </div>
-</div>
-
-<!-- Panel: Structure scolaire -->
-<div id="panel-structure" class="tab-panel"
-  style="{% if form_type == 'annees' or form_type == 'trimestres' or form_type == 'periodes' %}display:block{% else %}display:none{% endif %}">
-  <div class="palette-container">
-    <a href="{% url 'create_annees' %}" class="palette-card {% if form_type == 'annees' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-orange"><i class="fas fa-calendar-alt"></i></div>
-      <div class="pc-label">Année scolaire</div>
-      <div class="pc-value">📅</div>
-    </a>
-    <a href="{% url 'create_trimestre' %}" class="palette-card {% if form_type == 'trimestres' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-blue"><i class="fas fa-calendar-week"></i></div>
-      <div class="pc-label">Trimestre</div>
-      <div class="pc-value">🗓️</div>
-    </a>
-    <a href="{% url 'create_periode' %}" class="palette-card {% if form_type == 'periodes' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-teal"><i class="fas fa-stopwatch"></i></div>
-      <div class="pc-label">Période</div>
-      <div class="pc-value">⏱️</div>
-    </a>
-  </div>
-</div>
-
-<!-- Panel: Activation annuelle -->
-<div id="panel-activation" class="tab-panel"
-  style="{% if form_type == 'classes_cycles_actif' or form_type == 'classes_active' or form_type == 'trimestres_class' or form_type == 'periodes_class' %}display:block{% else %}display:none{% endif %}">
-  <div class="palette-container">
-    <a href="{% url 'create_classes_cycle_active' %}"
-      class="palette-card {% if form_type == 'classes_cycles_actif' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-purple"><i class="fas fa-sync-alt"></i></div>
-      <div class="pc-label">Cycle(s) actif(s)</div>
-      <div class="pc-value">🔄</div>
-    </a>
-    <a href="{% url 'create_classes_active' %}"
-      class="palette-card {% if form_type == 'classes_active' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-emerald"><i class="fas fa-chalkboard"></i></div>
-      <div class="pc-label">Classe(s) active(s)</div>
-      <div class="pc-value">🏫</div>
-    </a>
-    <a href="{% url 'create_trimestre_annee' %}"
-      class="palette-card {% if form_type == 'trimestres_class' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-blue"><i class="fas fa-calendar-week"></i></div>
-      <div class="pc-label">Trimestre / Classe</div>
-      <div class="pc-value">🗓️</div>
-    </a>
-    <a href="{% url 'create_annee_periode' %}"
-      class="palette-card {% if form_type == 'periodes_class' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-orange"><i class="fas fa-stopwatch"></i></div>
-      <div class="pc-label">Période / classe</div>
-      <div class="pc-value">⏱️</div>
-    </a>
-  </div>
-</div>
-
-<!-- Panel: Gestion personnel -->
-<div id="panel-personnel" class="tab-panel"
-  style="{% if form_type == 'diplomes' or form_type == 'specialites' or form_type == 'categories' or form_type == 'vacations' or form_type == 'typersonnels' or form_type == 'personnels' %}display:block{% else %}display:none{% endif %}">
-  <div class="palette-container">
-    <a href="{% url 'ajouter_diplome' %}" class="palette-card {% if form_type == 'diplomes' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-teal"><i class="fas fa-graduation-cap"></i></div>
-      <div class="pc-label">Diplôme</div>
-      <div class="pc-value">🎓</div>
-    </a>
-    <a href="{% url 'ajouter_specialite' %}" class="palette-card {% if form_type == 'specialites' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-orange"><i class="fas fa-tools"></i></div>
-      <div class="pc-label">Spécialité</div>
-      <div class="pc-value">🛠️</div>
-    </a>
-    <a href="{% url 'ajouter_personnel_categorie' %}"
-      class="palette-card {% if form_type == 'categories' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-purple"><i class="fas fa-tags"></i></div>
-      <div class="pc-label">Catégorie</div>
-      <div class="pc-value">🏷️</div>
-    </a>
-    <a href="{% url 'ajouter_vacation' %}" class="palette-card {% if form_type == 'vacations' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-blue"><i class="fas fa-calendar-day"></i></div>
-      <div class="pc-label">Vacation</div>
-      <div class="pc-value">📆</div>
-    </a>
-    <a href="{% url 'ajouter_type_personnel' %}"
-      class="palette-card {% if form_type == 'typersonnels' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-pink"><i class="fas fa-bookmark"></i></div>
-      <div class="pc-label">Type personnel</div>
-      <div class="pc-value">🔖</div>
-    </a>
-    <a href="{% url 'ajouter_personnel' %}" class="palette-card {% if form_type == 'personnels' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-emerald"><i class="fas fa-id-card"></i></div>
-      <div class="pc-label">Infos personnel</div>
-      <div class="pc-value">🆔</div>
-    </a>
-  </div>
-</div>
-
-<!-- Panel: Droit d'accès -->
-<div id="panel-droits" class="tab-panel"
-  style="{% if form_type == 'modules_access' or form_type == 'modules_assigner' or form_type == 'vacations_user' %}display:block{% else %}display:none{% endif %}">
-  <div class="palette-container">
-    <a href="{% url 'acces_personnel' %}" class="palette-card {% if form_type == 'modules_access' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-pink"><i class="fas fa-folder-open"></i></div>
-      <div class="pc-label">Accès au SI</div>
-      <div class="pc-value">📂</div>
-    </a>
-    <a href="{% url 'assigner_module' %}" class="palette-card {% if form_type == 'modules_assigner' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-purple"><i class="fas fa-puzzle-piece"></i></div>
-      <div class="pc-label">Modules access</div>
-      <div class="pc-value">🧩</div>
-    </a>
-    <a href="{% url 'classe_active_responsable_form' %}"
-      class="palette-card {% if form_type == 'vacations_user' %}active{% endif %}"
-      style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-teal"><i class="fas fa-chalkboard-teacher"></i></div>
-      <div class="pc-label">Designer titulaire</div>
-      <div class="pc-value">👨‍🏫</div>
-    </a>
-    <a href="{% url 'refus_user' %}" class="palette-card" style="text-decoration:none; color:inherit;">
-      <div class="pc-icon grad-orange"><i class="fas fa-ban"></i></div>
-      <div class="pc-label">Refus d'accès</div>
-      <div class="pc-value">🚫</div>
-    </a>
-  </div>
-</div>
-
-<!-- ===== WORKSPACE (form + data display) ===== -->
-<div class="workspace">
-  <div class="main-content">
-
+<div class="workspace" style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+  <div class="workspace-body-scroll" style="flex:1; overflow-y:auto; padding: 1.25rem;">
     <div id="modalContainer" class="modal">
       <div class="modal-content">
         <span style="display: none;" class="close-btn">&times;</span>
@@ -843,7 +793,7 @@
   <!-- ================== trimestre create:automatized date fields -->
 
   <!-- ================== trimestre annee trimestre-->
-</div><!-- /main-content -->
+</div><!-- /workspace-body-scroll -->
 </div><!-- /workspace -->
 {% endblock %}
 
