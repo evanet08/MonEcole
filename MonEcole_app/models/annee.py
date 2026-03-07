@@ -25,6 +25,7 @@ class Annee(models.Model):
      
     class Meta:
         db_table = "annee"  
+        managed = False
         verbose_name = "Année_scolaire"
 
     def __str__(self):
@@ -49,6 +50,7 @@ class Annee_periode(models.Model):
     
     class Meta:
         db_table = "annee_periode"  
+        managed = False
         verbose_name = "Période_AnnéeScolaire"
 
     def __str__(self):
@@ -72,6 +74,7 @@ class Annee_trimestre(models.Model):
 
     class Meta:
         db_table = "annee_trimestre" 
+        managed = False
         verbose_name = "Trimestre_AnnéeScolaire"
 
     def __str__(self):

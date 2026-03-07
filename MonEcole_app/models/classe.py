@@ -51,6 +51,7 @@ class Classe_active(models.Model):
     
     class Meta:
         db_table = "classe_active" 
+        managed = False
         verbose_name = "Classe Active"
         # verbose_name_plural = "Classes Actives"
 
@@ -70,6 +71,7 @@ class Classe_cycle_actif(models.Model):
     
     class Meta:
         db_table = "classe_cycle_actif"  
+        managed = False
         verbose_name = "Cycle Actif"
         # verbose_name_plural = "Cycles Actifs"
         
