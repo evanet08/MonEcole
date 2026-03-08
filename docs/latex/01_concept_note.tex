@@ -1,0 +1,842 @@
+% ============================================================
+% DOCUMENT 1 : CONCEPT NOTE — eSchool Ecosystem
+% Titre : "eSchool Ecosystem : Vision et Stratégie"
+% Public : Décideurs, investisseurs, partenaires éducatifs
+% ============================================================
+\documentclass[12pt,a4paper,oneside]{report}
+
+% --- Encodage et langue ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+
+% --- Mise en page ---
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{parskip}
+\usepackage{fancyhdr}
+
+% --- Graphiques et couleurs ---
+\usepackage{graphicx}
+\usepackage[dvipsnames,svgnames,x11names]{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit, backgrounds, shadows, decorations.pathmorphing}
+
+% --- Tableaux ---
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{array}
+
+% --- Code et listings ---
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{gray!8},
+  frame=single,
+  rulecolor=\color{gray!30},
+  breaklines=true,
+  captionpos=b,
+  tabsize=2
+}
+
+% --- Boîtes colorées ---
+\usepackage[most]{tcolorbox}
+\newtcolorbox{infobox}[1][]{colback=blue!5,colframe=blue!50!black,fonttitle=\bfseries,title=#1}
+\newtcolorbox{warnbox}[1][]{colback=orange!5,colframe=orange!70!black,fonttitle=\bfseries,title=#1}
+\newtcolorbox{successbox}[1][]{colback=green!5,colframe=green!50!black,fonttitle=\bfseries,title=#1}
+\newtcolorbox{conceptbox}[1][]{colback=purple!5,colframe=purple!50!black,fonttitle=\bfseries,title=#1}
+
+% --- Hyperliens ---
+\usepackage[colorlinks=true,linkcolor=blue!60!black,urlcolor=blue!50!black,citecolor=green!50!black]{hyperref}
+\usepackage{bookmark}
+
+% --- En-têtes et pieds de page ---
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\leftmark}
+\fancyhead[R]{\small eSchool Ecosystem}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% --- Couleurs personnalisées ---
+\definecolor{eschoolblue}{HTML}{2563EB}
+\definecolor{eschoolpurple}{HTML}{7C3AED}
+\definecolor{eschoolteal}{HTML}{0D9488}
+\definecolor{eschoolamber}{HTML}{D97706}
+\definecolor{hubcolor}{HTML}{3B82F6}
+\definecolor{spokecolor}{HTML}{10B981}
+\definecolor{arrowcolor}{HTML}{6366F1}
+
+% ============================================================
+\begin{document}
+
+% --- PAGE DE COUVERTURE ---
+\begin{titlepage}
+\begin{tikzpicture}[remember picture, overlay]
+  % Fond gradient
+  \fill[left color=eschoolblue, right color=eschoolpurple] 
+    (current page.south west) rectangle (current page.north east);
+  % Cercles décoratifs
+  \foreach \x/\y/\r/\o in {3/24/4/0.08, 16/20/3/0.06, 5/6/5/0.05, 18/8/2.5/0.1} {
+    \fill[white, opacity=\o] (\x,\y) circle (\r);
+  }
+  % Bande blanche en bas
+  \fill[white, opacity=0.95] 
+    ([yshift=6cm]current page.south west) rectangle (current page.south east);
+\end{tikzpicture}
+
+\vspace*{4cm}
+\begin{center}
+  {\Huge\bfseries\color{white} eSchool Ecosystem}\\[0.8cm]
+  {\LARGE\color{white!90} Vision et Stratégie}\\[0.5cm]
+  {\Large\color{white!80} Concept Note}\\[3cm]
+  \rule{8cm}{0.5pt}\\[0.5cm]
+  {\large\color{white!85} Plateforme Intégrée de Gestion}\\
+  {\large\color{white!85} de l'Éducation en Afrique de l'Est}\\[4cm]
+\end{center}
+\begin{center}
+  {\normalsize\color{gray!80} Version 1.0 — Mars 2026}\\[0.3cm]
+  {\normalsize\color{gray!80} Projet eSchool / MonEcole — evanet08}\\[0.3cm]
+  {\normalsize\color{gray!80} \texttt{https://eschool-rdc.pro}}
+\end{center}
+\end{titlepage}
+
+% --- TABLE DES MATIÈRES ---
+\tableofcontents
+\newpage
+
+% ============================================================
+% CHAPITRE 1 : RÉSUMÉ EXÉCUTIF
+% ============================================================
+\chapter{Résumé Exécutif}
+
+\section{Vision}
+
+L'écosystème \textbf{eSchool} est une plateforme numérique intégrée conçue pour transformer la gestion éducative en Afrique de l'Est et Centrale. Face à la fragmentation des outils existants et à l'absence de standards numériques unifié, eSchool propose une architecture \textbf{Hub-and-Spoke} qui sépare intelligemment la gouvernance nationale de la gestion opérationnelle scolaire.
+
+\begin{conceptbox}[Proposition de Valeur]
+\textbf{Un ministère structure, mille écoles exécutent.} \\
+eSchool offre une solution à \textbf{deux niveaux} : un hub centralisé (\texttt{eSchoolStructure}) pour les standards nationaux, et des instances décentralisées (\texttt{MonEcole}) pour chaque établissement scolaire, le tout synchronisé en temps réel via des vues MySQL cross-bases.
+\end{conceptbox}
+
+\section{Les Deux Plateformes}
+
+\begin{center}
+\begin{tikzpicture}[
+  block/.style={rectangle, rounded corners=8pt, draw, text width=6cm, minimum height=3cm, align=center, font=\small, drop shadow},
+  arrow/.style={-{Stealth[length=8pt]}, thick, arrowcolor}
+]
+  % Hub
+  \node[block, fill=hubcolor!15, draw=hubcolor!60] (hub) {
+    \textbf{\large eSchool Structure}\\[4pt]
+    \textcolor{hubcolor}{\textbf{Hub National}}\\[6pt]
+    Pays $\bullet$ Cycles $\bullet$ Classes\\
+    Cours $\bullet$ Sections $\bullet$ Domaines\\
+    Établissements $\bullet$ Années\\
+    Trimestres $\bullet$ Périodes $\bullet$ Mentions\\
+    Gestion des Utilisateurs
+  };
+  
+  % Spoke
+  \node[block, fill=spokecolor!15, draw=spokecolor!60, right=3cm of hub] (spoke) {
+    \textbf{\large MonEcole}\\[4pt]
+    \textcolor{spokecolor}{\textbf{Spoke — École}}\\[6pt]
+    Inscriptions $\bullet$ Évaluations\\
+    Notes $\bullet$ Délibérations\\
+    Bulletins PDF $\bullet$ Personnel\\
+    Recouvrement $\bullet$ Horaires\\
+    Bibliothèque
+  };
+  
+  % Flèches bidirectionnelles
+  \draw[arrow] ([yshift=8pt]hub.east) -- ([yshift=8pt]spoke.west) 
+    node[midway, above, font=\scriptsize\itshape] {Données de référence};
+  \draw[arrow] ([yshift=-8pt]spoke.west) -- ([yshift=-8pt]hub.east) 
+    node[midway, below, font=\scriptsize\itshape] {Rapports agrégés};
+\end{tikzpicture}
+\end{center}
+
+\section{Chiffres Clés}
+
+\begin{center}
+\begin{tabular}{>{\bfseries}l r}
+\toprule
+Indicateur & Valeur \\
+\midrule
+Pays supportés & 11 (Afrique de l'Est) \\
+Modèles Django (Hub) & 25+ \\
+Modèles Django (Spoke) & 30+ \\
+Endpoints API & 80+ \\
+Niveaux hiérarchiques & Dynamiques (0 à N+1) \\
+Bases de données & 2+ (Hub + Spokes) \\
+Formats de bulletin & 3 (Primaire, Secondaire, Supérieur) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+% ============================================================
+% CHAPITRE 2 : CONTEXTE ET PROBLÉMATIQUE
+% ============================================================
+\chapter{Contexte et Problématique}
+
+\section{L'État de l'Éducation en Afrique de l'Est}
+
+L'Afrique de l'Est et Centrale regroupe plus de 400 millions d'habitants répartis dans 11 pays ayant chacun un système éducatif distinct. La gestion scolaire dans ces pays est confrontée à plusieurs défis structurels majeurs.
+
+\subsection{Fragmentation des Outils}
+
+La majorité des établissements scolaires utilisent des outils disparates :
+
+\begin{itemize}
+  \item \textbf{Registres papier} pour les inscriptions et les notes
+  \item \textbf{Fichiers Excel} individuels sans standardisation
+  \item \textbf{Logiciels propriétaires} incompatibles entre eux
+  \item \textbf{Aucune remontée de données} vers les autorités éducatives
+\end{itemize}
+
+\subsection{Absence de Standards Numériques}
+
+Chaque pays possède sa propre nomenclature éducative :
+
+\begin{center}
+\begin{tabularx}{\textwidth}{l X X}
+\toprule
+\textbf{Pays} & \textbf{Structure Pédagogique} & \textbf{Cycles} \\
+\midrule
+RD Congo & DPE → Sous-Division → École & Primaire, Secondaire, Humanités/CFP \\
+Burundi & DPE → DCE → Canton → École & Fondamental, Post-Fondamental \\
+Rwanda & District → Secteur → École & Primary, O-Level, A-Level \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{Problèmes Concrets}
+
+\begin{warnbox}[Problèmes Identifiés]
+\begin{enumerate}
+  \item \textbf{Erreurs de calcul} : Les moyennes et pourcentages sont calculés manuellement, engendrant des erreurs systématiques dans les bulletins.
+  \item \textbf{Doublons de données} : Un même élève peut être inscrit dans plusieurs systèmes sans détection.
+  \item \textbf{Perte de données} : Les registres papier sont vulnérables aux incendies, inondations et vols.
+  \item \textbf{Impossibilité de reporting} : Aucun outil ne permet d'agréger les données au niveau provincial ou national.
+  \item \textbf{Coûts cachés} : Le temps passé à reproduire manuellement les bulletins (10-20 min/élève) représente des centaines d'heures par an.
+\end{enumerate}
+\end{warnbox}
+
+\section{La Réponse : Une Architecture Intégrée}
+
+Face à ces défis, l'écosystème eSchool propose une réponse architecturale en deux couches :
+
+\begin{center}
+\begin{tikzpicture}[
+  layer/.style={rectangle, rounded corners=6pt, draw, minimum width=14cm, minimum height=2cm, align=center, font=\small},
+  arr/.style={-{Stealth[length=6pt]}, thick, gray!60}
+]
+  \node[layer, fill=hubcolor!12, draw=hubcolor!50] (l1) at (0,3) {
+    \textbf{Couche 1 — Gouvernance Nationale} (\texttt{countryStructure})\\
+    Standards éducatifs $\bullet$ Hiérarchies pédagogiques et administratives $\bullet$ Catalogues de cours
+  };
+  
+  \node[layer, fill=spokecolor!12, draw=spokecolor!50] (l2) at (0,0) {
+    \textbf{Couche 2 — Opérations Scolaires} (\texttt{db\_monecole})\\
+    Inscriptions $\bullet$ Notes $\bullet$ Bulletins $\bullet$ Personnel $\bullet$ Finances $\bullet$ Bibliothèque
+  };
+  
+  \draw[arr] (l1.south) -- (l2.north) node[midway, right, font=\scriptsize] {VIEWs MySQL + managed=False};
+\end{tikzpicture}
+\end{center}
+
+
+% ============================================================
+% CHAPITRE 3 : PRÉSENTATION DE L'ÉCOSYSTÈME
+% ============================================================
+\chapter{Présentation de l'Écosystème}
+
+\section{Vue d'Ensemble Architecturale}
+
+L'écosystème eSchool repose sur une architecture \textbf{Hub-and-Spoke} (moyeu et rayons), un modèle éprouvé dans les systèmes distribués à grande échelle.
+
+\begin{center}
+\begin{tikzpicture}[
+  hub/.style={circle, draw=hubcolor, fill=hubcolor!20, minimum size=3cm, font=\small\bfseries, align=center, drop shadow},
+  spoke/.style={rectangle, rounded corners=6pt, draw=spokecolor!70, fill=spokecolor!10, minimum width=2.8cm, minimum height=1.8cm, font=\scriptsize, align=center, drop shadow},
+  conn/.style={-{Stealth[length=5pt]}, thick, arrowcolor!70}
+]
+  % Hub central
+  \node[hub] (H) {\textcolor{hubcolor}{eSchool}\\Structure\\(\texttt{Hub})};
+  
+  % Spokes
+  \node[spoke] (S1) at (45:5cm) {École Alpha\\Bujumbura\\\texttt{db\_alpha}};
+  \node[spoke] (S2) at (105:5cm) {École Beta\\Kinshasa\\\texttt{db\_beta}};
+  \node[spoke] (S3) at (165:5cm) {Lycée Gamma\\Kigali\\\texttt{db\_gamma}};
+  \node[spoke] (S4) at (225:5cm) {Collège Delta\\Nairobi\\\texttt{db\_delta}};
+  \node[spoke] (S5) at (285:5cm) {Institut Epsilon\\Kampala\\\texttt{db\_epsilon}};
+  \node[spoke] (S6) at (345:5cm) {École Zeta\\Gitega\\\texttt{db\_zeta}};
+  
+  % Connexions
+  \foreach \s in {S1,S2,S3,S4,S5,S6} {
+    \draw[conn] (H) -- (\s);
+  }
+  
+  % Légende
+  \node[font=\scriptsize\itshape, text=gray] at (0,-4) {Chaque spoke partage les données de référence du Hub via des VIEWs MySQL cross-BDD};
+\end{tikzpicture}
+\end{center}
+
+\section{eSchool Structure — Le Hub National}
+
+\texttt{eSchoolStructure} est l'application Django qui gère l'ensemble des données de référence d'un pays. Déployée sur \texttt{https://eschool-rdc.pro/}, elle est le point d'entrée pour les administrateurs nationaux.
+
+\subsection{Responsabilités du Hub}
+
+\begin{enumerate}
+  \item \textbf{Structuration du Pays} — Définition des niveaux pédagogiques (DPE → Sous-Division → École) et administratifs (Province → Commune → Colline)
+  \item \textbf{Catalogue Éducatif} — Cycles, sections, classes, domaines de cours, catalogue de matières
+  \item \textbf{Gestion des Établissements} — Enregistrement, rattachement hiérarchique, configuration annuelle
+  \item \textbf{Données Temporelles} — Années scolaires, trimestres, périodes, états (ouvert/clôturé)
+  \item \textbf{Tables de Référence} — Sessions d'évaluation, mentions, barèmes
+  \item \textbf{Administration des Utilisateurs} — Hiérarchie dynamique, OTP, habilitations
+\end{enumerate}
+
+\subsection{Base de Données : \texttt{countryStructure}}
+
+\begin{center}
+\begin{tikzpicture}[
+  table/.style={rectangle, rounded corners=4pt, draw=hubcolor!60, fill=hubcolor!8, minimum width=3.2cm, minimum height=0.8cm, font=\scriptsize, align=center},
+  fk/.style={-{Stealth[length=4pt]}, thin, gray!50}
+]
+  % Niveau 1 : Pays
+  \node[table, fill=hubcolor!20] (pays) at (0,0) {\textbf{pays}};
+  
+  % Niveau 2 : Structures
+  \node[table] (pedtype) at (-5,-1.5) {pedagogicStructuresTypes};
+  \node[table] (admtype) at (-1.5,-1.5) {administrativeStructuresTypes};
+  \node[table] (cycle) at (1.8,-1.5) {cycles};
+  \node[table] (regime) at (5,-1.5) {regimes};
+  
+  % Niveau 3
+  \node[table] (pedinst) at (-5,-3) {pedagogicStructures};
+  \node[table] (adminst) at (-1.5,-3) {administrativeStructures};
+  \node[table] (section) at (1.8,-3) {sections};
+  \node[table] (classe) at (4.5,-3) {classes};
+  
+  % Niveau 4
+  \node[table] (domaine) at (-3,-4.5) {domaines};
+  \node[table] (cours) at (0,-4.5) {cours};
+  \node[table] (coursannee) at (3,-4.5) {cours\_annee};
+  \node[table] (etab) at (6,-4.5) {etablissements};
+  
+  % Niveau 5
+  \node[table] (annee) at (-4,-6) {annees};
+  \node[table] (etabannee) at (0,-6) {etab\_annees};
+  \node[table] (etabclasse) at (4,-6) {etab\_annees\_classes};
+  
+  % Niveau 6
+  \node[table] (trimestre) at (-2,-7.5) {etab\_annees\_trimestres};
+  \node[table] (periode) at (2.5,-7.5) {etab\_annees\_periodes};
+  
+  % FK arrows
+  \foreach \child in {pedtype,admtype,cycle,regime} { \draw[fk] (\child) -- (pays); }
+  \draw[fk] (classe) -- (cycle);
+  \draw[fk] (cours) -- (classe);
+  \draw[fk] (cours) -- (domaine);
+  \draw[fk] (coursannee) -- (cours);
+  \draw[fk] (coursannee) -- (annee);
+  \draw[fk] (etab) -- (pays);
+  \draw[fk] (etabannee) -- (etab);
+  \draw[fk] (etabannee) -- (annee);
+  \draw[fk] (etabclasse) -- (etabannee);
+  \draw[fk] (trimestre) -- (etabannee);
+  \draw[fk] (periode) -- (trimestre);
+\end{tikzpicture}
+\end{center}
+
+\section{MonEcole — Le Spoke Scolaire}
+
+\texttt{MonEcole} est l'application Django déployée pour chaque établissement scolaire. Elle consomme les données de référence du Hub et gère les opérations quotidiennes.
+
+\subsection{Responsabilités du Spoke}
+
+\begin{enumerate}
+  \item \textbf{Gestion des Élèves} — Inscription, fiche élève complète, suivi de cohorte
+  \item \textbf{Évaluations et Notes} — Saisie par période, types de notes (interrogation, examen, TP), maxima configurables
+  \item \textbf{Délibérations} — Périodiques, trimestrielles, annuelles, examens, repêchage
+  \item \textbf{Bulletins PDF} — Génération automatisée via ReportLab, templates par cycle
+  \item \textbf{Personnel} — Enseignants, administratifs, attribution des cours
+  \item \textbf{Recouvrement} — Rubriques de frais, paiements, dérogations
+  \item \textbf{Bibliothèque} — Armoires, compartiments, livres, emprunts
+  \item \textbf{Horaires} — Planification hebdomadaire par classe et enseignant
+\end{enumerate}
+
+\subsection{Modèle de Données Simplifié}
+
+\begin{center}
+\begin{tikzpicture}[
+  tbl/.style={rectangle, rounded corners=4pt, draw=spokecolor!60, fill=spokecolor!8, minimum width=2.6cm, minimum height=0.7cm, font=\scriptsize, align=center},
+  viewtbl/.style={rectangle, rounded corners=4pt, draw=orange!60, fill=orange!8, minimum width=2.6cm, minimum height=0.7cm, font=\scriptsize, align=center, dashed},
+  fk/.style={-{Stealth[length=4pt]}, thin, gray!50}
+]
+  % VIEWs (from Hub)
+  \node[viewtbl] (vclasse) at (-3,0) {classes (VIEW)};
+  \node[viewtbl] (vcours) at (0,0) {cours (VIEW)};
+  \node[viewtbl] (vtrim) at (3,0) {trimestres (VIEW)};
+  
+  % Tables locales
+  \node[tbl] (campus) at (-4.5,-1.5) {campus};
+  \node[tbl] (annee) at (-1.5,-1.5) {annee};
+  \node[tbl] (cycleact) at (1.5,-1.5) {cycle\_actif};
+  \node[tbl] (classeact) at (4.5,-1.5) {classe\_active};
+  
+  \node[tbl] (eleve) at (-4,-3) {eleve};
+  \node[tbl] (inscr) at (-1,-3) {inscription};
+  \node[tbl] (eval) at (2,-3) {evaluation};
+  \node[tbl] (note) at (5,-3) {eleve\_note};
+  
+  \node[tbl] (delib) at (-2,-4.5) {délibérations};
+  \node[tbl] (pers) at (1.5,-4.5) {personnel};
+  \node[tbl] (paie) at (4.5,-4.5) {paiements};
+  
+  % Liens
+  \draw[fk] (inscr) -- (eleve);
+  \draw[fk] (inscr) -- (classeact);
+  \draw[fk] (note) -- (eval);
+  \draw[fk] (note) -- (eleve);
+  \draw[fk] (classeact) -- (cycleact);
+  \draw[fk] (cycleact) -- (campus);
+  
+  % Légende
+  \node[font=\scriptsize\itshape, text=orange!70!black] at (0,0.8) {Tables en pointillés = VIEWs MySQL pointant vers le Hub};
+\end{tikzpicture}
+\end{center}
+
+
+% ============================================================
+% CHAPITRE 4 : ARCHITECTURE FONCTIONNELLE
+% ============================================================
+\chapter{Architecture Fonctionnelle}
+
+\section{Le Modèle Hub-and-Spoke en Détail}
+
+L'architecture Hub-and-Spoke est le fondement technique de l'écosystème. Elle résout un problème fondamental : \textbf{comment standardiser les données éducatives à l'échelle nationale tout en préservant l'autonomie opérationnelle de chaque école ?}
+
+\begin{infobox}[Principe Fondamental]
+Le Hub \textbf{définit} (structures, cours, calendrier). Le Spoke \textbf{exécute} (inscriptions, notes, bulletins). La synchronisation est \textbf{transparente} via des VIEWs MySQL cross-bases de données.
+\end{infobox}
+
+\subsection{Flux de Données}
+
+\begin{center}
+\begin{tikzpicture}[
+  process/.style={rectangle, rounded corners=6pt, draw, minimum width=4cm, minimum height=1.5cm, align=center, font=\small, drop shadow={shadow xshift=1pt, shadow yshift=-1pt}},
+  data/.style={cylinder, draw, shape border rotate=90, minimum width=1.5cm, minimum height=1cm, font=\scriptsize, align=center, aspect=0.3},
+  arr/.style={-{Stealth[length=6pt]}, thick},
+  darr/.style={-{Stealth[length=6pt]}, thick, dashed}
+]
+  % Acteurs
+  \node[process, fill=eschoolpurple!15, draw=eschoolpurple!60] (admin) at (0,4) {
+    \textbf{Admin National}\\
+    Configure le pays
+  };
+  
+  \node[process, fill=hubcolor!15, draw=hubcolor!60] (hub) at (0,1.5) {
+    \textbf{eSchool Structure}\\
+    \texttt{countryStructure}
+  };
+  
+  \node[data, fill=hubcolor!10, draw=hubcolor!50] (dbhub) at (5,1.5) {\texttt{country}\\\texttt{Structure}};
+  
+  \node[process, fill=spokecolor!15, draw=spokecolor!60] (spoke1) at (-4,-1.5) {
+    \textbf{École A}\\
+    \texttt{db\_ecoleA}
+  };
+  \node[process, fill=spokecolor!15, draw=spokecolor!60] (spoke2) at (0,-1.5) {
+    \textbf{École B}\\
+    \texttt{db\_ecoleB}
+  };
+  \node[process, fill=spokecolor!15, draw=spokecolor!60] (spoke3) at (4,-1.5) {
+    \textbf{École C}\\
+    \texttt{db\_ecoleC}
+  };
+  
+  \node[process, fill=eschoolamber!15, draw=eschoolamber!60] (dir) at (0,-4) {
+    \textbf{Directeur / Enseignant}\\
+    Gère son école
+  };
+  
+  % Flèches
+  \draw[arr, eschoolpurple!70] (admin) -- (hub);
+  \draw[arr, hubcolor!70] (hub) -- (dbhub);
+  \draw[arr, arrowcolor] (dbhub.south) -- ++(0,-0.5) -| (spoke1.north);
+  \draw[arr, arrowcolor] (dbhub.south) -- ++(0,-0.5) -| (spoke2.north);
+  \draw[arr, arrowcolor] (dbhub.south) -- ++(0,-0.5) -| (spoke3.north);
+  \draw[arr, eschoolamber!70] (dir) -- (spoke2);
+  
+  % Labels
+  \node[font=\scriptsize\itshape, text=arrowcolor] at (5,-0.2) {VIEWs MySQL};
+\end{tikzpicture}
+\end{center}
+
+\subsection{Mécanismes de Synchronisation}
+
+La synchronisation entre le Hub et les Spokes repose sur trois mécanismes complémentaires :
+
+\begin{enumerate}
+  \item \textbf{VIEWs MySQL Cross-BDD} — Des vues SQL dans la base spoke pointent directement vers les tables du Hub. L'ORM Django ne voit aucune différence.
+
+  \item \textbf{Modèles \texttt{managed=False}} — Les modèles Django correspondant aux tables du Hub sont déclarés avec \texttt{managed = False} dans le Spoke, empêchant Django de modifier leur schéma.
+
+  \item \textbf{DatabaseRouter} — Un routeur Django dirige les requêtes ORM vers la bonne base de données selon le modèle interrogé.
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}[
+  box/.style={rectangle, rounded corners=4pt, draw, minimum width=4.5cm, minimum height=1.2cm, align=center, font=\small},
+  arr/.style={-{Stealth[length=5pt]}, thick}
+]
+  \node[box, fill=spokecolor!10, draw=spokecolor!50] (django) at (0,0) {\textbf{Django ORM}\\MonEcole};
+  \node[box, fill=orange!10, draw=orange!50] (router) at (5,0) {\textbf{DatabaseRouter}\\Aiguillage};
+  \node[box, fill=spokecolor!15, draw=spokecolor!60] (dblocal) at (10,1) {\texttt{db\_monecole}\\Tables locales};
+  \node[box, fill=hubcolor!15, draw=hubcolor!60] (dbhub) at (10,-1) {\texttt{countryStructure}\\Tables Hub};
+  
+  \draw[arr] (django) -- (router) node[midway, above, font=\scriptsize] {Requête};
+  \draw[arr, spokecolor] (router) -- (dblocal) node[midway, above, font=\scriptsize] {Élèves, Notes...};
+  \draw[arr, hubcolor] (router) -- (dbhub) node[midway, below, font=\scriptsize] {Cours, Trimestres...};
+\end{tikzpicture}
+\end{center}
+
+\section{Identification du Tenant}
+
+Chaque école (tenant) est identifiée par un \texttt{id\_etablissement} stocké dans la table \texttt{campus} du Spoke. Cette clé logique permet de résoudre la chaîne suivante :
+
+\begin{center}
+\begin{tikzpicture}[
+  step/.style={rectangle, rounded corners=4pt, draw=arrowcolor!50, fill=arrowcolor!8, minimum width=2.8cm, minimum height=1cm, align=center, font=\scriptsize},
+  arr/.style={-{Stealth[length=5pt]}, thick, arrowcolor!60}
+]
+  \node[step] (s1) at (0,0) {Campus local\\(Spoke)};
+  \node[step] (s2) at (3.5,0) {Établissement\\(Hub)};
+  \node[step] (s3) at (7,0) {Année activée\\(Hub)};
+  \node[step] (s4) at (10.5,0) {Trimestres\\Périodes};
+  
+  \draw[arr] (s1) -- (s2) node[midway, above, font=\tiny] {\texttt{id\_etab}};
+  \draw[arr] (s2) -- (s3) node[midway, above, font=\tiny] {\texttt{etab\_annees}};
+  \draw[arr] (s3) -- (s4) node[midway, above, font=\tiny] {\texttt{etab\_trim}};
+\end{tikzpicture}
+\end{center}
+
+\section{Résolution Multi-Pays par Sous-Domaine}
+
+Le système identifie automatiquement le pays via le sous-domaine de l'URL :
+
+\begin{center}
+\begin{tabular}{l l l}
+\toprule
+\textbf{URL} & \textbf{Sous-domaine} & \textbf{Pays résolu} \\
+\midrule
+\texttt{rdc.monecole.pro} & \texttt{rdc} & RD Congo \\
+\texttt{bdi.monecole.pro} & \texttt{bdi} & Burundi \\
+\texttt{rw.monecole.pro} & \texttt{rw} & Rwanda \\
+\texttt{eschool-rdc.pro} & (domaine principal) & RD Congo \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+% ============================================================
+% CHAPITRE 5 : MODULES FONCTIONNELS
+% ============================================================
+\chapter{Modules Fonctionnels}
+
+L'écosystème eSchool comprend \textbf{12 modules fonctionnels} répartis entre le Hub et les Spokes.
+
+\begin{center}
+\begin{tikzpicture}[
+  mod/.style={rectangle, rounded corners=6pt, draw, minimum width=3cm, minimum height=1cm, align=center, font=\scriptsize\bfseries, drop shadow={shadow xshift=0.5pt, shadow yshift=-0.5pt}},
+]
+  % Hub modules (bleu)
+  \node[mod, fill=hubcolor!15, draw=hubcolor!50] (m1) at (-5,4) {Structuration\\Pays};
+  \node[mod, fill=hubcolor!15, draw=hubcolor!50] (m2) at (-1.5,4) {Cycles \&\\Sections};
+  \node[mod, fill=hubcolor!15, draw=hubcolor!50] (m3) at (2,4) {Programmes\\(Cours)};
+  \node[mod, fill=hubcolor!15, draw=hubcolor!50] (m4) at (5.5,4) {Établissements};
+  
+  \node[mod, fill=hubcolor!15, draw=hubcolor!50] (m5) at (-3.5,2.5) {Config.\\Annuelle};
+  \node[mod, fill=hubcolor!15, draw=hubcolor!50] (m6) at (0,2.5) {Utilisateurs\\Admin};
+  \node[mod, fill=hubcolor!15, draw=hubcolor!50] (m7) at (3.5,2.5) {Références\\(Mentions...)};
+  
+  % Spoke modules (vert)
+  \node[mod, fill=spokecolor!15, draw=spokecolor!50] (m8) at (-5,0.5) {Inscriptions};
+  \node[mod, fill=spokecolor!15, draw=spokecolor!50] (m9) at (-1.5,0.5) {Évaluations\\Notes};
+  \node[mod, fill=spokecolor!15, draw=spokecolor!50] (m10) at (2,0.5) {Délibérations};
+  \node[mod, fill=spokecolor!15, draw=spokecolor!50] (m11) at (5.5,0.5) {Bulletins\\PDF};
+  
+  \node[mod, fill=spokecolor!15, draw=spokecolor!50] (m12) at (-3.5,-1) {Personnel};
+  \node[mod, fill=spokecolor!15, draw=spokecolor!50] (m13) at (0,-1) {Recouvrement};
+  \node[mod, fill=spokecolor!15, draw=spokecolor!50] (m14) at (3.5,-1) {Bibliothèque};
+  
+  % Labels
+  \node[font=\small\bfseries, text=hubcolor] at (-6.5,3.4) {\rotatebox{90}{HUB}};
+  \node[font=\small\bfseries, text=spokecolor] at (-6.5,-0.2) {\rotatebox{90}{SPOKE}};
+  
+  % Séparation
+  \draw[dashed, gray!40, thick] (-7,1.6) -- (7,1.6);
+\end{tikzpicture}
+\end{center}
+
+\section{Module 1 : Structuration du Pays}
+
+Ce module permet de définir la hiérarchie pédagogique et administrative d'un pays. Le nombre de niveaux est dynamique — défini par \texttt{nLevelsStructuraux} et \texttt{nLevelsAdministratifs}.
+
+\begin{successbox}[Exemple : RD Congo]
+\textbf{Structure Pédagogique (5 niveaux)} : Division Provinciale de l'Éducation → Sous-Division → Inspection → École → Classe
+
+\textbf{Structure Administrative (4 niveaux)} : Province → Territoire → Secteur → Village
+\end{successbox}
+
+\section{Module 2 : Cycles, Sections et Classes}
+
+Les cycles d'enseignement (Primaire, Secondaire, Humanités...) sont définis par pays avec :
+\begin{itemize}
+  \item Un \textbf{ordre} hiérarchique
+  \item Une \textbf{durée} en années
+  \item Un flag \texttt{hasSections} pour les cycles nécessitant des sections (Scientifique, Littéraire...)
+  \item Des \textbf{classes} auto-générées selon la durée du cycle
+\end{itemize}
+
+\section{Module 3 : Programmes et Cours}
+
+Le catalogue des cours suit un modèle en deux niveaux :
+
+\begin{center}
+\begin{tikzpicture}[
+  box/.style={rectangle, rounded corners=4pt, draw, minimum width=4cm, minimum height=1.5cm, align=center, font=\small},
+  arr/.style={-{Stealth[length=5pt]}, thick}
+]
+  \node[box, fill=hubcolor!10, draw=hubcolor!50] (cat) at (0,0) {\textbf{Catalogue (Cours)}\\Identité permanente\\Code + Nom + Domaine};
+  \node[box, fill=eschoolamber!10, draw=eschoolamber!50] (ann) at (6,0) {\textbf{Config Annuelle}\\(\texttt{CoursAnnee})\\Pondération, heures, crédits};
+  
+  \draw[arr] (cat) -- (ann) node[midway, above, font=\scriptsize] {1:N par année};
+\end{tikzpicture}
+\end{center}
+
+\section{Module 4 : Évaluations et Notes}
+
+Le système d'évaluation supporte :
+\begin{itemize}
+  \item \textbf{5 types de notes} : Interrogation, Travail, Examen, TP, TPE
+  \item \textbf{Sessions} : Ordinaire et Repêchage
+  \item \textbf{Périodes} : P1..P6 regroupées en Trimestres T1..T3
+  \item \textbf{Maxima configurables} par cours et par année
+\end{itemize}
+
+\section{Module 5 : Délibérations}
+
+Cinq types de délibérations sont supportés :
+\begin{enumerate}
+  \item Délibération \textbf{Périodique} — Par période (P1, P2...)
+  \item Délibération \textbf{Trimestrielle} — Par trimestre
+  \item Délibération \textbf{Annuelle} — Fin d'année avec finalités (Réussi, Échoué, Ajourné)
+  \item Délibération \textbf{d'Examen} — Sessions de fin de cycle
+  \item Délibération \textbf{de Repêchage} — Seconde chance
+\end{enumerate}
+
+\section{Module 6 : Bulletins PDF}
+
+Les bulletins sont générés automatiquement via \textbf{ReportLab} avec des templates adaptés à chaque cycle :
+
+\begin{center}
+\begin{tabular}{l l l}
+\toprule
+\textbf{Cycle} & \textbf{Template} & \textbf{Particularités} \\
+\midrule
+Primaire & \texttt{bulletin\_primaire.py} & Format simplifié, sans crédits \\
+Secondaire & \texttt{bulletin\_secondaire.py} & Grille complète avec domaines \\
+Supérieur & \texttt{bulletin\_superieur.py} & Crédits, CM/TD/TP, ECTS \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Module 7 : Bibliothèque}
+
+Le module bibliothèque gère l'inventaire physique et les emprunts :
+\begin{itemize}
+  \item \textbf{Armoires} → \textbf{Compartiments} → \textbf{Livres} → \textbf{Exemplaires}
+  \item Système d'emprunt avec profils et limites
+  \item Statistiques de fréquentation
+\end{itemize}
+
+
+% ============================================================
+% CHAPITRE 6 : MODÈLE MULTI-PAYS
+% ============================================================
+\chapter{Modèle Multi-Pays}
+
+\section{Pays Supportés}
+
+Le système est conçu pour supporter les 11 pays d'Afrique de l'Est et Centrale :
+
+\begin{center}
+\begin{tabular}{c l l l}
+\toprule
+\textbf{Sigle} & \textbf{Pays} & \textbf{Domaine} & \textbf{Statut} \\
+\midrule
+CD & RD Congo & eschool-rdc.pro & \textcolor{green!60!black}{\textbf{Actif}} \\
+BDI & Burundi & bdi.monecole.pro & \textcolor{orange}{\textbf{Pilote}} \\
+RW & Rwanda & rw.monecole.pro & Planifié \\
+KE & Kenya & ke.monecole.pro & Planifié \\
+TZ & Tanzanie & tz.monecole.pro & Planifié \\
+UG & Ouganda & ug.monecole.pro & Planifié \\
+SS & Soudan du Sud & ss.monecole.pro & Planifié \\
+ET & Éthiopie & et.monecole.pro & Planifié \\
+SO & Somalie & so.monecole.pro & Planifié \\
+DJ & Djibouti & dj.monecole.pro & Planifié \\
+ER & Érythrée & er.monecole.pro & Planifié \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Adaptabilité par Pays}
+
+Chaque pays peut configurer indépendamment :
+\begin{itemize}
+  \item Le \textbf{nombre de niveaux} pédagogiques et administratifs
+  \item Les \textbf{noms des niveaux} (DPE, Sous-Division... ou District, Secteur...)
+  \item Les \textbf{cycles d'enseignement} et leur durée
+  \item Les \textbf{sections} (Scientifique, Littéraire, Technique...)
+  \item Les \textbf{régimes} (Public, Privé, Conventionné)
+  \item Les \textbf{programmes} d'études (National, Belge, Français...)
+  \item Les \textbf{barèmes de notation} (Mentions)
+\end{itemize}
+
+
+% ============================================================
+% CHAPITRE 7 : SÉCURITÉ
+% ============================================================
+\chapter{Sécurité et Gestion des Accès}
+
+\section{Hiérarchie Dynamique}
+
+Le modèle \texttt{AdminUser} implémente une hiérarchie à N+2 niveaux déterminée dynamiquement :
+
+\begin{center}
+\begin{tikzpicture}[
+  level/.style={rectangle, rounded corners=4pt, draw, minimum width=5cm, minimum height=1cm, align=center, font=\small},
+  arr/.style={-{Stealth[length=5pt]}, thick, gray!60}
+]
+  \node[level, fill=red!10, draw=red!40] (l0) at (0,0) {\textbf{Niveau 0} — National\\Accès total au pays};
+  \node[level, fill=orange!10, draw=orange!40] (l1) at (0,-1.8) {\textbf{Niveau 1..N} — Structure Pédagogique\\Accès à une branche};
+  \node[level, fill=spokecolor!10, draw=spokecolor!40] (l2) at (0,-3.6) {\textbf{Niveau N+1} — Établissement\\Accès à une école};
+  
+  \draw[arr] (l0) -- (l1) node[midway, right, font=\scriptsize] {Crée des admins de niveau 1};
+  \draw[arr] (l1) -- (l2) node[midway, right, font=\scriptsize] {Crée des admins d'école};
+\end{tikzpicture}
+\end{center}
+
+\section{Authentification Multi-Étapes}
+
+\begin{enumerate}
+  \item \textbf{Découverte d'identité} — L'utilisateur saisit son email, le système vérifie son existence
+  \item \textbf{Branchement} :
+  \begin{itemize}
+    \item Utilisateur vérifié avec mot de passe → Formulaire de connexion
+    \item Utilisateur non vérifié → Challenge OTP (Email ou SMS)
+  \end{itemize}
+  \item \textbf{Vérification OTP} — Code à 6 chiffres avec expiration de 10 minutes, 3 tentatives max
+  \item \textbf{Création de mot de passe} — Pour les nouveaux comptes après vérification OTP
+  \item \textbf{Session sécurisée} — Timeout d'inactivité de 10 minutes, PBKDF2-SHA256
+\end{enumerate}
+
+
+% ============================================================
+% CHAPITRE 8 : FEUILLE DE ROUTE
+% ============================================================
+\chapter{Feuille de Route}
+
+\section{Phases de Développement}
+
+\begin{center}
+\begin{tikzpicture}[
+  phase/.style={rectangle, rounded corners=6pt, draw, minimum width=3.5cm, minimum height=2.5cm, align=center, font=\small, drop shadow},
+  arr/.style={-{Stealth[length=6pt]}, ultra thick}
+]
+  \node[phase, fill=spokecolor!15, draw=spokecolor!50] (p1) at (0,0) {
+    \textbf{Phase 1}\\[2pt]
+    \textcolor{spokecolor}{\textbf{MVP}}\\[4pt]
+    {\scriptsize Hub + 1 Spoke}\\
+    {\scriptsize RDC opérationnel}
+  };
+  
+  \node[phase, fill=hubcolor!15, draw=hubcolor!50] (p2) at (4.5,0) {
+    \textbf{Phase 2}\\[2pt]
+    \textcolor{hubcolor}{\textbf{Multi-Tenant}}\\[4pt]
+    {\scriptsize Provisioning auto}\\
+    {\scriptsize Multi-pays}
+  };
+  
+  \node[phase, fill=eschoolpurple!15, draw=eschoolpurple!50] (p3) at (9,0) {
+    \textbf{Phase 3}\\[2pt]
+    \textcolor{eschoolpurple}{\textbf{Mobile}}\\[4pt]
+    {\scriptsize App parents/élèves}\\
+    {\scriptsize Notifications push}
+  };
+  
+  \node[phase, fill=eschoolamber!15, draw=eschoolamber!50] (p4) at (13.5,0) {
+    \textbf{Phase 4}\\[2pt]
+    \textcolor{eschoolamber}{\textbf{Analytics}}\\[4pt]
+    {\scriptsize Tableaux de bord}\\
+    {\scriptsize IA prédictive}
+  };
+  
+  \draw[arr, spokecolor!50] (p1) -- (p2);
+  \draw[arr, hubcolor!50] (p2) -- (p3);
+  \draw[arr, eschoolpurple!50] (p3) -- (p4);
+\end{tikzpicture}
+\end{center}
+
+% ============================================================
+% CHAPITRE 9 : IMPACT
+% ============================================================
+\chapter{Impact Attendu}
+
+\section{Métriques d'Impact}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{X c c}
+\toprule
+\textbf{Indicateur} & \textbf{Avant eSchool} & \textbf{Avec eSchool} \\
+\midrule
+Temps de génération d'un bulletin & 15--20 min & < 1 seconde \\
+Taux d'erreurs dans les moyennes & 5--10\% & 0\% \\
+Remontée de données au ministère & Aucune & Temps réel \\
+Temps d'inscription d'un élève & 20 min & 3 min \\
+Coût annuel par école (estimé) & Variable & \$50--100/an \\
+Risque de perte de données & Élevé & Quasi-nul \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+% ============================================================
+% ANNEXES
+% ============================================================
+\appendix
+\chapter{Glossaire}
+
+\begin{description}
+  \item[Hub] Base de données centralisée \texttt{countryStructure} contenant les données de référence nationales
+  \item[Spoke] Base de données locale \texttt{db\_monecole} propre à chaque établissement scolaire
+  \item[VIEW] Vue MySQL permettant de lire des données d'une autre base comme si elles étaient locales
+  \item[ORM] Object-Relational Mapping — Couche d'abstraction Django pour les requêtes SQL
+  \item[OTP] One-Time Password — Code à usage unique pour la vérification d'identité
+  \item[Tenant] Entité isolée dans un système multi-locataires (ici : un établissement)
+  \item[Cycle] Niveau d'enseignement (Primaire, Secondaire, Humanités...)
+  \item[Section] Filière au sein d'un cycle (Scientifique, Littéraire, Technique...)
+  \item[Domaine] Regroupement thématique de cours (Sciences, Langues, Arts...)
+  \item[CoursAnnee] Configuration annuelle d'un cours (pondération, heures, crédits)
+  \item[Délibération] Processus de validation des résultats scolaires
+  \item[Mention] Appréciation qualitative basée sur un pourcentage (Très Bien, Bien, Assez Bien...)
+\end{description}
+
+\end{document}

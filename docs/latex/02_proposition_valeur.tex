@@ -1,0 +1,642 @@
+% ============================================================
+% DOCUMENT 2 : PROPOSITION DE VALEUR
+% Titre : "Pourquoi Choisir eSchool ?"
+% Public : Directeurs d'école, responsables éducatifs 
+% ============================================================
+\documentclass[12pt,a4paper,oneside]{report}
+
+% --- Encodage et langue ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+
+% --- Mise en page ---
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{parskip}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+
+% --- Graphiques et couleurs ---
+\usepackage{graphicx}
+\usepackage[dvipsnames,svgnames,x11names]{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit, backgrounds, shadows, decorations.pathmorphing, patterns}
+
+% --- Tableaux ---
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{multirow}
+
+% --- Code ---
+\usepackage{listings}
+\lstset{basicstyle=\ttfamily\small, backgroundcolor=\color{gray!8}, frame=single, rulecolor=\color{gray!30}, breaklines=true}
+
+% --- Boîtes colorées ---
+\usepackage[most]{tcolorbox}
+\newtcolorbox{avantage}[1][]{enhanced, colback=green!5, colframe=green!50!black, fonttitle=\bfseries, left=8pt, right=8pt, title=#1, attach boxed title to top left={yshift=-2mm, xshift=4mm}, boxed title style={colback=green!50!black}}
+\newtcolorbox{probleme}[1][]{enhanced, colback=red!5, colframe=red!50!black, fonttitle=\bfseries, left=8pt, right=8pt, title=#1, attach boxed title to top left={yshift=-2mm, xshift=4mm}, boxed title style={colback=red!50!black}}
+\newtcolorbox{scenario}[1][]{enhanced, colback=blue!5, colframe=blue!50!black, fonttitle=\bfseries, left=8pt, right=8pt, title=#1}
+\newtcolorbox{keypoint}[1][]{colback=purple!5, colframe=purple!50!black, fonttitle=\bfseries, title=#1}
+
+% --- Hyperliens ---
+\usepackage[colorlinks=true,linkcolor=blue!60!black,urlcolor=blue!50!black]{hyperref}
+\usepackage{bookmark}
+
+% --- En-têtes ---
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\leftmark}
+\fancyhead[R]{\small Pourquoi Choisir eSchool ?}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% --- Couleurs ---
+\definecolor{eschoolblue}{HTML}{2563EB}
+\definecolor{eschoolpurple}{HTML}{7C3AED}
+\definecolor{eschoolteal}{HTML}{0D9488}
+\definecolor{eschoolamber}{HTML}{D97706}
+\definecolor{hubcolor}{HTML}{3B82F6}
+\definecolor{spokecolor}{HTML}{10B981}
+
+% ============================================================
+\begin{document}
+
+% --- PAGE DE COUVERTURE ---
+\begin{titlepage}
+\begin{tikzpicture}[remember picture, overlay]
+  \fill[left color=eschoolteal, right color=eschoolblue] 
+    (current page.south west) rectangle (current page.north east);
+  \foreach \x/\y/\r/\o in {2/22/5/0.06, 15/25/3/0.08, 17/5/4/0.05, 4/8/3/0.07} {
+    \fill[white, opacity=\o] (\x,\y) circle (\r);
+  }
+  \fill[white, opacity=0.95] 
+    ([yshift=5cm]current page.south west) rectangle (current page.south east);
+\end{tikzpicture}
+
+\vspace*{4cm}
+\begin{center}
+  {\Huge\bfseries\color{white} Pourquoi Choisir eSchool ?}\\[0.8cm]
+  {\LARGE\color{white!90} Proposition de Valeur}\\[0.5cm]
+  {\Large\color{white!80} Les Avantages de la Plateforme Intégrée}\\[3cm]
+  \rule{8cm}{0.5pt}\\[0.5cm]
+  {\large\color{white!85} De la gestion papier à la transformation numérique}\\
+  {\large\color{white!85} de l'éducation en Afrique}\\[4.5cm]
+\end{center}
+\begin{center}
+  {\normalsize\color{gray!80} Version 1.0 — Mars 2026}\\[0.3cm]
+  {\normalsize\color{gray!80} Projet eSchool / MonEcole — evanet08}
+\end{center}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ============================================================
+\chapter{Introduction}
+% ============================================================
+
+\section{Objectif de ce Document}
+
+Ce document présente les \textbf{avantages concrets} de l'écosystème eSchool pour les directeurs d'école, les responsables éducatifs et les partenaires potentiels. Il explique comment la plateforme résout les problèmes quotidiens de la gestion scolaire et démontre sa valeur ajoutée par rapport aux solutions existantes.
+
+\section{À Qui S'Adresse eSchool ?}
+
+\begin{center}
+\begin{tikzpicture}[
+  persona/.style={rectangle, rounded corners=8pt, draw, minimum width=4.5cm, minimum height=2.5cm, align=center, font=\small, drop shadow},
+]
+  \node[persona, fill=eschoolpurple!10, draw=eschoolpurple!50] (p1) at (0,0) {
+    \textbf{Ministère de}\\
+    \textbf{l'Éducation}\\[4pt]
+    {\scriptsize Standards nationaux}\\
+    {\scriptsize Suivi des écoles}\\
+    {\scriptsize Reporting agrégé}
+  };
+  
+  \node[persona, fill=eschoolblue!10, draw=eschoolblue!50] (p2) at (5.5,0) {
+    \textbf{Directeur}\\
+    \textbf{d'École}\\[4pt]
+    {\scriptsize Gestion quotidienne}\\
+    {\scriptsize Notes et bulletins}\\
+    {\scriptsize Personnel et finances}
+  };
+  
+  \node[persona, fill=eschoolteal!10, draw=eschoolteal!50] (p3) at (11,0) {
+    \textbf{Enseignant}\\[4pt]
+    {\scriptsize Saisie des notes}\\
+    {\scriptsize Suivi des élèves}\\
+    {\scriptsize Planning horaire}
+  };
+\end{tikzpicture}
+\end{center}
+
+
+% ============================================================
+\chapter{Les Problèmes Actuels}
+% ============================================================
+
+\section{La Réalité de la Gestion Scolaire}
+
+Aujourd'hui, dans la majorité des établissements scolaires d'Afrique de l'Est et Centrale, la gestion reste largement \textbf{manuelle}. Les conséquences sont multiples et coûteuses.
+
+\begin{probleme}[Problème 1 : La Gestion Papier]
+Les inscriptions, les fiches élèves, les procès-verbaux de délibération et les bulletins sont tous rédigés à la main. Un directeur d'école de 500 élèves doit superviser la rédaction de \textbf{1{,}500 bulletins par an} (3 trimestres), chacun prenant 15 à 20 minutes.
+
+\textbf{Coût estimé} : 375 à 500 heures de travail humain par an, soit l'équivalent de 3 mois de travail à temps plein.
+\end{probleme}
+
+\begin{probleme}[Problème 2 : Les Erreurs de Calcul]
+Les moyennes, pourcentages et classements sont calculés manuellement. Des études montrent un taux d'erreur de \textbf{5 à 10\%} dans les calculs de moyennes manuscrites, ce qui affecte directement les décisions de passage en classe supérieure.
+\end{probleme}
+
+\begin{probleme}[Problème 3 : L'Absence de Traçabilité]
+Sans système centralisé, il est impossible de :
+\begin{itemize}
+  \item Vérifier les résultats d'un élève transféré d'une autre école
+  \item Agréger les performances au niveau provincial ou national
+  \item Détecter les fraudes documentaires
+  \item Suivre l'évolution des effectifs en temps réel
+\end{itemize}
+\end{probleme}
+
+\begin{probleme}[Problème 4 : La Vulnérabilité des Données]
+Les registres papier sont exposés aux :
+\begin{itemize}
+  \item Incendies, inondations et catastrophes naturelles
+  \item Pertes et vols
+  \item Détérioration physique avec le temps
+  \item Falsification sans possibilité de vérification
+\end{itemize}
+\end{probleme}
+
+\section{Le Coût de l'Inaction}
+
+\begin{center}
+\begin{tikzpicture}[
+  cost/.style={rectangle, rounded corners=6pt, draw=red!50, fill=red!8, minimum width=4cm, minimum height=1.5cm, align=center, font=\small},
+  arr/.style={-{Stealth[length=5pt]}, thick, red!40}
+]
+  \node[cost] (c1) at (0,0) {\textbf{Erreurs}\\dans les bulletins};
+  \node[cost] (c2) at (5,0) {\textbf{Réclamations}\\des parents};
+  \node[cost] (c3) at (10,0) {\textbf{Perte de}\\crédibilité};
+  \node[cost] (c4) at (5,-2.5) {\textbf{Désinscriptions}\\Perte de revenus};
+  
+  \draw[arr] (c1) -- (c2);
+  \draw[arr] (c2) -- (c3);
+  \draw[arr] (c2) -- (c4);
+\end{tikzpicture}
+\end{center}
+
+
+% ============================================================
+\chapter{Avantage 1 : Centralisation Nationale}
+% ============================================================
+
+\begin{avantage}[Principe Clé]
+\textbf{Un ministère structure, mille écoles exécutent.} Les standards éducatifs sont définis une seule fois au niveau national et automatiquement propagés à tous les établissements.
+\end{avantage}
+
+\section{Standards Partagés Automatiquement}
+
+Chaque donnée de référence est définie une seule fois dans le Hub et consommée par tous les Spokes :
+
+\begin{center}
+\begin{tikzpicture}[
+  ref/.style={rectangle, rounded corners=4pt, draw=hubcolor!50, fill=hubcolor!10, minimum width=3cm, minimum height=0.8cm, font=\scriptsize, align=center},
+  school/.style={rectangle, rounded corners=4pt, draw=spokecolor!50, fill=spokecolor!10, minimum width=2cm, minimum height=0.7cm, font=\scriptsize, align=center},
+  arr/.style={-{Stealth[length=4pt]}, thin, gray!50}
+]
+  % Données de référence
+  \node[ref] (r1) at (0,3) {Cycles (Primaire, Secondaire...)};
+  \node[ref] (r2) at (0,2) {Classes (7ème, 8ème...)};
+  \node[ref] (r3) at (0,1) {Cours (Maths, Français...)};
+  \node[ref] (r4) at (0,0) {Domaines (Sciences, Langues...)};
+  \node[ref] (r5) at (0,-1) {Trimestres (T1, T2, T3)};
+  \node[ref] (r6) at (0,-2) {Mentions (TB, B, AB...)};
+  
+  % Écoles
+  \node[school] (s1) at (6,2) {École A};
+  \node[school] (s2) at (6,0.5) {École B};
+  \node[school] (s3) at (6,-1) {École C};
+  \node[school] (s4) at (6,-2.5) {...N écoles};
+  
+  % Hub label
+  \node[font=\small\bfseries, text=hubcolor] at (0,4) {Hub National};
+  \node[font=\small\bfseries, text=spokecolor] at (6,3) {Spokes};
+  
+  % Flèches
+  \foreach \s in {s1,s2,s3,s4} {
+    \draw[arr] (3,0.5) -- (\s);
+  }
+  
+  % Brace
+  \draw[thick, hubcolor!50, decorate, decoration={brace, amplitude=8pt, mirror}] (-1.8,-2.5) -- (-1.8,3.5) node[midway, left=10pt, font=\scriptsize\bfseries, text=hubcolor, align=center] {Défini\\UNE fois};
+\end{tikzpicture}
+\end{center}
+
+\section{Normalisation des Cours et Domaines}
+
+Le catalogue de cours utilise un modèle à deux niveaux séparant l'\textbf{identité} du cours de sa \textbf{configuration annuelle}. Cela signifie que :
+
+\begin{itemize}
+  \item Un cours \texttt{MATH01 — Mathématiques} est défini une seule fois dans le catalogue
+  \item Chaque année, l'école peut configurer la pondération, les heures hebdomadaires et les crédits
+  \item Le domaine du cours peut être overridé annuellement sans modifier l'historique
+\end{itemize}
+
+
+% ============================================================
+\chapter{Avantage 2 : Autonomie Locale}
+% ============================================================
+
+\begin{avantage}[Principe Clé]
+\textbf{Chaque école reste maître de ses données opérationnelles.} Les inscriptions, les notes, les bulletins et les finances sont gérés localement, sans dépendance externe.
+\end{avantage}
+
+\section{Fonctionnalités Autonomes}
+
+\begin{center}
+\begin{tikzpicture}[
+  feat/.style={rectangle, rounded corners=6pt, draw=spokecolor!50, fill=spokecolor!8, minimum width=5cm, minimum height=1.2cm, align=center, font=\small},
+]
+  \node[feat] (f1) at (0,3) {\faIcon{user-plus} \textbf{Inscription} — Fiche complète en 3 min};
+  \node[feat] (f2) at (0,1.5) {\faIcon{calculator} \textbf{Notes} — Saisie par classe et période};
+  \node[feat] (f3) at (0,0) {\faIcon{file-pdf} \textbf{Bulletins} — PDF en < 1 seconde};
+  \node[feat] (f4) at (0,-1.5) {\faIcon{gavel} \textbf{Délibérations} — 5 types supportés};
+  \node[feat] (f5) at (0,-3) {\faIcon{money-bill} \textbf{Paiements} — Suivi des frais scolaires};
+\end{tikzpicture}
+\end{center}
+
+\section{Indépendance en Cas de Coupure}
+
+Le Spoke fonctionne de manière autonome. Si la connexion avec le Hub est interrompue :
+\begin{itemize}
+  \item Les données de référence (cours, trimestres) sont déjà cachées localement via les VIEWs
+  \item Les opérations quotidiennes (notes, inscriptions) continuent sans interruption
+  \item La synchronisation reprend automatiquement dès le rétablissement de la connexion
+\end{itemize}
+
+
+% ============================================================
+\chapter{Avantage 3 : Synchronisation Transparente}
+% ============================================================
+
+\begin{avantage}[Principe Clé]
+\textbf{Zéro effort de synchronisation.} Les données de référence du Hub sont accessibles instantanément via des VIEWs MySQL cross-bases de données, sans code de synchronisation à maintenir.
+\end{avantage}
+
+\section{Le Mécanisme de Synchronisation}
+
+\begin{center}
+\begin{tikzpicture}[
+  box/.style={rectangle, rounded corners=6pt, draw, minimum width=5cm, minimum height=2cm, align=center, font=\small, drop shadow},
+  viewbox/.style={rectangle, rounded corners=4pt, draw=orange!60, fill=orange!10, minimum width=4cm, minimum height=0.8cm, font=\scriptsize, align=center, dashed},
+  arr/.style={-{Stealth[length=6pt]}, thick}
+]
+  % Hub
+  \node[box, fill=hubcolor!10, draw=hubcolor!50] (hub) at (0,0) {
+    \textbf{Hub}\\(\texttt{countryStructure})\\[4pt]
+    {\scriptsize Tables réelles :\\cours, trimestres, classes...}
+  };
+  
+  % VIEWs
+  \node[viewbox] (v1) at (6,1) {VIEW \texttt{cours}};
+  \node[viewbox] (v2) at (6,0) {VIEW \texttt{trimestres}};
+  \node[viewbox] (v3) at (6,-1) {VIEW \texttt{classes}};
+  
+  % Spoke
+  \node[box, fill=spokecolor!10, draw=spokecolor!50] (spoke) at (12,0) {
+    \textbf{Spoke}\\(\texttt{db\_monecole})\\[4pt]
+    {\scriptsize Django ORM lit les VIEWs\\comme des tables locales}
+  };
+  
+  \draw[arr, hubcolor!60] (hub) -- (v1);
+  \draw[arr, hubcolor!60] (hub) -- (v2);
+  \draw[arr, hubcolor!60] (hub) -- (v3);
+  \draw[arr, orange!60] (v1) -- (spoke);
+  \draw[arr, orange!60] (v2) -- (spoke);
+  \draw[arr, orange!60] (v3) -- (spoke);
+  
+  \node[font=\scriptsize\itshape, text=orange!70!black] at (6,2) {VIEWs MySQL = Pont transparent};
+\end{tikzpicture}
+\end{center}
+
+\section{Avantages par Rapport aux APIs de Synchronisation}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{X c c}
+\toprule
+\textbf{Critère} & \textbf{API REST} & \textbf{VIEWs MySQL} \\
+\midrule
+Latence & 100--500ms & < 1ms \\
+Code de sync à maintenir & Beaucoup & Aucun \\
+Cohérence des données & Éventuelle & Immédiate \\
+Gestion des conflits & Complexe & Aucun conflit \\
+Fonctionne offline & Non & Oui (cache local) \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+
+% ============================================================
+\chapter{Avantage 4 : Adaptabilité Multi-Pays}
+% ============================================================
+
+\begin{avantage}[Principe Clé]
+\textbf{Un système, onze pays.} La même plateforme s'adapte automatiquement à la nomenclature éducative de chaque pays grâce à une configuration dynamique.
+\end{avantage}
+
+\section{Éléments Configurables par Pays}
+
+\begin{center}
+\begin{tikzpicture}[
+  config/.style={rectangle, rounded corners=4pt, draw=eschoolpurple!50, fill=eschoolpurple!8, minimum width=6cm, minimum height=0.9cm, font=\small, align=left},
+]
+  \node[config] (c1) at (0,5) {~Niveaux pédagogiques (nombre et noms)};
+  \node[config] (c2) at (0,4) {~Niveaux administratifs (nombre et noms)};
+  \node[config] (c3) at (0,3) {~Cycles d'enseignement et durées};
+  \node[config] (c4) at (0,2) {~Sections par cycle (Sci, Lit, Tech...)};
+  \node[config] (c5) at (0,1) {~Régimes (Public, Privé, Conventionné)};
+  \node[config] (c6) at (0,0) {~Programmes d'études};
+  \node[config] (c7) at (0,-1) {~Barèmes de notation (Mentions)};
+  \node[config] (c8) at (0,-2) {~Domaines de cours};
+  \node[config] (c9) at (0,-3) {~Sessions d'évaluation};
+\end{tikzpicture}
+\end{center}
+
+\section{Exemple Comparatif}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{l X X}
+\toprule
+\textbf{Élément} & \textbf{RD Congo} & \textbf{Burundi} \\
+\midrule
+Niveaux péd. & 5 (DPE → École) & 4 (DPE → École) \\
+Cycles & Primaire (6 ans), Secondaire (4 ans), Humanités/CFP (2 ans) & Fondamental (9 ans), Post-Fondamental (4 ans) \\
+Sections & Scientifique, Littéraire, Technique, Commercial & Sciences, Lettres, Technicien \\
+Trimestres & T1, T2, T3 & S1, S2 (semestres) \\
+Mentions & TB, B, AB, S, M, TM, N & E, TB, B, AB, S, I \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+
+% ============================================================
+\chapter{Avantage 5 : Sécurité de Niveau Entreprise}
+% ============================================================
+
+\begin{avantage}[Principe Clé]
+\textbf{Accès hiérarchique dynamique.} Chaque utilisateur voit exactement ce qu'il doit voir, ni plus, ni moins. Le système s'adapte automatiquement à la profondeur de la hiérarchie éducative du pays.
+\end{avantage}
+
+\section{Hiérarchie de Permissions}
+
+\begin{center}
+\begin{tikzpicture}[
+  level/.style={trapezium, trapezium left angle=75, trapezium right angle=75, draw, minimum width=2cm, minimum height=1cm, align=center, font=\small},
+  arr/.style={-{Stealth[length=4pt]}, thick, gray!50}
+]
+  \node[level, fill=red!15, draw=red!40, minimum width=6cm] (l0) at (0,0) {\textbf{National} — Tout voir};
+  \node[level, fill=orange!15, draw=orange!40, minimum width=5cm] (l1) at (0,-1.8) {\textbf{Provincial} — Sa province};
+  \node[level, fill=eschoolamber!15, draw=eschoolamber!40, minimum width=4cm] (l2) at (0,-3.6) {\textbf{Sous-Division} — Sa zone};
+  \node[level, fill=spokecolor!15, draw=spokecolor!40, minimum width=3cm] (l3) at (0,-5.4) {\textbf{École} — Son école};
+  
+  \draw[arr] (l0) -- (l1);
+  \draw[arr] (l1) -- (l2);
+  \draw[arr] (l2) -- (l3);
+\end{tikzpicture}
+\end{center}
+
+\section{Mesures de Sécurité}
+
+\begin{enumerate}
+  \item \textbf{Authentification multi-étapes} — Email → OTP (Email/SMS) → Mot de passe
+  \item \textbf{Hachage PBKDF2-SHA256} — Mots de passe jamais stockés en clair
+  \item \textbf{Session sécurisée} — Expiration après 10 minutes d'inactivité
+  \item \textbf{OTP à usage unique} — Code 6 chiffres, expiration 10 minutes, 3 tentatives max
+  \item \textbf{Traçabilité complète} — Chaque admin est lié à son créateur (\texttt{created\_by})
+  \item \textbf{Filtrage par scope} — L'accès aux données est filtré par le code hiérarchique de l'utilisateur
+\end{enumerate}
+
+
+% ============================================================
+\chapter{Avantage 6 : Interface Premium}
+% ============================================================
+
+\begin{avantage}[Principe Clé]
+\textbf{Une interface moderne et intuitive.} Le design Glassmorphism, les palettes vibrantes et les micro-animations offrent une expérience utilisateur premium, comparable aux meilleures applications SaaS du marché.
+\end{avantage}
+
+\section{Design System}
+
+Le design de eSchool repose sur des principes modernes :
+
+\begin{itemize}
+  \item \textbf{Glassmorphism} — Effets de verre dépoli pour les cartes de login et les panneaux principaux
+  \item \textbf{Gradients vibrantes} — Palette de couleurs cohérente (bleu, violet, teal, ambre)
+  \item \textbf{Dark mode ready} — Variables CSS pour adaptation jour/nuit
+  \item \textbf{Responsive design} — Breakpoints pour mobile, tablette et desktop
+  \item \textbf{Micro-animations} — Transitions fluides et effets de survol
+\end{itemize}
+
+\section{Palette Cards}
+
+Les « Palette Cards » sont un pattern UI central de l'application. Elles offrent une représentation visuelle instantanée des entités avec des actions intégrées :
+
+\begin{center}
+\begin{tikzpicture}[
+  card/.style={rectangle, rounded corners=6pt, minimum width=3cm, minimum height=1.5cm, align=center, font=\small, drop shadow},
+]
+  \node[card, left color=eschoolblue, right color=eschoolblue!70, text=white] (c1) at (0,0) {\textbf{7ème}\\{\scriptsize 45 élèves}};
+  \node[card, left color=eschoolpurple, right color=eschoolpurple!70, text=white] (c2) at (3.5,0) {\textbf{8ème}\\{\scriptsize 38 élèves}};
+  \node[card, left color=eschoolteal, right color=eschoolteal!70, text=white] (c3) at (7,0) {\textbf{1ère Année}\\{\scriptsize 52 élèves}};
+  \node[card, left color=eschoolamber, right color=eschoolamber!70, text=white] (c4) at (10.5,0) {\textbf{Terminale}\\{\scriptsize 30 élèves}};
+  
+  \node[font=\scriptsize\itshape, text=gray] at (5.25,-1.5) {Palette horizontale scrollable avec statistiques intégrées};
+\end{tikzpicture}
+\end{center}
+
+
+% ============================================================
+\chapter{Avantage 7 : Bulletins PDF Automatisés}
+% ============================================================
+
+\begin{avantage}[Principe Clé]
+\textbf{1 clic = 1 bulletin.} La génération automatisée via ReportLab produit des bulletins professionnels en moins d'une seconde, éliminant 375+ heures de travail manuel par an.
+\end{avantage}
+
+\section{Caractéristiques des Bulletins}
+
+\begin{itemize}
+  \item \textbf{3 templates} adaptés : Primaire, Secondaire, Supérieur
+  \item \textbf{Matricule national} affiché dans une grille de 10 cases
+  \item \textbf{Logo et emblème} de l'établissement automatiquement intégrés
+  \item \textbf{Tableau de notes} avec domaines, cours, maxima, pourcentages et mentions
+  \item \textbf{Statistiques de classe} : moyenne, maximum, minimum, rang
+  \item \textbf{Signature numérique} du directeur et du titulaire de classe
+\end{itemize}
+
+\section{Comparaison Avant/Après}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{X c c}
+\toprule
+\textbf{Critère} & \textbf{Manuel} & \textbf{eSchool} \\
+\midrule
+Temps par bulletin & 15--20 min & < 1 seconde \\
+Erreurs de calcul & 5--10\% & 0\% \\
+Uniformité du format & Variable & 100\% standard \\
+Coût papier/impression & Élevé & Optimisé \\
+Falsification possible & Oui & Non (ID unique) \\
+Archivage & Physique & Numérique permanent \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+
+% ============================================================
+\chapter{Cas d'Usage Concrets}
+% ============================================================
+
+\section{Scénario 1 : La Rentrée Scolaire}
+
+\begin{scenario}[Rentrée Scolaire — École Alpha, Kinshasa]
+\textbf{Contexte} : 500 élèves à inscrire en 2 semaines.
+
+\textbf{Sans eSchool} : 
+\begin{itemize}[topsep=0pt]
+  \item 500 fiches papier à remplir manuellement
+  \item Vérification manuelle des doublons
+  \item Répartition des classes sur tableau Excel
+  \item Temps total : \textasciitilde170 heures
+\end{itemize}
+
+\textbf{Avec eSchool} :
+\begin{itemize}[topsep=0pt]
+  \item Formulaire numérique avec validation automatique
+  \item Détection de doublons instantanée (nom + date de naissance)
+  \item Import Excel possible pour migration de données existantes
+  \item Temps total : \textasciitilde25 heures (85\% de réduction)
+\end{itemize}
+\end{scenario}
+
+\section{Scénario 2 : Fin de Trimestre}
+
+\begin{scenario}[Évaluation Trimestrielle — Lycée Beta, Bujumbura]
+\textbf{Contexte} : 12 classes, 15 cours/classe, T1.
+
+\textbf{Sans eSchool} :
+\begin{itemize}[topsep=0pt]
+  \item Chaque enseignant calcule ses moyennes manuellement
+  \item Le directeur recalcule pour vérifier
+  \item 360 bulletins rédigés à la main (12 × 30 élèves)
+  \item Temps total : \textasciitilde80 heures
+\end{itemize}
+
+\textbf{Avec eSchool} :
+\begin{itemize}[topsep=0pt]
+  \item Notes saisies en ligne par chaque enseignant
+  \item Moyennes et pourcentages calculés automatiquement
+  \item 360 bulletins PDF générés en 1 clic
+  \item Temps total : \textasciitilde8 heures (90\% de réduction)
+\end{itemize}
+\end{scenario}
+
+\section{Scénario 3 : Délibération Annuelle}
+
+\begin{scenario}[Délibération — Collège Gamma, Kigali]
+\textbf{Contexte} : Décision de passage pour 300 élèves.
+
+\textbf{Avec eSchool} :
+\begin{itemize}[topsep=0pt]
+  \item Le système calcule automatiquement les pourcentages annuels
+  \item Application des règles de passage configurées (seuils, matières d'échec)
+  \item Génération du PV de délibération avec classements et mentions
+  \item Statistiques de réussite par classe, par genre, par section
+\end{itemize}
+\end{scenario}
+
+
+% ============================================================
+\chapter{Comparaison avec les Alternatives}
+% ============================================================
+
+\begin{center}
+\begin{tabularx}{\textwidth}{l X X X}
+\toprule
+\textbf{Critère} & \textbf{Excel} & \textbf{Logiciel X} & \textbf{eSchool} \\
+\midrule
+Multi-école & Non & Limité & \checkmark~Illimité \\
+Multi-pays & Non & Non & \checkmark~11 pays \\
+Standards nationaux & Non & Partiel & \checkmark~Automatique \\
+Bulletins PDF & Manuel & Oui & \checkmark~3 templates \\
+Sécurité hiérarchique & Non & Basique & \checkmark~N+2 niveaux \\
+Synchronisation & Manuelle & API lente & \checkmark~Temps réel \\
+Prix/école/an & Gratuit* & \$200+ & \$50--100 \\
+Support multi-device & Non & Partiel & \checkmark~Responsive \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+* Excel est « gratuit » mais le coût caché en heures de travail est considérable.
+
+
+% ============================================================
+\chapter{Perspectives d'Évolution}
+% ============================================================
+
+\section{Application Mobile Parents/Élèves}
+
+Une application mobile permettra aux parents de :
+\begin{itemize}
+  \item Consulter les notes de leurs enfants en temps réel
+  \item Recevoir des notifications push lors de la publication des résultats
+  \item Télécharger les bulletins PDF directement sur leur téléphone
+  \item Communiquer avec les enseignants via messagerie intégrée
+\end{itemize}
+
+\section{Analytics et Intelligence Artificielle}
+
+\begin{itemize}
+  \item \textbf{Tableaux de bord} pour les autorités éducatives (taux de réussite par zone, par cycle)
+  \item \textbf{Détection précoce} des élèves en difficulté via analyse des tendances de notes
+  \item \textbf{Recommandations} d'orientation basées sur les performances historiques
+  \item \textbf{Prédiction} des abandons scolaires
+\end{itemize}
+
+\section{Intégrations Futures}
+
+\begin{itemize}
+  \item \textbf{Paiement mobile} (M-Pesa, Lumicash, Airtel Money)
+  \item \textbf{Biométrie} pour la présence des élèves
+  \item \textbf{LMS} (Learning Management System) pour l'enseignement à distance
+\end{itemize}
+
+
+% ============================================================
+% ANNEXES
+% ============================================================
+\appendix
+\chapter{Résumé des Avantages}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{c X l}
+\toprule
+\textbf{\#} & \textbf{Avantage} & \textbf{Impact} \\
+\midrule
+1 & Centralisation nationale des standards & Uniformité \\
+2 & Autonomie locale de chaque école & Indépendance \\
+3 & Synchronisation transparente via VIEWs & Zéro maintenance \\
+4 & Adaptabilité multi-pays & Scalabilité \\
+5 & Sécurité hiérarchique dynamique & Conformité \\
+6 & Interface premium moderne & Adoption \\
+7 & Bulletins PDF automatisés & Productivité \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\end{document}

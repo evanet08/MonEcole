@@ -1,0 +1,976 @@
+% ============================================================
+% DOCUMENT 3 : GUIDE TECHNIQUE D'ARCHITECTURE
+% Titre : "Architecture Technique de l'Écosystème eSchool/MonEcole"
+% Public : Ingénieurs, développeurs, contributeurs
+% ============================================================
+\documentclass[12pt,a4paper,oneside]{report}
+
+% --- Encodage et langue ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+
+% --- Mise en page ---
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{parskip}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+
+% --- Graphiques ---
+\usepackage{graphicx}
+\usepackage[dvipsnames,svgnames,x11names]{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit, backgrounds, shadows, decorations.pathmorphing, patterns, matrix, chains}
+
+% --- Tableaux ---
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{array}
+
+% --- Code et listings ---
+\usepackage{listings}
+\lstdefinestyle{python}{
+  language=Python,
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{gray!5},
+  frame=single,
+  rulecolor=\color{gray!30},
+  breaklines=true,
+  keywordstyle=\color{blue!70!black}\bfseries,
+  stringstyle=\color{red!60!black},
+  commentstyle=\color{green!50!black}\itshape,
+  showstringspaces=false,
+  tabsize=4,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=5pt
+}
+\lstdefinestyle{sql}{
+  language=SQL,
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{blue!3},
+  frame=single,
+  rulecolor=\color{blue!20},
+  breaklines=true,
+  keywordstyle=\color{blue!70!black}\bfseries,
+  stringstyle=\color{red!60!black},
+  showstringspaces=false,
+  morekeywords={VIEW, REPLACE, ENGINE, InnoDB, AUTO_INCREMENT, UNSIGNED}
+}
+\lstdefinestyle{js}{
+  language=Java,
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{yellow!3},
+  frame=single,
+  rulecolor=\color{yellow!30},
+  breaklines=true,
+  keywordstyle=\color{purple!70!black}\bfseries,
+  stringstyle=\color{red!60!black},
+  commentstyle=\color{green!50!black}\itshape,
+  showstringspaces=false,
+  morekeywords={async, await, const, let, fetch, function, document, getElementById, innerHTML}
+}
+
+% --- Boîtes tcbox ---
+\usepackage[most]{tcolorbox}
+\newtcolorbox{techbox}[1][]{enhanced, colback=blue!3, colframe=blue!50!black, fonttitle=\bfseries, title=#1}
+\newtcolorbox{warnbox}[1][]{enhanced, colback=orange!5, colframe=orange!60!black, fonttitle=\bfseries, title=#1}
+\newtcolorbox{patternbox}[1][]{enhanced, colback=green!3, colframe=green!50!black, fonttitle=\bfseries, title=#1}
+\newtcolorbox{pitfallbox}[1][]{enhanced, colback=red!3, colframe=red!50!black, fonttitle=\bfseries, title=#1}
+
+% --- Hyperliens ---
+\usepackage[colorlinks=true,linkcolor=blue!60!black,urlcolor=blue!50!black]{hyperref}
+\usepackage{bookmark}
+
+% --- En-têtes ---
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\leftmark}
+\fancyhead[R]{\small Architecture Technique eSchool}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% --- Couleurs ---
+\definecolor{eschoolblue}{HTML}{2563EB}
+\definecolor{eschoolpurple}{HTML}{7C3AED}
+\definecolor{eschoolteal}{HTML}{0D9488}
+\definecolor{eschoolamber}{HTML}{D97706}
+\definecolor{hubcolor}{HTML}{3B82F6}
+\definecolor{spokecolor}{HTML}{10B981}
+\definecolor{arrowcolor}{HTML}{6366F1}
+\definecolor{viewcolor}{HTML}{F59E0B}
+
+% ============================================================
+\begin{document}
+
+% --- PAGE DE COUVERTURE ---
+\begin{titlepage}
+\begin{tikzpicture}[remember picture, overlay]
+  \fill[left color=gray!90!black, right color=eschoolblue!80!black] 
+    (current page.south west) rectangle (current page.north east);
+  \foreach \x/\y/\r/\o in {3/24/3/0.04, 14/22/4/0.05, 6/6/5/0.03, 17/4/2.5/0.06} {
+    \fill[white, opacity=\o] (\x,\y) circle (\r);
+  }
+  \fill[white, opacity=0.95] 
+    ([yshift=5cm]current page.south west) rectangle (current page.south east);
+\end{tikzpicture}
+
+\vspace*{3cm}
+\begin{center}
+  {\Huge\bfseries\color{white} Architecture Technique}\\[0.5cm]
+  {\Huge\bfseries\color{white} de l'Écosystème}\\[0.5cm]
+  {\Huge\bfseries\color{eschoolblue!30!white} eSchool / MonEcole}\\[1cm]
+  {\Large\color{white!80} Guide Technique Approfondi}\\[0.3cm]
+  {\large\color{white!70} Pour Ingénieurs et Développeurs}\\[4cm]
+  \rule{10cm}{0.5pt}\\[0.5cm]
+  {\color{white!80} Django $\bullet$ MySQL/MariaDB $\bullet$ ReportLab $\bullet$ Gunicorn}\\[5cm]
+\end{center}
+\begin{center}
+  {\normalsize\color{gray!80} Version 1.0 — Mars 2026}\\[0.2cm]
+  {\normalsize\color{gray!80} evanet08 — \texttt{github.com/evanet08}}
+\end{center}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ============================================================
+\chapter{Vue d'Ensemble Technique}
+% ============================================================
+
+\section{Stack Technologique}
+
+\begin{center}
+\begin{tikzpicture}[
+  layer/.style={rectangle, rounded corners=6pt, draw, minimum width=13cm, minimum height=1.8cm, align=center, font=\small, drop shadow={shadow xshift=0.5pt, shadow yshift=-0.5pt}},
+  arr/.style={-{Stealth[length=5pt]}, thick, gray!40}
+]
+  \node[layer, fill=eschoolblue!10, draw=eschoolblue!40] (client) at (0,7) {
+    \textbf{Client} — Navigateur Web\\
+    HTML5 $\bullet$ CSS3 (Variables, Glassmorphism) $\bullet$ JavaScript (Vanilla, AJAX/Fetch)\\
+    Bootstrap 5 $\bullet$ FontAwesome 6 $\bullet$ Google Fonts (Inter)
+  };
+  
+  \node[layer, fill=eschoolpurple!10, draw=eschoolpurple!40] (web) at (0,4.5) {
+    \textbf{Serveur Web} — Apache 2.4 + mod\_proxy\\
+    Reverse proxy vers Gunicorn $\bullet$ SSL/TLS via Plesk\\
+    Static files servis directement par Apache
+  };
+  
+  \node[layer, fill=eschoolteal!10, draw=eschoolteal!40] (app) at (0,2) {
+    \textbf{Application} — Django 4.2 + Gunicorn\\
+    2 projets : eSchoolStructure (Hub) + MonEcole (Spoke)\\
+    ReportLab (PDF) $\bullet$ openpyxl (Excel) $\bullet$ Brevo (Email)
+  };
+  
+  \node[layer, fill=eschoolamber!10, draw=eschoolamber!40] (db) at (0,-0.5) {
+    \textbf{Base de Données} — MySQL 8.0 / MariaDB 10.6\\
+    \texttt{countryStructure} (Hub) + \texttt{db\_monecole} (Spoke)\\
+    Cross-DB VIEWs $\bullet$ DatabaseRouter $\bullet$ \texttt{managed=False}
+  };
+  
+  \draw[arr] (client) -- (web);
+  \draw[arr] (web) -- (app);
+  \draw[arr] (app) -- (db);
+\end{tikzpicture}
+\end{center}
+
+\section{Repositories Git}
+
+\begin{center}
+\begin{tabular}{l l l}
+\toprule
+\textbf{Repository} & \textbf{Rôle} & \textbf{Serveur} \\
+\midrule
+\texttt{evanet08/eSchoolStructure} & Hub national & \texttt{eschool-rdc.pro} \\
+\texttt{evanet08/MonEcole} & Spoke scolaire & \texttt{monecole.pro} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Arborescence des Projets}
+
+\begin{lstlisting}[style=python, title=eSchoolStructure]
+eSchoolStructure/
+|-- eSchoolStructure/       # Projet Django principal
+|   |-- settings.py         # Config BDD, SMTP, static
+|   |-- urls.py             # Routage principal
+|   |-- db_routers.py       # DatabaseRouter
+|-- structure_app/          # Application principale
+|   |-- models.py           # 25+ modeles (1145 lignes)
+|   |-- views.py            # 80+ endpoints (2600+ lignes)
+|   |-- auth_views.py       # Auth hierarchique
+|   |-- templates/          # Templates Django
+|   |-- static/             # CSS, JS, images
+|   |-- migrations/         # 28 migrations
+|-- docs/latex/             # Cette documentation
+|-- manage.py
+\end{lstlisting}
+
+\begin{lstlisting}[style=python, title=MonEcole]
+MonEcole/
+|-- MonEcole/               # Projet Django principal
+|   |-- settings.py
+|   |-- urls.py
+|   |-- db_routers.py       # CountryStructureRouter
+|-- MonEcole_app/
+|   |-- models/             # Modeles repartis en modules
+|   |   |-- country_structure.py  # Tables Hub (managed=False)
+|   |   |-- classe.py       # Classes, cycles, sections
+|   |   |-- eleves/         # Eleve, Inscription, Notes
+|   |   |-- evaluations/    # Notes, Deliberations
+|   |   |-- recouvrement/   # Paiements, Rubriques
+|   |-- views/              # Views reparties en modules
+|   |   |-- direction_views/ # Dashboard directeur
+|   |   |-- inscription/    # CRUD eleves
+|   |   |-- evaluation/     # Notes et deliberations
+|   |   |-- enseignement/   # Cours et attributions
+|   |   |-- recouvrement/   # Finances
+|   |-- templates/          # 60+ templates HTML
+\end{lstlisting}
+
+
+% ============================================================
+\chapter{Architecture Multi-Base de Données}
+% ============================================================
+
+\section{Vue d'Ensemble du Schéma Distribué}
+
+\begin{center}
+\begin{tikzpicture}[
+  db/.style={cylinder, draw, shape border rotate=90, minimum width=2.5cm, minimum height=2cm, font=\small\bfseries, align=center, aspect=0.25, drop shadow},
+  app/.style={rectangle, rounded corners=6pt, draw, minimum width=3.5cm, minimum height=1.5cm, font=\small, align=center, drop shadow},
+  view/.style={rectangle, rounded corners=3pt, draw=viewcolor!60, fill=viewcolor!10, minimum width=2cm, minimum height=0.5cm, font=\tiny, align=center, dashed},
+  arr/.style={-{Stealth[length=5pt]}, thick},
+  darr/.style={-{Stealth[length=5pt]}, thick, dashed}
+]
+  % Hub
+  \node[db, fill=hubcolor!15, draw=hubcolor!60] (dbhub) at (0,0) {\texttt{country}\\\texttt{Structure}};
+  \node[app, fill=hubcolor!8, draw=hubcolor!50] (apphub) at (0,3) {eSchool\\Structure};
+  
+  % Spoke
+  \node[db, fill=spokecolor!15, draw=spokecolor!60] (dbspoke) at (8,0) {\texttt{db\_}\\\texttt{monecole}};
+  \node[app, fill=spokecolor!8, draw=spokecolor!50] (appspoke) at (8,3) {MonEcole};
+  
+  % VIEWs
+  \node[view] (v1) at (4,1.2) {VIEW cours};
+  \node[view] (v2) at (4,0.4) {VIEW trimestres};
+  \node[view] (v3) at (4,-0.4) {VIEW classes};
+  \node[view] (v4) at (4,-1.2) {VIEW ecole};
+  
+  % Connexions
+  \draw[arr, hubcolor] (apphub) -- (dbhub) node[midway, left, font=\scriptsize] {ORM};
+  \draw[arr, spokecolor] (appspoke) -- (dbspoke) node[midway, right, font=\scriptsize] {ORM};
+  
+  \draw[darr, viewcolor!70] (dbhub) -- (v1);
+  \draw[darr, viewcolor!70] (dbhub) -- (v2);
+  \draw[darr, viewcolor!70] (dbhub) -- (v3);
+  \draw[darr, viewcolor!70] (dbhub) -- (v4);
+  \draw[darr, viewcolor!70] (v1) -- (dbspoke);
+  \draw[darr, viewcolor!70] (v2) -- (dbspoke);
+  \draw[darr, viewcolor!70] (v3) -- (dbspoke);
+  \draw[darr, viewcolor!70] (v4) -- (dbspoke);
+  
+  % Légende
+  \node[font=\scriptsize, text=viewcolor!80!black] at (4,-2.2) {VIEWs MySQL cross-BDD};
+\end{tikzpicture}
+\end{center}
+
+\section{Le DatabaseRouter}
+
+Le \texttt{CountryStructureRouter} aiguille les requêtes ORM vers la bonne base :
+
+\begin{lstlisting}[style=python, title=db\_routers.py]
+class CountryStructureRouter:
+    """
+    Route les modeles managed=False vers countryStructure,
+    tout le reste vers la base par defaut (db_monecole).
+    """
+    hub_models = {
+        'session', 'trimestre', 'periode', 'mention',
+        'pays', 'classe', 'cycle',
+    }
+    
+    def db_for_read(self, model, **hints):
+        if model._meta.db_table in self.hub_models:
+            return 'countryStructure'
+        if not model._meta.managed:
+            return 'countryStructure'
+        return 'default'
+    
+    def db_for_write(self, model, **hints):
+        if not model._meta.managed:
+            return 'countryStructure'
+        return 'default'
+    
+    def allow_relation(self, obj1, obj2, **hints):
+        return True  # Cross-DB relations autorisees
+    
+    def allow_migrate(self, db, app_label, model_name=None, **hints):
+        return db == 'default'
+\end{lstlisting}
+
+\section{Pattern managed=False}
+
+Les tables du Hub réutilisées dans le Spoke sont déclarées avec \texttt{managed = False} :
+
+\begin{lstlisting}[style=python, title=MonEcole models/country\_structure.py]
+class Trimestre(models.Model):
+    """
+    Table de reference : countryStructure.trimestres
+    managed = False : Django ne modifie pas le schema.
+    """
+    id_trimestre = models.AutoField(primary_key=True)
+    trimestre = models.CharField(max_length=50, unique=True)
+    is_active = models.BooleanField(default=True)
+    
+    class Meta:
+        db_table = 'trimestres'
+        managed = False  # <-- Cle du pattern
+        verbose_name = 'Trimestre'
+    
+    def __str__(self):
+        return self.trimestre
+\end{lstlisting}
+
+\section{VIEWs MySQL}
+
+\subsection{VIEWs de Référence Simples}
+
+\begin{lstlisting}[style=sql, title=VIEWs 1:1 vers le Hub]
+-- Trimestres
+CREATE OR REPLACE VIEW `db_monecole`.`trimestres` AS
+SELECT * FROM countryStructure.trimestres;
+
+-- Sessions
+CREATE OR REPLACE VIEW `db_monecole`.`sessions` AS
+SELECT * FROM countryStructure.sessions;
+
+-- Mentions
+CREATE OR REPLACE VIEW `db_monecole`.`mentions` AS
+SELECT * FROM countryStructure.mentions;
+
+-- Classes
+CREATE OR REPLACE VIEW `db_monecole`.`classes` AS
+SELECT * FROM countryStructure.classes;
+\end{lstlisting}
+
+\subsection{VIEW Cross-DB avec JOIN : cours\_par\_classe}
+
+\begin{lstlisting}[style=sql, title=VIEW avec jointure cross-BDD]
+CREATE OR REPLACE VIEW `db_monecole`.`cours_par_classe` AS
+SELECT 
+    c.id_cours AS id_cours_classe,
+    c.cours,
+    c.code_cours,
+    c.classe_id,
+    c.domaine_id,
+    ca.id_classe_active,
+    ca.id_campus_id,
+    ca.id_annee_id
+FROM countryStructure.cours c
+JOIN db_monecole.classe_active ca 
+  ON ca.classe_id_id = c.classe_id;
+\end{lstlisting}
+
+\subsection{VIEW Universal Context : annee\_trimestre}
+
+\begin{pitfallbox}[Piège : Le Pattern ``Hardcoded Zero'']
+Ne JAMAIS utiliser \texttt{0 AS id\_campus\_id} dans une VIEW. Cela casse tous les filtres Django ORM. Toujours effectuer un JOIN pour résoudre les identifiants de contexte.
+\end{pitfallbox}
+
+\begin{lstlisting}[style=sql, title=Pattern ``Universal Context'']
+CREATE OR REPLACE VIEW `db_monecole`.`annee_trimestre` AS
+SELECT 
+    t.id AS id_trimestre,
+    t.trimestre_id,
+    t.debut, t.fin,
+    t.etat AS etat_trimestre,
+    a.id_annee AS id_annee_id,
+    c.id_campus AS id_campus_id,
+    cca.id_cycle_actif AS id_cycle_id,
+    ca.id_classe_active AS id_classe_id
+FROM countryStructure.etablissements_annees_trimestres t
+JOIN countryStructure.etablissements_annees ea 
+  ON t.etablissement_annee_id = ea.id
+JOIN db_monecole.annee a 
+  ON a.id_annee_structure = ea.annee_id
+JOIN db_monecole.campus c 
+  ON c.id_etablissement = ea.etablissement_id 
+  AND c.is_active = 1
+JOIN db_monecole.classe_cycle_actif cca 
+  ON cca.id_campus_id = c.id_campus 
+  AND cca.id_annee_id = a.id_annee 
+  AND cca.is_active = 1
+JOIN db_monecole.classe_active ca 
+  ON ca.cycle_id_id = cca.id_cycle_actif 
+  AND ca.id_campus_id = c.id_campus 
+  AND ca.id_annee_id = a.id_annee 
+  AND ca.is_active = 1;
+\end{lstlisting}
+
+
+% ============================================================
+\chapter{Schéma de Données — eSchoolStructure}
+% ============================================================
+
+\section{Diagramme Entité-Relation Complet}
+
+\begin{center}
+\begin{tikzpicture}[
+  entity/.style={rectangle, rounded corners=3pt, draw=#1!60, fill=#1!8, minimum width=3cm, minimum height=0.7cm, font=\scriptsize\bfseries, align=center},
+  fk/.style={-{Stealth[length=3pt]}, thin, gray!60}
+]
+  % === COUCHE 1 : PAYS ===
+  \node[entity=red] (pays) at (0,0) {Pays};
+  
+  % === COUCHE 2 : SOUS-PAYS ===
+  \node[entity=orange] (pedtype) at (-6,-1.5) {PedagogicStructureType};
+  \node[entity=orange] (admtype) at (-2.5,-1.5) {AdministrativeStructureType};
+  \node[entity=eschoolblue] (cycle) at (1,-1.5) {Cycle};
+  \node[entity=eschoolpurple] (regime) at (4,-1.5) {Regime};
+  \node[entity=eschoolteal] (programme) at (7,-1.5) {Programme};
+  
+  % === COUCHE 3 : INSTANCES ===
+  \node[entity=orange] (pedinst) at (-6,-3) {PedagogicStructureInstance};
+  \node[entity=orange] (adminst) at (-2.5,-3) {AdminStructureInstance};
+  \node[entity=eschoolblue] (section) at (1,-3) {Section};
+  \node[entity=eschoolblue] (classe) at (4,-3) {Classe};
+  \node[entity=eschoolteal] (domaine) at (7,-3) {Domaine};
+  
+  % === COUCHE 4 : COURS ===
+  \node[entity=hubcolor] (cours) at (2,-4.5) {Cours};
+  \node[entity=hubcolor] (coursannee) at (6,-4.5) {CoursAnnee};
+  
+  % === COUCHE 5 : ÉTABLISSEMENTS ===
+  \node[entity=spokecolor] (gest) at (-4,-4.5) {GestionnaireEtab};
+  \node[entity=spokecolor] (etab) at (-1,-6) {Etablissement};
+  \node[entity=eschoolamber] (annee) at (3,-6) {Annee};
+  
+  % === COUCHE 6 : CONFIG ANNUELLE ===
+  \node[entity=eschoolamber] (etabannee) at (0,-7.5) {EtablissementAnnee};
+  \node[entity=eschoolamber] (etabclasse) at (5,-7.5) {EtabAnneeClasse};
+  
+  % === COUCHE 7 : TEMPORAL ===
+  \node[entity=arrowcolor] (session) at (-5,-7.5) {Session};
+  \node[entity=arrowcolor] (trimestre) at (-3,-9) {Trimestre};
+  \node[entity=arrowcolor] (periode) at (0,-9) {Periode};
+  \node[entity=arrowcolor] (mention) at (3,-9) {Mention};
+  \node[entity=arrowcolor] (etabtrim) at (-1,-10.5) {EtabAnneeTrimestre};
+  \node[entity=arrowcolor] (etabper) at (4,-10.5) {EtabAnneePeriode};
+  
+  % === COUCHE 8 : SECURITE ===
+  \node[entity=red] (admin) at (-5,-6) {AdminUser};
+  \node[entity=red] (otp) at (-7,-7.5) {OTPCode};
+  
+  % === FK ARROWS ===
+  \foreach \child in {pedtype,admtype,cycle,regime,programme} {\draw[fk](\child)--(pays);}
+  \draw[fk] (classe) -- (cycle);
+  \draw[fk] (cours) -- (classe);
+  \draw[fk] (cours) -- (domaine);
+  \draw[fk] (cours) -- (section);
+  \draw[fk] (coursannee) -- (cours);
+  \draw[fk] (coursannee) -- (annee);
+  \draw[fk] (coursannee) -- (domaine);
+  \draw[fk] (etab) -- (pays);
+  \draw[fk] (etab) -- (gest);
+  \draw[fk] (etabannee) -- (etab);
+  \draw[fk] (etabannee) -- (annee);
+  \draw[fk] (etabclasse) -- (etabannee);
+  \draw[fk] (etabclasse) -- (classe);
+  \draw[fk] (etabclasse) -- (section);
+  \draw[fk] (etabtrim) -- (etabannee);
+  \draw[fk] (etabtrim) -- (trimestre);
+  \draw[fk] (etabper) -- (etabtrim);
+  \draw[fk] (etabper) -- (periode);
+  \draw[fk] (admin) -- (pays);
+  \draw[fk] (admin) -- (etab);
+  \draw[fk] (admin) -- (pedinst);
+  \draw[fk] (otp) -- (admin);
+  \draw[fk] (periode) -- (trimestre);
+\end{tikzpicture}
+\end{center}
+
+\section{Modèles Détaillés}
+
+\subsection{Pays — Point d'Entrée}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Champ} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{id\_pays} & AutoField (PK) & Identifiant unique \\
+\texttt{nom} & CharField(100) & Nom du pays (unique) \\
+\texttt{sigle} & CharField(5) & Code ISO du pays (unique) \\
+\texttt{nLevelsStructuraux} & PositiveInt & Nombre de niveaux pédagogiques \\
+\texttt{nLevelsAdministratifs} & PositiveInt & Nombre de niveaux administratifs \\
+\texttt{domaine} & CharField & Domaine web associé \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{Cycle — Niveaux d'Enseignement}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Champ} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{id\_cycle} & AutoField (PK) & Identifiant unique \\
+\texttt{nom} & CharField(100) & Nom (Primaire, Secondaire...) \\
+\texttt{code} & CharField(20) & Code court (PRI, SEC...) \\
+\texttt{duree} & PositiveInt & Durée en années \\
+\texttt{ordre} & PositiveInt & Ordre hiérarchique \\
+\texttt{pays} & FK → Pays & Pays d'appartenance \\
+\texttt{hasSections} & Boolean & Possède des sections (Sci, Lit...) \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{Cours — Catalogue des Matières}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Champ} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{id\_cours} & AutoField (PK) & Identifiant unique \\
+\texttt{cours} & CharField(200) & Nom du cours (Mathématiques...) \\
+\texttt{code\_cours} & CharField(20) & Code unique (MATH01...) \\
+\texttt{classe} & FK → Classe & Classe d'appartenance \\
+\texttt{domaine} & FK → Domaine & Domaine par défaut \\
+\texttt{section} & FK → Section (null) & Section (pour cycles à sections) \\
+\multicolumn{3}{l}{\textit{unique\_together: (classe, section, code\_cours)}} \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{AdminUser — Hiérarchie de Sécurité}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Champ} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{id\_admin} & AutoField (PK) & Identifiant unique \\
+\texttt{email} & EmailField (unique) & Identifiant principal \\
+\texttt{telephone} & CharField(20) & Numéro international \\
+\texttt{password\_hash} & CharField(128) & Hash PBKDF2-SHA256 \\
+\texttt{pays} & FK → Pays & Pays d'appartenance \\
+\texttt{structure\_instance} & FK → PedagogicInst (null) & Niveau structurel \\
+\texttt{etablissement} & FK → Etablissement (null) & École spécifique \\
+\texttt{email\_verified} & Boolean & Email vérifié par OTP \\
+\texttt{is\_active} & Boolean & Compte actif \\
+\texttt{created\_by} & FK → self (null) & Administrateur créateur \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{techbox}[Propriétés Dynamiques de AdminUser]
+\begin{itemize}[topsep=0pt, itemsep=2pt]
+  \item \texttt{niveau\_ordre} — 0 (National), 1-N (Structure), N+1 (École)
+  \item \texttt{niveau\_nom} — ``National'', ``Niveau X'', ``Établissement''
+  \item \texttt{scope\_code} — Code hiérarchique pour filtrage par préfixe
+  \item \texttt{scope\_name} — Nom de l'entité gérée
+  \item \texttt{is\_national} — True si niveau 0
+  \item \texttt{is\_validated} — True si email ou phone vérifié
+  \item \texttt{has\_password} — True si mot de passe défini
+\end{itemize}
+\end{techbox}
+
+
+% ============================================================
+\chapter{Schéma de Données — MonEcole}
+% ============================================================
+
+\section{Vue d'Ensemble}
+
+MonEcole utilise 30+ modèles répartis dans des modules Python :
+
+\begin{center}
+\begin{tikzpicture}[
+  mod/.style={rectangle, rounded corners=4pt, draw=#1!50, fill=#1!8, minimum width=4.5cm, minimum height=1.8cm, font=\scriptsize, align=left},
+]
+  \node[mod=spokecolor] (m1) at (0,3) {\textbf{country\_structure.py}\\Pays, Session, Trimestre,\\Periode, Mention (managed=False)};
+  \node[mod=eschoolblue] (m2) at (6,3) {\textbf{classe.py}\\Classe, Cycle, Classe\_active,\\Section, Délibération};
+  \node[mod=eschoolpurple] (m3) at (0,0) {\textbf{eleves/}\\Eleve, Inscription, Note\_type,\\Eleve\_note, Conduite};
+  \node[mod=eschoolamber] (m4) at (6,0) {\textbf{evaluations/}\\Deliberation\_type, Finalite,\\5 types de résultats, Evaluation};
+  \node[mod=red] (m5) at (0,-3) {\textbf{recouvrement/}\\Paiement, Rubrique\_variable,\\Prix, Derogation};
+  \node[mod=eschoolteal] (m6) at (6,-3) {\textbf{Autres}\\Campus, Ecole, Annee, Module,\\Personnel, Horaire, Salle};
+\end{tikzpicture}
+\end{center}
+
+\section{Modèle Élève — Fiche Complète}
+
+Le modèle \texttt{Eleve} contient 35+ champs couvrant l'identité, la filiation, la localisation et les identifiants de sécurité :
+
+\begin{center}
+\begin{tabularx}{\textwidth}{l X}
+\toprule
+\textbf{Catégorie} & \textbf{Champs} \\
+\midrule
+Identité & nom, prenom, genre, etat\_civil, date\_naissance \\
+Filiation & nom\_pere, prenom\_pere, nom\_mere, prenom\_mere, tutaire \\
+Scolarité & code\_eleve, code\_annee, matricule \\
+Contact & email, email\_parent, telephone \\
+Localisation & naissance\_pays/province/commune/zone, province/commune/zone\_actuelle \\
+Sécurité & password, password\_parent, code\_secret\_parent, code\_secret\_eleve \\
+Media & imageUrl (upload vers logos/eleves/) \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{Circuit de la Note}
+
+\begin{center}
+\begin{tikzpicture}[
+  step/.style={rectangle, rounded corners=5pt, draw=#1!50, fill=#1!10, minimum width=2.8cm, minimum height=1.2cm, font=\scriptsize, align=center},
+  arr/.style={-{Stealth[length=5pt]}, thick, arrowcolor!60}
+]
+  \node[step=eschoolblue] (s1) at (0,0) {\textbf{Enseignant}\\Saisit les notes};
+  \node[step=eschoolpurple] (s2) at (4,0) {\textbf{Evaluation}\\Type + Période\\+ Session};
+  \node[step=eschoolteal] (s3) at (8,0) {\textbf{Eleve\_note}\\Note/20, Note/Max\\Repêchage};
+  \node[step=eschoolamber] (s4) at (12,0) {\textbf{Délibération}\\Pourcentage +\\Rang + Mention};
+  \node[step=red] (s5) at (8,-2.5) {\textbf{Bulletin PDF}\\ReportLab};
+  
+  \draw[arr] (s1) -- (s2);
+  \draw[arr] (s2) -- (s3);
+  \draw[arr] (s3) -- (s4);
+  \draw[arr] (s4) -- (s5);
+  \draw[arr] (s3) -- (s5);
+\end{tikzpicture}
+\end{center}
+
+
+% ============================================================
+\chapter{Liaison Hub $\leftrightarrow$ Spoke}
+% ============================================================
+
+\section{Chaîne de Résolution du Tenant}
+
+\begin{center}
+\begin{tikzpicture}[
+  box/.style={rectangle, rounded corners=5pt, draw=#1!50, fill=#1!10, minimum width=3.2cm, minimum height=1.5cm, font=\scriptsize, align=center},
+  arr/.style={-{Stealth[length=5pt]}, thick}
+]
+  \node[box=spokecolor] (campus) at (0,0) {\textbf{campus}\\(\texttt{db\_monecole})\\[2pt]\texttt{id\_etablissement}\\= lien vers Hub};
+  
+  \node[box=hubcolor] (etab) at (4.5,0) {\textbf{etablissements}\\(\texttt{countryStructure})\\[2pt]Données de l'école\\Matricule, Logo};
+  
+  \node[box=hubcolor] (ea) at (9,0) {\textbf{etab\_annees}\\(\texttt{countryStructure})\\[2pt]Année activée\\pour cette école};
+  
+  \node[box=arrowcolor] (trim) at (4.5,-3) {\textbf{etab\_trim}\\Trimestres\\configurés};
+  
+  \node[box=arrowcolor] (per) at (9,-3) {\textbf{etab\_per}\\Périodes\\configurées};
+  
+  \draw[arr, spokecolor!70] (campus) -- (etab) node[midway, above, font=\tiny\itshape] {\texttt{id\_etablissement}};
+  \draw[arr, hubcolor!70] (etab) -- (ea) node[midway, above, font=\tiny\itshape] {FK};
+  \draw[arr, arrowcolor!70] (ea) -- (trim);
+  \draw[arr, arrowcolor!70] (trim) -- (per);
+\end{tikzpicture}
+\end{center}
+
+\begin{techbox}[Règle d'Or : ``Always Carry the Etablissement ID'']
+Chaque enregistrement opérationnel dans le Spoke doit avoir un chemin de résolution vers \texttt{id\_etablissement} via la table \texttt{campus}. Sans ce lien, les VIEWs cross-BDD retournent des ensembles vides.
+\end{techbox}
+
+
+% ============================================================
+\chapter{Système d'Authentification}
+% ============================================================
+
+\section{Machine à États}
+
+\begin{center}
+\begin{tikzpicture}[
+  state/.style={ellipse, draw=#1!60, fill=#1!10, minimum width=2.5cm, minimum height=1cm, font=\scriptsize\bfseries, align=center},
+  arr/.style={-{Stealth[length=5pt]}, thick, gray!70},
+  lab/.style={font=\tiny\itshape, text=gray!70}
+]
+  \node[state=eschoolblue] (s1) at (0,0) {Email\\Input};
+  \node[state=eschoolpurple] (s2) at (5,1.5) {Password\\Entry};
+  \node[state=eschoolamber] (s3) at (5,-1.5) {OTP\\Choice};
+  \node[state=red] (s4) at (10,-1.5) {OTP\\Verify};
+  \node[state=eschoolteal] (s5) at (10,1.5) {Set\\Password};
+  \node[state=spokecolor] (s6) at (14,0) {Dashboard\\(Logged In)};
+  
+  \draw[arr] (s1) -- (s2) node[midway, lab, above] {verified + has\_pw};
+  \draw[arr] (s1) -- (s3) node[midway, lab, below] {unverified};
+  \draw[arr] (s3) -- (s4) node[midway, lab, below] {Email/SMS};
+  \draw[arr] (s4) -- (s5) node[midway, lab, right] {code OK};
+  \draw[arr] (s2) -- (s6) node[midway, lab, above] {pw OK};
+  \draw[arr] (s5) -- (s6) node[midway, lab, above] {pw saved};
+\end{tikzpicture}
+\end{center}
+
+\section{Endpoints d'Authentification}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Endpoint} & \textbf{Méthode} & \textbf{Description} \\
+\midrule
+\texttt{/api/auth/check-email/} & POST & Vérifie existence et statut \\
+\texttt{/api/auth/request-otp/} & POST & Génère et envoie OTP \\
+\texttt{/api/auth/verify-otp/} & POST & Valide le code OTP \\
+\texttt{/api/auth/set-password/} & POST & Définit le mot de passe \\
+\texttt{/api/auth/login/} & POST & Connexion classique \\
+\texttt{/api/auth/me/} & GET & Infos utilisateur connecté \\
+\texttt{/api/auth/logout/} & POST & Déconnexion \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{Décorateurs de Sécurité}
+
+\begin{lstlisting}[style=python, title=Décorateurs @require\_auth et @require\_level]
+def require_auth(view_func):
+    """Verifie que la requete provient d'un AdminUser connecte."""
+    def wrapper(request, *args, **kwargs):
+        user_id = request.session.get('user_id')
+        if not user_id:
+            return JsonResponse({'error': 'Non authentifie'}, status=401)
+        try:
+            request.admin_user = AdminUser.objects.get(id_admin=user_id)
+        except AdminUser.DoesNotExist:
+            request.session.flush()
+            return JsonResponse({'error': 'Session invalide'}, status=401)
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+def require_level(max_level):
+    """Verifie le niveau hierarchique minimum."""
+    def decorator(view_func):
+        def wrapper(request, *args, **kwargs):
+            if request.admin_user.niveau_ordre > max_level:
+                return JsonResponse({'error': 'Acces refuse'}, status=403)
+            return view_func(request, *args, **kwargs)
+        return wrapper
+    return decorator
+\end{lstlisting}
+
+
+% ============================================================
+\chapter{Patterns de Développement}
+% ============================================================
+
+\section{Pattern Upsert JSON}
+
+\begin{patternbox}[Pattern : Upsert (Create or Update)]
+Un seul endpoint gère à la fois la création et la modification d'une entité. La présence ou l'absence de l'ID dans le payload détermine l'opération.
+\end{patternbox}
+
+\begin{lstlisting}[style=python, title=Exemple : save\_cours]
+@require_http_methods(["POST"])
+def save_cours(request):
+    data = json.loads(request.body)
+    id_cours = data.get('id_cours')  # None = create
+    
+    payload = {
+        'cours': data.get('cours'),
+        'code_cours': data.get('code_cours'),
+        'classe': get_object_or_404(Classe, id_classe=data['id_classe']),
+        'domaine': get_object_or_404(Domaine, id_domaine=data['id_domaine']),
+    }
+    
+    if id_cours:
+        # UPDATE
+        instance = get_object_or_404(Cours, id_cours=id_cours)
+        for key, val in payload.items():
+            setattr(instance, key, val)
+        instance.save()
+    else:
+        # CREATE
+        if Cours.objects.filter(
+            classe=payload['classe'], 
+            code_cours=payload['code_cours']
+        ).exists():
+            return JsonResponse({'error': 'Code duplique'}, status=400)
+        instance = Cours.objects.create(**payload)
+    
+    return JsonResponse({'success': True, 'id': instance.id_cours})
+\end{lstlisting}
+
+\section{Pattern Checkbox Activation}
+
+\begin{patternbox}[Pattern : Activation par Checkbox]
+L'utilisateur voit TOUS les éléments du catalogue. Les éléments actifs dans le contexte courant sont cochés. Cocher/décocher déclenche une insertion/suppression atomique via AJAX.
+\end{patternbox}
+
+\begin{center}
+\begin{tikzpicture}[
+  item/.style={rectangle, draw=gray!30, fill=gray!5, minimum width=8cm, minimum height=0.8cm, font=\small, align=left},
+]
+  \node[item, fill=spokecolor!10] (i1) at (0,2) {~$\boxtimes$~~MATH01 — Mathématiques~~\textit{(Pondération: 3, Heures: 6h)}};
+  \node[item, fill=spokecolor!10] (i2) at (0,1) {~$\boxtimes$~~FRAN01 — Français~~\textit{(Pondération: 2, Heures: 4h)}};
+  \node[item] (i3) at (0,0) {~$\square$~~ANGL01 — Anglais~~\textit{(Non activé cette année)}};
+  \node[item, fill=spokecolor!10] (i4) at (0,-1) {~$\boxtimes$~~PHYS01 — Physique~~\textit{(Pondération: 2, Heures: 3h)}};
+  \node[item] (i5) at (0,-2) {~$\square$~~CHIM01 — Chimie~~\textit{(Non activé cette année)}};
+  
+  \node[font=\scriptsize\itshape, text=gray] at (0,-3) {Cocher = INSERT dans cours\_annee | Décocher = DELETE (si pas de notes liées)};
+\end{tikzpicture}
+\end{center}
+
+
+% ============================================================
+\chapter{Déploiement et DevOps}
+% ============================================================
+
+\section{Workflow de Déploiement}
+
+\begin{center}
+\begin{tikzpicture}[
+  step/.style={rectangle, rounded corners=5pt, draw=eschoolblue!50, fill=eschoolblue!8, minimum width=3cm, minimum height=1.2cm, font=\scriptsize, align=center},
+  arr/.style={-{Stealth[length=5pt]}, thick, eschoolblue!60}
+]
+  \node[step] (s1) at (0,0) {\textbf{1. Local}\\git add + commit\\+ push origin main};
+  \node[step] (s2) at (4.5,0) {\textbf{2. SSH}\\Connexion au\\serveur production};
+  \node[step] (s3) at (9,0) {\textbf{3. Pull}\\git fetch origin\\git reset --hard};
+  \node[step] (s4) at (0,-2.5) {\textbf{4. Static}\\collectstatic\\--noinput};
+  \node[step] (s5) at (4.5,-2.5) {\textbf{5. Migrate}\\manage.py\\migrate};
+  \node[step] (s6) at (9,-2.5) {\textbf{6. Restart}\\systemctl restart\\eschool-structure};
+  
+  \draw[arr] (s1) -- (s2);
+  \draw[arr] (s2) -- (s3);
+  \draw[arr] (s3) -- (s4);
+  \draw[arr] (s4) -- (s5);
+  \draw[arr] (s5) -- (s6);
+\end{tikzpicture}
+\end{center}
+
+\begin{lstlisting}[style=python, title=Commande de déploiement complète]
+sshpass -p 'PASSWORD' ssh root@87.106.23.108 \
+  "cd /var/www/vhosts/eschool-rdc.pro/httpdocs && \
+   git fetch origin && \
+   git reset --hard origin/main && \
+   ./venv/bin/python3 manage.py collectstatic --noinput && \
+   ./venv/bin/python3 manage.py migrate --noinput && \
+   systemctl restart eschool-structure"
+\end{lstlisting}
+
+\section{Vérification Post-Déploiement}
+
+\begin{lstlisting}[style=python, title=Commandes de vérification]
+# Verifier le statut HTTP
+curl -s -o /dev/null -w "%{http_code}\n" https://eschool-rdc.pro/
+
+# Verifier les logs Gunicorn
+journalctl -u eschool-structure --no-pager -n 20
+
+# Verifier le service
+systemctl status eschool-structure
+\end{lstlisting}
+
+
+% ============================================================
+\chapter{Guide du Développeur}
+% ============================================================
+
+\section{Comment Ajouter un Nouveau Modèle}
+
+\begin{enumerate}
+  \item Définir la classe dans \texttt{models.py} avec \texttt{db\_table} explicite
+  \item Ajouter les champs avec les contraintes (\texttt{unique\_together}, FK...)
+  \item Exécuter \texttt{python manage.py makemigrations}
+  \item Vérifier la migration générée, ajuster si nécessaire (cf. migration \texttt{0028})
+  \item Exécuter \texttt{python manage.py migrate}
+\end{enumerate}
+
+\section{Comment Ajouter un Endpoint API}
+
+\begin{enumerate}
+  \item Créer la vue dans \texttt{views.py} avec le décorateur \texttt{@require\_http\_methods}
+  \item Utiliser le pattern Upsert si applicable
+  \item Toujours retourner un \texttt{JsonResponse} avec \texttt{success: True/False}
+  \item Enregistrer l'URL dans \texttt{urls.py}
+  \item Tester avec \texttt{curl} ou depuis le navigateur
+\end{enumerate}
+
+\section{Comment Créer une Migration Personnalisée}
+
+Lorsque l'état de la base de production diffère du schéma Django attendu :
+
+\begin{lstlisting}[style=python, title=Pattern RunSQL pour migrations de production]
+from django.db import migrations
+
+class Migration(migrations.Migration):
+    dependencies = [('structure_app', '0027_previous')]
+    
+    operations = [
+        migrations.RunSQL(
+            sql="""
+            -- Ajout conditionnel de colonne
+            SET @col_exists = (
+                SELECT COUNT(*) 
+                FROM information_schema.COLUMNS 
+                WHERE TABLE_SCHEMA=DATABASE() 
+                AND TABLE_NAME='cours' 
+                AND COLUMN_NAME='section_id'
+            );
+            SET @sql = IF(@col_exists = 0,
+                'ALTER TABLE cours ADD COLUMN section_id INT NULL',
+                'SELECT 1');
+            PREPARE stmt FROM @sql;
+            EXECUTE stmt;
+            """,
+            reverse_sql="ALTER TABLE cours DROP COLUMN section_id"
+        ),
+    ]
+\end{lstlisting}
+
+
+% ============================================================
+% ANNEXES
+% ============================================================
+\appendix
+
+\chapter{Variables d'Environnement}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{l X l}
+\toprule
+\textbf{Variable} & \textbf{Description} & \textbf{Exemple} \\
+\midrule
+\texttt{DB\_HOST} & Hôte MySQL & \texttt{localhost} \\
+\texttt{DB\_NAME} & Nom de la base & \texttt{countryStructure} \\
+\texttt{DB\_USER} & Utilisateur MySQL & \texttt{link2ictgroup} \\
+\texttt{DB\_PASSWORD} & Mot de passe MySQL & (secret) \\
+\texttt{DB\_PORT} & Port MySQL & \texttt{3306} \\
+\texttt{EMAIL\_HOST} & Serveur SMTP & \texttt{monecole.pro} \\
+\texttt{EMAIL\_PORT} & Port SMTP & \texttt{465} \\
+\texttt{EMAIL\_USE\_SSL} & Utiliser SSL & \texttt{True} \\
+\texttt{EMAIL\_HOST\_USER} & Email expéditeur & \texttt{noreply@monecole.pro} \\
+\texttt{SECRET\_KEY} & Clé Django & (secret) \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\chapter{Liste Complète des VIEWs MySQL}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{VIEW} & \textbf{Type} & \textbf{Source Hub} \\
+\midrule
+\texttt{classes} & 1:1 & \texttt{countryStructure.classes} \\
+\texttt{cours} & 1:1 & \texttt{countryStructure.cours} \\
+\texttt{sessions} & 1:1 & \texttt{countryStructure.sessions} \\
+\texttt{trimestres} & 1:1 & \texttt{countryStructure.trimestres} \\
+\texttt{periodes} & 1:1 & \texttt{countryStructure.periodes} \\
+\texttt{mentions} & 1:1 & \texttt{countryStructure.mentions} \\
+\texttt{classe\_cycle} & 1:1 & \texttt{countryStructure.cycles} \\
+\texttt{ecole} & Filtré & \texttt{countryStructure.etablissements} \\
+\texttt{cours\_par\_classe} & Cross-JOIN & \texttt{cours} × \texttt{classe\_active} \\
+\texttt{annee\_trimestre} & Universal & Multi-JOIN (5 tables) \\
+\texttt{annee\_periode} & Universal & Multi-JOIN via \texttt{annee\_trimestre} \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\end{document}
