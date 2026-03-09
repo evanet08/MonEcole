@@ -622,8 +622,7 @@
                 <td id="classe-ordre-{{ classe_active.id_classe_active }}">{{ classe_active.ordre|default:"" }} position
                 </td>
                 <td>
-                  <input type="checkbox" class="toggle-terminale" data-id="{{ classe_active.id_classe_active }}" {% if
-                    classe_active.isTerminale %}checked{% endif %}>
+                  <input type="checkbox" class="toggle-terminale" data-id="{{ classe_active.id_classe_active }}" {% if classe_active.isTerminale %}checked{% endif %}>
                 </td>
 
 
