@@ -552,10 +552,12 @@
             <tbody id="studentTable">
               {% for cycle_actif in classes_cycle_actif %}
               <tr id="row-cycle-actif-{{ cycle_actif.id_cycle_actif }}">
-                <td class="fw-bold text-primary" id="cycle-annee-{{ cycle_actif.id_cycle_actif }}">{{ cycle_actif.id_annee.annee }}</td>
+                <td class="fw-bold text-primary" id="cycle-annee-{{ cycle_actif.id_cycle_actif }}">{{
+                  cycle_actif.id_annee.annee }}</td>
                 <td id="cycle-campus-{{ cycle_actif.id_cycle_actif }}">{{ cycle_actif.id_campus.campus }}</td>
                 <td id="cycle-cycle-{{ cycle_actif.id_cycle_actif }}">{{ cycle_actif.cycle_id.cycle }}</td>
-                <td id="cycle-role-{{ cycle_actif.id_cycle_actif }}">{{ cycle_actif.nbre_classe_par_cycle_actif|default:"" }}</td>
+                <td id="cycle-role-{{ cycle_actif.id_cycle_actif }}">{{
+                  cycle_actif.nbre_classe_par_cycle_actif|default:"" }}</td>
                 <td>
                   <a href="#" class="btn btn-sm btn-outline-primary me-2 edit-btn-cycle-actif"
                     data-id="{{ cycle_actif.id_cycle_actif }}">
@@ -610,7 +612,8 @@
             <tbody id="studentTable">
               {% for classe_active in classe_active_list %}
               <tr id="row-classe-active-{{ classe_active.id_classe_active }}">
-                <td class="fw-bold text-primary" id="classe-campus-{{ classe_active.id_classe_active }}">{{ classe_active.id_campus.campus }}</td>
+                <td class="fw-bold text-primary" id="classe-campus-{{ classe_active.id_classe_active }}">{{
+                  classe_active.id_campus.campus }}</td>
                 <td id="classe-annee-{{ classe_active.id_classe_active }}">{{ classe_active.id_annee.annee }}</td>
                 <td id="classe-cycle-{{ classe_active.id_classe_active }}">{{ classe_active.cycle_id.cycle_id.cycle }}
                 </td>
@@ -619,7 +622,8 @@
                 <td id="classe-ordre-{{ classe_active.id_classe_active }}">{{ classe_active.ordre|default:"" }} position
                 </td>
                 <td>
-                  <input type="checkbox" class="toggle-terminale" data-id="{{ classe_active.id_classe_active }}" {% if classe_active.isTerminale %}checked{% endif %}>
+                  <input type="checkbox" class="toggle-terminale" data-id="{{ classe_active.id_classe_active }}" {% if
+                    classe_active.isTerminale %}checked{% endif %}>
                 </td>
 
 
@@ -775,7 +779,8 @@
             <tbody>
               {% for trimestre in trimestres %}
               <tr id="row-trimestre-{{ trimestre.id_trimestre }}">
-                <td class="fw-bold text-primary" id="trimestre-name-{{ trimestre.id_trimestre }}">{{ trimestre.trimestre }}</td>
+                <td class="fw-bold text-primary" id="trimestre-name-{{ trimestre.id_trimestre }}">{{ trimestre.trimestre
+                  }}</td>
                 <td>
                   <a href="#" class="btn btn-sm btn-outline-primary me-2 edit-btn-trimestre"
                     data-id="{{ trimestre.id_trimestre }}">
@@ -1013,10 +1018,10 @@
               <input type="date" id="edit-date_fin" name="date_fin" class="form-control" />
             </div>
             <div class="mb-3">
-              <label for="edit-etat_periode" class="form-label">État</label>
-              <select id="edit-etat_periode" name="etat_periode" class="form-control">
-                <option value="Actif">Actif</option>
-                <option value="Inactif">Inactif</option>
+              <label for="edit-isOpen" class="form-label">État</label>
+              <select id="edit-isOpen" name="isOpen" class="form-control">
+                <option value="true">Ouvert</option>
+                <option value="false">Clôturé</option>
               </select>
             </div>
             <div class="modal-footer">

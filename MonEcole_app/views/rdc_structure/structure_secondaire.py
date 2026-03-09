@@ -361,7 +361,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
     for s in trimestres_data:
         try:
             sem_obj = Annee_trimestre.objects.get(id=s[0]) 
-            if sem_obj.etat_trimestre == "Cloturée":       
+            if not sem_obj.isOpen:       
                 id_semestre_actif = s[0]
                 break
         except:

@@ -28,7 +28,7 @@ def get_trimestres(id_annee, id_campus, id_cycle, id_classe):
         id_campus=id_campus,
         id_cycle=id_cycle,
         id_classe=id_classe
-    ).order_by('id_trimestre')[:3]
+    ).order_by('id_trimestre').distinct()[:3]
 
     if len(trimestres_qs) != 3:
         return None
@@ -735,7 +735,7 @@ def create_back_page(id_annee, id_eleve, id_cycle, id_campus, id_classe, total_p
     right_elements.append(Paragraph("NB : Toute rature rend ce bulletin nul.", p_nb_style))
 
     left_elements = []
-    trimestres = Annee_trimestre.objects.filter(id_annee=id_annee, id_campus=id_campus, id_cycle=id_cycle, id_classe=id_classe).order_by('id_trimestre')[:3]
+    trimestres = Annee_trimestre.objects.filter(id_annee=id_annee, id_campus=id_campus, id_cycle=id_cycle, id_classe=id_classe).order_by('id_trimestre').distinct()[:3]
     trimestre_noms = [trimestre.trimestre.trimestre for trimestre in trimestres[:3]]
     trimestre_ids = [trimestre.id_trimestre for trimestre in trimestres[:3]]
     if not trimestre_noms:

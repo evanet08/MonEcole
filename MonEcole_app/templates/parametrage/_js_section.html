@@ -1,4 +1,3 @@
-
 <!-- ====categories scripts -->
 <script>
     document.addEventListener("DOMContentLoaded", function () {
@@ -501,7 +500,7 @@
             let modal = document.getElementById("modalContainer");
 
             // Vérifier si les éléments existent
-            
+
 
             function saveToSession(key, value) {
                 sessionStorage.setItem(key, value);
@@ -527,7 +526,7 @@
             }
 
             function showError(message, isSuccess = false) {
-               // console.log(message);
+                // console.log(message);
                 const errorDiv = document.createElement("div");
                 errorDiv.className = isSuccess ? "alert alert-success" : "alert alert-danger";
                 errorDiv.textContent = message;
@@ -547,7 +546,7 @@
                         return response.json();
                     })
                     .then(data => {
-                       // console.log("Données reçues :", data);
+                        // console.log("Données reçues :", data);
                         const items = data.data || data;
                         dropdown.innerHTML = '<option value="">-------</option>';
                         if (items.length > 0) {
@@ -633,7 +632,7 @@
                                         </td>
                                         <td>${trimestre.debut || ''}</td>
                                         <td>${trimestre.fin || ''}</td>
-                                        <td>${trimestre.etat_trimestre}</td>
+                                        <td>${trimestre.isOpen ? 'Ouvert' : 'Clôturé'}</td>
                                         <td>
                                             <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary me-2 edit-btn-trimestre" 
                                             data-id="${trimestre.id_trimestre}" onclick="editTrimestre(event)">
@@ -695,22 +694,22 @@
                         },
                         body: JSON.stringify(data)
                     })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            showField(trimestreSelect);
-                            idClasse.dispatchEvent(new Event('change'));
-                            alert("Trimestre ajouté avec succès !", true);
-                            addTrimestreForm.reset();
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showField(trimestreSelect);
+                                idClasse.dispatchEvent(new Event('change'));
+                                alert("Trimestre ajouté avec succès !", true);
+                                addTrimestreForm.reset();
 
-                        } else {
-                            showError("Erreur : " + (data.errors || data.message));
-                        }
-                    })
-                    .catch(error => {
-                        alert("Erreur lors de la soumission :", error);
-                        showError("Erreur lors de la soumission : " + error);
-                    });
+                            } else {
+                                showError("Erreur : " + (data.errors || data.message));
+                            }
+                        })
+                        .catch(error => {
+                            alert("Erreur lors de la soumission :", error);
+                            showError("Erreur lors de la soumission : " + error);
+                        });
                 });
             }
         });
@@ -762,9 +761,8 @@
         `;
         row.cells[3].innerHTML = `
             <select class="form-control edit-etat" required disabled>
-                <option value="En attente" ${originalEtat === "En attente" ? "selected" : ""}>En attente</option>
-                <option value="En Cours" ${originalEtat === "En Cours" ? "selected" : ""}>En Cours</option>
-                <option value="Cloturée" ${originalEtat === "Cloturée" ? "selected" : ""}>Cloturée</option>
+                <option value="true" ${originalEtat === "Ouvert" ? "selected" : ""}>Ouvert</option>
+                <option value="false" ${originalEtat === "Clôturé" ? "selected" : ""}>Clôturé</option>
             </select>
         `;
         row.cells[4].innerHTML = `
@@ -781,7 +779,7 @@
         saveButton.addEventListener("click", (e) => saveTrimestre(e, trimestreId, originalTrimestre, originalDebut, originalFin, originalEtat));
         cancelButton.addEventListener("click", (e) => cancelEditTrimestre(e, row, originalTrimestre, originalDebut, originalFin, originalEtat, trimestreId));
     }
-    
+
     function cancelEditTrimestre(event, row, originalTrimestre, originalDebut, originalFin, originalEtat, trimestreId) {
         row.cells[0].innerHTML = `<span class="fw-bold text-primary" style="font-size: 18px;">${originalTrimestre}</span>`;
         row.cells[1].innerHTML = originalDebut || '';
@@ -824,7 +822,7 @@
             trimestre: trimestre,
             debut: debut || null,
             fin: fin || null,
-            etat_trimestre: etat,
+            isOpen: etat === 'true',
             id_annee: anneeId,
             id_campus: campusId,
             id_cycle: cycleId,
@@ -840,28 +838,28 @@
             },
             body: JSON.stringify(data)
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                row.cells[0].innerHTML = `<span class="fw-bold text-primary" style="font-size: 18px;">${data.trimestre__trimestre || originalTrimestre}</span>`;
-                row.cells[1].innerHTML = debut || '';
-                row.cells[2].innerHTML = fin || '';
-                row.cells[3].innerHTML = etat;
-                row.cells[4].innerHTML = `
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    row.cells[0].innerHTML = `<span class="fw-bold text-primary" style="font-size: 18px;">${data.trimestre__trimestre || originalTrimestre}</span>`;
+                    row.cells[1].innerHTML = debut || '';
+                    row.cells[2].innerHTML = fin || '';
+                    row.cells[3].innerHTML = etat;
+                    row.cells[4].innerHTML = `
                     <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary me-2 edit-btn-trimestre" data-id="${trimestreId}" onclick="editTrimestre(event)">
                         <i class="fas fa-edit"></i>
                     </a>
                 `;
-                alert("Trimestre mis à jour avec succès !", true);
-            } else {
-                alert("Erreur : " + (data.errors || data.message));
-            }
-        })
-        .catch(error => {
-            console.error("Erreur lors de la mise à jour :", error);
-            alert("Erreur lors de la mise à jour : " + error);
-        });
-}
+                    alert("Trimestre mis à jour avec succès !", true);
+                } else {
+                    alert("Erreur : " + (data.errors || data.message));
+                }
+            })
+            .catch(error => {
+                console.error("Erreur lors de la mise à jour :", error);
+                alert("Erreur lors de la mise à jour : " + error);
+            });
+    }
 </script>
 
 <!-- ============ creation dynamique des periodes/classes -->
@@ -942,7 +940,7 @@
                     });
             }
 
-            
+
             if (idCampus) {
                 idCampus.addEventListener("change", function () {
                     hideFields(idAnnee, idClasseCycle, idClasse, periodeSelect, idTrimestreAnnne);
@@ -985,7 +983,7 @@
                     saveToSession("id_classe", this.value);
                     showField(idTrimestreAnnne);
                     let url = `/get_trimestre_par_classe/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${this.value}`;
-                    updateDropdown(url, idTrimestreAnnne, 'id_trimestre_annee', 'trimestre');                    
+                    updateDropdown(url, idTrimestreAnnne, 'id_trimestre_annee', 'trimestre');
                     periodeTable.style.display = "none";
                 }
             });
@@ -997,12 +995,12 @@
                 const classeId = idClasse.value;
                 if (this.value && anneeId && campusId && cycleId && classeId) {
                     saveToSession("id_trimestre_annee", this.value);
-                    
+
                     if (modal) {
                         modal.style.display = "none";
                     }
                     periodeTable.style.display = "block";
-                    updateDropdown('/get_periodes/',periodeSelect, 'id', 'label');
+                    updateDropdown('/get_periodes/', periodeSelect, 'id', 'label');
                     fetch(`/get_periodes_table/?id_annee=${anneeId}&id_campus=${campusId}&id_cycle=${cycleId}&id_classe=${classeId}&id_trimestre_annee=${this.value}`)
                         .then(response => {
                             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
@@ -1019,7 +1017,7 @@
                                         </td>
                                         <td>${periode.debut || ''}</td>
                                         <td>${periode.fin || ''}</td>
-                                        <td>${periode.etat_periode}</td>
+                                        <td>${periode.isOpen ? 'Ouvert' : 'Clôturé'}</td>
                                         <td>
                                             <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary me-2 edit-btn-periode" 
                                             data-id="${periode.id_periode}">
@@ -1041,14 +1039,14 @@
                             console.error("Erreur lors du chargement des périodes :", error);
                             showError("Erreur lors du chargement des périodes. Veuillez réessayer.");
                         });
-                    }
-                
+                }
+
             });
-            
+
             addPeriodeForm.addEventListener("submit", function (event) {
                 event.preventDefault();
                 const formData = new FormData(addPeriodeForm);
-                
+
                 const dateDebut = formData.get("date_debut") || "";
                 const dateFin = formData.get("date_fin") || "";
                 const periodeId = periodeSelect.value;
@@ -1088,21 +1086,21 @@
                     },
                     body: JSON.stringify(data)
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showField(periodeSelect);
-                        idTrimestreAnnne.dispatchEvent(new Event('change'));
-                        alert("Période ajoutée avec succès !", true);
-                        addPeriodeForm.reset();
-                    } else {
-                        showError("Erreur : " + (data.errors || data.message));
-                    }
-                })
-                .catch(error => {
-                    console.error("Erreur lors de la soumission :", error);
-                    showError("Erreur lors de la soumission : " + error);
-                });
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showField(periodeSelect);
+                            idTrimestreAnnne.dispatchEvent(new Event('change'));
+                            alert("Période ajoutée avec succès !", true);
+                            addPeriodeForm.reset();
+                        } else {
+                            showError("Erreur : " + (data.errors || data.message));
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Erreur lors de la soumission :", error);
+                        showError("Erreur lors de la soumission : " + error);
+                    });
             });
 
         });
@@ -1166,9 +1164,9 @@
 
         const saveButton = row.cells[4].querySelector(".save-btn-periode");
         saveButton.addEventListener("click", (e) => savePeriode(e, periodeId, originalPeriode));
-        }
+    }
 
-    
+
     function savePeriode(event, periodeId, originalPeriode) {
         const button = event.target.closest(".save-btn-periode");
         const row = button ? button.closest("tr") : null;
@@ -1190,7 +1188,7 @@
         const trimestreAnneeId = sessionStorage.getItem("id_trimestre_annee");
 
         if (!periode || !debut || !fin || !etat || !anneeId || !campusId || !cycleId || !classeId || !trimestreAnneeId) {
-            alert("Veuillez remplir tous les champs requis."); 
+            alert("Veuillez remplir tous les champs requis.");
             return;
         }
 
@@ -1199,7 +1197,7 @@
             periode: periode,
             debut: debut || null,
             fin: fin || null,
-            etat_periode: etat,
+            isOpen: etat === 'true',
             id_annee: anneeId,
             id_campus: campusId,
             id_cycle: cycleId,
@@ -1216,29 +1214,27 @@
             },
             body: JSON.stringify(data)
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                row.cells[0].innerHTML = `<span class="fw-bold text-primary" style="font-size: 18px;">${data.periode__periode || originalPeriode}</span>`;
-                row.cells[1].innerHTML = debut || '';
-                row.cells[2].innerHTML = fin || '';
-                row.cells[3].innerHTML = etat;
-                row.cells[4].innerHTML = `
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    row.cells[0].innerHTML = `<span class="fw-bold text-primary" style="font-size: 18px;">${data.periode__periode || originalPeriode}</span>`;
+                    row.cells[1].innerHTML = debut || '';
+                    row.cells[2].innerHTML = fin || '';
+                    row.cells[3].innerHTML = etat;
+                    row.cells[4].innerHTML = `
                     <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary me-2 edit-btn-periode" data-id="${periodeId}">
                         <i class="fas fa-edit"></i>
                     </a>
                 `;
-                alert("Période mise à jour avec succès !");
-            } else {
-                alert("Erreur : " + (data.errors || data.message)); 
-            }
-        })
-        .catch(error => {
-            console.error("Erreur lors de la mise à jour :", error);
-            alert("Erreur lors de la mise à jour : " + error); 
-        });
+                    alert("Période mise à jour avec succès !");
+                } else {
+                    alert("Erreur : " + (data.errors || data.message));
+                }
+            })
+            .catch(error => {
+                console.error("Erreur lors de la mise à jour :", error);
+                alert("Erreur lors de la mise à jour : " + error);
+            });
     }
-    
+
 </script>
-
-

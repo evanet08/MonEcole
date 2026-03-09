@@ -69,7 +69,7 @@ def redirect_to_recouvrement(request):
                     "active_page": "recouvrement"})
 
 @login_required
-@module_required("archives")
+@module_required("Archive")
 def redirect_to_achive(request):
     user_info = get_user_info(request)
     user_modules = user_info

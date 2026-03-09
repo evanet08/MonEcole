@@ -132,9 +132,16 @@ def login_view(request):
             messages.error(request, "Votre compte n'a pas encore été vérifié. Merci de vérifier votre compte.")
             return redirect("log_in")
 
-        user_modules = UserModule.objects.filter(user=personnel)
-        if not user_modules.exists():
+        # Check module assignments exist at all
+        all_user_modules = UserModule.objects.filter(user=personnel)
+        if not all_user_modules.exists():
             messages.error(request, "Aucun module assigné à votre compte.")
+            return redirect("log_in")
+
+        # Check if at least one active module exists
+        active_modules = all_user_modules.filter(is_active=True)
+        if not active_modules.exists():
+            messages.error(request, "Tous vos modules ont été désactivés. Contactez l'administrateur.")
             return redirect("log_in")
 
         # Authentification
@@ -143,16 +150,28 @@ def login_view(request):
             messages.error(request, "Email ou mot de passe incorrect.")
             return redirect("log_in")
         login(request, authenticated_user)
+
+        # Retrieve modules (get_user_info now has fallback tiers)
         user_info = get_user_info(request)
         modules = user_info.get('modules', [])
-        if modules and modules[0].module == "Institeur et son Espace":
-            return redirect("home_zone_pedagogique")
-        if modules and modules[0].url_name:
-            return redirect(modules[0].url_name)
 
-        messages.error(request, "Désolé!Le module assigné n'est plus valable.")
+        if modules:
+            # Redirect to first available module
+            if modules[0].module == "Institeur et son Espace":
+                return redirect("home_zone_pedagogique")
+            if modules[0].url_name:
+                return redirect(modules[0].url_name)
+
+        # If we reach here, modules were assigned but none have valid url_name
+        # or get_user_info couldn't resolve any — provide diagnostic message
+        has_year_en_cours = Annee.objects.filter(etat_annee="En Cours").exists()
+        if not has_year_en_cours:
+            messages.error(request, "Aucune année scolaire n'est actuellement 'En Cours'. Contactez l'administrateur pour configurer l'année.")
+        else:
+            messages.error(request, "Vos modules ne sont pas configurés pour l'année en cours. Contactez l'administrateur.")
         return redirect("log_in")
 
     return render(request, "auth_page/login.html")
+
 
  

@@ -1098,45 +1098,38 @@ def update_annee_periode(request):
         periode = data.get('periode')
         debut = data.get('debut')
         fin = data.get('fin')
-        etat_periode = data.get('etat_periode')
+        isOpen_value = data.get('isOpen', True)
         id_annee = data.get('id_annee')
         id_campus = data.get('id_campus')
         id_cycle = data.get('id_cycle')
         id_classe = data.get('id_classe')
         id_trimestre_annee = data.get('id_trimestre_annee')
 
-        if not all([periode_id, periode, etat_periode, id_annee, id_campus, id_cycle, id_classe, id_trimestre_annee]):
+        if not all([periode_id, periode, id_annee, id_campus, id_cycle, id_classe, id_trimestre_annee]):
             return JsonResponse({'success': False, 'errors': 'Tous les champs requis doivent être fournis'}, status=400)
 
         debut = debut if debut and debut != "null" else None
         fin = fin if fin and fin != "null" else None
-        periode_instance = Periode.objects.get(id_periode = periode)
-        trimestre_instance = Annee_trimestre.objects.get(id_annee = id_annee,id_campus = id_campus,id_cycle = id_cycle,id_classe = id_classe, id_trimestre=id_trimestre_annee)
-        annee_instance = Annee.objects.get(id_annee= id_annee)
-        campus_instance = Campus.objects.get(id_campus= id_campus)
-        cycle_instance = Classe_cycle_actif.objects.get(id_annee= id_annee,id_campus = id_campus,id_cycle_actif = id_cycle)
-        classe_instance = Classe_active.objects.get(id_annee= id_annee,id_campus = id_campus,cycle_id = id_cycle,id_classe_active = id_classe)
-        annee_periode = Annee_periode.objects.get(id_campus=id_campus,id_annee=id_annee,id_cycle=id_cycle,id_classe=id_classe,id_periode=periode_id)
-       
-        annee_periode.periode = periode_instance
-        annee_periode.debut = debut
-        annee_periode.fin = fin
-        annee_periode.etat_periode = etat_periode
-        annee_periode.id_annee = annee_instance
-        annee_periode.id_campus = campus_instance
-        annee_periode.id_cycle = cycle_instance
-        annee_periode.id_classe = classe_instance
-        annee_periode.id_trimestre_annee = trimestre_instance
-        annee_periode.save()
+        
+        # Update via raw SQL since annee_periode is a VIEW
+        from django.db import connection
+        is_open_int = 1 if isOpen_value in [True, 'true', 'True', 1, '1'] else 0
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE countryStructure.etablissements_annees_periodes SET isOpen=%s, debut=%s, fin=%s WHERE id=%s",
+                [is_open_int, debut, fin, periode_id]
+            )
 
-        periode_label = annee_periode.periode.periode  
+        # Fetch periode_instance to get the label for the response
+        periode_instance = Periode.objects.get(id_periode=periode)
+        periode_label = periode_instance.periode
 
         return JsonResponse({
             'success': True,
             'message': 'Période mise à jour avec succès',
             'periode__periode': periode_label
         }, status=200)
-    except Annee_periode.DoesNotExist:
+    except Periode.DoesNotExist:
         return JsonResponse({'success': False, 'errors': 'Période non trouvée'}, status=404)
     except ValidationError as e:
         return JsonResponse({'success': False, 'errors': f'Erreur de validation : {str(e)}'}, status=400)
@@ -1154,30 +1147,25 @@ def update_annee_trimestre(request):
         trimestre = data.get('trimestre')
         debut = data.get('debut')
         fin = data.get('fin')
-        etat_annee = data.get('etat_trimestre')
+        isOpen_value = data.get('isOpen', True)
         id_annee = data.get('id_annee')
         id_campus = data.get('id_campus')
         id_cycle = data.get('id_cycle')
         id_classe = data.get('id_classe')
 
-        if not all([trimestre_id, trimestre, debut, fin, etat_annee, id_annee, id_campus, id_cycle, id_classe]):
+        if not all([trimestre_id, trimestre, id_annee, id_campus, id_cycle, id_classe]):
             return JsonResponse({'success': False, 'errors': 'Tous les champs requis doivent être fournis'}, status=400)
 
-        annee_trimestre = Annee_trimestre.objects.get(id_campus=id_campus,id_annee=id_annee,id_cycle=id_cycle,id_classe=id_classe, id_trimestre=trimestre_id)
-        trimestre_instance = Trimestre.objects.get(id_trimestre=trimestre)
-        annee_instance = Annee.objects.get(id_annee= id_annee)
-        campus_instance = Campus.objects.get(id_campus= id_campus)
-        cycle_instance = Classe_cycle_actif.objects.get(id_annee= id_annee,id_campus = id_campus,id_cycle_actif = id_cycle)
-        classe_instance = Classe_active.objects.get(id_annee= id_annee,id_campus = id_campus,cycle_id = id_cycle,id_classe_active = id_classe)
-        annee_trimestre.trimestre = trimestre_instance
-        annee_trimestre.debut = debut if debut and debut != "null" else None
-        annee_trimestre.fin = fin if fin and fin != "null" else None
-        annee_trimestre.etat_trimestre = etat_annee
-        annee_trimestre.id_annee = annee_instance
-        annee_trimestre.id_campus = campus_instance
-        annee_trimestre.id_cycle = cycle_instance
-        annee_trimestre.id_classe = classe_instance
-        annee_trimestre.save()
+        # Update via raw SQL since annee_trimestre is a VIEW
+        from django.db import connection
+        is_open_int = 1 if isOpen_value in [True, 'true', 'True', 1, '1'] else 0
+        debut_val = debut if debut and debut != "null" else None
+        fin_val = fin if fin and fin != "null" else None
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE countryStructure.etablissements_annees_trimestres SET isOpen=%s, debut=%s, fin=%s WHERE id=%s",
+                [is_open_int, debut_val, fin_val, trimestre_id]
+            )
         trimestre_label = Trimestre.objects.get(id_trimestre=trimestre).trimestre
         return JsonResponse({
             'success': True,

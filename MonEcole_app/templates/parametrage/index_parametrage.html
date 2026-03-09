@@ -102,7 +102,8 @@ Administration{% endblock %}
 {# ===== TAB BAR: Sub-menus (was: palette cards) ===== #}
 {% block tab_bar %}
 <div class="tab-bar">
-  {% if form_type == 'modules' or form_type == 'institution' or form_type == 'campus' or form_type == 'classes_cycles' or form_type == 'classes' %}
+  {% if form_type == 'modules' or form_type == 'institution' or form_type == 'campus' or form_type == 'classes_cycles'
+  or form_type == 'classes' %}
   <a href="{% url 'create_module' %}" class="tab-link {% if form_type == 'modules' %}active{% endif %}">
     <i class="fas fa-puzzle-piece"></i> Modules
   </a>
@@ -128,7 +129,8 @@ Administration{% endblock %}
   <a href="{% url 'create_periode' %}" class="tab-link {% if form_type == 'periodes' %}active{% endif %}">
     <i class="fas fa-stopwatch"></i> Période
   </a>
-  {% elif form_type == 'classes_cycles_actif' or form_type == 'classes_active' or form_type == 'trimestres_class' or form_type == 'periodes_class' %}
+  {% elif form_type == 'classes_cycles_actif' or form_type == 'classes_active' or form_type == 'trimestres_class' or
+  form_type == 'periodes_class' %}
   <a href="{% url 'create_classes_cycle_active' %}"
     class="tab-link {% if form_type == 'classes_cycles_actif' %}active{% endif %}">
     <i class="fas fa-sync-alt"></i> Cycle(s) actif(s)
@@ -143,7 +145,8 @@ Administration{% endblock %}
   <a href="{% url 'create_annee_periode' %}" class="tab-link {% if form_type == 'periodes_class' %}active{% endif %}">
     <i class="fas fa-stopwatch"></i> Période / Classe
   </a>
-  {% elif form_type == 'diplomes' or form_type == 'specialites' or form_type == 'categories' or form_type == 'vacations' or form_type == 'typersonnels' or form_type == 'personnels' %}
+  {% elif form_type == 'diplomes' or form_type == 'specialites' or form_type == 'categories' or form_type == 'vacations'
+  or form_type == 'typersonnels' or form_type == 'personnels' %}
   <a href="{% url 'ajouter_diplome' %}" class="tab-link {% if form_type == 'diplomes' %}active{% endif %}">
     <i class="fas fa-graduation-cap"></i> Diplôme
   </a>
@@ -1502,11 +1505,10 @@ Administration{% endblock %}
                       </select>
                   </td>
                   <td>
-                      <select class="form-control" id="edit-etat-${idTrimestre}"disabled>
-                          <option value="En attente" ${etatTrimestre === 'En attente' ? 'selected' : ''}>En attente</option>
-                          <option value="En Cours" ${etatTrimestre === 'En Cours' ? 'selected' : ''}>En Cours</option>
-                          <option value="Cloturée" ${etatTrimestre === 'Clôturée' ? 'selected' : ''}>Clôturée</option>
-                      </select>
+                          <select class="form-control" id="edit-etat-${idTrimestre}"disabled>
+                              <option value="true" ${etatTrimestre === 'Ouvert' ? 'selected' : ''}>Ouvert</option>
+                              <option value="false" ${etatTrimestre === 'Clôturé' ? 'selected' : ''}>Clôturé</option>
+                          </select>
                   </td>
                   <td><input type="date" class="form-control" id="edit-ouverture-${idTrimestre}" value="${dateOuverture}"></td>
                   <td><input type="date" class="form-control" id="edit-cloture-${idTrimestre}" value="${dateCloture}" readonly></td>
@@ -1582,7 +1584,7 @@ Administration{% endblock %}
         },
         body: JSON.stringify({
           trimestre: trimestreValue,
-          etat_trimestre: etatValue,
+          isOpen: etatValue === 'true',
           date_ouverture: dateOuverture,
           date_cloture: dateCloture
         })
@@ -1776,9 +1778,8 @@ Administration{% endblock %}
                           </td>
                           <td>
                               <select class="form-control" id="edit-etat-${idPeriode}">
-                                  <option value="En attente" ${etatPeriode === 'En attente' ? 'selected' : ''}>En attente</option>
-                                  <option value="En Cours" ${etatPeriode === 'En Cours' ? 'selected' : ''}>En Cours</option>
-                                  <option value="Cloturée" ${etatPeriode === 'Clôturée' ? 'selected' : ''}>Clôturée</option>
+                                  <option value="true" ${etatPeriode === 'Ouvert' ? 'selected' : ''}>Ouvert</option>
+                                  <option value="false" ${etatPeriode === 'Clôturé' ? 'selected' : ''}>Clôturé</option>
                               </select>
                           </td>
                           <td>
@@ -1854,7 +1855,7 @@ Administration{% endblock %}
         },
         body: JSON.stringify({
           periode: periodeValue,
-          etat_periode: etatValue,
+          isOpen: etatValue === 'true',
           id_trimestre: idTrimestre,
           date_debut: dateDebut,
           date_fin: dateFin

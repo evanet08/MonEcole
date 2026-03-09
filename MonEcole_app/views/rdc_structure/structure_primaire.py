@@ -944,7 +944,7 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
     for t in trimestres_data:
         try:
             trim_obj = Annee_trimestre.objects.get(id_trimestre=t[0])
-            if trim_obj.etat_trimestre == "Cloturée":
+            if not trim_obj.isOpen:
                 id_trimestre_actif = t[0]
                 break
         except:

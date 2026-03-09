@@ -707,7 +707,7 @@ def create_annee_trimestre(request):
                 id_campus=campus_obj,
                 id_cycle=cycle_obj,
                 id_classe=classe_obj,
-                etat_trimestre='En cours'
+                isOpen=True
             ).exists():
                 etat = 'En cours'
 
@@ -719,7 +719,7 @@ def create_annee_trimestre(request):
                 id_cycle=cycle_obj,
                 id_annee=annee_obj,
                 id_campus=campus_obj,
-                etat_trimestre=etat
+                isOpen=(etat == 'En cours')
             )
 
             return JsonResponse({
@@ -1007,7 +1007,7 @@ def create_annee_trimestre(request):
                 return JsonResponse({"success": False, "message": "Ce trimestre est déjà enregistré pour cette classe."}, status=409)
           
             etat = 'En attente'
-            if not Annee_trimestre.objects.filter(id_annee = annee_obj,id_campus=campus_obj,id_cycle=cycle_obj,id_classe=classe_obj,etat_trimestre='En cours').exists():
+            if not Annee_trimestre.objects.filter(id_annee = annee_obj,id_campus=campus_obj,id_cycle=cycle_obj,id_classe=classe_obj,isOpen=True).exists():
                 etat = 'En cours'
 
             Annee_trimestre.objects.create(
@@ -1018,7 +1018,7 @@ def create_annee_trimestre(request):
                 id_cycle=cycle_obj,
                 id_annee=annee_obj,
                 id_campus=campus_obj,
-                etat_trimestre = etat
+                isOpen=(etat == 'En cours')
             )
 
             return JsonResponse({

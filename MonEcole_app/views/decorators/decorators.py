@@ -1,15 +1,12 @@
-
-from django.shortcuts import redirect
-from django.contrib import messages
-from functools import wraps
-from MonEcole_app.models.module import UserModule
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.urls import reverse
 from functools import wraps
 from urllib.parse import urlparse
-from MonEcole_app.models import UserModule
+from MonEcole_app.models.module import UserModule
+import logging
 
+logger = logging.getLogger(__name__)
 
 
 def module_required(module_name):
@@ -26,8 +23,38 @@ def module_required(module_name):
                 return redirect(login_url)
 
             try:
-                personnel = user.personnel 
-                if not UserModule.objects.filter(user=personnel, module__module=module_name).exists():
+                personnel = user.personnel
+
+                # Tier 1: Check with etat_annee = "En Cours"
+                has_module = UserModule.objects.filter(
+                    user=personnel,
+                    module__module=module_name,
+                    is_active=True,
+                    id_annee__etat_annee="En Cours"
+                ).exists()
+
+                # Tier 2: Fallback to any active year
+                if not has_module:
+                    has_module = UserModule.objects.filter(
+                        user=personnel,
+                        module__module=module_name,
+                        is_active=True,
+                        id_annee__is_active=True
+                    ).exists()
+
+                # Tier 3: Fallback to any active assignment
+                if not has_module:
+                    has_module = UserModule.objects.filter(
+                        user=personnel,
+                        module__module=module_name,
+                        is_active=True
+                    ).exists()
+
+                if not has_module:
+                    logger.warning(
+                        f"[module_required] User {user.username} denied access to module '{module_name}'. "
+                        "No active assignment found."
+                    )
                     messages.error(request, "Vous n'avez pas accès à ce module. Veuillez contacter l'administrateur !")
                     if referer:
                         parsed_referer = urlparse(referer)
@@ -36,7 +63,11 @@ def module_required(module_name):
                             return redirect('log_in') 
                         return redirect(referer)
                     return redirect('log_in')  
+
             except AttributeError:
+                logger.error(
+                    f"[module_required] User {user.username} has no personnel record."
+                )
                 messages.error(request, "Vous n'avez plus accès à ce module.")
                 if referer:
                     parsed_referer = urlparse(referer)
@@ -45,9 +76,7 @@ def module_required(module_name):
                         return redirect('log_in')
                     return redirect(referer)
                 return redirect('log_in')
+
             return view_func(request, *args, **kwargs)
         return _wrapped_view
     return decorator
-
-
-

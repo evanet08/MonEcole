@@ -53,8 +53,14 @@ def select_by_field_to_deliberate_classe(request):
 def verify_evaluations_ponderations(id_annee, id_campus, id_cycle, id_classe, id_trimestre):
     
     try:
-        trimestre = Annee_trimestre.objects.get(id_trimestre=id_trimestre)
+        trimestre = Annee_trimestre.objects.filter(
+            id_trimestre=id_trimestre, id_annee_id=id_annee,
+            id_campus_id=id_campus, id_cycle_id=id_cycle, id_classe_id=id_classe
+        ).first()
     except Annee_trimestre.DoesNotExist:
+        return False, f"Trimestre {id_trimestre} non trouvé ou inactif."
+
+    if not trimestre:
         return False, f"Trimestre {id_trimestre} non trouvé ou inactif."
 
     cours_classe = Cours_par_classe.objects.filter(
@@ -485,9 +491,13 @@ def annuler_deliberation(request):
                     id_campus_id=id_campus,
                     id_cycle_id=id_cycle,
                     id_classe_id=id_classe,
-                ).update(etat_periode="En cours")
-
-                Annee_trimestre.objects.filter(id_trimestre=id_trimestre).update(etat_trimestre="En cours")
+                ).values_list('id_periode', flat=True)
+                from django.db import connection
+                with connection.cursor() as cursor:
+                    if per_ids:
+                        phs = ','.join(['%s'] * len(per_ids))
+                        cursor.execute(f"UPDATE countryStructure.etablissements_annees_periodes SET isOpen=1 WHERE id IN ({phs})", list(per_ids))
+                    cursor.execute("UPDATE countryStructure.etablissements_annees_trimestres SET isOpen=1 WHERE id=%s", [id_trimestre])
 
             message_suffix = f"période {id_periode} du trimestre {id_trimestre}"
 
@@ -524,10 +534,13 @@ def annuler_deliberation(request):
 
             if deleted_count > 0:
                 # Remise en "En cours" du trimestre et de toutes ses périodes
-                Annee_trimestre.objects.filter(id_trimestre=id_trimestre).update(etat_trimestre="En cours")
-                Annee_periode.objects.filter(
-                    id_trimestre_annee__id_trimestre=id_trimestre
-                ).update(etat_periode="En cours")
+                from django.db import connection
+                per_ids = list(Annee_periode.objects.filter(id_trimestre_annee__id_trimestre=id_trimestre).values_list('id_periode', flat=True).distinct())
+                with connection.cursor() as cursor:
+                    cursor.execute("UPDATE countryStructure.etablissements_annees_trimestres SET isOpen=1 WHERE id=%s", [id_trimestre])
+                    if per_ids:
+                        phs = ','.join(['%s'] * len(per_ids))
+                        cursor.execute(f"UPDATE countryStructure.etablissements_annees_periodes SET isOpen=1 WHERE id IN ({phs})", list(per_ids))
 
             message_suffix = f"trimestre {id_trimestre} (total supprimé : {deleted_count})"
 
@@ -549,12 +562,13 @@ def annuler_deliberation(request):
                 ).order_by('id_trimestre').first()
 
                 if premier_trim:
-                    premier_trim.etat_trimestre = "En cours"
-                    premier_trim.save()
-
-                    Annee_periode.objects.filter(
-                        id_trimestre_annee=premier_trim
-                    ).update(etat_periode="En cours")
+                    from django.db import connection
+                    per_ids = list(Annee_periode.objects.filter(id_trimestre_annee=premier_trim).values_list('id_periode', flat=True).distinct())
+                    with connection.cursor() as cursor:
+                        cursor.execute("UPDATE countryStructure.etablissements_annees_trimestres SET isOpen=1 WHERE id=%s", [premier_trim.id_trimestre])
+                        if per_ids:
+                            phs = ','.join(['%s'] * len(per_ids))
+                            cursor.execute(f"UPDATE countryStructure.etablissements_annees_periodes SET isOpen=1 WHERE id IN ({phs})", list(per_ids))
 
             message_suffix = "délibération annuelle"
 
@@ -1128,13 +1142,13 @@ def deliberer_primaire_bytrimestre_rdc(id_annee, id_campus, id_cycle, id_classe,
             id_classe=id_classe, id_trimestre=id_trimestre
         )
 
-        if trimestre.etat_trimestre != "En cours":
-            return False, f"Trimestre non disponible", []
+        if not trimestre.isOpen:
+            return False, f"Trimestre non disponible (clôturé)", []
 
         inscriptions = Eleve_inscription.objects.filter(
             id_annee_id=id_annee, id_campus_id=id_campus,
             id_classe_cycle_id=id_cycle, id_classe_id=id_classe,
-            status=1, id_trimestre=trimestre
+            status=1
         ).select_related('id_eleve')
 
         if not inscriptions.exists():
@@ -1315,7 +1329,7 @@ def deliberer_trimestre_bdi(id_annee, id_campus, id_cycle, id_classe, id_trimest
         inscriptions = Eleve_inscription.objects.filter(
             id_annee_id=id_annee, id_campus_id=id_campus,
             id_classe_cycle_id=id_cycle, id_classe_id=id_classe,
-            status=1, id_trimestre=trimestre
+            status=1
         ).select_related('id_eleve')
 
         if not inscriptions.exists():
@@ -1396,33 +1410,46 @@ def deliberer_trimestre_bdi(id_annee, id_campus, id_cycle, id_classe, id_trimest
 
 @transaction.atomic
 def _update_trimestre_etat_et_inscriptions(annee, campus, cycle, classe, current_trimestre, inscriptions):
-    current_trimestre.etat_trimestre = "Cloturée"
-    current_trimestre.save()
+    from django.db import connection
 
-    trimestre_ids = [t.id_trimestre for t in Annee_trimestre.objects.filter(
+    # Close current trimestre in hub table (annee_trimestre is a VIEW, can't use .save())
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE countryStructure.etablissements_annees_trimestres SET isOpen = 0 WHERE id = %s",
+            [current_trimestre.id_trimestre]
+        )
+
+    trimestre_ids = list(Annee_trimestre.objects.filter(
         id_annee=annee, id_campus=campus, id_cycle=cycle, id_classe=classe
-    ).order_by('id_trimestre')]
+    ).order_by('id_trimestre').values_list('id_trimestre', flat=True).distinct())
 
     idx = trimestre_ids.index(current_trimestre.id_trimestre)
     if idx < len(trimestre_ids) - 1:
         next_id = trimestre_ids[idx + 1]
-        next_trim = Annee_trimestre.objects.get(id_trimestre=next_id)
-        next_trim.etat_trimestre = "En cours"
-        next_trim.save()
 
-        Annee_periode.objects.filter(id_trimestre_annee=current_trimestre).update(etat_periode="Cloturée")
-        Annee_periode.objects.filter(id_trimestre_annee=next_trim).update(etat_periode="En cours")
+        # Next trimestre stays open (isOpen=1 by default, no change needed)
 
-        for ins in inscriptions:
-            Eleve_inscription.objects.update_or_create(
-                id_eleve=ins.id_eleve,
-                id_annee=annee,
-                id_campus=campus,
-                id_classe_cycle=cycle,
-                id_classe=classe,
-                id_trimestre=next_trim,
-                defaults={'status': 1}
-            )
+        # Close periodes of current trimestre in hub table
+        current_periode_ids = list(
+            Annee_periode.objects.filter(
+                id_trimestre_annee_id=current_trimestre.id_trimestre,
+                id_annee=annee, id_campus=campus, id_cycle=cycle, id_classe=classe
+            ).values_list('id_periode', flat=True).distinct()
+        )
+
+        with connection.cursor() as cursor:
+            if current_periode_ids:
+                placeholders = ','.join(['%s'] * len(current_periode_ids))
+                cursor.execute(
+                    f"UPDATE countryStructure.etablissements_annees_periodes SET isOpen = 0 WHERE id IN ({placeholders})",
+                    current_periode_ids
+                )
+            # Next trimestre's periodes are already open by default
+
+        # Note: No need to create inscriptions per trimester.
+        # Students are enrolled per class — once enrolled, they're automatically
+        # enrolled for all trimesters, semesters, and periods.
+
 
 @transaction.atomic
 def delibere_educationBase_rdc(id_annee, id_campus, id_cycle, id_classe, id_trimestre):
@@ -1440,16 +1467,15 @@ def delibere_educationBase_rdc(id_annee, id_campus, id_cycle, id_classe, id_trim
             id_trimestre=id_trimestre
         )
 
-        if trimestre.etat_trimestre != "En cours":
-            return False, f"Trimestre {trimestre.trimestre.trimestre} non disponible (état: {trimestre.etat_trimestre})", []
+        if not trimestre.isOpen:
+            return False, f"Trimestre {trimestre.trimestre.trimestre} non disponible (clôturé)", []
 
         inscriptions = Eleve_inscription.objects.filter(
             id_annee_id=id_annee,
             id_campus_id=id_campus,
             id_classe_cycle_id=id_cycle,
             id_classe_id=id_classe,
-            status=1,
-            id_trimestre=trimestre
+            status=1
         ).select_related('id_eleve').order_by('id_eleve__nom', 'id_eleve__prenom')
 
         if not inscriptions.exists():
@@ -1628,16 +1654,15 @@ def deliberer_superieur_terminal_rdc(id_annee, id_campus, id_cycle, id_classe, i
             id_trimestre=id_semestre
         )
 
-        if semestre.etat_trimestre != "En cours":
-            return False, f"Semestre {semestre.trimestre.trimestre} non disponible (état: {semestre.etat_trimestre})", []
+        if not semestre.isOpen:
+            return False, f"Semestre {semestre.trimestre.trimestre} non disponible (clôturé)", []
 
         inscriptions = Eleve_inscription.objects.filter(
             id_annee_id=id_annee,
             id_campus_id=id_campus,
             id_classe_cycle_id=id_cycle,
             id_classe_id=id_classe,
-            status=1,
-            id_trimestre=semestre
+            status=1
         ).select_related('id_eleve').order_by('id_eleve__nom', 'id_eleve__prenom')
 
         if not inscriptions.exists():

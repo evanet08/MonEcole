@@ -503,7 +503,8 @@
 {# ===== TAB BAR: Sub-menus ===== #}
 {% block tab_bar %}
 <div class="tab-bar">
-    {% if form_type == 'form_session' or form_type == 'form_note_type' or form_type == 'select_form_note' or form_type == 'import_note' or not form_type %}
+    {% if form_type == 'form_session' or form_type == 'form_note_type' or form_type == 'select_form_note' or form_type
+    == 'import_note' or not form_type %}
     <a href="{% url 'create_session' %}"
         class="tab-link {% if form_type == 'form_session' or not form_type %}active{% endif %}">
         <i class="fas fa-bookmark"></i> Session
@@ -514,7 +515,8 @@
     <a href="{% url 'import_file_note' %}" class="tab-link {% if form_type == 'import_note' %}active{% endif %}">
         <i class="fas fa-file-import"></i> Importer notes
     </a>
-    {% elif form_type == 'form_type_delib' or form_type == 'form_mention' or form_type == 'form_finalit_delib' or form_type == 'form_condit_delib' %}
+    {% elif form_type == 'form_type_delib' or form_type == 'form_mention' or form_type == 'form_finalit_delib' or
+    form_type == 'form_condit_delib' %}
     <a href="{% url 'create_deliberation_type' %}"
         class="tab-link {% if form_type == 'form_type_delib' %}active{% endif %}">
         <i class="fas fa-list-ol"></i> Type Délibération
@@ -546,27 +548,21 @@
 {% endblock %}
 {# ===== PALETTE: Stats cards ===== #}
 {% block palette %}
-<div class="stats-palette" id="stats-palette">
-    <div class="stat-card gradient-blue">
-        <div class="stat-icon"><i class="fas fa-clipboard-list"></i></div>
-        <div class="stat-info">
-            <div class="stat-value" id="stat-total">0</div>
-            <div class="stat-label">Évaluations</div>
-        </div>
+<div class="palette-container" id="stats-palette">
+    <div class="palette-card">
+        <div class="pc-icon grad-blue"><i class="fas fa-clipboard-list"></i></div>
+        <div class="pc-value" id="stat-total">0</div>
+        <div class="pc-label">Évaluations</div>
     </div>
-    <div class="stat-card gradient-purple">
-        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
-        <div class="stat-info">
-            <div class="stat-value" id="stat-actifs">0</div>
-            <div class="stat-label">Sessions</div>
-        </div>
+    <div class="palette-card">
+        <div class="pc-icon grad-purple"><i class="fas fa-check-circle"></i></div>
+        <div class="pc-value" id="stat-actifs">0</div>
+        <div class="pc-label">Sessions</div>
     </div>
-    <div class="stat-card gradient-teal">
-        <div class="stat-icon"><i class="fas fa-gavel"></i></div>
-        <div class="stat-info">
-            <div class="stat-value" id="stat-delib">0</div>
-            <div class="stat-label">Délibérations</div>
-        </div>
+    <div class="palette-card">
+        <div class="pc-icon grad-teal"><i class="fas fa-gavel"></i></div>
+        <div class="pc-value" id="stat-delib">0</div>
+        <div class="pc-label">Délibérations</div>
     </div>
 </div>
 {% endblock %}
@@ -1086,7 +1082,8 @@
                                     <td>{{ finalite.sigle }}</td>
                                     <td>
                                         <input type="checkbox" class="update-checkbox-finalite"
-                                            data-id="{{ finalite.id_finalite }}" {% if finalite.droit_avancement %}checked{% endif %}>
+                                            data-id="{{ finalite.id_finalite }}" {% if finalite.droit_avancement
+                                            %}checked{% endif %}>
                                     </td>
                                     <td>
                                         <button class="btn btn-primary edit-btn-finalite" data-bs-toggle="modal"

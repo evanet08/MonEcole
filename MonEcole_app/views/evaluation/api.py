@@ -277,7 +277,7 @@ def get_all_trimestres_par_classe(request):
                                                 id_campus = id_campus,
                                                 id_cycle = id_cycle_actif,
                                                 id_classe = id_classe_active,
-                                                etat_trimestre='En cours')
+                                                isOpen=True)
     data = [
         {
             'id': trimestre.id_trimestre,
@@ -389,7 +389,7 @@ def get_last_trimestres_par_classe(request):
         id_campus=id_campus,
         id_cycle=id_cycle_actif,
         id_classe=id_classe_active,
-        etat_trimestre="Cloturée"
+        isOpen=False
     ).order_by('-id_trimestre').first()  
 
     if dernier_trimestre:
@@ -515,7 +515,7 @@ def get_trimestres_by_evaluationsCours_soumises(request):
     ).values('id_trimestre').distinct()
     trimestre_ids = [eval['id_trimestre'] for eval in evaluations]
 
-    trimestres = Annee_trimestre.objects.filter(id_trimestre__in=trimestre_ids,etat_trimestre = "En cours")
+    trimestres = Annee_trimestre.objects.filter(id_trimestre__in=trimestre_ids,isOpen=True)
     data = [
         {
             'id': trimestre.id_trimestre,
@@ -832,9 +832,12 @@ def get_available_trimestres(request):
 
     deliberated_ids = [d['id_trimestre_id'] for d in deliberated_trimestres]
 
-    trimestres = Annee_trimestre.objects.filter(id_annee=id_annee,id_campus = id_campus,id_cycle = id_cycle,id_classe = id_classe).exclude(
+    trimestres = Annee_trimestre.objects.filter(
+        id_annee=id_annee, id_campus=id_campus, id_cycle=id_cycle, id_classe=id_classe,
+        isOpen=True
+    ).exclude(
         id_trimestre__in=deliberated_ids
-    ).values('id_trimestre', 'trimestre__trimestre')
+    ).values('id_trimestre', 'trimestre__trimestre').distinct()
 
     trimestres_list = [
         {'id': t['id_trimestre'], 'name': t['trimestre__trimestre']}

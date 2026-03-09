@@ -41,7 +41,7 @@ def get_trimestres_table(request):
         'trimestre__trimestre', 
         'debut',
         'fin',
-        'etat_trimestre'
+        'isOpen'
     )
 
     return JsonResponse(list(trimestres), safe=False)
@@ -65,7 +65,7 @@ def get_periodes_table(request):
         'periode__periode', 
         'debut',
         'fin',
-        'etat_periode'
+        'isOpen'
     )
 
     return JsonResponse(list(periodes), safe=False)

@@ -364,6 +364,22 @@
             color: #94a3b8;
         }
 
+        /* Fix: Hide Bootstrap's default dropdown caret on custom buttons */
+        .user-avatar.dropdown-toggle::after {
+            display: none;
+        }
+
+        .module-switcher-btn.dropdown-toggle::after {
+            display: inline-block;
+            margin-left: 4px;
+            vertical-align: middle;
+            content: "";
+            border-top: 0.28em solid;
+            border-right: 0.28em solid transparent;
+            border-bottom: 0;
+            border-left: 0.28em solid transparent;
+        }
+
         .user-identity .user-avatar {
             width: 32px;
             height: 32px;
@@ -631,6 +647,99 @@
             font-size: 1.3rem;
             font-weight: 700;
             color: #1e293b;
+        }
+
+        /* ================= STAT-CARD ALIASES (backward compat for templates) ================= */
+        .stats-palette {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+            padding: 0 1.25rem;
+            margin-bottom: 0;
+            flex-shrink: 0;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .stat-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-value {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        /* Gradient aliases for stat-cards */
+        .gradient-blue .stat-icon,
+        .stat-card.gradient-blue .stat-icon {
+            background: var(--grad-blue);
+        }
+
+        .gradient-purple .stat-icon,
+        .stat-card.gradient-purple .stat-icon {
+            background: var(--grad-purple);
+        }
+
+        .gradient-teal .stat-icon,
+        .stat-card.gradient-teal .stat-icon {
+            background: var(--grad-teal);
+        }
+
+        .gradient-orange .stat-icon,
+        .stat-card.gradient-orange .stat-icon {
+            background: var(--grad-orange);
+        }
+
+        .gradient-emerald .stat-icon,
+        .stat-card.gradient-emerald .stat-icon {
+            background: var(--grad-emerald);
+        }
+
+        .gradient-amber .stat-icon,
+        .stat-card.gradient-amber .stat-icon {
+            background: var(--grad-amber);
+        }
+
+        .gradient-pink .stat-icon,
+        .stat-card.gradient-pink .stat-icon {
+            background: var(--grad-pink);
         }
 
         /* ================= WORKSPACE (100% height & width, centered content) ================= */
