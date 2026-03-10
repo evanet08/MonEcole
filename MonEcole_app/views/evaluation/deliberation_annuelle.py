@@ -296,19 +296,18 @@ def get_groupes_cours(id_annee, id_campus, id_cycle, id_classe):
         return None, JsonResponse({"status": "error", "message": "Aucun cours trouvé pour cette classe."}, status=400)
     return groupes, None
 
-def get_inscriptions(id_annee, id_campus, id_cycle, id_classe, id_trimestre):
-    """Récupère les inscriptions des élèves pour le trimestre."""
+def get_inscriptions(id_annee, id_campus, id_cycle, id_classe):
+    """Récupère les inscriptions des élèves pour la classe (toute l'année)."""
     inscriptions = Eleve_inscription.objects.filter(
         id_annee=id_annee,
         id_campus=id_campus,
         id_classe_cycle=id_cycle,
         id_classe=id_classe,
-        id_trimestre=id_trimestre,
         status=1
     ).select_related('id_eleve')
     
     if not inscriptions.exists():
-        return None, JsonResponse({"status": "error", "message": "Aucun élève inscrit dans cette classe pour ce trimestre."}, status=400)
+        return None, JsonResponse({"status": "error", "message": "Aucun élève inscrit dans cette classe."}, status=400)
     return inscriptions, None
 
 def process_eleve(inscription, trimestres, groupes, id_annee, id_campus, id_cycle, id_classe):
@@ -464,7 +463,7 @@ def deliberate_class_par_annee(request):
             if error_response:
                 return error_response
 
-            inscriptions, error_response = get_inscriptions(id_annee, id_campus, id_cycle, id_classe, id_trimestre)
+            inscriptions, error_response = get_inscriptions(id_annee, id_campus, id_cycle, id_classe)
             if error_response:
                 return error_response
 
