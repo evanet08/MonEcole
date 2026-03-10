@@ -18,7 +18,9 @@ from MonEcole_app.views.decorators.decorators import module_required
 from django.views.decorators.http import require_http_methods
 import logging
 logger = logging.getLogger(__name__)
-
+from MonEcole_app.views.tools.tenant_utils import (
+    tenant_etablissement_filter, get_tenant_campus_ids, deny_cross_tenant_access
+)
 
 
 @login_required
@@ -130,7 +132,10 @@ def create_deliberation_condition(request):
     has_full_access = any(module in full_access_modules for module in user_modules)
 
     if has_full_access:
-        condit_deliberat_list = Deliberation_annuelle_condition.objects.all().order_by('id_decision')
+        campus_ids = get_tenant_campus_ids(request)
+        condit_deliberat_list = Deliberation_annuelle_condition.objects.filter(
+            id_campus__in=campus_ids
+        ).order_by('id_decision')
     else:
         cycles_ids = Classe_active_responsable.objects.filter(
             id_personnel=personnel,
@@ -190,11 +195,13 @@ def load_all_classes_by_year_with(request):
             id_annee_id=annee_id,
             status=True
         )
+        campus_ids = get_tenant_campus_ids(request)
         classes = Classe_active.objects.annotate(
             has_students=Exists(inscriptions_subquery)
         ).filter(
             id_annee_id=annee_id,
-            has_students=True
+            has_students=True,
+            id_campus__in=campus_ids
         ).select_related(
             'id_campus',
             'cycle_id__cycle_id',

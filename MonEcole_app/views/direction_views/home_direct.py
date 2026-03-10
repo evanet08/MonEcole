@@ -11,6 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 from django.db.models import Count, Q
 from django.contrib.auth.decorators import login_required
+from MonEcole_app.views.tools.tenant_utils import tenant_etablissement_filter
 
 
 
@@ -31,12 +32,13 @@ def get_inscription_stats(request):
     if id_classe:
         filters['id_classe__id_classe_active'] = id_classe
 
-    inscriptions = Eleve_inscription.objects.filter(**filters).values('id_eleve_id').distinct()
+    base_qs = tenant_etablissement_filter(request, Eleve_inscription.objects.all())
+    inscriptions = base_qs.filter(**filters).values('id_eleve_id').distinct()
     total_inscriptions = inscriptions.count()
-    garcons = Eleve_inscription.objects.filter(
+    garcons = base_qs.filter(
         **filters, id_eleve__genre='M'
     ).values('id_eleve').distinct().count()
-    filles = Eleve_inscription.objects.filter(
+    filles = base_qs.filter(
         **filters, id_eleve__genre='F'
     ).values('id_eleve').distinct().count()
 
@@ -47,18 +49,18 @@ def get_inscription_stats(request):
     trend = 0
     if previous_year:
         prev_filters = {**filters, 'id_annee__debut': previous_year}
-        prev_total = Eleve_inscription.objects.filter(
+        prev_total = base_qs.filter(
             **prev_filters
         ).values('id_eleve').distinct().count()
         trend = ((total_inscriptions - prev_total) / prev_total * 100) if prev_total > 0 else 0
 
     if id_annee:
-        current_inscriptions = Eleve_inscription.objects.filter(
+        current_inscriptions = base_qs.filter(
             id_annee__id_annee=id_annee,
             **{k: v for k, v in filters.items() if k != 'id_annee__id_annee'}
         ).values('id_eleve').distinct()
 
-        annee_counts = Eleve_inscription.objects.filter(
+        annee_counts = base_qs.filter(
             id_eleve__in=current_inscriptions
         ).values('id_eleve').annotate(
             annee_count=Count('id_annee', distinct=True)
@@ -78,7 +80,7 @@ def get_inscription_stats(request):
     cycle_count = 0
     cycle_info = "Sélectionnez un cycle"
     if id_cycle:
-        cycle_count = Eleve_inscription.objects.filter(
+        cycle_count = base_qs.filter(
             **filters
         ).values('id_eleve').distinct().count()
         cycle_info = f"Cycle {Classe_cycle_actif.objects.get(id_cycle_actif=id_cycle).cycle_id}"

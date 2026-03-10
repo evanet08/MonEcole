@@ -33,3 +33,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.conf import settings
 import re
 from django.shortcuts import get_object_or_404
+from MonEcole_app.views.tools.tenant_utils import (
+    tenant_etablissement_filter, get_tenant_campus_ids,
+    deny_cross_tenant_access, validate_campus_access, get_tenant_id
+)

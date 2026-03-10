@@ -21,11 +21,15 @@ from django.conf import settings
 from decouple import config
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+from MonEcole_app.views.tools.tenant_utils import (
+    tenant_etablissement_filter, get_tenant_campus_ids, validate_campus_access
+)
 
 
 @login_required
 def soumettre_evaluation_prevu(request):
-    evaluation_list = Evaluation.objects.all()
+    campus_ids = get_tenant_campus_ids(request)
+    evaluation_list = tenant_etablissement_filter(request, Evaluation.objects.all())
     user_info = get_user_info(request)
     user_modules = user_info
     if request.method == 'POST':
@@ -221,11 +225,13 @@ def load_all_classes_by_attribution_cours_year(request):
             id_annee_id=annee_id,
             status=True
         )
+        campus_ids = get_tenant_campus_ids(request)
         classes_query = Classe_active.objects.annotate(
             has_students=Exists(inscriptions_subquery)
         ).filter(
             id_annee_id=annee_id,
-            has_students=True
+            has_students=True,
+            id_campus__in=campus_ids
         ).select_related(
             'id_campus',
             'cycle_id__cycle_id',
