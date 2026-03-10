@@ -141,7 +141,7 @@ def generer_bulletin_pdf(request):
                         elements.append(PageBreak())
 
                     elements.append(Spacer(1, 5*mm))
-                    institution = Institution.objects.get(id_ecole=id_campus)
+                    institution = Institution.objects.get(id_ecole=campus.id_etablissement)
                     logo_path = institution.logo_ecole.path if institution.logo_ecole else None
                     emblem_path = institution.logo_ministere.path if institution.logo_ministere else None
                     check_image_paths(logo_path, emblem_path)
@@ -184,7 +184,7 @@ def generer_bulletin_pdf(request):
                         elements.append(PageBreak())
 
                     elements.append(Spacer(1, 5*mm))
-                    institution = Institution.objects.get(id_ecole=id_campus)
+                    institution = Institution.objects.get(id_ecole=campus.id_etablissement)
                     logo_path = institution.logo_ecole.path if institution.logo_ecole else None
                     emblem_path = institution.logo_ministere.path if institution.logo_ministere else None
                     check_image_paths(logo_path, emblem_path)
@@ -227,7 +227,7 @@ def generer_bulletin_pdf(request):
 
                     elements.append(Spacer(1, 5*mm))
 
-                    institution = Institution.objects.get(id_ecole=id_campus)
+                    institution = Institution.objects.get(id_ecole=campus.id_etablissement)
                     logo_path = institution.logo_ecole.path if institution.logo_ecole else None
                     emblem_path = institution.logo_ministere.path if institution.logo_ministere else None
 
