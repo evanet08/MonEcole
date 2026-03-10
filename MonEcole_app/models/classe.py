@@ -89,7 +89,7 @@ class Classe_deliberation(models.Model):
     showResults = models.BooleanField(default=False)  
     showsResultsEnOrdre = models.BooleanField(default=False)  
     date_creation = models.DateField(auto_now_add=True)
-    
+    id_etablissement = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "classe_deliberation"
@@ -124,6 +124,7 @@ class Classe_active_responsable(models.Model):
     id_classe = models.ForeignKey("Classe_active",on_delete=models.PROTECT,null=False) 
     id_personnel = models.ForeignKey("Personnel",on_delete=models.PROTECT,null=False) 
     date_creation = models.DateField(auto_now_add=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
     
     class Meta:
         db_table = "classe_active_responsable" 

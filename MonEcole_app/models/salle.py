@@ -15,6 +15,7 @@ class Salle(models.Model):
     id_classe = models.ForeignKey(Classe_active,on_delete=models.PROTECT,null=False)
     partage = models.BooleanField(default=False)
     capacite = models.IntegerField()
+    id_etablissement = models.IntegerField(null=True, blank=True)
     
     
     class Meta:

@@ -29,6 +29,7 @@ class UserModule(models.Model):
     module = models.ForeignKey(Module, on_delete=models.PROTECT,null=False)
     is_active = models.BooleanField(default=True) 
     date_creation = models.DateField(auto_now_add=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
     
     
     def __str__(self):

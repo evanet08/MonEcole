@@ -45,7 +45,7 @@ class Deliberation_annuelle_condition(models.Model):
     sanction_disciplinaire = models.CharField(max_length=100,null=True,blank=True) 
     id_finalite = models.ForeignKey(Deliberation_annuelle_finalite,on_delete=models.PROTECT,null=False)
     date_creation = models.DateField(auto_now_add=True)
-     
+    id_etablissement = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "deliberation_annuelle_conditions" 
@@ -68,8 +68,7 @@ class Deliberation_annuelle_resultat(models.Model):
     pourcentage = models.FloatField() 
     place = models.CharField(max_length=200,null=False) 
     date_creation = models.DateField(auto_now_add=True)
-    
-    
+    id_etablissement = models.IntegerField(null=True, blank=True)
     
     class Meta:
         db_table = "deliberation_annuelle_resultats"  
@@ -91,8 +90,7 @@ class Deliberation_periodique_resultat(models.Model):
     pourcentage = models.FloatField() 
     place = models.CharField(max_length=200,null=False) 
     date_creation = models.DateField(auto_now_add=True)
-    
-    
+    id_etablissement = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "deliberation_periodique_resultats" 
@@ -114,8 +112,7 @@ class Deliberation_examen_resultat(models.Model):
     pourcentage = models.FloatField() 
     place = models.CharField(max_length=200,null=False) 
     date_creation = models.DateField(auto_now_add=True)
-    
-    
+    id_etablissement = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "deliberation_examen_resultats" 
@@ -140,7 +137,7 @@ class Deliberation_trimistrielle_resultat(models.Model):
     pourcentage = models.FloatField() 
     place = models.CharField(max_length=200,null=False) 
     date_creation = models.DateField(auto_now_add=True)
-           
+    id_etablissement = models.IntegerField(null=True, blank=True)
     class Meta:
         db_table = "deliberation_trimistrielle_resultats" 
         verbose_name = "Résultat de délibération trimestrielle"
@@ -168,7 +165,7 @@ class Evaluation(models.Model):
     id_periode = models.ForeignKey("Annee_periode",on_delete=models.PROTECT,null=False)
     contenu_evaluation = models.FileField(upload_to='evaluations/')
     date_creation = models.DateField(auto_now_add=True)
-        
+    id_etablissement = models.IntegerField(null=True, blank=True)
     def __str__(self):
         return self.id_type_note.type
 
@@ -187,6 +184,7 @@ class Deliberation_repechage_resultat(models.Model):
     id_cours_classe  = models.ForeignKey("Cours_par_classe",on_delete=models.PROTECT,null= False)
     valid_repechage =  models.BooleanField(default=False)
     date_creation = models.DateField(auto_now_add=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "deliberation_repechage_resultats"  

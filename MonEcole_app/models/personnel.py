@@ -95,6 +95,7 @@ class Personnel(models.Model):
     en_fonction = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
     date_creation = models.DateField(auto_now_add=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
    
     class Meta:
         db_table = "personnel"  

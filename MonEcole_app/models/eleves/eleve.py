@@ -13,6 +13,7 @@ class Eleve(models.Model):
     genre = models.CharField(max_length=50,choices=sexe_choices, default='M')
     etat_civil = models.CharField(max_length=50,choices=etat_civil_choices, default='Célibataire',null=True,blank=True)
     code_eleve = models.CharField(max_length=250,null=True,blank=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
     code_annee = models.IntegerField(default=0,null=True,blank=True)
     matricule = models.CharField(max_length=50,null=True,blank=True)
     nom_pere = models.CharField(max_length=200, default='',null=True,blank=True)
@@ -61,7 +62,8 @@ class Eleve_inscription(models.Model):
     id_classe = models.ForeignKey("Classe_active",on_delete=models.PROTECT,null=False)
     redoublement = models.BooleanField(default=False) 
     status = models.BooleanField(default=True) 
-    isDelegue = models.BooleanField(default=False)  
+    isDelegue = models.BooleanField(default=False)
+    id_etablissement = models.IntegerField(null=True, blank=True)
 
     def __str__(self):
         return f'{self.id_eleve.nom} {self.id_eleve.prenom}'
@@ -104,6 +106,7 @@ class Eleve_note(models.Model):
     note = models.DecimalField(decimal_places=2, max_digits=5, null=True,blank=True)
     note_repechage = models.DecimalField(decimal_places=2, max_digits=5, null=True,blank=True)
     id_evaluation = models.ForeignKey('Evaluation',on_delete=models.PROTECT,null=False)
+    id_etablissement = models.IntegerField(null=True, blank=True)
 
     
     def __str__(self):
@@ -125,6 +128,7 @@ class Eleve_conduite(models.Model):
     id_trimestre = models.ForeignKey('Annee_trimestre',on_delete=models.PROTECT,null=False)
     id_periode = models.ForeignKey('Annee_periode',on_delete=models.PROTECT,null=False)
     date_enregistrement = models.DateField(auto_now_add=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
     
     def __str__(self):
         return f'{self.id_eleve.nom} {self.id_eleve.prenom}-{self.id_cours.cours}'

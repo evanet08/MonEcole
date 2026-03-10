@@ -123,3 +123,28 @@ def deny_cross_tenant_access(request, campus_id):
             status=403
         )
     return None
+
+
+def tenant_etablissement_filter(request, queryset, field='id_etablissement'):
+    """
+    Filtre un queryset directement par id_etablissement.
+    Pour les modèles qui ont une colonne id_etablissement (Eleve, Evaluation,
+    Personnel, Eleve_inscription, Eleve_note, Deliberation_*, etc.).
+    
+    C'est plus efficace que de passer par Campus car on évite un JOIN.
+    
+    Args:
+        request: la requête HTTP
+        queryset: le queryset à filtrer
+        field: nom du champ id_etablissement (défaut: 'id_etablissement')
+    
+    Returns:
+        queryset filtré
+    """
+    tenant_id = get_tenant_id(request)
+    if tenant_id is None:
+        return queryset
+
+    filter_kwargs = {field: tenant_id}
+    return queryset.filter(**filter_kwargs)
+

@@ -30,6 +30,7 @@ class Horaire(models.Model):
     debut = models.CharField(max_length=100,null=False)
     fin = models.CharField(max_length=100,null=False)
     date_creation = models.DateField(auto_now_add=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
     
       
     def __str__(self):
@@ -46,6 +47,7 @@ class Horaire_presence(models.Model):
     date_presence = models.DateField(null=False)
     si_absent_motif = models.CharField(max_length=255,null=True)
     date_creation = models.DateField(auto_now_add=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
     
 
     def __str__(self):

@@ -15,6 +15,7 @@ class User_enseignement(models.Model):
     canModify = models.BooleanField(default=False)
     canOnlyView = models.BooleanField(default=False)
     date_inscrite = models.DateField(auto_now_add=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
     
 
     class Meta:
