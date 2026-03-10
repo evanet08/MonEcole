@@ -216,9 +216,9 @@ def create_notes_table_superieur(elements, style_center, style_normal,id_annee, 
         nom_trim1 = trimestres_data[0][1]
         nom_trim2 = trimestres_data[1][1]
 
-        if nom_trim1 == "Semestre 1":
+        if nom_trim1 == "Semestre 1" or nom_trim1 == "Trimestre 1":
             nom_trim1 = "PREMIER SEMESTRE"
-        if nom_trim2 == "Semestre 2":
+        if nom_trim2 == "Semestre 2" or nom_trim2 == "Trimestre 2":
             nom_trim2 = "SECOND SEMESTRE"
     else:
         nom_trim1 = "PREMIER SEMESTRE"

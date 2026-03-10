@@ -22,6 +22,10 @@ from MonEcole_app.views.rdc_structure import (regrouper_cours_par_tp_tpe,
                                               recuperer_cours_obligatoires,
                                               ajouter_cours_groupes_dans_table)
 
+from MonEcole_app.views.evaluation.api import (
+    CLASSES_PRIMAIRES_RDC, CLASSES_EDUCATION_BASE_RDC, CLASSES_SUPERIEUR_RDC
+)
+
 @login_required
 @module_required("Evaluation")
 def select_by_field_to_deliberate_annual(request):
@@ -785,9 +789,9 @@ def compute_percentages_from_table_secondaire(id_annee, id_campus, id_cycle, id_
     nom_sem1 = semestres_data[0][1] if semestres_data else "PREMIER SEMESTRE"
     nom_sem2 = semestres_data[1][1] if semestres_data else "SECOND SEMESTRE"
 
-    if nom_sem1 == "Semestre 1":
+    if nom_sem1 == "Semestre 1" or nom_sem1 == "Trimestre 1":
         nom_sem1 = "PREMIER SEMESTRE"
-    if nom_sem2 == "Semestre 2":
+    if nom_sem2 == "Semestre 2" or nom_sem2 == "Trimestre 2":
         nom_sem2 = "SECOND SEMESTRE"
 
     # Entête
@@ -987,9 +991,9 @@ def compute_percentages_from_table_superieur_terminal(id_annee, id_campus, id_cy
     nom_sem1 = semestres_data[0][1] if semestres_data else "PREMIER SEMESTRE"
     nom_sem2 = semestres_data[1][1] if semestres_data else "SECOND SEMESTRE"
 
-    if nom_sem1 == "Semestre 1":
+    if nom_sem1 == "Semestre 1" or nom_sem1 == "Trimestre 1":
         nom_sem1 = "PREMIER SEMESTRE"
-    if nom_sem2 == "Semestre 2":
+    if nom_sem2 == "Semestre 2" or nom_sem2 == "Trimestre 2":
         nom_sem2 = "SECOND SEMESTRE"
 
     table_data.append([
@@ -1486,7 +1490,7 @@ def delibere_educationBase_rdc(id_annee, id_campus, id_cycle, id_classe, id_trim
 
         # Récupération des semestres (2 attendus)
         semestres_data = get_semestres(id_annee, id_campus, id_cycle, id_classe)
-        if len(semestres_data) != 2:
+        if not semestres_data or len(semestres_data) != 2:
             return False, "Configuration semestres incomplète (2 attendus)", []
 
         semestre_idx = next((i for i, s in enumerate(semestres_data) if s[0] == id_trimestre), -1)
@@ -1609,7 +1613,7 @@ def delibere_educationBase_rdc(id_annee, id_campus, id_cycle, id_classe, id_trim
                         id_campus_id=id_campus,
                         id_cycle_id=id_cycle,
                         id_classe_id=id_classe,
-                        id_trimestre_annee_id=trimestre.id_trimestre,  # ← semestre.id (pas id_trimestre)
+                        id_trimestre_annee_id=trimestre.id_trimestre,
                         periode__periode=label.strip()
                     ).first()
 
@@ -1845,28 +1849,17 @@ def deliberate_class_par_trimestre(request):
             classe_id = gt_classe_objet.classe_id
             classe_name = classe_id.classe.strip() if classe_id and classe_id.classe else ""
 
-            # Classes primaires (1ère Année, 1ère Primaire, ... 6ème Primaire, 1er Langue, 1er SC, 1er Eco)
-            classes_primaires = ['1ère Année', '1er Langue', '1er SC', '1er Eco',
-                                 '1ère Primaire', '2ème Primaire', '3ème Primaire',
-                                 '4ème Primaire', '5ème Primaire', '6ème Primaire']
-            # Classes secondaire éducation de base (7ème, 8ème)
-            classes_secondaire_eb = ['7ème A E.B', '8ème A E.B', '7ème', '8ème']
-            # Classes cycle supérieur
-            classes_superieur = ['4ème construction', '2ème Niveau Eléctricité Industrielle',
-                                 '2sc MTP', '2ème LANGUE', '2ème Eco', '2ème BCT',
-                                 '3ème MPT', '3ème BCT', '3ème ECO']
-
-            if classe_name in classes_primaires:
+            if classe_name in CLASSES_PRIMAIRES_RDC:
                 success, message, results = deliberer_primaire_bytrimestre_rdc(
                     ids['id_annee'], ids['id_campus'], ids['id_cycle'],
                     ids['id_classe'], ids['id_trimestre']
                 )
-            elif classe_name in classes_secondaire_eb:
+            elif classe_name in CLASSES_EDUCATION_BASE_RDC:
                 success, message, results = delibere_educationBase_rdc(
                     ids['id_annee'], ids['id_campus'], ids['id_cycle'],
                     ids['id_classe'], ids['id_trimestre']
                 )
-            elif classe_name in classes_superieur:
+            elif classe_name in CLASSES_SUPERIEUR_RDC:
                 success, message, results = deliberer_superieur_terminal_rdc(
                     ids['id_annee'], ids['id_campus'], ids['id_cycle'],
                     ids['id_classe'], ids['id_trimestre']

@@ -18,6 +18,49 @@ from django.views.decorators.http import require_POST
 from MonEcole_app.views.tools.tenant_utils import (
     get_tenant_campus_ids, deny_cross_tenant_access, validate_campus_access
 )
+import logging
+logger = logging.getLogger(__name__)
+
+# ─────────────────────────────────────────────────────────────────────────
+# Listes de classes RDC par type de structure académique
+# ─────────────────────────────────────────────────────────────────────────
+CLASSES_PRIMAIRES_RDC = [
+    '1ère Année', '1er Langue', '1er SC', '1er Eco',
+    '1ère Primaire', '2ème Primaire', '3ème Primaire',
+    '4ème Primaire', '5ème Primaire', '6ème Primaire',
+]
+CLASSES_EDUCATION_BASE_RDC = ['7ème A E.B', '8ème A E.B', '7ème', '8ème']
+CLASSES_SUPERIEUR_RDC = [
+    '4ème construction', '2ème Niveau Eléctricité Industrielle',
+    '2sc MTP', '2ème LANGUE', '2ème Eco', '2ème BCT',
+    '3ème MPT', '3ème BCT', '3ème ECO',
+]
+
+def get_max_deliberation_periods(id_campus, id_classe):
+    """
+    Retourne le nombre max de périodes de délibération pour une classe donnée :
+      - 3 pour primaire/maternelle (trimestres)
+      - 2 pour éducation de base et cycle supérieur (semestres)
+      - 3 par défaut (BDI et autres localisations)
+    """
+    try:
+        campus = Campus.objects.get(id_campus=id_campus)
+        localisation = campus.localisation.upper()
+    except Campus.DoesNotExist:
+        return 3  # défaut
+
+    if localisation != "RDC":
+        return 3  # BDI = 3 trimestres
+
+    classe_obj = Classe_active.objects.filter(id_classe_active=id_classe).select_related('classe_id').first()
+    if not classe_obj or not classe_obj.classe_id:
+        return 3
+
+    classe_name = classe_obj.classe_id.classe.strip() if classe_obj.classe_id.classe else ""
+
+    if classe_name in CLASSES_EDUCATION_BASE_RDC or classe_name in CLASSES_SUPERIEUR_RDC:
+        return 2  # semestres
+    return 3  # trimestres (primaire/maternelle)
 
 # =============================================Loading section
 
@@ -693,7 +736,7 @@ def get_all_classes_deliberations_alliers(request):
         ).filter(
             id_annee=annee_id,
             has_students=True,
-            trimestre_count=3  
+            trimestre_count__gte=2  # 2 pour semestres (éducation de base/supérieur), 3 pour trimestres (primaire)
         ).select_related(
             'id_campus',
             'cycle_id__cycle_id',
@@ -771,7 +814,7 @@ def get_all_classes_deliberations_parTitulaire(request):
         ).filter(
             id_annee=annee_id,
             has_students=True,
-            trimestre_count=3
+            trimestre_count__gte=2  # 2 pour semestres (éducation de base/supérieur), 3 pour trimestres (primaire)
         ).select_related(
             'id_campus',
             'cycle_id__cycle_id',
@@ -828,6 +871,16 @@ def get_available_trimestres(request):
     except (ValueError, TypeError):
         return JsonResponse({'error': 'Paramètres invalides'}, status=400)
 
+    # Déterminer le nombre max de périodes selon le type de classe
+    max_periods = get_max_deliberation_periods(id_campus, id_classe)
+
+    # Récupérer les IDs valides (les N premiers par ordre d'id_trimestre)
+    valid_trimestre_ids = list(
+        Annee_trimestre.objects.filter(
+            id_annee=id_annee, id_campus=id_campus, id_cycle=id_cycle, id_classe=id_classe
+        ).order_by('id_trimestre').values_list('id_trimestre', flat=True).distinct()[:max_periods]
+    )
+
     deliberated_trimestres = Deliberation_trimistrielle_resultat.objects.filter(
         id_annee_id=id_annee,
         id_campus_id=id_campus,
@@ -838,16 +891,19 @@ def get_available_trimestres(request):
     deliberated_ids = [d['id_trimestre_id'] for d in deliberated_trimestres]
 
     trimestres = Annee_trimestre.objects.filter(
-        id_annee=id_annee, id_campus=id_campus, id_cycle=id_cycle, id_classe=id_classe,
+        id_trimestre__in=valid_trimestre_ids,
         isOpen=True
     ).exclude(
         id_trimestre__in=deliberated_ids
-    ).values('id_trimestre', 'trimestre__trimestre').distinct()
+    ).order_by('id_trimestre').values('id_trimestre', 'trimestre__trimestre').distinct()
 
-    trimestres_list = [
-        {'id': t['id_trimestre'], 'name': t['trimestre__trimestre']}
-        for t in trimestres
-    ]
+    # Pour les classes à 2 semestres, renommer si nécessaire
+    trimestres_list = []
+    for i, t in enumerate(trimestres):
+        name = t['trimestre__trimestre']
+        if max_periods == 2 and name.startswith('Trimestre'):
+            name = f"Semestre {i + 1}"
+        trimestres_list.append({'id': t['id_trimestre'], 'name': name})
 
     return JsonResponse({'trimestres': trimestres_list}, status=200)
 

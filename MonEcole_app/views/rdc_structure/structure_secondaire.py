@@ -305,10 +305,10 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
         nom_trim2 = trimestres_data[1][1]
     
         
-        if nom_trim1 =="Semestre 1":
+        if nom_trim1 =="Semestre 1" or nom_trim1 == "Trimestre 1":
             nom_trim1 = "PREMIER SEMESTRE"
             
-        if nom_trim2 == "Semestre 2":
+        if nom_trim2 == "Semestre 2" or nom_trim2 == "Trimestre 2":
            nom_trim2 = "SECOND SEMESTRE"
     else:
         nom_trim1 = "PREMIER SEMESTRE"
