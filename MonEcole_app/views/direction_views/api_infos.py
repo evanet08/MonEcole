@@ -3,13 +3,16 @@
 from django.http import JsonResponse
 from MonEcole_app.models import Campus, Classe_cycle_actif, Classe_active
 from django.contrib.auth.decorators import login_required
+from MonEcole_app.views.tools.tenant_utils import (
+    get_tenant_campus_qs, deny_cross_tenant_access
+)
 
 @login_required
 def get_campus_options(request):
     id_annee = request.GET.get('id_annee')
     if not id_annee:
         return JsonResponse({'campus': []})
-    campus = Campus.objects.filter(
+    campus = get_tenant_campus_qs(request).filter(
         is_active=True,
         eleve_inscription__id_annee__id_annee=id_annee
     ).distinct().values('id_campus', 'campus')
@@ -21,6 +24,11 @@ def get_cycle_options(request):
     id_campus = request.GET.get('id_campus')
     if not (id_annee and id_campus):
         return JsonResponse({'cycles': []})
+
+    # Validation tenant
+    denied = deny_cross_tenant_access(request, id_campus)
+    if denied:
+        return denied
 
     cycles = Classe_cycle_actif.objects.filter(
         is_active=True,
@@ -38,6 +46,11 @@ def get_classe_options(request):
 
     if not (id_annee and id_campus and id_cycle):
         return JsonResponse({'classes': []})
+
+    # Validation tenant
+    denied = deny_cross_tenant_access(request, id_campus)
+    if denied:
+        return denied
 
     classes = Classe_active.objects.filter(
         is_active=True,

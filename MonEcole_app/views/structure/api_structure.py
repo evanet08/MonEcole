@@ -1,5 +1,9 @@
 from ._initials import *
 from django.views.decorators.csrf import csrf_exempt
+from MonEcole_app.views.tools.tenant_utils import (
+    get_tenant_campus_qs, get_tenant_campus_ids, validate_campus_access,
+    deny_cross_tenant_access, tenant_campus_filter
+)
 
 # ===========================================API POUR LA FILTRAGE DES DONNEES 
 # ////////////////////////USERS:
@@ -17,12 +21,12 @@ def get_all_users(request):
 # /////////////////////*****CAMPUS:
 @login_required
 def get_campus(request):
-    campus_list = list(Campus.objects.values('id_campus', 'campus'))
+    campus_list = list(get_tenant_campus_qs(request).values('id_campus', 'campus'))
     return JsonResponse({'campus': campus_list})
 
 @login_required
 def get_active_campus(request):
-    campus = Campus.objects.filter(is_active=True).values('id_campus', 'campus')
+    campus = get_tenant_campus_qs(request).filter(is_active=True).values('id_campus', 'campus')
     return JsonResponse({'campus': list(campus)})
 
 
@@ -46,6 +50,12 @@ def get_cycles_parFiltration(request):
     id_annee = request.GET.get('id_annee')
     id_campus = request.GET.get('id_campus')
     full_access_modules = ["Administration", "Inscription", "Archive", "Recouvrement"]
+
+    # Validation tenant : le campus doit appartenir à l'établissement
+    if id_campus:
+        denied = deny_cross_tenant_access(request, id_campus)
+        if denied:
+            return denied
 
     try:
         personnel = request.user.personnel
@@ -89,7 +99,11 @@ def get_cycles_parFiltration(request):
 
 @login_required
 def get_active_cycles_actifs(request):
-    cycles_actifs = Classe_cycle_actif.objects.filter(is_active=True).values('id_cycle_actif', 'cycle_id__cycle')
+    campus_ids = get_tenant_campus_ids(request)
+    cycles_actifs = Classe_cycle_actif.objects.filter(
+        is_active=True,
+        id_campus__in=campus_ids
+    ).values('id_cycle_actif', 'cycle_id__cycle')
     return JsonResponse({'cycles_actifs': list(cycles_actifs)})
 
 @login_required
@@ -123,6 +137,11 @@ def get_classes_actives_by_cycle_annee(request):
     if not id_cycle_actif or not id_annee or not id_campus or id_cycle_actif == 'undefined':
         return JsonResponse({'error': 'Paramètres manquants ou invalides'}, status=400)
 
+    # Validation tenant
+    denied = deny_cross_tenant_access(request, id_campus)
+    if denied:
+        return denied
+
     try:
         personnel = request.user.personnel
     except AttributeError:
@@ -135,7 +154,6 @@ def get_classes_actives_by_cycle_annee(request):
             .values_list('module__module', flat=True)
         )
         has_full_access = any(module in full_access_modules for module in user_modules)
-        print(has_full_access,'has_full_access!')
         if has_full_access:
             queryset = Classe_active.objects.filter(
                 cycle_id=id_cycle_actif,
@@ -177,8 +195,12 @@ def get_active_cycles_by_campus_annee(request):
     id_campus = request.GET.get('id_campus')
     id_annee = request.GET.get('id_annee')
     if not (id_campus and id_annee):
-        print(f"Paramètres manquants: id_campus={id_campus}, id_annee={id_annee}")  # Debug
         return JsonResponse({'cycles_actifs': []}, status=400)
+
+    # Validation tenant
+    denied = deny_cross_tenant_access(request, id_campus)
+    if denied:
+        return denied
 
     try:
         cycles_actifs = Classe_cycle_actif.objects.filter(
@@ -232,6 +254,11 @@ def get_active_classes_by_campus_annee_cycle(request):
     if not (id_campus and id_annee and id_cycle):
         return JsonResponse({'classes_actives': []}, status=400)
 
+    # Validation tenant
+    denied = deny_cross_tenant_access(request, id_campus)
+    if denied:
+        return denied
+
     try:
         classes_actives = Classe_active.objects.filter(
             id_campus__id_campus=id_campus,
@@ -251,6 +278,11 @@ def get_groupe_by_campus_annee_cycle_classe(request):
     id_classe = request.GET.get('id_classe')
     if not (id_campus and id_annee and id_cycle and id_classe):
         return JsonResponse({'groupe':None}, status=400)
+
+    # Validation tenant
+    denied = deny_cross_tenant_access(request, id_campus)
+    if denied:
+        return denied
 
     try:
         classe_active = Classe_active.objects.filter(
@@ -274,6 +306,9 @@ def toggle_terminale_status(request):
             is_terminale = data.get("isTerminale", False)
 
             classe = Classe_active.objects.get(id_classe_active=classe_id)
+            # Validation tenant via le campus de la classe
+            if not validate_campus_access(request, classe.id_campus_id):
+                return JsonResponse({"status": "error", "message": "Accès interdit"}, status=403)
             classe.isTerminale = is_terminale
             classe.save()
             return JsonResponse({"status": "ok"})
@@ -292,6 +327,10 @@ def get_user_modules(request):
     if not id_annee:
         return JsonResponse({"error": "id_annee manquant"}, status=400)
 
+    # Note: UserModule n'a pas de lien direct avec Campus/établissement.
+    # Le filtrage tenant se fait indirectement via le personnel associé.
+    # Pour l'instant, on conserve le comportement existant car les modules
+    # sont des assignations de rôles, pas des données opérationnelles.
     user_modules = UserModule.objects.filter(id_annee_id=id_annee).select_related("user", "module")
 
     data = []

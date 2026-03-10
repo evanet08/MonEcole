@@ -58,9 +58,13 @@ def get_user_info(request):
                     is_active=True
                 ).select_related('module', 'id_annee')
 
-            user_info['modules'] = [
-                mod.module for mod in user_modules if mod.module.url_name
-            ]
+            # Dédupliquer par module (un utilisateur peut avoir plusieurs
+            # UserModule pour le même module, ex: un par campus/année)
+            seen_modules = {}
+            for mod in user_modules:
+                if mod.module and mod.module.url_name and mod.module.id_module not in seen_modules:
+                    seen_modules[mod.module.id_module] = mod.module
+            user_info['modules'] = list(seen_modules.values())
 
             # Store the resolved year in session for decorator use
             if user_modules.exists():

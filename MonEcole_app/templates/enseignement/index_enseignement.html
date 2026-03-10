@@ -13,7 +13,7 @@ Enseignement{% endblock %}
 
 {# ===== SIDEBAR: Glass Cards ===== #}
 {% block sidebar_items %}
-<a href="{% url 'creer_cours' %}"
+<a href="{% url 'create_cours' %}"
     class="nav-item {% if form_type == 'cours_form' or form_type == 'cours_form_cycle' or form_type == 'cours_classes' or not form_type %}active{% endif %}"
     title="Catalogue Cours">
     <i class="fas fa-book text-blue"></i>
@@ -30,22 +30,24 @@ Enseignement{% endblock %}
 {# ===== TAB BAR ===== #}
 {% block tab_bar %}
 <div class="tab-bar">
-    {% if form_type == 'cours_form' or form_type == 'cours_form_cycle' or form_type == 'cours_classes' or not form_type %}
-    <a href="{% url 'creer_cours' %}"
+    {% if form_type == 'cours_form' or form_type == 'cours_form_cycle' or form_type == 'cours_classes' or not form_type
+    %}
+    <a href="{% url 'create_cours' %}"
         class="tab-link {% if form_type == 'cours_form' or not form_type %}active{% endif %}">
         <i class="fas fa-book"></i> Cours
     </a>
-    <a href="{% url 'creer_cours_cycle' %}" class="tab-link {% if form_type == 'cours_form_cycle' %}active{% endif %}">
+    <a href="{% url 'create_cours_cycle' %}" class="tab-link {% if form_type == 'cours_form_cycle' %}active{% endif %}">
         <i class="fas fa-layer-group"></i> Cours par Cycle
     </a>
-    <a href="{% url 'cours_classes_view' %}" class="tab-link {% if form_type == 'cours_classes' %}active{% endif %}">
+    <a href="{% url 'organiser_cours_classes' %}"
+        class="tab-link {% if form_type == 'cours_classes' %}active{% endif %}">
         <i class="fas fa-chalkboard"></i> Cours par Classe
     </a>
     {% elif form_type == 'cours_attribuer' or form_type == 'cours_attribuer_type' %}
     <a href="{% url 'attribution_create' %}" class="tab-link {% if form_type == 'cours_attribuer' %}active{% endif %}">
         <i class="fas fa-user-tag"></i> Attribuer
     </a>
-    <a href="{% url 'creer_attribution_type' %}"
+    <a href="{% url 'attribution_type_cours' %}"
         class="tab-link {% if form_type == 'cours_attribuer_type' %}active{% endif %}">
         <i class="fas fa-list"></i> Type Attribution
     </a>
@@ -513,12 +515,14 @@ Enseignement{% endblock %}
                         <div id="modal_personn_id" class="form-group" style="display: none;">
                             <label for="{{ form_attrib.id_personnel.id_for_label }}"
                                 class="form-label">Personnel</label>
-                            {% render_field form_attrib.id_personnel id="modal_id_personnel" name="id_personnel" class="form-control" required=True %}
+                            {% render_field form_attrib.id_personnel id="modal_id_personnel" name="id_personnel"
+                            class="form-control" required=True %}
                         </div>
                         <div id="modal_crs_attr_id" class="form-group" style="display: none;">
                             <label for="{{ form_attrib.attribution_type.id_for_label }}" class="form-label">Type
                                 d'Attribution</label>
-                            {% render_field form_attrib.attribution_type id="modal_attribution_type" name="attribution_type" class="form-control" required=True %}
+                            {% render_field form_attrib.attribution_type id="modal_attribution_type"
+                            name="attribution_type" class="form-control" required=True %}
                         </div>
                     </div>
                     <div class="modal-footer">

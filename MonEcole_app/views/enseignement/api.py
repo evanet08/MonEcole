@@ -9,6 +9,7 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.db.models import Exists, OuterRef
+from MonEcole_app.views.tools.tenant_utils import deny_cross_tenant_access
 logger = logging.getLogger(__name__)
 
 
@@ -20,6 +21,10 @@ def get_campus_localisation(request):
     id_campus = request.GET.get('id_campus')
     if not id_campus:
         return JsonResponse({"error": "ID campus manquant"}, status=400)
+    # Validation tenant
+    denied = deny_cross_tenant_access(request, id_campus)
+    if denied:
+        return denied
     campus = get_object_or_404(Campus, id_campus=id_campus)
     return JsonResponse({"localisation": campus.localisation})
 
@@ -30,6 +35,12 @@ def get_trimestres_table(request):
     id_campus = request.GET.get('id_campus')
     id_cycle = request.GET.get('id_cycle')
     id_classe = request.GET.get('id_classe')
+
+    # Validation tenant
+    if id_campus:
+        denied = deny_cross_tenant_access(request, id_campus)
+        if denied:
+            return denied
 
     trimestres = Annee_trimestre.objects.filter(
         id_annee=id_annee,
@@ -52,6 +63,12 @@ def get_periodes_table(request):
     id_cycle = request.GET.get('id_cycle')
     id_classe = request.GET.get('id_classe')
     id_trimestre= request.GET.get('id_trimestre_annee')
+
+    # Validation tenant
+    if id_campus:
+        denied = deny_cross_tenant_access(request, id_campus)
+        if denied:
+            return denied
     
     periodes = Annee_periode.objects.filter(
         id_annee=id_annee,
@@ -80,6 +97,11 @@ def get_trimestre_par_classe(request):
 
         if not all([id_annee, id_campus, id_cycle, id_classe]):
             return JsonResponse({'error': 'Tous les paramètres (id_annee, id_campus, id_cycle, id_classe) sont requis'}, status=400)
+
+        # Validation tenant
+        denied = deny_cross_tenant_access(request, id_campus)
+        if denied:
+            return denied
 
         trimestres = Annee_trimestre.objects.filter(
             id_annee=id_annee,

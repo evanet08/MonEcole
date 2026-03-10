@@ -15,6 +15,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.views.decorators.csrf import csrf_exempt
 from MonEcole_app.models import Deliberation_annuelle_finalite
 from django.views.decorators.http import require_POST
+from MonEcole_app.views.tools.tenant_utils import (
+    get_tenant_campus_ids, deny_cross_tenant_access, validate_campus_access
+)
 
 # =============================================Loading section
 
@@ -51,7 +54,8 @@ def load_all_classes_have_evaluations_by_year(request):
 
         classes_qs = Classe_active.objects.filter(
             id_annee_id=annee_id,
-            id_classe_active__in=classes_avec_evaluations
+            id_classe_active__in=classes_avec_evaluations,
+            id_campus__in=get_tenant_campus_ids(request)
         ).select_related('id_campus', 'cycle_id__cycle_id', 'classe_id')
 
         if not has_full_access:
@@ -103,7 +107,8 @@ def load_all_classes_with_pupils_registred_by_year(request):
             has_students=Exists(inscriptions_subquery)
         ).filter(
             id_annee_id=annee_id,
-            has_students=True
+            has_students=True,
+            id_campus__in=get_tenant_campus_ids(request)
         ).select_related(
             'id_campus',
             'cycle_id__cycle_id',

@@ -1,4 +1,5 @@
 from.create_base import *
+from MonEcole_app.views.tools.tenant_utils import get_tenant_campus_ids, deny_cross_tenant_access
 
 @login_required
 def get_banques(request):
@@ -91,7 +92,8 @@ def get_classes_actives(request, annee_id):
             Classe_active.objects.filter(
                 id_annee=annee_id,
                 is_active=True,
-                eleve_inscription__status=1  
+                eleve_inscription__status=1,
+                id_campus__in=get_tenant_campus_ids(request)
             )
             .select_related('id_campus', 'cycle_id__cycle_id', 'classe_id')
             .values(
@@ -153,7 +155,8 @@ def get_classes_actives_avec_paiement(request, annee_id):
                 id_annee=annee_id,
                 is_active=True,
                 paiement__id_annee=annee_id,
-                paiement__status = 1
+                paiement__status = 1,
+                id_campus__in=get_tenant_campus_ids(request)
             )
             .select_related('id_campus', 'cycle_id__cycle_id', 'classe_id')
             .values(
@@ -252,6 +255,11 @@ def get_paiements_submitted(request):
                     "success": False,
                     "error": "Paramètres requis manquants."
                 }, status=400)
+
+            # Validation tenant
+            denied = deny_cross_tenant_access(request, id_campus)
+            if denied:
+                return denied
 
             paiements = Paiement.objects.filter(
                 id_campus_id=id_campus,

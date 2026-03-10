@@ -30,6 +30,7 @@ from MonEcole_app.models import Classe_active_responsable
 from django.db.models import Exists, OuterRef
 from MonEcole_app.views.decorators.decorators import module_required
 from django.views.decorators.csrf import csrf_protect
+from MonEcole_app.views.tools.tenant_utils import get_tenant_campus_ids, validate_campus_access
 
 
 
@@ -1796,7 +1797,7 @@ def load_classes_by_year_exclude_responsible(request):
             id_annee_id=annee_id
         ).values_list('id_classe_id', flat=True)
 
-        classes = Classe_active.objects.filter(id_annee_id=annee_id).select_related('id_campus', 'cycle_id__cycle_id', 'classe_id').order_by('cycle_id__cycle_id')
+        classes = Classe_active.objects.filter(id_annee_id=annee_id, id_campus__in=get_tenant_campus_ids(request)).select_related('id_campus', 'cycle_id__cycle_id', 'classe_id').order_by('cycle_id__cycle_id')
         for classe in classes:
             nom_campus = classe.id_campus.campus
             nom_cycle = classe.cycle_id.cycle_id.cycle

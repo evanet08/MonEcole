@@ -24,6 +24,9 @@ import logging
 logger = logging.getLogger(__name__)
 from django.core.exceptions import ObjectDoesNotExist
 from MonEcole_app.views.decorators.decorators import  module_required
+from MonEcole_app.views.tools.tenant_utils import (
+    get_tenant_campus_ids, validate_campus_access, deny_cross_tenant_access
+)
 
 
 
@@ -55,7 +58,9 @@ def normalize_student_key(nom, prenom):
 def create_inscription_eleve(request):
     user_info = get_user_info(request)
     user_modules = user_info
-    inscriptions = Eleve.objects.all()
+    inscriptions = Eleve.objects.filter(
+        eleve_inscription__id_campus__in=get_tenant_campus_ids(request)
+    ).distinct()
     show_nav = 'create_inscription' in request.path  
 
     if request.method == 'POST':
@@ -463,6 +468,10 @@ def get_pupils_registred_classe(request):
     
 
     try:
+        # Validation tenant pour le campus
+        if id_campus and not validate_campus_access(request, id_campus):
+            return JsonResponse({'error': 'Accès interdit à ce campus', 'success': False}, status=403)
+
         inscriptions = Eleve_inscription.objects.filter(
             Q(id_annee=id_annee) &
             Q(id_campus=id_campus) &

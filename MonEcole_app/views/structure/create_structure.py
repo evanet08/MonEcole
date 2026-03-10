@@ -12,6 +12,10 @@ import logging
 from MonEcole_app.variables import CYCLES_ORDER
 from MonEcole_app.forms import ClasseActiveResponsableForm
 from MonEcole_app.models import UserModule
+from MonEcole_app.views.tools.tenant_utils import (
+    get_tenant_id, get_tenant_campus_qs, get_tenant_campus_ids,
+    validate_campus_access, deny_cross_tenant_access, tenant_campus_filter
+)
 
 
 
@@ -269,7 +273,7 @@ def displaying_module_attribute_users(request):
 @login_required
 @module_required("Administration")
 def create_campus(request):
-    campus_list = Campus.objects.all()
+    campus_list = get_tenant_campus_qs(request)
     user_info = get_user_info(request)
     user_modules = user_info
     show_nav = False 
@@ -277,10 +281,14 @@ def create_campus(request):
         show_nav = True  
 
     if request.method == 'POST':
-        # campus = request.POST.get('campus')
         campus_form = CampusForm(request.POST)
         if campus_form.is_valid():
-            campus_form.save()
+            new_campus = campus_form.save(commit=False)
+            # Assigner automatiquement l'id_etablissement du tenant
+            tenant_id = get_tenant_id(request)
+            if tenant_id:
+                new_campus.id_etablissement = tenant_id
+            new_campus.save()
             messages.success(request,'campus crée avec succès!')
             return redirect('create_campus')
         else:
@@ -487,7 +495,11 @@ def create_classe_cycle_active(request):
 
     else:
         classe_cycle_actif_form = ClasseCycle_actifForm()
-    classe_cycle_list = Classe_cycle_actif.objects.filter(is_active=True)
+    campus_ids = get_tenant_campus_ids(request)
+    classe_cycle_list = Classe_cycle_actif.objects.filter(
+        is_active=True,
+        id_campus__in=campus_ids
+    )
 
     return render(request, 'parametrage/index_parametrage.html', {
         'class_cycle_act_form': classe_cycle_actif_form,
@@ -612,7 +624,11 @@ def create_classe_active(request):
     else:
         class_active_form = Classe_active_Form()
 
-    classe_active_list = Classe_active.objects.filter(is_active=True)
+    campus_ids = get_tenant_campus_ids(request)
+    classe_active_list = Classe_active.objects.filter(
+        is_active=True,
+        id_campus__in=campus_ids
+    )
 
     return render(request, 'parametrage/index_parametrage.html', {
         'class_active_form': class_active_form,
@@ -732,7 +748,8 @@ def create_annee_trimestre(request):
         except Exception as e:
             return JsonResponse({"success": False, "message": f"Erreur interne : {str(e)}"}, status=500)
 
-    trimestres = Annee_trimestre.objects.all()
+    campus_ids = get_tenant_campus_ids(request)
+    trimestres = Annee_trimestre.objects.filter(id_campus__in=campus_ids)
     return render(request, 'parametrage/index_parametrage.html', {
         'trimestres_classes': trimestres,
         'form_trimestre_class': form_trimestre,
