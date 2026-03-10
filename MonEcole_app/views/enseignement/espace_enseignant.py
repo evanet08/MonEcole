@@ -299,11 +299,13 @@ def load_all_classes_by_attribution_cours_year_without_classes_deliberateAnnuall
             status=True
         )
 
+        campus_ids = get_tenant_campus_ids(request)
         classes_query = Classe_active.objects.annotate(
             has_students=Exists(inscriptions_subquery)
         ).filter(
             id_annee_id=annee_id,
-            has_students=True
+            has_students=True,
+            id_campus__in=campus_ids
         ).exclude(
             id_classe_active__in=deliberated_class_ids 
         ).select_related(
@@ -372,11 +374,13 @@ def load_all_classes_by_tutilaire_classe_year(request):
         status=True
     )
 
+    campus_ids = get_tenant_campus_ids(request)
     classes_query = Classe_active.objects.annotate(
         has_students=Exists(inscriptions_subquery)
     ).filter(
         id_annee_id=annee_id,
-        has_students=True
+        has_students=True,
+        id_campus__in=campus_ids
     ).select_related(
         'id_campus',
         'cycle_id__cycle_id',
@@ -444,9 +448,11 @@ def load_all_repechage_classes_byTutilaire_year(request):
         id_annee_id=annee_id
     ).values_list('id_classe_id', flat=True).distinct()
 
+    campus_ids = get_tenant_campus_ids(request)
     classes_query = Classe_active.objects.filter(
         id_annee_id=annee_id,
-        id_classe_active__in=classe_ids
+        id_classe_active__in=classe_ids,
+        id_campus__in=campus_ids
     ).select_related(
         'id_campus',
         'cycle_id__cycle_id',
@@ -518,12 +524,14 @@ def load_all_classes_deliberates_by_year(request):
             status=True
         )
 
+        campus_ids = get_tenant_campus_ids(request)
         classes_query = Classe_active.objects.annotate(
             has_students=Exists(inscriptions_subquery)
         ).filter(
             id_annee_id=annee_id,
             has_students=True,
-            id_classe_active__in=note_classes
+            id_classe_active__in=note_classes,
+            id_campus__in=campus_ids
         ).select_related(
             'id_campus',
             'cycle_id__cycle_id',
@@ -606,6 +614,7 @@ def load_all_classes_by_year_without_classes_deliberated(request):
             id_classe_active=OuterRef('pk')
         )
 
+        campus_ids = get_tenant_campus_ids(request)
         classes_query = Classe_active.objects.annotate(
             has_students=Exists(inscriptions_subquery),
             has_annuelle=Exists(annuelle_exists),
@@ -618,7 +627,8 @@ def load_all_classes_by_year_without_classes_deliberated(request):
             has_annuelle=False,
             has_periodique=False,
             has_trimistrielle=False,
-            has_note=False
+            has_note=False,
+            id_campus__in=campus_ids
         ).select_related(
             'id_campus',
             'cycle_id__cycle_id',
@@ -701,9 +711,11 @@ def load_all_repechage_classes_by_year(request):
         id_annee_id=annee_id
     ).values_list('id_classe_id', flat=True).distinct()
 
+    campus_ids = get_tenant_campus_ids(request)
     classes_query = Classe_active.objects.filter(
         id_annee_id=annee_id,
-        id_classe_active__in=classe_ids
+        id_classe_active__in=classe_ids,
+        id_campus__in=campus_ids
     ).select_related(
         'id_campus',
         'cycle_id__cycle_id',
@@ -769,11 +781,13 @@ def load_all_classes_with_notes_by_year(request):
             id_annee_id=annee_id
         )
 
+        campus_ids = get_tenant_campus_ids(request)
         classes_query = Classe_active.objects.annotate(
             has_notes=Exists(notes_subquery)
         ).filter(
             id_annee_id=annee_id,
-            has_notes=True
+            has_notes=True,
+            id_campus__in=campus_ids
         ).select_related(
             'id_campus',
             'cycle_id__cycle_id',

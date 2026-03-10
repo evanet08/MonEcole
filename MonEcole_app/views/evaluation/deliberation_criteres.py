@@ -266,7 +266,8 @@ def load_all_classes_without_decision_deliberat_by_year(request):
         ).filter(
             id_annee_id=annee_id,
             has_students=True,
-            finalite_count__lt=total_finalites
+            finalite_count__lt=total_finalites,
+            id_campus__in=campus_ids
         ).select_related(
             'id_campus',
             'cycle_id__cycle_id',
