@@ -1,100 +1,160 @@
-# AUDIT: Isolation Multi-Tenant par id_etablissement
-## Date: 2026-03-10
+# Audit Tenant Isolation — MonEcole
+## Dernière mise à jour : 2026-03-10
 
-## Architecture
-- **Clé tenant**: `id_etablissement` (résolu via TenantMiddleware depuis le sous-domaine)
-- **Table pivot**: `campus.id_etablissement` → l'établissement possède un ou plusieurs campus
-- **28 tables** dans db_monecole ont la colonne `id_etablissement`
+---
 
-## Phase 1 : Modèles Django (FAIT ✅)
-Les modèles suivants ont reçu `id_etablissement = models.IntegerField(null=True, blank=True)` :
+## 1. Phase 1 : Modèles Django (✅ COMPLÉTÉ)
 
-| Modèle | Table DB | Status |
-|--------|----------|--------|
-| Campus | campus | ✅ (existait déjà) |
-| Eleve | eleve | ✅ Ajouté |
-| Eleve_inscription | eleve_inscription | ✅ Ajouté |
-| Eleve_note | eleve_note | ✅ Ajouté |
-| Eleve_conduite | eleve_conduite | ✅ Ajouté |
-| Evaluation | evaluation | ✅ Ajouté |
-| Personnel | personnel | ✅ Ajouté |
-| Classe_deliberation | classe_deliberation | ✅ Ajouté |
-| Classe_active_responsable | classe_active_responsable | ✅ Ajouté |
-| Deliberation_annuelle_condition | deliberation_annuelle_conditions | ✅ Ajouté |
-| Deliberation_annuelle_resultat | deliberation_annuelle_resultats | ✅ Ajouté |
-| Deliberation_periodique_resultat | deliberation_periodique_resultats | ✅ Ajouté |
-| Deliberation_examen_resultat | deliberation_examen_resultats | ✅ Ajouté |
-| Deliberation_trimistrielle_resultat | deliberation_trimistrielle_resultats | ✅ Ajouté |
-| Deliberation_repechage_resultat | deliberation_repechage_resultats | ✅ Ajouté |
-| Horaire | horaire | ✅ Ajouté |
-| Horaire_presence | horaire_presence | ✅ Ajouté |
-| Salle | salle | ✅ Ajouté |
-| User_enseignement | user_enseignement | ✅ Ajouté |
-| Users_other_module | users_other_module | ✅ Ajouté |
-| UserModule | user_module | ✅ Ajouté |
+**Ajouté `id_etablissement = IntegerField(null=True, blank=True)` aux modèles suivants :**
 
-### Tables restantes (recouvrement) — colonne existe dans DB :
-| Table DB | Modèle Django | Status |
-|----------|---------------|--------|
-| attribution_cours | Attribution_cours | ⚠️ À vérifier |
-| prestation | Prestation | ⚠️ À vérifier |
-| recouvrment_paiement | Paiement | ⚠️ À vérifier |
-| recouvrment_reduction_prix | - | ⚠️ À vérifier |
-| recouvrment_variable_datebutoire | - | ⚠️ À vérifier |
-| recouvrment_variable_derogation | - | ⚠️ À vérifier |
-| recouvrment_variable_prix | - | ⚠️ À vérifier |
+| Modèle | Fichier | Statut |
+|--------|---------|--------|
+| `Eleve` | `models/eleves/eleve.py` | ✅ |
+| `Eleve_inscription` | `models/eleves/eleve.py` | ✅ |
+| `Eleve_note` | `models/eleves/eleve.py` | ✅ |
+| `Eleve_conduite` | `models/eleves/eleve.py` | ✅ |
+| `Evaluation` | `models/evaluations/note.py` | ✅ |
+| `Personnel` | `models/personnel.py` | ✅ |
+| `Classe_deliberation` | `models/classe.py` | ✅ |
+| `Classe_active_responsable` | `models/classe.py` | ✅ |
+| `Deliberation_annuelle_condition` | `models/evaluations/note.py` | ✅ |
+| `Deliberation_annuelle_resultat` | `models/evaluations/note.py` | ✅ |
+| `Deliberation_periodique_resultat` | `models/evaluations/note.py` | ✅ |
+| `Deliberation_examen_resultat` | `models/evaluations/note.py` | ✅ |
+| `Deliberation_trimistrielle_resultat` | `models/evaluations/note.py` | ✅ |
+| `Deliberation_repechage_resultat` | `models/evaluations/note.py` | ✅ |
+| `Horaire` | `models/horaire.py` | ✅ |
+| `Horaire_presence` | `models/horaire.py` | ✅ |
+| `Salle` | `models/salle.py` | ✅ |
+| `User_enseignement` | `models/enseignmnts/users_enseignant.py` | ✅ |
+| `Users_other_module` | `models/enseignmnts/users_enseignant.py` | ✅ |
+| `UserModule` | `models/module.py` | ✅ |
 
-## Phase 2 : Utilitaires Tenant (FAIT ✅)
-- `tenant_utils.py` → ajout de `tenant_etablissement_filter(request, queryset)` 
-- Filtrage direct par `id_etablissement` (plus efficace que via Campus IDs)
+---
 
-## Phase 3 : Vues à mettre à jour (EN ATTENTE)
+## 2. Phase 2 : Utilitaires Tenant (✅ COMPLÉTÉ)
 
-### Fichiers DÉJÀ protégés par tenant_utils :
-1. `views/structure/api_structure.py` ✅
-2. `views/structure/create_structure.py` ✅  
-3. `views/direction_views/api_infos.py` ✅
-4. `views/recouvrement/api_load.py` ✅
-5. `views/enseignement/api.py` ✅
-6. `views/enseignement/enseignements.py` ✅
-7. `views/evaluation/api.py` ✅
-8. `views/inscription/inscription.py` ✅
+**Fichier : `views/tools/tenant_utils.py`**
 
-### Fichiers SANS protection tenant (25 fichiers) :
-1. `views/__bulletin/pdf.py` ⚠️ CRITIQUE (bulletins pourraient mixer des élèves)
-2. `views/direction_views/home_direct.py` ⚠️ CRITIQUE (dashboard affiche stats globales)
-3. `views/enseignement/espace_enseignant.py` ⚠️
-4. `views/evaluation/avancement_view.py` ⚠️
-5. `views/evaluation/deliberation_annuelle.py` ⚠️ CRITIQUE
-6. `views/evaluation/deliberation_criteres.py` ⚠️ CRITIQUE
-7. `views/evaluation/deliberation_trimestrielle.py` ⚠️ CRITIQUE
-8. `views/evaluation/evaluation.py` ⚠️ CRITIQUE
-9. `views/evaluation/excel_notes_utils.py` ⚠️
-10. `views/evaluation/form_select_utils.py` ⚠️
-11. `views/evaluation/repechage.py` ⚠️ CRITIQUE
-12. `views/evaluation/structure_bulletin.py` ⚠️
-13. `views/home/home.py` ⚠️
-14. `views/inscription/email_validate.py` ⚠️
-15. `views/inscription/inscription_list_pdf.py` ⚠️
-16. `views/inscription/inscription_status.py` ⚠️
-17. `views/personnel.py` ⚠️
-18. `views/rdc_structure/structure_maternelle.py` ⚠️ CRITIQUE
-19. `views/rdc_structure/structure_par_module.py` ⚠️
-20. `views/rdc_structure/structure_primaire.py` ⚠️ CRITIQUE
-21. `views/rdc_structure/structure_secondaire.py` ⚠️ CRITIQUE
-22. `views/recouvrement/invoice_paiement.py` ⚠️
-23. `views/structure/delete_structure.py` ⚠️
-24. `views/structure/edit_structure.py` ⚠️
-25. `views/tools/utils.py` ⚠️
+| Fonction | Description |
+|----------|-------------|
+| `get_tenant_id(request)` | Récupère l'id_etablissement depuis la session |
+| `get_tenant_campus_ids(request)` | Retourne les IDs de campus liés à l'établissement |
+| `tenant_campus_filter(request, queryset)` | Filtre un queryset par campus du tenant |
+| `tenant_etablissement_filter(request, queryset)` | Filtre un queryset directement par id_etablissement |
+| `validate_campus_access(request, campus_id)` | Vérifie qu'un campus_id appartient au tenant |
+| `deny_cross_tenant_access(request, campus_id)` | Retourne 403 si accès interdit |
 
-### Pattern de correction pour chaque vue :
+---
+
+## 3. Phase 3 : Filtrage des Vues (✅ COMPLÉTÉ)
+
+### Batch 1 — Dashboard & Critères de délibération
+| Fichier | Correction | Statut |
+|---------|------------|--------|
+| `views/direction_views/home_direct.py` | Toutes les queries `Eleve_inscription` filtrées par `id_etablissement` via `tenant_etablissement_filter` | ✅ |
+| `views/evaluation/deliberation_criteres.py` | `Deliberation_annuelle_condition.objects.all()` → filtré par `campus_ids` ; `Classe_active` queries filtrées | ✅ |
+| `views/evaluation/__initials.py` | Import centralisé tenant_utils — propagé à tous les fichiers d'évaluation via `import *` | ✅ |
+| `views/structure/_initials.py` | Import centralisé tenant_utils — propagé à `delete_structure.py` et `edit_structure.py` | ✅ |
+
+### Batch 2 — Toutes les fonctions de listing de classes
+| Fichier | Correction | Statut |
+|---------|------------|--------|
+| `views/enseignement/espace_enseignant.py` | **10 fonctions** corrigées avec `id_campus__in=campus_ids` : | ✅ |
+| | `soumettre_evaluation_prevu` — `Evaluation.objects.all()` → `tenant_etablissement_filter` | ✅ |
+| | `load_all_classes_by_attribution_cours_year` | ✅ |
+| | `load_all_classes_by_attribution_cours_year_without_classes_deliberateAnnually` | ✅ |
+| | `load_all_classes_by_tutilaire_classe_year` | ✅ |
+| | `load_all_repechage_classes_byTutilaire_year` | ✅ |
+| | `load_all_classes_deliberates_by_year` | ✅ |
+| | `load_all_classes_by_year_without_classes_deliberated` | ✅ |
+| | `load_all_repechage_classes_by_year` | ✅ |
+| | `load_all_classes_with_notes_by_year` | ✅ |
+| `views/evaluation/deliberation_criteres.py` | `load_all_classes_without_decision_deliberat_by_year` — ajout `id_campus__in=campus_ids` | ✅ |
+
+### Batch 3 — Validation campus pour PDF & Recouvrement
+| Fichier | Correction | Statut |
+|---------|------------|--------|
+| `views/inscription/inscription_list_pdf.py` | `validate_campus_access` avant génération PDF | ✅ |
+| `views/recouvrement/invoice_paiement.py` | `validate_campus_access` avant génération facture | ✅ |
+| `views/recouvrement/create_base.py` | Import tenant_utils (propagé à `save_api.py` via `import *`) | ✅ |
+
+### Fichiers protégés par propagation d'imports (`import *`)
+Ces fichiers ont accès aux utilitaires tenant via la chaîne d'importation :
+
+```
+__initials.py (tenant_utils) 
+  → structure_bulletin.py (from .__initials import *)
+    → evaluation.py (from .structure_bulletin import *)
+      → repechage.py (from .evaluation import *)
+  → delib_an_tools.py (from .__initials import *)
+    → deliberation_trimestrielle.py (from .delib_an_tools import *)
+    → deliberation_annuelle.py (from .delib_an_tools import *)
+  → form_select_utils.py (from .__initials import ...)
+
+_initials.py (tenant_utils)
+  → delete_structure.py (from ._initials import *)
+  → edit_structure.py (from ._initials import *)
+
+create_base.py (tenant_utils)
+  → save_api.py (from .create_base import *)
+
+inscription.py (tenant_utils - déjà présent)
+  → inscription_status.py (from .inscription import *)
+```
+
+---
+
+## 4. Fichiers ne nécessitant PAS de filtrage tenant
+
+| Fichier | Raison |
+|---------|--------|
+| `views/home/home.py` | Redirections uniquement, pas de requêtes de données opérationnelles |
+| `views/personnel.py` | Authentification/login — pas de données opérationnelles croisées |
+| `views/inscription/email_validate.py` | Validation email — pas de requêtes par campus |
+| `views/rdc_structure/structure_primaire.py` | Fonctions utilitaires de calcul PDF, appelées avec IDs déjà filtrés |
+| `views/rdc_structure/structure_secondaire.py` | Idem |
+| `views/rdc_structure/structure_maternelle.py` | Idem |
+| `views/rdc_structure/structure_par_module.py` | Idem |
+| `views/evaluation/excel_notes_utils.py` | Fonctions utilitaires, appelées avec IDs déjà filtrés |
+| `views/__bulletin/pdf.py` | Endpoint PDF — reçoit des IDs déjà filtrés en amont |
+| `views/evaluation/avancement_view.py` | Reçoit campus/classe en paramètres, déjà filtrés par les forms |
+| `views/tools/utils.py` | Utilitaire `get_user_info` — pas de données opérationnelles |
+
+---
+
+## 5. Résumé des commits
+
+| Commit | Description |
+|--------|-------------|
+| Phase 1 | `id_etablissement` ajouté à 20+ modèles + `tenant_etablissement_filter` utility |
+| Batch 1 | Dashboard stats + critères délibération + imports centralisés |
+| Batch 2 | 10 fonctions de listing de classes filtrées par campus |
+| Batch 3 | Validation campus pour PDFs + import recouvrement |
+
+---
+
+## 6. Pattern de correction appliqué
+
 ```python
-# AVANT (non sécurisé) :
-eleves = Eleve.objects.all()
-notes = Eleve_note.objects.filter(id_classe_active=classe_id)
+# Import centralisé (dans _initials.py ou __initials.py)
+from MonEcole_app.views.tools.tenant_utils import (
+    tenant_etablissement_filter, get_tenant_campus_ids,
+    deny_cross_tenant_access, validate_campus_access
+)
 
-# APRÈS (sécurisé) :
-from MonEcole_app.views.tools.tenant_utils import tenant_etablissement_filter
-eleves = tenant_etablissement_filter(request, Eleve.objects.all())
-notes = tenant_etablissement_filter(request, Eleve_note.objects.filter(id_classe_active=classe_id))
+# Pattern 1: Filtrage direct par id_etablissement
+base_qs = tenant_etablissement_filter(request, Model.objects.all())
+results = base_qs.filter(**other_filters)
+
+# Pattern 2: Filtrage Classe_active par campus
+campus_ids = get_tenant_campus_ids(request)
+classes = Classe_active.objects.filter(
+    id_annee_id=annee_id,
+    id_campus__in=campus_ids  # <-- AJOUTÉ
+)
+
+# Pattern 3: Validation d'accès campus (endpoints PDF/API)
+if not validate_campus_access(request, campus_id):
+    return HttpResponse(status=403)
 ```
