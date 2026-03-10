@@ -513,22 +513,15 @@ def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
     nom_classe = classe_active.classe_id.classe.strip()
 
     if nom_classe in ['1ère Année', '1er Langue', '1er SC', '1er Eco', '1ère Primaire', '2ème Primaire', '3ème Primaire', '4ème Primaire', '5ème Primaire', '6ème Primaire']:
-        sigles = ["1e P", "2e P", "3e P", "4e P", "5e P", "6e P"]
-        sigle_to_col = {
-            "1e P": 2,
-            "2e P": 3,
-            "3e P": 9,
-            "4e P": 10,
-            "5e P": 16,
-            "6e P": 17
+        periode_to_col = {
+            "P1": 2, "P2": 3,
+            "P3": 9, "P4": 10,
+            "P5": 16, "P6": 17
         }
     elif nom_classe in ['7ème A E.B', '8ème A E.B', '7ème', '8ème']:
-        sigles = ["1e P", "2e P", "3e P", "4e P"]
-        sigle_to_col = {
-            "1e P": 2,
-            "2e P": 3,
-            "3e P": 9,
-            "4e P": 10
+        periode_to_col = {
+            "P1": 2, "P2": 3,
+            "P3": 9, "P4": 10
         }
     else:
         
@@ -540,28 +533,30 @@ def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
         id_campus_id=id_campus,
         id_cycle_actif_id=id_cycle,
         id_classe_active_id=id_classe,
-        id_type_note__sigle__in=sigles,
-    ).select_related('id_periode', 'id_type_note')
+        id_type_note__sigle="T.J",
+    ).select_related('id_periode__periode')
 
    
     regroupement = defaultdict(lambda: defaultdict(list)) 
 
     for note in notes_qs:
         cours_id  = note.id_cours_id
-        periode_id = note.id_periode_id
-        sigle      = note.id_type_note.sigle
+        try:
+            periode_nom = note.id_periode.periode.periode  # P1, P2, etc.
+        except (AttributeError, Exception):
+            continue
 
-        if sigle not in sigle_to_col:
+        if periode_nom not in periode_to_col:
             continue 
 
         valeur = note.note
         if valeur is not None:
-            regroupement[cours_id][periode_id].append(valeur)
+            regroupement[cours_id][periode_nom].append(valeur)
 
     notes_par_cours = defaultdict(dict)
 
     for cours_id, periodes in regroupement.items():
-        for periode_id, liste_notes in periodes.items():
+        for periode_nom, liste_notes in periodes.items():
             if not liste_notes:
                 continue
 
@@ -576,9 +571,10 @@ def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
             else:
                 valeur_affichee = f"{moyenne_arrondie:.1f}"
 
-            notes_par_cours[cours_id][periode_id] = {
+            col = periode_to_col[periode_nom]
+            notes_par_cours[cours_id][periode_nom] = {
                 'valeur': valeur_affichee,
-                'colonne': sigle_to_col[sigle]  
+                'colonne': col
             }
 
     return notes_par_cours
@@ -612,7 +608,7 @@ def get_student_exam_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe):
         id_campus_id=id_campus,
         id_cycle_actif_id=id_cycle,
         id_classe_active_id=id_classe,
-        id_type_note__sigle="Ex."
+        id_type_note__sigle="EX"
     )
 
     notes_par_cours = defaultdict(dict)
@@ -800,27 +796,38 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
 
     nom_classe = classe_active.classe_id.classe.strip()
 
+    # Mapping période (P1, P2, etc.) vers sigle utilisé par les templates (1e P, 2e P, etc.)
     if nom_classe in ['1ère Année', '1er Langue', '1er SC', '1er Eco', '1ère Primaire', '2ème Primaire', '3ème Primaire', '4ème Primaire', '5ème Primaire', '6ème Primaire']:
-        sigles = ["1e P", "2e P", "3e P", "4e P", "5e P", "6e P"]
+        periode_to_sigle = {"P1": "1e P", "P2": "2e P", "P3": "3e P", "P4": "4e P", "P5": "5e P", "P6": "6e P"}
     elif nom_classe in ['7ème A E.B', '8ème A E.B', '7ème', '8ème', '4ème construction', '2ème Niveau Eléctricité Industrielle', '2sc MTP', '2ème LANGUE', '2ème Eco', '2ème BCT', '3ème MPT', '3ème BCT', '3ème ECO']:
-        sigles = ["1e P", "2e P", "3e P", "4e P"]
+        periode_to_sigle = {"P1": "1e P", "P2": "2e P", "P3": "3e P", "P4": "4e P"}
     else:
         return defaultdict(dict)
 
+    # Filtrer par type "T.J" (Travail Journalier) et récupérer la période
     notes_qs = Eleve_note.objects.filter(
         id_eleve_id=id_eleve,
         id_annee_id=id_annee,
         id_campus_id=id_campus,
         id_cycle_actif_id=id_cycle,
         id_classe_active_id=id_classe,
-        id_type_note__sigle__in=sigles
-    ).select_related('id_type_note')
+        id_type_note__sigle="T.J"
+    ).select_related('id_periode__periode')
 
     notes_par_cours = defaultdict(dict)
 
     for note in notes_qs:
         cours_id = note.id_cours_id
-        sigle  = note.id_type_note.sigle
+        # Récupérer le nom de la période (P1, P2, etc.) via la FK
+        try:
+            periode_nom = note.id_periode.periode.periode  # Annee_periode → Periode → periode
+        except (AttributeError, Exception):
+            continue
+        
+        sigle = periode_to_sigle.get(periode_nom)
+        if sigle is None:
+            continue
+            
         valeur = note.note if note.note is not None else "-"
         notes_par_cours[cours_id][sigle] = valeur
     return notes_par_cours
