@@ -521,47 +521,55 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
         ('SPAN', (15, 0), (16, 2)),   
         ('SPAN', (17, 0), (17, 2)), 
         ('SPAN', (18, 0), (19, 1)),   
-        ('SPAN', (1, 42), (-1, 42)),
-        ('SPAN', (0, 3), (-1, 3)), ('BACKGROUND', (0, 3), (-1, 3), colors.lightblue),
-        ('SPAN', (0, 9), (-1, 9)), ('BACKGROUND', (0, 9), (-1, 9), colors.lightblue),
-        ('SPAN', (0, 14), (-1, 14)), ('BACKGROUND', (0, 14), (-1, 14), colors.lightblue),
-        ('SPAN', (0, 19), (-1, 19)), ('BACKGROUND', (0, 19), (-1, 19), colors.lightblue),
-        ('SPAN', (0, 23), (-1, 23)), ('BACKGROUND', (0, 23), (-1, 23), colors.lightblue),
-        ('SPAN', (0, 30), (-1, 30)), ('BACKGROUND', (0, 30), (-1, 30), colors.lightblue),
-        ('SPAN', (0, 34), (-1, 34)), ('BACKGROUND', (0, 34), (-1, 34), colors.lightblue),
     ])
 
+    num_rows = len(table_data)
+
+    # Appliquer SPAN/BACKGROUND dynamiquement pour les lignes de domaine
+    for row_idx in range(3, num_rows):
+        row = table_data[row_idx]
+        if len(row) > 0 and isinstance(row[0], Paragraph):
+            texte = row[0].text or ""
+            # Lignes de domaine (en gras, pas Sous Total ni MAXIMA ni POURCENTAGE)
+            if "<b>" in texte and "Sous Total" not in texte and "MAXIMA" not in texte and "POURCENTAGE" not in texte and "PLACE" not in texte and "CONDUITE" not in texte and "APPLICATION" not in texte and "SIGNATURE" not in texte:
+                table_style.add('SPAN', (0, row_idx), (-1, row_idx))
+                table_style.add('BACKGROUND', (0, row_idx), (-1, row_idx), colors.lightblue)
+
+    # Colonne hachurée (col 17)
     gris_fonce = colors.Color(red=0.15, green=0.15, blue=0.15)
     col_hachuree = 17 
-    for row_idx in range(len(table_data)-1):
+    for row_idx in range(num_rows - 1):
         table_style.add('BACKGROUND', (col_hachuree, row_idx), (col_hachuree, row_idx), gris_fonce)
         if col_hachuree < len(table_data[row_idx]):
             table_data[row_idx][col_hachuree] = None
             
-            
-    gris_fonce = colors.Color(red=0.15, green=0.15, blue=0.15)
+    # Hachurer les lignes finales (MAXIMA, POURCENTAGE, etc.) - dynamiquement
+    maxima_idx = None
+    for idx, row in enumerate(table_data):
+        if len(row) > 0 and isinstance(row[0], Paragraph) and "MAXIMA GENEREAUX" in (row[0].text or ""):
+            maxima_idx = idx
+            break
 
-    
-    colonnes_a_hachurer_1 = [1, 4, 6, 8, 11, 13, 15]
-    lignes_a_hachurer_1 = range(38, 42)  
+    if maxima_idx is not None:
+        colonnes_a_hachurer_1 = [1, 4, 6, 8, 11, 13, 15]
+        for row_idx in range(maxima_idx, min(maxima_idx + 4, num_rows)):
+            for col_idx in colonnes_a_hachurer_1:
+                if col_idx < len(table_data[row_idx]):
+                    table_style.add('BACKGROUND', (col_idx, row_idx), (col_idx, row_idx), gris_fonce)
 
-    for row_idx in lignes_a_hachurer_1:
-        for col_idx in colonnes_a_hachurer_1:
-            if row_idx < len(table_data) and col_idx < len(table_data[row_idx]):
-                table_style.add('BACKGROUND', (col_idx, row_idx), (col_idx, row_idx), gris_fonce)
+        colonnes_a_hachurer_2 = [5, 7, 12, 14]
+        for row_idx in range(maxima_idx + 2, min(maxima_idx + 4, num_rows)):
+            for col_idx in colonnes_a_hachurer_2:
+                if row_idx < num_rows and col_idx < len(table_data[row_idx]):
+                    table_style.add('BACKGROUND', (col_idx, row_idx), (col_idx, row_idx), gris_fonce)
 
-    colonnes_a_hachurer_2 = [5, 7, 12, 14]  
-    lignes_a_hachurer_2 = [40,41]  
-
-    for row_idx in lignes_a_hachurer_2:
-        for col_idx in colonnes_a_hachurer_2:
-            if row_idx < len(table_data) and col_idx < len(table_data[row_idx]):
-                table_style.add('BACKGROUND', (col_idx, row_idx), (col_idx, row_idx), gris_fonce)
-    
-    
-    table_style.add('SPAN', (18, 36), (19, 41))
-    table_style.add('BACKGROUND', (18, 36), (19, 42), colors.white)
-    table_style.add('BOX', (18, 36), (19, 42), 0.5, colors.black)
+    # Zone signature en bas à droite - dynamiquement
+    signature_start = num_rows - 6 if num_rows > 6 else num_rows - 1
+    signature_end = num_rows - 1
+    if signature_start >= 0 and signature_end < num_rows and signature_start < signature_end:
+        table_style.add('SPAN', (18, signature_start), (19, signature_end))
+        table_style.add('BACKGROUND', (18, signature_start), (19, signature_end), colors.white)
+        table_style.add('BOX', (18, signature_start), (19, signature_end), 0.5, colors.black)
 
     texte_visible = (
         "Passe(1)<br/>"
@@ -582,8 +590,8 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
         spaceBefore=8,
         spaceAfter=8
     )
-    if 36 < len(table_data) and 18 < len(table_data[36]):
-        table_data[36][18] = Paragraph(texte_visible, style_visible)
+    if signature_start < len(table_data) and 18 < len(table_data[signature_start]):
+        table_data[signature_start][18] = Paragraph(texte_visible, style_visible)
     
     table.setStyle(table_style)
     elements.append(table)
