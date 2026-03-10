@@ -12,6 +12,7 @@ import os
 from django.conf import settings
 import logging
 from datetime import datetime
+from MonEcole_app.views.tools.tenant_utils import validate_campus_access
 
 
 
@@ -154,6 +155,10 @@ def generate_fiche_paie_classe(request):
 
         if not all([id_campus, id_cycle, id_classe_active, id_annee]):
             return HttpResponse("Erreur : Paramètres requis manquants.", status=400)
+
+        # Tenant validation
+        if not validate_campus_access(request, id_campus):
+            return HttpResponse("Erreur : Accès interdit à ce campus.", status=403)
 
         inscriptions = Eleve_inscription.objects.filter(
             id_campus_id=id_campus,

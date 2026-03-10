@@ -10,6 +10,7 @@ from reportlab.lib.units import cm
 import json
 import logging
 from MonEcole_app.models import Institution, Annee, Campus, Classe_cycle_actif, Classe_active
+from MonEcole_app.views.tools.tenant_utils import validate_campus_access
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,11 @@ def generate_pupils_pdf(request):
         if not all([annee_id, campus_id, cycle_id, classe_id]):
             logger.warning(f"Paramètres manquants pour generate_pupils_pdf : {data}")
             return HttpResponse(status=400)
+
+        # Tenant validation
+        if not validate_campus_access(request, campus_id):
+            logger.warning(f"Accès interdit au campus {campus_id} pour le tenant actuel")
+            return HttpResponse(status=403)
 
         institution = Institution.objects.first() 
         annee = Annee.objects.filter(id_annee=annee_id).first()

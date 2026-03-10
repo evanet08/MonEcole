@@ -12,6 +12,9 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_protect,csrf_exempt
 from django.shortcuts import get_object_or_404
 from MonEcole_app.models import Classe_active,Annee
+from MonEcole_app.views.tools.tenant_utils import (
+    tenant_etablissement_filter, get_tenant_campus_ids, validate_campus_access
+)
 
 import logging
 
