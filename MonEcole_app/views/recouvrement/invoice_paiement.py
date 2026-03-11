@@ -24,6 +24,10 @@ def generate_invoice(request, id_paiement):
             'id_campus', 'id_cycle_actif', 'id_classe_active', 'id_annee', 'id_variable', 'id_eleve'
         ).get(id_paiement=id_paiement)
 
+        # Validation tenant
+        if not validate_campus_access(request, paiement.id_campus_id):
+            return HttpResponse("Erreur : Accès interdit à ce paiement.", status=403)
+
         institution = Institution.objects.first()  
         if not institution:
             return HttpResponse("Erreur : Institution non trouvée.", status=404)

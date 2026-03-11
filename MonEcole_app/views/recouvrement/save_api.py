@@ -1,4 +1,5 @@
 from .create_base import *
+from MonEcole_app.views.tools.tenant_utils import deny_cross_tenant_access
 
 @login_required
 @csrf_protect
@@ -22,6 +23,11 @@ def save_variable_prix(request):
                     'success': False,
                     'error': "id_campus et id_cycle_actif doivent être des entiers."
                 }, status=400)
+
+            # Validation tenant
+            denied = deny_cross_tenant_access(request, id_campus)
+            if denied:
+                return denied
 
             form = VariablePrixForm(request.POST)
             if not form.is_valid():
@@ -98,6 +104,11 @@ def save_variable_derogation(request):
                     'error': 'Tous les champs sont requis.'
                 }, status=400)
 
+            # Validation tenant
+            denied = deny_cross_tenant_access(request, id_campus)
+            if denied:
+                return denied
+
             if VariableDerogation.objects.filter(
                 id_eleve=id_eleve,
                 id_annee = id_annee,
@@ -147,6 +158,11 @@ def save_variable_date_butoire(request):
                     'success': False,
                     'error': 'Tous les champs sont requis.'
                 }, status=400)
+
+            # Validation tenant
+            denied = deny_cross_tenant_access(request, id_campus)
+            if denied:
+                return denied
 
             if VariableDatebutoire.objects.filter(
                 id_annee = id_annee,
@@ -200,6 +216,11 @@ def save_variable_reduction(request):
                     'success': False,
                     'error': 'Tous les champs sont requis.'
                 }, status=400)
+
+            # Validation tenant
+            denied = deny_cross_tenant_access(request, id_campus)
+            if denied:
+                return denied
 
             if Eleve_reduction_prix.objects.filter(
                 id_eleve=id_eleve,

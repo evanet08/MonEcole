@@ -225,7 +225,8 @@ def get_all_paiement_soumises(request):
     user_info = get_user_info(request)
     user_modules = user_info
     form = VariableDateButoireForm()
-    all_paiement_soumises = Paiement.objects.all()
+    campus_ids = get_tenant_campus_ids(request)
+    all_paiement_soumises = Paiement.objects.filter(id_campus__in=campus_ids)
     return render(request, 'recouvrement/index_recouvrement.html', {
         'paiement_list':all_paiement_soumises,
         'form_paiement_validation': form,
@@ -313,6 +314,11 @@ def get_paiements_validated(request):
                     "success": False,
                     "error": "Paramètres requis manquants."
                 }, status=400)
+
+            # Validation tenant
+            denied = deny_cross_tenant_access(request, id_campus)
+            if denied:
+                return denied
 
             paiements = Paiement.objects.filter(
                 id_campus_id=id_campus,

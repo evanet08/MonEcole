@@ -1,5 +1,6 @@
 
 from .create_base import *
+from MonEcole_app.views.tools.tenant_utils import validate_campus_access
 
 
 
@@ -31,6 +32,13 @@ def update_paiement_field(request):
                     'success': False,
                     'error': 'Paiement non trouvé.'
                 }, status=404)
+
+            # Validation tenant
+            if not validate_campus_access(request, paiement.id_campus_id):
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Accès interdit à ce paiement.'
+                }, status=403)
 
             if field == 'status':
                 paiement.status = value

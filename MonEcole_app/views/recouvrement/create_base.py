@@ -138,7 +138,8 @@ def ajouter_variable_prix(request):
             return redirect('create_compte')
     else:
         form = VariablePrixForm()
-    variableprixList = VariablePrix.objects.all()
+    campus_ids = get_tenant_campus_ids(request)
+    variableprixList = VariablePrix.objects.filter(id_campus__in=campus_ids)
     return render(request, 'recouvrement/index_recouvrement.html', {
         'variable_prix_list': variableprixList,
         'form_variable_prix': form,
@@ -162,7 +163,8 @@ def add_paiement_for_anyclass(request):
             return redirect('create_compte')
     else:
         form = PaiementForm()
-    paiementList = Paiement.objects.all()
+    campus_ids = get_tenant_campus_ids(request)
+    paiementList = Paiement.objects.filter(id_campus__in=campus_ids)
     return render(request, 'recouvrement/index_recouvrement.html', {
         'paiement_list': paiementList,
         'form_paiement': form,
@@ -181,7 +183,8 @@ def ajouter_variable_derogation(request):
     user_modules = user_info
     form = VariableDerogationForm()
     is_derog = True
-    derogationList = VariableDerogation.objects.all()
+    campus_ids = get_tenant_campus_ids(request)
+    derogationList = VariableDerogation.objects.filter(id_campus__in=campus_ids)
     variables_list = Variable.objects.all()
     return render(request, 'recouvrement/index_recouvrement.html', {
         'derogation_list': derogationList,
@@ -271,6 +274,13 @@ def save_paiement(request):
                         'success': False,
                         'error': 'Classe active non trouvée.'
                     }, status=404)
+
+                # Validation tenant
+                if not validate_campus_access(request, id_campus):
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Accès interdit : ce campus ne fait pas partie de votre établissement.'
+                    }, status=403)
 
                 paiement = Paiement(
                     id_variable_id=id_variable,
