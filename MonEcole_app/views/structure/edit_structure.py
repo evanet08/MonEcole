@@ -581,10 +581,8 @@ def update_cycle(request, cycle_id):
 
             cycle = Classe_cycle.objects.get(id_cycle=cycle_id)
             dependencies = []
-            if Classe_cycle_actif.objects.filter(cycle_id=cycle).exists():
-                dependencies.append("cycles actifs")
-            if Classe_active.objects.filter(cycle_id__cycle_id=cycle).exists():
-                dependencies.append("classes actives")
+            if Classe.objects.filter(cycle_id=cycle_id).exists():
+                dependencies.append("classes liées")
 
             if dependencies:
                 error_msg = f"Impossible de modifier le cycle car il est utilisé dans : {', '.join(dependencies)}."
@@ -823,10 +821,9 @@ def update_annee(request, id_annee):
 
             annee = Annee.objects.get(id_annee=id_annee)
             dependencies = []
-            if Classe_active.objects.filter(id_annee=annee).exists():
-                dependencies.append("classes actives")
-            if Classe_cycle_actif.objects.filter(id_annee=annee).exists():
-                dependencies.append("cycles actifs")
+            from MonEcole_app.models.country_structure import EtablissementAnnee
+            if EtablissementAnnee.objects.filter(annee=annee).exists():
+                dependencies.append("configurations établissement-année")
 
             if dependencies:
                 error_msg = f"Impossible de modifier l'année car elle est utilisée dans : {', '.join(dependencies)}."
@@ -933,24 +930,11 @@ def update_classe_cycle_actif(request, id_cycle_actif):
                     'success': False,
                     'error': "Année, campus ou cycle non trouvé."
                 }, status=404)
-            cycle_actif_registred = Classe_cycle_actif.objects.filter(id_campus=campus,id_annee=annee,cycle_id = cycle).exclude(id_cycle_actif=id_cycle_actif)
-            if not cycle_actif_registred.exists():           
-                cycle_actif.id_annee = annee
-                cycle_actif.id_campus = campus
-                cycle_actif.cycle_id = cycle
-                cycle_actif.nbre_classe_par_cycle_actif = role if role else None
-                cycle_actif.ordre = ordre_inchange
-                cycle_actif.save()
-                return JsonResponse({
-                    'success': True,
-                    'message': "Cycle actif mis à jour avec succès."
-                })
-            else:
-                return JsonResponse({
-                    'success': True,
-                    'message': "Ce Cycle  n'est pas mis à jour car il existe deja.Verifiez bien "
-                })
-                
+            # Les cycles actifs sont gérés via le Hub
+            return JsonResponse({
+                'success': False,
+                'error': "La modification des cycles est gérée via le Hub."
+            }, status=400)
 
         except Classe_cycle_actif.DoesNotExist:
             return JsonResponse({

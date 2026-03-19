@@ -62,8 +62,9 @@ def delete_annee(request, id_annee):
             annee = Annee.objects.get(id_annee=id_annee)
 
             dependencies = []
-            if Classe_active.objects.filter(id_annee=annee).exists():
-                dependencies.append("classes actives")
+            from MonEcole_app.models.country_structure import EtablissementAnnee, EtablissementAnneeClasse
+            if EtablissementAnnee.objects.filter(annee=annee).exists():
+                dependencies.append("configurations établissement-année")
 
             if dependencies:
                 error_msg = f"Impossible de supprimer l'année car elle est utilisée dans : {', '.join(dependencies)}."
@@ -96,10 +97,9 @@ def delete_campus(request, campus_id):
                 messages.error(request, "Ce campus est déjà supprimé.")
                 return redirect('create_campus')
             dependencies = []
-            if Classe_cycle_actif.objects.filter(id_campus=campus).exists():
-                dependencies.append("cycles de classes actifs")
-            if Classe_active.objects.filter(id_campus=campus).exists():
-                dependencies.append("classes actives")
+            # Les vérifications de dépendances se font sur les données locales
+            if Eleve_inscription.objects.filter(id_campus=campus).exists():
+                dependencies.append("inscriptions d'élèves")
             
             if dependencies:
                 error_msg = f"Impossible de supprimer le campus car il est utilisé dans : {', '.join(dependencies)}."
@@ -126,22 +126,8 @@ def delete_campus(request, campus_id):
 def delete_classe(request, id_classe):
     if request.method == "POST":
         try:
-            classe = Classe.objects.get(id_classe=id_classe)            
-            if not classe.is_active:
-                messages.error(request, "Cette classe est déjà supprimé.")
-                return redirect('create_classes')
-            dependencies = []
-            
-            if Classe_active.objects.filter(classe_id=id_classe).exists():
-                dependencies.append("classes actives")
-            if dependencies:
-                error_msg = f"Impossible de supprimer cette classe car il est utilisé dans : {', '.join(dependencies)}."
-                messages.error(request, error_msg)
-                return redirect('create_classes')
-
-            classe.is_active = False
-            classe.save()
-            messages.success(request, "Classe supprimée avec succès.")
+            # Les classes sont gérées via le Hub - pas de suppression locale
+            messages.info(request, "La gestion des classes est centralisée via le Hub.")
             return redirect('create_classes')
 
         except Classe.DoesNotExist:
@@ -161,25 +147,8 @@ def delete_cycle(request, cycle_id):
   
     if request.method == "POST":
         try:
-            cycle = Classe_cycle.objects.get(id_cycle=cycle_id)
-            
-            if not cycle.is_active:
-                messages.error(request, "Ce cycle est déjà supprimé.")
-                return redirect('create_classes_cycle')
-
-            dependencies = []
-            if Classe_cycle_actif.objects.filter(cycle_id=cycle).exists():
-                dependencies.append("cycles actifs")
-            if Classe_active.objects.filter(cycle_id__cycle_id=cycle).exists():
-                dependencies.append("classes actives")
-            if dependencies:
-                error_msg = f"impossible de supprimer le cycle car il est utilisé dans : {', '.join(dependencies)}."
-                messages.error(request, error_msg)
-                return redirect('create_classes_cycle')
-
-            cycle.is_active = False
-            cycle.save()
-            messages.success(request, "Cycle supprimé avec succès.")
+            # Les cycles sont gérés via le Hub - pas de suppression locale
+            messages.info(request, "La gestion des cycles est centralisée via le Hub.")
             return redirect('create_classes_cycle')
 
         except Classe_cycle.DoesNotExist:
@@ -198,25 +167,8 @@ def delete_classe_active(request, id_classe_active):
 
     if request.method == "POST":
         try:
-            classe_active = Classe_active.objects.get(id_classe_active=id_classe_active)
-            if not classe_active.is_active:
-                messages.error(request, "Cette classe active est déjà supprimée.")
-                return redirect('create_classes_active')
-
-            dependencies = []
-            if Cours_par_classe.objects.filter(id_classe=classe_active).exists():
-                dependencies.append("cours par classe")
-            if Eleve_inscription.objects.filter(id_classe=classe_active).exists():
-                dependencies.append("inscriptions d'élèves")
-
-            if dependencies:
-                error_msg = f"Impossible de supprimer la classe active car elle est utilisée dans : {', '.join(dependencies)}."
-                messages.error(request, error_msg)
-                return redirect('create_classes_active')
-
-            classe_active.is_active = False
-            classe_active.save()
-            messages.success(request, "Classe active supprimée avec succès.")
+            # Les classes actives sont gérées via le Hub
+            messages.info(request, "La gestion des classes actives est centralisée via le Hub.")
             return redirect('create_classes_active')
 
         except Classe_active.DoesNotExist:
@@ -238,7 +190,8 @@ def delete_classe_cycle_actif(request, id_cycle_actif):
             cycle_actif = Classe_cycle_actif.objects.get(id_cycle_actif=id_cycle_actif)
 
             dependencies = []
-            if Classe_active.objects.filter(cycle_id=cycle_actif).exists():
+            from MonEcole_app.models.country_structure import EtablissementAnneeClasse
+            if EtablissementAnneeClasse.objects.filter(classe__cycle_id=cycle_actif.id_cycle_actif).exists():
                 dependencies.append("classes actives")
             if Eleve_inscription.objects.filter(id_classe_cycle=cycle_actif).exists():
                 dependencies.append("inscriptions d'élèves")

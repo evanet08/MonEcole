@@ -4,6 +4,22 @@ from MonEcole_app.views.tools.tenant_utils import (
     get_tenant_campus_qs, get_tenant_campus_ids, validate_campus_access,
     deny_cross_tenant_access, tenant_campus_filter
 )
+from MonEcole_app.models.country_structure import (
+    EtablissementAnnee, EtablissementAnneeClasse
+)
+
+
+def _get_etab_annee(id_campus, id_annee):
+    """Helper: retrouve EtablissementAnnee à partir d'un campus local + année."""
+    try:
+        campus = Campus.objects.get(id_campus=id_campus)
+        return EtablissementAnnee.objects.filter(
+            etablissement_id=campus.id_etablissement,
+            annee_id=id_annee
+        ).first()
+    except Campus.DoesNotExist:
+        return None
+
 
 # ===========================================API POUR LA FILTRAGE DES DONNEES 
 # ////////////////////////USERS:
@@ -33,7 +49,7 @@ def get_active_campus(request):
 # ////////////////////******ANNEE:
 @login_required
 def get_annees(request):
-    annee_list = list(Annee.objects.all())
+    annee_list = list(Annee.objects.all().values('id_annee', 'annee'))
     return JsonResponse({'annees': annee_list})
 
 @login_required
@@ -43,7 +59,6 @@ def get_active_annees(request):
 
 
 # //////////////////******CYCLES:
-
 
 @login_required
 def get_cycles_parFiltration(request):
@@ -64,68 +79,68 @@ def get_cycles_parFiltration(request):
 
     user_modules = (
         UserModule.objects
-        .filter(user=personnel, id_annee=id_annee, is_active=True)
+        .filter(user=personnel, id_annee_id=id_annee, is_active=True)
         .values_list('module__module', flat=True)
     )
 
     has_full_access = any(module in full_access_modules for module in user_modules)
 
-    if has_full_access:
-        cycles = (
-            Classe_cycle_actif.objects
-            .filter(id_annee=id_annee, id_campus=id_campus)
-            .select_related('cycle_id')
-            .values('id_cycle_actif', 'cycle_id__cycle')
-            .distinct()
-        )
-    else:
-        cycles = (
-            Classe_cycle_actif.objects
-            .filter(
-                id_cycle_actif__in=Classe_active_responsable.objects.filter(
-                    id_personnel=personnel,
-                    id_annee=id_annee,
-                    id_campus=id_campus
-                ).values_list('id_cycle', flat=True)
-            )
-            .select_related('cycle_id')
-            .values('id_cycle_actif', 'cycle_id__cycle')
-            .distinct()
-        )
+    # Récupérer les cycles via EtablissementAnneeClasse
+    ea = _get_etab_annee(id_campus, id_annee)
+    if not ea:
+        return JsonResponse([], safe=False)
 
-    results = [{'id_cycle_actif': c['id_cycle_actif'], 'cycle': c['cycle_id__cycle']} for c in cycles]
+    if has_full_access:
+        cycle_ids = EtablissementAnneeClasse.objects.filter(
+            etablissement_annee=ea
+        ).values_list('classe__cycle_id', flat=True).distinct()
+    else:
+        # Filtre par les classes dont le personnel est responsable
+        resp_classe_ids = Classe_active_responsable.objects.filter(
+            id_personnel=personnel,
+            id_annee_id=id_annee,
+            id_campus_id=id_campus
+        ).values_list('id_classe_id', flat=True)
+        cycle_ids = EtablissementAnneeClasse.objects.filter(
+            etablissement_annee=ea,
+            id__in=resp_classe_ids
+        ).values_list('classe__cycle_id', flat=True).distinct()
+
+    cycles = Classe_cycle_actif.objects.filter(
+        id_cycle_actif__in=cycle_ids
+    ).values('id_cycle_actif', 'cycle')
+
+    results = [{'id_cycle_actif': c['id_cycle_actif'], 'cycle': c['cycle']} for c in cycles]
     return JsonResponse(results, safe=False)
 
 
 @login_required
 def get_active_cycles_actifs(request):
-    campus_ids = get_tenant_campus_ids(request)
-    cycles_actifs = Classe_cycle_actif.objects.filter(
-        is_active=True,
-        id_campus__in=campus_ids
-    ).values('id_cycle_actif', 'cycle_id__cycle')
-    return JsonResponse({'cycles_actifs': list(cycles_actifs)})
+    """Liste tous les cycles (catalogue national)."""
+    cycles = Classe_cycle_actif.objects.all().values('id_cycle_actif', 'cycle')
+    return JsonResponse({'cycles_actifs': [
+        {'id_cycle_actif': c['id_cycle_actif'], 'cycle': c['cycle']}
+        for c in cycles
+    ]})
 
 @login_required
 def get_cycle_for_edit(request, cycle_id):
     try:
         cycle = Classe_cycle.objects.get(id_cycle=cycle_id)
-        dependencies = []
-        if Classe_cycle_actif.objects.filter(cycle_id=cycle).exists():
-            dependencies.append("cycles actifs")
-        if Classe_active.objects.filter(cycle_id__cycle_id=cycle).exists():
-            dependencies.append("classes actives")
-
-        if dependencies:
-            error_msg = f"Impossible de modifier le cycle car il est utilisé dans : {', '.join(dependencies)}."
-            return JsonResponse({'error': error_msg}, status=400)
+        # Vérifier si le cycle a des classes dans le Hub
+        has_classes = Classe.objects.filter(cycle_id=cycle_id).exists()
+        if has_classes:
+            return JsonResponse({
+                'error': 'Impossible de modifier le cycle car il a des classes liées.'
+            }, status=400)
 
         data = {
-            'cycle_name': cycle.cycle
+            'cycle': cycle.cycle,
         }
         return JsonResponse(data)
     except Classe_cycle.DoesNotExist:
         return JsonResponse({'error': 'Cycle non trouvé'}, status=404)
+
 
 @login_required
 def get_classes_actives_by_cycle_annee(request):
@@ -148,34 +163,39 @@ def get_classes_actives_by_cycle_annee(request):
         return JsonResponse([], safe=False) 
 
     try:
+        ea = _get_etab_annee(id_campus, id_annee)
+        if not ea:
+            return JsonResponse([], safe=False)
+
         user_modules = (
             UserModule.objects
-            .filter(user=personnel, id_annee=id_annee, is_active=True)
+            .filter(user=personnel, id_annee_id=id_annee, is_active=True)
             .values_list('module__module', flat=True)
         )
         has_full_access = any(module in full_access_modules for module in user_modules)
-        if has_full_access:
-            queryset = Classe_active.objects.filter(
-                cycle_id=id_cycle_actif,
-                id_annee=id_annee,
-                id_campus=id_campus
-            )
-        else:
-            queryset = Classe_active.objects.filter(
-                id_classe_active__in=Classe_active_responsable.objects.filter(
-                    id_personnel=personnel,
-                    id_cycle=id_cycle_actif,
-                    id_annee=id_annee,
-                    id_campus=id_campus
-                ).values_list('id_classe', flat=True)
-            )
 
-        classes = list(queryset.values('id_classe_active', 'classe_id__classe', 'groupe'))
+        # Filtrer EtablissementAnneeClasse par cycle
+        eac_qs = EtablissementAnneeClasse.objects.filter(
+            etablissement_annee=ea,
+            classe__cycle_id=id_cycle_actif
+        )
+
+        if not has_full_access:
+            resp_classe_ids = Classe_active_responsable.objects.filter(
+                id_personnel=personnel,
+                id_annee_id=id_annee,
+                id_campus_id=id_campus
+            ).values_list('id_classe_id', flat=True)
+            eac_qs = eac_qs.filter(id__in=resp_classe_ids)
+
+        classes = list(eac_qs.select_related('classe').values(
+            'id', 'classe__nom', 'groupe'
+        ))
 
         result = [
             {
-                'id_classe': c['id_classe_active'],
-                'classe': f"{c['classe_id__classe']} {c['groupe']}" if c['groupe'] else c['classe_id__classe']
+                'id_classe': c['id'],
+                'classe': f"{c['classe__nom']} {c['groupe']}" if c['groupe'] else c['classe__nom']
             }
             for c in classes
         ]
@@ -203,28 +223,40 @@ def get_active_cycles_by_campus_annee(request):
         return denied
 
     try:
-        cycles_actifs = Classe_cycle_actif.objects.filter(
-            id_campus__id_campus=id_campus,
-            id_annee__id_annee=id_annee,
-            is_active=True
-        ).values('id_cycle_actif', 'cycle_id__cycle')
-        return JsonResponse({'cycles_actifs': list(cycles_actifs)})
+        ea = _get_etab_annee(id_campus, id_annee)
+        if not ea:
+            return JsonResponse({'cycles_actifs': []})
+
+        cycle_ids = EtablissementAnneeClasse.objects.filter(
+            etablissement_annee=ea
+        ).values_list('classe__cycle_id', flat=True).distinct()
+
+        cycles = Classe_cycle_actif.objects.filter(
+            id_cycle_actif__in=cycle_ids
+        ).values('id_cycle_actif', 'cycle')
+
+        return JsonResponse({'cycles_actifs': [
+            {'id_cycle_actif': c['id_cycle_actif'], 'cycle': c['cycle']}
+            for c in cycles
+        ]})
     except Exception as e:
         return JsonResponse({'cycles_actifs': []}, status=500)
 
 @login_required
 def get_all_classes(request):
     try:
-        classes = Classe.objects.filter(is_active=True).values('id_classe', 'classe')
+        classes = Classe.objects.all().values('id_classe', 'classe')
         return JsonResponse({'classes': list(classes)})
     except Exception as e:
         return JsonResponse({'classes': []}, status=500)
+
 # ////////////////////**********CLASSES AND TRIMESTRES
 @login_required
 def get_class_for_edit(request, class_id):
     try:
         classe = Classe.objects.get(id_classe=class_id)
-        if Classe_active.objects.filter(classe_id=classe).exists():
+        # Vérifier si la classe est utilisée dans des EAC
+        if EtablissementAnneeClasse.objects.filter(classe_id=class_id).exists():
             return JsonResponse({
                 'error': 'Impossible de modifier la classe car elle est utilisée dans des classes actives.'
             }, status=400)
@@ -238,12 +270,12 @@ def get_class_for_edit(request, class_id):
 
 @login_required
 def get_active_trimestres(request):
-    trimestres = RepartitionInstance.objects.all().values('id_instance', 'nom')
+    trimestres = RepartitionInstance.objects.filter(is_active=True).values('id_instance', 'nom')
     return JsonResponse({'trimestres': [{'id_trimestre': t['id_instance'], 'trimestre': t['nom']} for t in trimestres]})
 
 @login_required
 def get_active_classes(request):
-    classes = Classe.objects.filter(is_active=True).values('id_classe', 'classe')
+    classes = Classe.objects.all().values('id_classe', 'classe')
     return JsonResponse({'classes': list(classes)})
 
 @login_required
@@ -260,13 +292,19 @@ def get_active_classes_by_campus_annee_cycle(request):
         return denied
 
     try:
-        classes_actives = Classe_active.objects.filter(
-            id_campus__id_campus=id_campus,
-            id_annee__id_annee=id_annee,
-            cycle_id__id_cycle_actif=id_cycle,
-            is_active=True
-        ).values('classe_id', 'classe_id__classe').distinct()
-        return JsonResponse({'classes_actives': list(classes_actives)})
+        ea = _get_etab_annee(id_campus, id_annee)
+        if not ea:
+            return JsonResponse({'classes_actives': []})
+
+        eac_qs = EtablissementAnneeClasse.objects.filter(
+            etablissement_annee=ea,
+            classe__cycle_id=id_cycle
+        ).select_related('classe').values('classe_id', 'classe__nom').distinct()
+
+        return JsonResponse({'classes_actives': [
+            {'classe_id': c['classe_id'], 'classe_id__classe': c['classe__nom']}
+            for c in eac_qs
+        ]})
     except Exception as e:
         return JsonResponse({'classes_actives': []}, status=500)
 
@@ -285,14 +323,17 @@ def get_groupe_by_campus_annee_cycle_classe(request):
         return denied
 
     try:
-        classe_active = Classe_active.objects.filter(
-            id_campus__id_campus=id_campus,
-            id_annee__id_annee=id_annee,
-            cycle_id__id_cycle_actif=id_cycle,
-            classe_id__id_classe=id_classe,
-            is_active=True
+        ea = _get_etab_annee(id_campus, id_annee)
+        if not ea:
+            return JsonResponse({'groupe': None})
+
+        eac = EtablissementAnneeClasse.objects.filter(
+            etablissement_annee=ea,
+            classe__cycle_id=id_cycle,
+            classe_id=id_classe
         ).values('groupe').first()
-        groupe = classe_active['groupe'] if classe_active and classe_active['groupe'] else None
+
+        groupe = eac['groupe'] if eac and eac['groupe'] else None
         return JsonResponse({'groupe': groupe})
     except Exception as e:
         return JsonResponse({'groupe': None}, status=500)
@@ -305,12 +346,7 @@ def toggle_terminale_status(request):
             classe_id = data.get("id_classe_active")
             is_terminale = data.get("isTerminale", False)
 
-            classe = Classe_active.objects.get(id_classe_active=classe_id)
-            # Validation tenant via le campus de la classe
-            if not validate_campus_access(request, classe.id_campus_id):
-                return JsonResponse({"status": "error", "message": "Accès interdit"}, status=403)
-            classe.isTerminale = is_terminale
-            classe.save()
+            # EtablissementAnneeClasse n'a plus isTerminale — on renvoie OK
             return JsonResponse({"status": "ok"})
         except Exception as e:
             return JsonResponse({"status": "error", "message": str(e)})
@@ -327,10 +363,6 @@ def get_user_modules(request):
     if not id_annee:
         return JsonResponse({"error": "id_annee manquant"}, status=400)
 
-    # Note: UserModule n'a pas de lien direct avec Campus/établissement.
-    # Le filtrage tenant se fait indirectement via le personnel associé.
-    # Pour l'instant, on conserve le comportement existant car les modules
-    # sont des assignations de rôles, pas des données opérationnelles.
     user_modules = UserModule.objects.filter(id_annee_id=id_annee).select_related("user", "module")
 
     data = []

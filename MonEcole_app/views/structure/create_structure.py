@@ -114,13 +114,21 @@ def calculer_ordre_classe_active(classe_id, cycle_id, id_annee, id_campus):
 
     # Logique par défaut pour les autres cycles
     # logger.debug("Application de la logique par défaut (cycle sans 'Post', 'Fondamentale', ou 'Maternelle')")
-    classe_similaire = Classe_active.objects.filter(
-        classe_id=classe_id,
-        cycle_id=cycle_id,
-        id_annee=id_annee,
-        id_campus=id_campus,
-        is_active=True
-    ).first()
+    from MonEcole_app.models.country_structure import EtablissementAnnee, EtablissementAnneeClasse
+    try:
+        campus = Campus.objects.get(id_campus=id_campus)
+        ea = EtablissementAnnee.objects.filter(
+            etablissement_id=campus.id_etablissement, annee_id=id_annee
+        ).first()
+        if ea:
+            classe_similaire = EtablissementAnneeClasse.objects.filter(
+                etablissement_annee=ea,
+                classe_id=classe_id
+            ).first()
+        else:
+            classe_similaire = None
+    except Exception:
+        classe_similaire = None
 
     if classe_similaire:
         ordre = classe_similaire.ordre if classe_similaire.ordre is not None else 1
@@ -575,11 +583,8 @@ def create_classe_active(request):
     else:
         class_active_form = Classe_active_Form()
 
-    campus_ids = get_tenant_campus_ids(request)
-    classe_active_list = Classe_active.objects.filter(
-        is_active=True,
-        id_campus__in=campus_ids
-    )
+    from MonEcole_app.models.country_structure import EtablissementAnneeClasse
+    classe_active_list = EtablissementAnneeClasse.objects.all().select_related('classe', 'etablissement_annee')
 
     return render(request, 'parametrage/index_parametrage.html', {
         'class_active_form': class_active_form,
