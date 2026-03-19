@@ -35,7 +35,7 @@ def get_trimestres(id_annee, id_campus, id_cycle, id_classe):
 
     result = []
     for trimestre in trimestres_qs:
-        nom_original = trimestre.trimestre.trimestre  
+        nom_original = trimestre.repartition.nom  
 
      
         if localisation == 'RDC':
@@ -489,8 +489,8 @@ def finalize_table_data_bulletin(table_data, ligne_idx, id_eleve, id_annee, id_c
         table_data[place_index][13] = {"value": '-', "highlight": False}
         for deliberation in deliberations:
             annee_trimestre = deliberation.id_trimestre
-            trimestre = annee_trimestre.trimestre
-            nom_trimestre = trimestre.trimestre
+            trimestre = annee_trimestre.repartition
+            nom_trimestre = trimestre.nom
             place = deliberation.place if deliberation.place else '-'
             col_target = trimestre_col_mapping.get(nom_trimestre)
             if col_target:
@@ -736,7 +736,7 @@ def create_back_page(id_annee, id_eleve, id_cycle, id_campus, id_classe, total_p
 
     left_elements = []
     trimestres = Annee_trimestre.objects.filter(id_annee=id_annee, id_campus=id_campus, id_cycle=id_cycle, id_classe=id_classe).order_by('id_trimestre').distinct()[:3]
-    trimestre_noms = [trimestre.trimestre.trimestre for trimestre in trimestres[:3]]
+    trimestre_noms = [trimestre.repartition.nom for trimestre in trimestres[:3]]
     trimestre_ids = [trimestre.id_trimestre for trimestre in trimestres[:3]]
     if not trimestre_noms:
         trimestre_noms = ['Aucun trimestre']

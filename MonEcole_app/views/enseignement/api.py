@@ -109,12 +109,12 @@ def get_trimestre_par_classe(request):
             id_cycle=id_cycle,
             id_classe=id_classe,
             
-        ).select_related('trimestre')
+        ).select_related('repartition')
 
         data = [
             {
                 'id_trimestre_annee': trimestre.id_trimestre,
-                'trimestre': trimestre.trimestre.trimestre, 
+                'trimestre': trimestre.repartition.nom, 
             }
             for trimestre in trimestres
         ]
@@ -297,12 +297,12 @@ def get_trimestres_with_notes(request):
             id_campus_id=id_campus,
             id_cycle_id=id_cycle_actif,
             id_classe_id=id_classe_active
-        ).select_related('trimestre')
+        ).select_related('repartition')
 
         data = [
             {
                 'id': trimestre.id_trimestre,
-                'label': trimestre.trimestre.trimestre
+                'label': trimestre.repartition.nom
             }
             for trimestre in trimestres
         ]
@@ -340,7 +340,7 @@ def get_periodes_notes_par_classe(request):
     data = [
         {
             'id': periode.id_periode,
-            'label': periode.periode.periode
+            'label': periode.repartition.nom
         }
         for periode in periodes
     ]

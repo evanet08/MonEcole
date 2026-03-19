@@ -487,14 +487,14 @@ def update_personnel_type_personnel(request, id_type_personnel):
 @require_POST
 def update_trimestre(request, id_trimestre):
     try:
-        trimestre = Trimestre.objects.get(id_trimestre=id_trimestre)
+        trimestre = RepartitionInstance.objects.get(id_instance=id_trimestre)
         data = json.loads(request.body)
         trimestre_value = data.get('trimestre')
 
         if not trimestre_value:
             return JsonResponse({"success": False, "error": "Le champ trimestre est requis."})
 
-        if Trimestre.objects.filter(trimestre=trimestre_value).exclude(id_trimestre=id_trimestre).exists():
+        if RepartitionInstance.objects.filter(nom=trimestre_value).exclude(id_instance=id_trimestre).exists():
             return JsonResponse({"success": False, "error": "Ce trimestre existe déjà."})
 
         ordre = [key for key, _ in trimestres_default]
@@ -502,15 +502,15 @@ def update_trimestre(request, id_trimestre):
             current_index = ordre.index(trimestre_value)
             if current_index > 0:
                 trimestre_precedent = ordre[current_index - 1]
-                if not Trimestre.objects.filter(trimestre=trimestre_precedent).exists():
+                if not RepartitionInstance.objects.filter(nom=trimestre_precedent).exists():
                     return JsonResponse({"success": False, "error": f"Vous devez d'abord créer {trimestre_precedent} avant {trimestre_value}."})
         except ValueError:
             return JsonResponse({"success": False, "error": "Trimestre invalide."})
 
-        trimestre.trimestre = trimestre_value
+        trimestre.nom = trimestre_value
         trimestre.save()
         return JsonResponse({"success": True, "message": "Trimestre mis à jour avec succès."})
-    except Trimestre.DoesNotExist:
+    except RepartitionInstance.DoesNotExist:
         return JsonResponse({"success": False, "error": "Trimestre introuvable."})
 
 @login_required
@@ -725,16 +725,16 @@ def update_periode(request, id_periode):
                 'error': "Tous les champs sont requis."
             }, status=400)
 
-        periode = Periode.objects.get(id_periode=id_periode)
+        periode = RepartitionInstance.objects.get(id_instance=id_periode)
         try:
-            trimestre = Trimestre.objects.get(id_trimestre=id_trimestre, is_active=True)
-        except Trimestre.DoesNotExist:
+            trimestre = RepartitionInstance.objects.get(id_instance=id_trimestre, is_active=True)
+        except RepartitionInstance.DoesNotExist:
             return JsonResponse({
                 'success': False,
                 'error': "Trimestre non trouvé ou non actif."
             }, status=404)
 
-        if Periode.objects.filter(periode=periode_value, id_trimestre=trimestre).exclude(id_periode=id_periode).exists():
+        if RepartitionInstance.objects.filter(nom=periode_value, type_id=trimestre.id_instance).exclude(id_instance=id_periode).exists():
             return JsonResponse({
                 'success': False,
                 'error': "Cette période existe déjà pour ce trimestre."
@@ -753,8 +753,8 @@ def update_periode(request, id_periode):
                 'error': "Période invalide."
             }, status=400)
 
-        periode.periode = periode_value
-        periode.id_trimestre = trimestre
+        periode.nom = periode_value
+        periode.type_id = trimestre.id_instance
         periode.save()
 
         return JsonResponse({
@@ -762,7 +762,7 @@ def update_periode(request, id_periode):
             'message': "Période mise à jour avec succès."
         })
 
-    except Periode.DoesNotExist:
+    except RepartitionInstance.DoesNotExist:
         return JsonResponse({
             'success': False,
             'error': "Période non trouvée."
@@ -1121,15 +1121,15 @@ def update_annee_periode(request):
             )
 
         # Fetch periode_instance to get the label for the response
-        periode_instance = Periode.objects.get(id_periode=periode)
-        periode_label = periode_instance.periode
+        periode_instance = RepartitionInstance.objects.get(id_instance=periode)
+        periode_label = periode_instance.nom
 
         return JsonResponse({
             'success': True,
             'message': 'Période mise à jour avec succès',
             'periode__periode': periode_label
         }, status=200)
-    except Periode.DoesNotExist:
+    except RepartitionInstance.DoesNotExist:
         return JsonResponse({'success': False, 'errors': 'Période non trouvée'}, status=404)
     except ValidationError as e:
         return JsonResponse({'success': False, 'errors': f'Erreur de validation : {str(e)}'}, status=400)
@@ -1166,7 +1166,7 @@ def update_annee_trimestre(request):
                 "UPDATE countryStructure.etablissements_annees_trimestres SET isOpen=%s, debut=%s, fin=%s WHERE id=%s",
                 [is_open_int, debut_val, fin_val, trimestre_id]
             )
-        trimestre_label = Trimestre.objects.get(id_trimestre=trimestre).trimestre
+        trimestre_label = RepartitionInstance.objects.get(id_instance=trimestre).nom
         return JsonResponse({
             'success': True,
             'message': 'Trimestre mis à jour avec succès',

@@ -59,7 +59,7 @@ def get_trimestres(id_annee, id_campus, id_cycle, id_classe):
 
     result = []
     for trimestre in trimestres_qs:
-        nom_original = trimestre.trimestre.trimestre  
+        nom_original = trimestre.repartition.nom  
 
      
         if localisation == 'RDC':
@@ -247,12 +247,12 @@ def get_periodes_par_trimestre(trimestres_data, id_annee, id_campus, id_cycle, i
             id_cycle_id=id_cycle,
             id_classe_id=id_classe,
             id_trimestre_annee_id=id_trimestre_annee
-        ).select_related('periode').order_by('id_periode')[:2]  
+        ).select_related('repartition').order_by('id_periode')[:2]  
 
         labels_trimestre = []
         for periode in periodes_qs:
            
-            nom_reel = periode.periode.periode if hasattr(periode, 'periode') and periode.periode else f"Période {len(labels_trimestre) + 1}"
+            nom_reel = periode.repartition.nom if hasattr(periode, 'repartition') and periode.repartition else f"Période {len(labels_trimestre) + 1}"
             labels_trimestre.append(nom_reel)
 
         while len(labels_trimestre) < 2:
@@ -534,7 +534,7 @@ def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
         id_cycle_actif_id=id_cycle,
         id_classe_active_id=id_classe,
         id_type_note__sigle="T.J",
-    ).select_related('id_periode__periode')
+    ).select_related('id_periode__repartition')
 
    
     regroupement = defaultdict(lambda: defaultdict(list)) 
@@ -542,7 +542,7 @@ def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
     for note in notes_qs:
         cours_id  = note.id_cours_id
         try:
-            periode_nom = note.id_periode.periode.periode  # P1, P2, etc.
+            periode_nom = note.id_periode.repartition.nom  # P1, P2, etc.
         except (AttributeError, Exception):
             continue
 
@@ -812,7 +812,7 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
         id_cycle_actif_id=id_cycle,
         id_classe_active_id=id_classe,
         id_type_note__sigle="T.J"
-    ).select_related('id_periode__periode')
+    ).select_related('id_periode__repartition')
 
     notes_par_cours = defaultdict(dict)
 
@@ -820,7 +820,7 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
         cours_id = note.id_cours_id
         # Récupérer le nom de la période (P1, P2, etc.) via la FK
         try:
-            periode_nom = note.id_periode.periode.periode  # Annee_periode → Periode → periode
+            periode_nom = note.id_periode.repartition.nom  # Annee_periode → Periode → periode
         except (AttributeError, Exception):
             continue
         
@@ -885,7 +885,7 @@ def get_place_for_column(id_annee, id_campus, id_cycle, id_classe, id_eleve, col
 
     # filtre supplémentaire seulement pour les périodes
     if type_case == "periode":
-        filtre["id_periode__periode__periode"] = periode_label
+        filtre["id_periode__repartition__nom"] = periode_label
 
     res = model.objects.filter(**filtre).first()
 

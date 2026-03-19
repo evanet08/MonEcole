@@ -525,7 +525,7 @@ def get_place_secondaire_superieur(
             sigles = {1: "1e P", 2: "2e P"}
             filtre = {
                 **filtre_base,
-                "id_periode__periode__periode": sigles[col]
+                "id_periode__repartition__nom": sigles[col]
             }
 
             res = Deliberation_periodique_resultat.objects.filter(**filtre).first()
@@ -548,7 +548,7 @@ def get_place_secondaire_superieur(
             sigles = {5: "3e P", 6: "4e P"}
             filtre = {
                 **filtre_base,
-                "id_periode__periode__periode": sigles[col]
+                "id_periode__repartition__nom": sigles[col]
             }
 
             res = Deliberation_periodique_resultat.objects.filter(**filtre).first()

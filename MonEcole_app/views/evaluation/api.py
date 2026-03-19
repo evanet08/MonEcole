@@ -293,25 +293,25 @@ def get_note_type_pour_repechage(request):
 
 @login_required
 def get_all_trimestres(request):
-    trimestres = Trimestre.objects.filter(is_active = True)
+    trimestres = RepartitionInstance.objects.filter(is_active=True)
     data = [
         {
-            'id': trimestre.id_trimestre,
-            'label': trimestre.trimestre
+            'id': t.id_instance,
+            'label': t.nom
         }
-        for trimestre in trimestres
+        for t in trimestres
     ]
     return JsonResponse({'data': data})
 
 @login_required
 def get_all_periodes(request):
-    periodes = Periode.objects.filter(is_active = True)
+    periodes = RepartitionInstance.objects.filter(is_active=True)
     data = [
         {
-            'id': periode.id_periode,
-            'label': periode.periode
+            'id': p.id_instance,
+            'label': p.nom
         }
-        for periode in periodes
+        for p in periodes
     ]
     return JsonResponse({'data': data})
 
@@ -329,7 +329,7 @@ def get_all_trimestres_par_classe(request):
     data = [
         {
             'id': trimestre.id_trimestre,
-            'label': trimestre.trimestre.trimestre
+            'label': trimestre.repartition.nom
         }
         for trimestre in trimestres
     ]
@@ -357,7 +357,7 @@ def get_all_trimestres_par_classe_avec_notes(request):
     data = [
         {
             'id': trimestre.id_trimestre,
-            'label': trimestre.trimestre.trimestre
+            'label': trimestre.repartition.nom
         }
         for trimestre in trimestres
     ]
@@ -377,7 +377,7 @@ def get_all_periodes_par_classe(request):
     data = [
         {
             'id': periode.id_periode,
-            'label': periode.periode.periode
+            'label': periode.repartition.nom
         }
         for periode in periodes
     ]
@@ -417,7 +417,7 @@ def get_all_periodes_par_classe_avec_notes(request):
     data = [
         {
             'id': periode.id_periode,
-            'label': periode.periode.periode
+            'label': periode.repartition.nom
         }
         for periode in periodes
     ]
@@ -443,7 +443,7 @@ def get_last_trimestres_par_classe(request):
     if dernier_trimestre:
         data = [{
             'id': dernier_trimestre.id_trimestre,
-            'label': dernier_trimestre.trimestre.trimestre
+            'label': dernier_trimestre.repartition.nom
         }]
     else:
         data = []
@@ -462,7 +462,7 @@ def get_all_periodes_par_classe(request):
     data = [
         {
             'id': periode.id_periode,
-            'label': periode.periode.periode
+            'label': periode.repartition.nom
         }
         for periode in periodes
     ]
@@ -474,11 +474,11 @@ def get_periodes_by_trimestre(request):
     data = []
 
     if id_trimestre:
-        periodes = Periode.objects.filter(id_trimestre_id=id_trimestre)
+        periodes = RepartitionInstance.objects.filter(type_id=id_trimestre)
         data = [
             {
-                "id": p.id_periode,
-                "label": p.periode
+                "id": p.id_instance,
+                "label": p.nom
             }
             for p in periodes
         ]
@@ -567,7 +567,7 @@ def get_trimestres_by_evaluationsCours_soumises(request):
     data = [
         {
             'id': trimestre.id_trimestre,
-            'label': trimestre.trimestre.trimestre
+            'label': trimestre.repartition.nom
         }
         for trimestre in trimestres
     ]
@@ -603,7 +603,7 @@ def get_periodes_by_trimestre_coursEvaluation(request):
     data = [
         {
             "id": p.id_periode,
-            "label": p.periode.periode
+            "label": p.repartition.nom
         }
         for p in periodes
     ]

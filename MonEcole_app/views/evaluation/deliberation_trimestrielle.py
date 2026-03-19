@@ -1472,7 +1472,7 @@ def delibere_educationBase_rdc(id_annee, id_campus, id_cycle, id_classe, id_trim
         )
 
         if not trimestre.isOpen:
-            return False, f"Trimestre {trimestre.trimestre.trimestre} non disponible (clôturé)", []
+            return False, f"Trimestre {trimestre.repartition.nom} non disponible (clôturé)", []
 
         inscriptions = Eleve_inscription.objects.filter(
             id_annee_id=id_annee,
@@ -1486,7 +1486,7 @@ def delibere_educationBase_rdc(id_annee, id_campus, id_cycle, id_classe, id_trim
             return False, "Aucun élève inscrit actif pour ce trimestre", []
 
         total_eleves = inscriptions.count()
-        logger.info(f"Délibération Trimestre {trimestre.trimestre.trimestre} – {total_eleves} élèves")
+        logger.info(f"Délibération Trimestre {trimestre.repartition.nom} – {total_eleves} élèves")
 
         # Récupération des semestres (2 attendus)
         semestres_data = get_semestres(id_annee, id_campus, id_cycle, id_classe)
@@ -1659,7 +1659,7 @@ def deliberer_superieur_terminal_rdc(id_annee, id_campus, id_cycle, id_classe, i
         )
 
         if not semestre.isOpen:
-            return False, f"Semestre {semestre.trimestre.trimestre} non disponible (clôturé)", []
+            return False, f"Semestre {semestre.repartition.nom} non disponible (clôturé)", []
 
         inscriptions = Eleve_inscription.objects.filter(
             id_annee_id=id_annee,
@@ -1673,7 +1673,7 @@ def deliberer_superieur_terminal_rdc(id_annee, id_campus, id_cycle, id_classe, i
             return False, "Aucun élève inscrit actif pour ce semestre", []
 
         total_eleves = inscriptions.count()
-        logger.info(f"Délibération Semestre {semestre.trimestre.trimestre} – {total_eleves} élèves")
+        logger.info(f"Délibération Semestre {semestre.repartition.nom} – {total_eleves} élèves")
 
         semestres_data = get_semestres(id_annee, id_campus, id_cycle, id_classe)
         if len(semestres_data) != 2:

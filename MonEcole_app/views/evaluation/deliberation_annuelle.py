@@ -196,8 +196,8 @@ def finalize_table_data_deliberation(table_data, ligne_idx, id_eleve, id_annee, 
 
         for deliberation in deliberations:
             annee_trimestre = deliberation.id_trimestre
-            trimestre = annee_trimestre.trimestre
-            nom_trimestre = trimestre.trimestre
+            trimestre = annee_trimestre.repartition
+            nom_trimestre = trimestre.nom
             place = deliberation.place if deliberation.place else '-'
             col_target = trimestre_col_mapping.get(nom_trimestre)
             if col_target:
@@ -283,7 +283,7 @@ def get_active_trimestre(id_annee, id_campus, id_cycle, id_classe):
             ).order_by('-fin').first()
             if not dernier_trimestre:
                 return None, JsonResponse({"status": "error", "message": "Aucun trimestre actif trouvé."}, status=400)
-            id_trimestre = dernier_trimestre.id_trimestre.trimestre
+            id_trimestre = dernier_trimestre.repartition.nom
         return id_trimestre, None
     except Exception as e:
         # print(f"ERREUR : {str(e)}")

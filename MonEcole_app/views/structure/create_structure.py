@@ -668,7 +668,7 @@ def create_annee_trimestre(request):
             except Exception:
                 return JsonResponse({"success": False, "message": "Date invalide. Format attendu : YYYY-MM-DD"}, status=400)
 
-            trimestre_obj = get_object_or_404(Trimestre, id_trimestre=trimestre_id)
+            trimestre_obj = get_object_or_404(RepartitionInstance, id_instance=trimestre_id)
             classe_obj = get_object_or_404(Classe_active, id_classe_active=classe_id)
             cycle_obj = get_object_or_404(Classe_cycle_actif, id_cycle_actif=cycle_id)
             annee_obj = get_object_or_404(Annee, id_annee=annee_id)
@@ -700,11 +700,11 @@ def create_annee_trimestre(request):
                 id_cycle=cycle_obj,
                 id_annee=annee_obj,
                 id_campus=campus_obj
-            ).select_related('trimestre')
+            ).select_related('repartition')
 
             numeros_existants = []
             for t in trimestres_existant:
-                m = re.search(r'Trimestre\s*(\d)', t.trimestre.trimestre)
+                m = re.search(r'Trimestre\s*(\d)', t.repartition.nom)
                 if m:
                     numeros_existants.append(int(m.group(1)))
 
@@ -837,7 +837,7 @@ def create_trimestre(request):
         trimestre = request.POST.get('trimestre')
 
         if trimestr_form.is_valid():
-            if Trimestre.objects.filter(trimestre=trimestre).exists():
+            if RepartitionInstance.objects.filter(nom=trimestre).exists():
                 messages.error(request, "Désolé; Le trimestre que vous souhaitez insérer existe déjà")
                 return redirect('create_trimestre')
 
@@ -847,7 +847,7 @@ def create_trimestre(request):
                 current_index = ordre.index(trimestre)
                 if current_index > 0:
                     trimestre_precedent = ordre[current_index - 1]
-                    if not Trimestre.objects.filter(trimestre=trimestre_precedent).exists():
+                    if not RepartitionInstance.objects.filter(nom=trimestre_precedent).exists():
                         messages.error(request, f"Vous devez d'abord créer {trimestre_precedent} avant {trimestre}.")
                         return redirect('create_trimestre')
             except ValueError:
@@ -860,7 +860,7 @@ def create_trimestre(request):
     else:
         trimestr_form = TrimesterForm()
 
-    trimestre_list = Trimestre.objects.filter(is_active=True)
+    trimestre_list = RepartitionInstance.objects.filter(is_active=True)
     return render(request, 'parametrage/index_parametrage.html', {
         'trimestre_form': trimestr_form,
         'trimestres': trimestre_list,
@@ -937,7 +937,7 @@ def create_periode(request):
             periode = periode_form.cleaned_data['periode']
             trimestre = periode_form.cleaned_data['id_trimestre']
 
-            if Periode.objects.filter(periode=periode, id_trimestre=trimestre).exists():
+            if RepartitionInstance.objects.filter(nom=periode, type_id=trimestre.id_instance if hasattr(trimestre, 'id_instance') else trimestre).exists():
                 messages.error(request, f'Désolé, la période "{periode}" existe déjà pour ce trimestre.')
                 return redirect('create_periode')
 
@@ -947,7 +947,7 @@ def create_periode(request):
     else:
         periode_form = PeriodForm()
 
-    periode_list = Periode.objects.filter(is_active=True)
+    periode_list = RepartitionInstance.objects.filter(is_active=True)
 
     return render(request, 'parametrage/index_parametrage.html', {
         'periode_form': periode_form,
@@ -989,14 +989,14 @@ def create_annee_trimestre(request):
             except Exception:
                 return JsonResponse({"success": False, "message": "Date invalide. Format attendu : YYYY-MM-DD"}, status=400)
 
-            trimestre_obj = get_object_or_404(Trimestre, id_trimestre=trimestre_id)
+            trimestre_obj = get_object_or_404(RepartitionInstance, id_instance=trimestre_id)
             classe_obj = get_object_or_404(Classe_active, id_classe_active=classe_id)
             cycle_obj = get_object_or_404(Classe_cycle_actif, id_cycle_actif=cycle_id)
             annee_obj = get_object_or_404(Annee, id_annee=annee_id)
             campus_obj = get_object_or_404(Campus, id_campus=campus_id)
 
-            match = re.search(r'Trimestre\s*(\d)', trimestre_obj.trimestre)
-            match_semestre = re.search(r'Semestre\s*(\d)', trimestre_obj.trimestre)
+            match = re.search(r'Trimestre\s*(\d)', trimestre_obj.nom)
+            match_semestre = re.search(r'Semestre\s*(\d)', trimestre_obj.nom)
             if not match or match_semestre:
                 return JsonResponse({"success": False, "message": "Le nom du trimestre/semstre doit contenir un numéro."}, status=400)
             numero_actuel = int(match.group(1))
@@ -1006,11 +1006,11 @@ def create_annee_trimestre(request):
                 id_cycle=cycle_obj,
                 id_annee=annee_obj,
                 id_campus=campus_obj
-            ).select_related('trimestre')
+            ).select_related('repartition')
 
             numeros_existants = []
             for t in trimestres_existant:
-                m = re.search(r'Trimestre\s*(\d)', t.trimestre.trimestre)
+                m = re.search(r'Trimestre\s*(\d)', t.repartition.nom)
                 if m:
                     numeros_existants.append(int(m.group(1)))
 
@@ -1084,7 +1084,7 @@ def create_annee_periode(request):
                 fin = data.get('fin') or None
                 
                 try:
-                    periode_obj = get_object_or_404(Periode, id_periode=periode_id)
+                    periode_obj = get_object_or_404(RepartitionInstance, id_instance=periode_id)
                     classe_obj = get_object_or_404(Classe_active, id_classe_active=classe_id)
                     cycle_obj = get_object_or_404(Classe_cycle_actif, id_cycle_actif=cycle_id)
                     annee_obj = get_object_or_404(Annee, id_annee=annee_id)

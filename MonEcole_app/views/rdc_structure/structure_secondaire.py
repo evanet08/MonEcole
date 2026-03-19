@@ -47,7 +47,7 @@ def get_semestres(id_annee,id_campus,id_cycle,id_classe):
 
     result = []
     for trimestre in trimestres_qs:
-        nom_original = trimestre.trimestre.trimestre   
+        nom_original = trimestre.repartition.nom   
         result.append((trimestre.id_trimestre, nom_original))
 
     return result
@@ -779,8 +779,8 @@ def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_
 
     if col in [2, 3, 9, 10]:
         sigles = {2: "1e P", 3: "2e P", 9: "3e P", 10: "4e P"}
-        filtre = {**filtre_base, "id_periode__periode__periode": sigles.get(col, "")}
-        if not filtre["id_periode__periode__periode"]:
+        filtre = {**filtre_base, "id_periode__repartition__nom": sigles.get(col, "")}
+        if not filtre["id_periode__repartition__nom"]:
             return "-"
         res = Deliberation_periodique_resultat.objects.filter(**filtre).first()
         return res.place.strip() if res and res.place and res.place.strip() else "-"

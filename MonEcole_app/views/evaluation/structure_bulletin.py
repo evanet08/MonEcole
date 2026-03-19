@@ -220,8 +220,8 @@ def create_student_info_tables(id_eleve, id_annee, id_campus, id_cycle, id_class
     return [header_tables, Spacer(1, 4)], nom_eleve
 
 def create_signature_table():
-    trimestres = Trimestre.objects.all().order_by('id_trimestre')
-    trimestre_noms = [trimestre.trimestre for trimestre in trimestres[:3]]  
+    repartitions = RepartitionInstance.objects.all().order_by('id_instance')
+    trimestre_noms = [r.nom for r in repartitions[:3]]
     if not trimestre_noms:
         trimestre_noms = ['Aucun trimestre']  
     

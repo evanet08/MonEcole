@@ -7,7 +7,7 @@ def delete_periode(request, id_periode):
 
     if request.method == "POST":
         try:
-            periode = Periode.objects.get(id_periode=id_periode)
+            periode = RepartitionInstance.objects.get(id_instance=id_periode)
             if not periode.is_active:
                 messages.error(request, "Cette période est déjà supprimée.")
                 return redirect('create_periode')
@@ -21,7 +21,7 @@ def delete_periode(request, id_periode):
             messages.success(request, "Période supprimée avec succès.")
             return redirect('create_periode')
 
-        except Periode.DoesNotExist:
+        except RepartitionInstance.DoesNotExist:
             messages.error(request, "Période non trouvée.")
             return redirect('create_periode')
         except Exception as e:
@@ -37,12 +37,12 @@ def delete_trimestre(request, id_trimestre):
   
     if request.method == "POST":
         try:
-            trimestre = Trimestre.objects.get(id_trimestre=id_trimestre)
+            trimestre = RepartitionInstance.objects.get(id_instance=id_trimestre)
             if not trimestre.is_active:
                 messages.error(request, "Ce trimestre est déjà supprimé.")
                 return redirect('create_trimestre')
 
-            if Periode.objects.filter(id_trimestre=trimestre).exists():
+            if RepartitionInstance.objects.filter(type_id=trimestre.id_instance).exists():
                 messages.error(request, "Impossible de supprimer le trimestre car il est utilisé quelque part.")
                 return redirect('create_trimestre')
 
@@ -51,7 +51,7 @@ def delete_trimestre(request, id_trimestre):
             messages.success(request, "Trimestre supprimé avec succès.")
             return redirect('create_trimestre')
 
-        except Trimestre.DoesNotExist:
+        except RepartitionInstance.DoesNotExist:
             messages.error(request, "Trimestre non trouvé.")
             return redirect('create_trimestre')
         except Exception as e:

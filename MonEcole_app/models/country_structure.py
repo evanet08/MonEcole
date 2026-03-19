@@ -141,9 +141,9 @@ class Session(models.Model):
         return self.session
 
 
-# NOTE : Les tables 'trimestres' et 'periodes' n'existent plus dans le Hub.
-# Elles ont été remplacées par le système de répartitions dynamiques
-# (repartition_types, repartition_instances, repartition_configs_etab_annee).
+# Les tables 'trimestres' et 'periodes' n'existent plus.
+# Tout le code utilise RepartitionInstance directement.
+
 
 
 class Mention(models.Model):
