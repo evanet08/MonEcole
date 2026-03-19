@@ -390,7 +390,7 @@ def create_annee_scolaire(request):
                 return redirect('create_annees') 
     else:
         annee_form = AnneeForm()
-        anne_list = Annee.objects.filter(is_active=True)
+        anne_list = Annee.objects.all()
 
     return render(request, 'parametrage/index_parametrage.html', {
         'annee_form': annee_form,

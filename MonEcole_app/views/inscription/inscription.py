@@ -558,7 +558,7 @@ def reaffectation_pupil_inscription(request):
 @require_GET
 def get_all_years(request):
     try:
-        years = Annee.objects.filter(is_active = True).values("id_annee", "annee")
+        years = Annee.objects.all().values("id_annee", "annee")
         years_list = list(years)
         return JsonResponse(years_list, safe=False)
     except Exception as e:

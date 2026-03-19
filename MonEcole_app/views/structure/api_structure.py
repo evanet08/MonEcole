@@ -38,7 +38,7 @@ def get_annees(request):
 
 @login_required
 def get_active_annees(request):
-    annees = Annee.objects.filter(is_active=True).values('id_annee', 'annee')
+    annees = Annee.objects.all().values('id_annee', 'annee')
     return JsonResponse({'annees': list(annees)})
 
 
