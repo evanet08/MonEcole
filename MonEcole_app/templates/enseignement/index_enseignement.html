@@ -43,7 +43,8 @@ Enseignement{% endblock %}
         class="tab-link {% if form_type == 'cours_classes' %}active{% endif %}">
         <i class="fas fa-chalkboard"></i> Cours par Classe
     </a>
-    {% elif form_type == 'cours_attribuer' or form_type == 'cours_attribuer_type' %}
+    {% endif %}
+    {% if form_type == 'cours_attribuer' or form_type == 'cours_attribuer_type' %}
     <a href="{% url 'attribution_create' %}" class="tab-link {% if form_type == 'cours_attribuer' %}active{% endif %}">
         <i class="fas fa-user-tag"></i> Attribuer
     </a>

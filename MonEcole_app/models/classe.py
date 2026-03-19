@@ -110,7 +110,6 @@ class Classe_cycle_actif(models.Model):
     """
     id_cycle_actif = models.AutoField(primary_key=True, db_column='id_cycle')
     cycle = models.CharField(max_length=200, db_column='nom')
-    is_active = models.BooleanField(default=True)
 
     class Meta:
         db_table = "cycles"
