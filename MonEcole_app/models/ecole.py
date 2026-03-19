@@ -1,25 +1,36 @@
-
 from django.db import models
-# from MonEcole_app.models.eleves import Eleve
+from MonEcole_app.models.country_structure import Etablissement
+
+
+# L'ancienne VIEW 'ecole' pointait vers countryStructure.etablissements.
+# Maintenant on utilise Etablissement (Hub) directement via le routeur.
+# Institution est un alias de compatibilité pour le code existant.
+
 class Institution(models.Model):
-    id_ecole = models.AutoField(primary_key=True)
-    nom_ecole = models.CharField(max_length=250,null=False,unique=True)
-    sigle = models.CharField(max_length=50,null=False)
-    telephone = models.CharField(max_length=50,null=False,blank=True)
-    email = models.EmailField(max_length=50,null=False,blank=True)
-    domaine = models.CharField(max_length=50,null=False,blank=True)
-    site = models.URLField(max_length=50,null=False,blank=True)
-    logo_ecole = models.ImageField(upload_to='logos/ecole/', blank=True, null=True)  
-    logo_ministere = models.ImageField(upload_to='logos/ministere/', blank=True, null=True)  
-    siege = models.CharField(max_length=50,null=False,blank=True)
-    fax = models.CharField(max_length=20,null=False,blank=True)
-    representant = models.CharField(max_length=50,null=False,blank=True)
-    b_postale = models.CharField(max_length=50,null=False,blank=True)
-    emplacement = models.CharField(max_length=50,null=False,blank=True)
+    """
+    Infos de l'école — lecture directe depuis countryStructure.etablissements.
+    Remplace la VIEW 'ecole' supprimée.
+    Le Campus local contient id_etablissement pour faire le lien.
+    
+    COMPAT ARRIÈRE: Les champs utilisent db_column pour mapper
+    les noms de colonnes du Hub aux noms attendus par le code spoke.
+    """
+    id_ecole = models.AutoField(primary_key=True, db_column='id_etablissement')
+    nom_ecole = models.CharField(max_length=250, db_column='nom')
+    sigle = models.CharField(max_length=50, null=True, blank=True)
+    telephone = models.CharField(max_length=50, null=True, blank=True)
+    email = models.EmailField(null=True, blank=True)
+    domaine = models.CharField(max_length=100, null=True, blank=True)
+    logo_ecole = models.ImageField(upload_to='logos/ecole/', blank=True, null=True)
+    siege = models.TextField(null=True, blank=True, db_column='adresse')
+    fax = models.CharField(max_length=20, null=True, blank=True)
+    representant = models.CharField(max_length=200, null=True, blank=True)
+    b_postale = models.CharField(max_length=50, null=True, blank=True, db_column='boite_postale')
+    emplacement = models.CharField(max_length=200, null=True, blank=True)
 
     def __str__(self):
         return self.nom_ecole
 
     class Meta:
-        db_table = 'ecole'
+        db_table = 'etablissements'
         managed = False

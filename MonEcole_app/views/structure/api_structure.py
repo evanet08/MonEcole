@@ -187,7 +187,7 @@ def get_classes_actives_by_cycle_annee(request):
  
 @login_required
 def get_active_cycles(request):
-    cycles = Classe_cycle.objects.filter(is_active=True).values('id_cycle', 'cycle')
+    cycles = Classe_cycle.objects.all().values('id_cycle', 'cycle')
     return JsonResponse({'cycles': list(cycles)})
 
 @login_required

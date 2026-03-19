@@ -428,7 +428,7 @@ def create_classe_cycle(request):
     else:
         classe_cycle_form = ClasseCycleForm()
       
-    classe_cycle_list = Classe_cycle.objects.filter(is_active = True)
+    classe_cycle_list = Classe_cycle.objects.all()
     return render(request, 'parametrage/index_parametrage.html', {
         'class_cycle_form': classe_cycle_form,  
         'classes_cycle': classe_cycle_list,
@@ -535,7 +535,7 @@ def create_classe(request):
                 return redirect('create_classes') 
     else:
         class_form = ClasseForm()
-        classe_list = Classe.objects.filter(is_active = True)
+        classe_list = Classe.objects.all()
     return render(request, 'parametrage/index_parametrage.html', {
         'class_form': class_form,
         'classes': classe_list,
