@@ -447,62 +447,13 @@ def create_classe_cycle_active(request):
     show_nav = 'create_classes_cycle_active' in request.path
 
     if request.method == 'POST':
-        cycle = request.POST.get('cycle_id')
-        id_annee = request.POST.get('id_annee')
-        id_campus = request.POST.get('id_campus')
-        nbre_classe = request.POST.get('nbre_classe_par_cycle_actif')
-        classe_cycle_actif_form = ClasseCycle_actifForm(request.POST)
+        # Les cycles sont désormais gérés via le Hub national
+        messages.info(request, "La gestion des cycles est désormais centralisée via le Hub.")
+        return redirect('create_classes_cycle_active')
 
-        if classe_cycle_actif_form.is_valid():
-            if not nbre_classe or int(nbre_classe) <= 0:
-                messages.error(request, "Le nombre de classes par cycle actif doit être supérieur à 0.")
-                return redirect('create_classes_cycle_active')
-
-            if Classe_cycle_actif.objects.filter(
-                id_annee=id_annee,
-                id_campus=id_campus,
-                cycle_id=cycle
-            ).exists():
-                messages.error(request, 'Désolé, le cycle que vous souhaitez insérer existe déjà.')
-                return redirect('create_classes_cycle_active')
-            
-            current_cycle_name = Classe_cycle.objects.get(id_cycle=cycle).cycle  
-            current_index = CYCLES_ORDER.index(current_cycle_name)
-
-            missing_cycles = []
-            for i in range(current_index):
-                expected = CYCLES_ORDER[i]
-                if not Classe_cycle_actif.objects.filter(
-                    id_annee=id_annee,
-                    id_campus=id_campus,
-                    cycle_id__cycle=expected  
-                ).exists():
-                    missing_cycles.append(expected)
-
-            if missing_cycles:
-                messages.error(
-                    request,
-                    f"Veuillez d'abord créer le(s) cycle(s) précédent(s) avant celui-ci : {', '.join(missing_cycles)}"
-                )
-                return redirect('create_classes_cycle_active')
-
-            ordre = calculer_ordre_cycle_actif(id_annee, id_campus)
-            classe_cycle_actif = classe_cycle_actif_form.save(commit=False)
-            classe_cycle_actif.ordre = ordre
-            classe_cycle_actif.save()
-            messages.success(request, f"L'enregistrement a été effectué avec succès !")
-            return redirect('create_classes_cycle_active')
-
-    else:
-        classe_cycle_actif_form = ClasseCycle_actifForm()
-    campus_ids = get_tenant_campus_ids(request)
-    classe_cycle_list = Classe_cycle_actif.objects.filter(
-        is_active=True,
-        id_campus__in=campus_ids
-    )
+    classe_cycle_list = Classe_cycle_actif.objects.all()
 
     return render(request, 'parametrage/index_parametrage.html', {
-        'class_cycle_act_form': classe_cycle_actif_form,
         'classes_cycle_actif': classe_cycle_list,
         'show_nav': show_nav,
         'form_type': 'classes_cycles_actif',
