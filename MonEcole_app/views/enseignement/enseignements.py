@@ -1,7 +1,6 @@
 
 from django.shortcuts import get_object_or_404, render,redirect
 from MonEcole_app.forms.form_imports import (CoursForm,Cours_F,
-                                             Cours_cyleForm,
                                              AttributionType_coursF,
                                              Attribution_coursForm,
                                              HoraireTypeForm,

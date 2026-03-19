@@ -20,37 +20,29 @@ class RepartitionInstanceForm(forms.ModelForm):
 class AnneePeriodeForm(forms.ModelForm):
     class Meta:
         model = Annee_periode
-        fields = ['id_campus', 'id_annee', 'id_cycle', 'id_classe', 'id_trimestre_annee']
+        fields = ['etablissement_annee', 'repartition', 'id_trimestre_annee']
         labels = {
-            'id_campus': 'Campus',
-            'id_annee': 'Annee',
-            'id_cycle': 'Cycle',
-            'id_classe': 'Classe',
-            'id_trimestre_annee': 'Trimestre'
+            'etablissement_annee': 'Établissement-Année',
+            'repartition': 'Période',
+            'id_trimestre_annee': 'Trimestre parent',
         }
         widgets = {
-            'id_campus': forms.Select(attrs={'class': 'form-control'}),
-            'id_annee': forms.Select(attrs={'class': 'form-control'}),
-            'id_cycle': forms.Select(attrs={'class': 'form-control', 'disabled': True}),
-            'id_classe': forms.Select(attrs={'class': 'form-control', 'disabled': True}),
-            'id_trimestre_annee': forms.Select(attrs={'class': 'form-control', 'style': 'display: none;', 'disabled': True}),
+            'etablissement_annee': forms.Select(attrs={'class': 'form-control'}),
+            'repartition': forms.Select(attrs={'class': 'form-control'}),
+            'id_trimestre_annee': forms.Select(attrs={'class': 'form-control'}),
         }
 
 class AnneeTrimestreForm(forms.ModelForm):
     class Meta:
         model = Annee_trimestre
-        fields = ['id_campus', 'id_annee', 'id_cycle', 'id_classe']
+        fields = ['etablissement_annee', 'repartition']
         labels = {
-            'id_campus': 'Campus',
-            'id_annee': 'Annee',
-            'id_cycle': 'Cycle',
-            'id_classe': 'Classe',
+            'etablissement_annee': 'Établissement-Année',
+            'repartition': 'Trimestre',
         }
         widgets = {
-            'id_campus': forms.Select(attrs={'class': 'form-control'}),
-            'id_annee': forms.Select(attrs={'class': 'form-control'}),
-            'id_cycle': forms.Select(attrs={'class': 'form-control', 'style': 'display: none;', 'disabled': True}),
-            'id_classe': forms.Select(attrs={'class': 'form-control', 'style': 'display: none;', 'disabled': True}),
+            'etablissement_annee': forms.Select(attrs={'class': 'form-control'}),
+            'repartition': forms.Select(attrs={'class': 'form-control'}),
         }
 
 # Alias compat pour les imports existants

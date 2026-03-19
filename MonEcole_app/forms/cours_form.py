@@ -15,33 +15,17 @@ class Cours_F(forms.ModelForm):
             
         }
         
-class Cours_cyleForm(forms.ModelForm):
-    class Meta:
-        model = Cours_par_cycle
-        fields = ['id_campus',"id_annee",'cycle_id','cours_id']
-        labels = {
-    
-            "id_annee": "Année",
-            "id_campus": "Campus",
-            "cycle_id": "Cycle",
-            "cours_id": "Cours",
-        }
-
-
 class CoursForm(forms.ModelForm):
     class Meta:
         model = Cours_par_classe
         fields = [
-            'id_campus', 'id_annee', 'id_cycle', 'id_classe', 'id_cours', 'ponderation', 'TD', 'TP', 'TPE'
+            'id_cours', 'id_annee', 'etablissement', 'ponderation', 'TD', 'TP', 'TPE'
         ]
         labels = {
-            'id_campus': 'Campus',
+            'id_cours': 'Cours',
             'id_annee': 'Année',
-            'id_cycle': 'Cycle',
-            'id_classe': 'Classe',
-            'id_cours': 'Cours',  
-            'ponderation': 'Pondération', 
-            'CM': 'CM',
+            'etablissement': 'Établissement',
+            'ponderation': 'Pondération',
             'TD': 'TD',
             'TP': 'TP',
             'TPE': 'TPE',
@@ -49,13 +33,9 @@ class CoursForm(forms.ModelForm):
         
         widgets = {
             'id_annee': forms.Select(attrs={'class': 'form-control'}),
-            'id_cycle': forms.Select(attrs={'class': 'form-control', 'style': 'display: none;', 'disabled': True}),
-            'id_classe': forms.Select(attrs={'class': 'form-control', 'style': 'display: none;', 'disabled': True}),
-            'id_campus': forms.Select(attrs={'class': 'form-control'}),
+            'etablissement': forms.Select(attrs={'class': 'form-control'}),
             'id_cours': forms.NumberInput(attrs={'class': 'form-control', 'style': 'display: none;', 'placeholder': 'Cours'}),
-            # 'code_cours': forms.TextInput(attrs={'class': 'form-control', 'style': 'display: none;','placeholder': 'Code du cours'}),
             'ponderation': forms.NumberInput(attrs={'class': 'form-control', 'style': 'display: none;', 'placeholder': 'Pondération'}),
-            'CM': forms.NumberInput(attrs={'class': 'form-control', 'style': 'display: none;', 'placeholder': 'CM'}),
             'TD': forms.NumberInput(attrs={'class': 'form-control', 'style': 'display: none;', 'placeholder': 'TD'}),
             'TP': forms.NumberInput(attrs={'class': 'form-control','style': 'display: none;', 'placeholder': 'TP'}),
             'TPE': forms.NumberInput(attrs={'class': 'form-control', 'style': 'display: none;', 'placeholder': 'TPE'}),
