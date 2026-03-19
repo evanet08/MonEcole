@@ -13,20 +13,14 @@ class Classe_active_Form(forms.ModelForm):
     class Meta:
         model = Classe_active
         fields = [
-            'id_campus','id_annee',"cycle_id",'classe_id','groupe'
+            'etablissement_annee', 'classe_id', 'groupe'
         ]
             
         labels = {
-            'id_campus': 'Campus',
-            'id_annee' : 'Année',
-            'cycle_id' : 'Cycle',
+            'etablissement_annee': 'Établissement-Année',
             'classe_id': 'Classe',
-            'groupe': 'groupe',
+            'groupe': 'Groupe',
         }
-        # widgets = {
-            
-        #     'groupe': forms.Select(attrs={'class': 'form-control', 'style': 'display: none;'}),
-        #  }
         
 class ClasseCycleForm(forms.ModelForm):
     class Meta:
@@ -39,23 +33,13 @@ class ClasseCycleForm(forms.ModelForm):
 
 
 class ClasseCycle_actifForm(forms.ModelForm):
-    nbre_classe_par_cycle_actif = forms.IntegerField(
-        min_value=1,
-        initial=1,
-        label="Nombre de classe/cycle",
-        widget=forms.NumberInput(attrs={'placeholder': '1 ou plus'})
-    )
-
     class Meta:
         model = Classe_cycle_actif
         fields = [
-            'id_campus', 'id_annee', 'cycle_id', 'nbre_classe_par_cycle_actif'
+            'cycle'
         ]
         labels = {
-            'id_campus': 'Campus',
-            'id_annee': 'Année',
-            'cycle_id': 'Cycle',
-            'nbre_classe_par_cycle_actif': 'Nombre de classe/cycle'
+            'cycle': 'Cycle',
         }
 
         
