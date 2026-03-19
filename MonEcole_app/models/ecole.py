@@ -29,6 +29,20 @@ class Institution(models.Model):
     def __str__(self):
         return self.nom_ecole
 
+    @property
+    def logo_ministere(self):
+        """Compat : logo_ministere est désormais sur le modèle Pays."""
+        try:
+            from MonEcole_app.models.country_structure import Pays
+            pays = Pays.objects.first()
+            return pays.logo_ministere if pays else None
+        except Exception:
+            return None
+
+    @property
+    def site(self):
+        return None
+
     class Meta:
         db_table = 'etablissements'
         managed = False
