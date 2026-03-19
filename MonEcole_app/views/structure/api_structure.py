@@ -238,7 +238,7 @@ def get_class_for_edit(request, class_id):
 
 @login_required
 def get_active_trimestres(request):
-    trimestres = RepartitionInstance.objects.filter(is_active=True).values('id_instance', 'nom')
+    trimestres = RepartitionInstance.objects.all().values('id_instance', 'nom')
     return JsonResponse({'trimestres': [{'id_trimestre': t['id_instance'], 'trimestre': t['nom']} for t in trimestres]})
 
 @login_required

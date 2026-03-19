@@ -727,7 +727,7 @@ def update_periode(request, id_periode):
 
         periode = RepartitionInstance.objects.get(id_instance=id_periode)
         try:
-            trimestre = RepartitionInstance.objects.get(id_instance=id_trimestre, is_active=True)
+            trimestre = RepartitionInstance.objects.get(id_instance=id_trimestre)
         except RepartitionInstance.DoesNotExist:
             return JsonResponse({
                 'success': False,
@@ -923,10 +923,10 @@ def update_classe_cycle_actif(request, id_cycle_actif):
                 annee = Annee.objects.get(id_annee=id_annee)
                 campus = Campus.objects.get(id_campus=id_campus)
                 cycle = Classe_cycle.objects.get(id_cycle=cycle_id)
-                if not annee.is_active or not campus.is_active:
+                if not campus.is_active:
                     return JsonResponse({
                         'success': False,
-                        'error': "L'année ou le campus sélectionné est supprimé."
+                        'error': "Le campus sélectionné est supprimé."
                     }, status=400)
             except (Annee.DoesNotExist, Campus.DoesNotExist, Classe_cycle.DoesNotExist) as e:
                 return JsonResponse({
@@ -1020,10 +1020,10 @@ def update_classe_active(request, id_classe_active):
                 annee = Annee.objects.get(id_annee=id_annee)
                 cycle = Classe_cycle_actif.objects.get(id_cycle_actif=cycle_id)
                 classe = Classe.objects.get(id_classe=classe_id)
-                if not all([annee.is_active, campus.is_active, cycle.is_active]):
+                if not campus.is_active:
                     return JsonResponse({
                         'success': False,
-                        'error': "L'année, le campus ou le cycle sélectionné est désactivé."
+                        'error': "Le campus sélectionné est désactivé."
                     }, status=400)
             except (Campus.DoesNotExist, Annee.DoesNotExist, Classe_cycle_actif.DoesNotExist, Classe.DoesNotExist) as e:
                 return JsonResponse({

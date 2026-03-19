@@ -860,7 +860,7 @@ def create_trimestre(request):
     else:
         trimestr_form = TrimesterForm()
 
-    trimestre_list = RepartitionInstance.objects.filter(is_active=True)
+    trimestre_list = RepartitionInstance.objects.all()
     return render(request, 'parametrage/index_parametrage.html', {
         'trimestre_form': trimestr_form,
         'trimestres': trimestre_list,
@@ -947,7 +947,7 @@ def create_periode(request):
     else:
         periode_form = PeriodForm()
 
-    periode_list = RepartitionInstance.objects.filter(is_active=True)
+    periode_list = RepartitionInstance.objects.all()
 
     return render(request, 'parametrage/index_parametrage.html', {
         'periode_form': periode_form,

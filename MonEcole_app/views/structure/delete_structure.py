@@ -8,16 +8,12 @@ def delete_periode(request, id_periode):
     if request.method == "POST":
         try:
             periode = RepartitionInstance.objects.get(id_instance=id_periode)
-            if not periode.is_active:
-                messages.error(request, "Cette période est déjà supprimée.")
-                return redirect('create_periode')
 
             if Eleve_note.objects.filter(id_periode=periode).exists():
                 messages.error(request, "Impossible de supprimer la période car elle est utilisée quelque part.")
                 return redirect('create_periode')
 
-            periode.is_active = False
-            periode.save()
+            periode.delete()
             messages.success(request, "Période supprimée avec succès.")
             return redirect('create_periode')
 
@@ -38,16 +34,12 @@ def delete_trimestre(request, id_trimestre):
     if request.method == "POST":
         try:
             trimestre = RepartitionInstance.objects.get(id_instance=id_trimestre)
-            if not trimestre.is_active:
-                messages.error(request, "Ce trimestre est déjà supprimé.")
-                return redirect('create_trimestre')
 
             if RepartitionInstance.objects.filter(type_id=trimestre.id_instance).exists():
                 messages.error(request, "Impossible de supprimer le trimestre car il est utilisé quelque part.")
                 return redirect('create_trimestre')
 
-            trimestre.is_active = False
-            trimestre.save()
+            trimestre.delete()
             messages.success(request, "Trimestre supprimé avec succès.")
             return redirect('create_trimestre')
 
@@ -68,24 +60,19 @@ def delete_annee(request, id_annee):
     if request.method == "POST":
         try:
             annee = Annee.objects.get(id_annee=id_annee)
-            if not annee.is_active:
-                messages.error(request, "Cette année est déjà supprimée.")
-                return redirect('create_annees')
 
             dependencies = []
             if Classe_active.objects.filter(id_annee=annee).exists():
                 dependencies.append("classes actives")
-            if Classe_cycle_actif.objects.filter(id_annee=annee).exists():
-                dependencies.append("cycles actifs")
 
             if dependencies:
                 error_msg = f"Impossible de supprimer l'année car elle est utilisée dans : {', '.join(dependencies)}."
                 messages.error(request, error_msg)
                 return redirect('create_annees')
 
-            annee.is_active = False
+            annee.etat_annee = "Clôturée"
             annee.save()
-            messages.success(request, "Année supprimée avec succès.")
+            messages.success(request, "Année clôturée avec succès.")
             return redirect('create_annees')
 
         except Annee.DoesNotExist:
@@ -249,15 +236,10 @@ def delete_classe_cycle_actif(request, id_cycle_actif):
     if request.method == "POST":
         try:
             cycle_actif = Classe_cycle_actif.objects.get(id_cycle_actif=id_cycle_actif)
-            if not cycle_actif.is_active:
-                messages.error(request, "Ce cycle actif est déjà supprimé.")
-                return redirect('create_classes_cycle_active')
 
             dependencies = []
             if Classe_active.objects.filter(cycle_id=cycle_actif).exists():
                 dependencies.append("classes actives")
-            if Cours_par_cycle.objects.filter(cycle_id=cycle_actif).exists():
-                dependencies.append("cours par cycle")
             if Eleve_inscription.objects.filter(id_classe_cycle=cycle_actif).exists():
                 dependencies.append("inscriptions d'élèves")
 
@@ -266,9 +248,7 @@ def delete_classe_cycle_actif(request, id_cycle_actif):
                 messages.error(request, error_msg)
                 return redirect('create_classes_cycle_active')
 
-            cycle_actif.is_active = False
-            cycle_actif.save()
-            messages.success(request, "Cycle actif supprimé avec succès.")
+            messages.info(request, "La suppression des cycles est gérée via le Hub.")
             return redirect('create_classes_cycle_active')
 
         except Classe_cycle_actif.DoesNotExist:
