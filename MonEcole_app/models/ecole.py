@@ -1,10 +1,8 @@
 from django.db import models
-from MonEcole_app.models.country_structure import Etablissement
 
 
-# L'ancienne VIEW 'ecole' pointait vers countryStructure.etablissements.
-# Maintenant on utilise Etablissement (Hub) directement via le routeur.
-# Institution est un alias de compatibilité pour le code existant.
+# Institution pointe directement vers countryStructure.etablissements (Hub).
+# Plus de VIEW 'ecole' ni de modèle 'Etablissement' séparé.
 
 class Institution(models.Model):
     """
