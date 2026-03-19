@@ -7,13 +7,8 @@ class Cours_F(forms.ModelForm):
     class Meta:
         model = Cours
         fields = [
-             'cours', 'code_cours','domaine'
+             'cours', 'code_cours'
         ]
-        labels = {
-    
-            "domaine": "Domaine/Groupe",
-            
-        }
         
 class CoursForm(forms.ModelForm):
     class Meta:
