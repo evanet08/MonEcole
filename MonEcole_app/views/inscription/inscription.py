@@ -223,8 +223,8 @@ def import_eleves(request):
             id_classe = int(re.search(r'\d+', classe_part).group())
             campus = Campus.objects.get(id_campus=id_campus)
             annee = Annee.objects.get(id_annee=id_annee)
-            classe_cycle = Classe_cycle_actif.objects.filter(id_campus=id_campus, id_cycle_actif=id_classe_cycle, id_annee=id_annee).first()
-            classe = Classe_active.objects.filter(id_campus=id_campus, id_annee=id_annee, id_classe_active=id_classe, cycle_id=id_classe_cycle).first()
+            classe_cycle = Classe_cycle_actif.objects.filter(id_cycle_actif=id_classe_cycle).first()
+            classe = Classe_active.objects.filter(id_classe_active=id_classe).first()
 
             if not (campus and annee and classe_cycle and classe):
                 raise ValueError("Certaines données (campus, année, cycle ou classe) sont introuvables.")

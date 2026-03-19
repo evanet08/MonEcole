@@ -40,8 +40,8 @@ def generate_pupils_pdf(request):
         institution = Institution.objects.first() 
         annee = Annee.objects.filter(id_annee=annee_id).first()
         campus = Campus.objects.filter(id_campus=campus_id).first()
-        cycle = Classe_cycle_actif.objects.filter(id_campus=campus_id,id_annee=annee_id,id_cycle_actif=cycle_id).first()
-        classe = Classe_active.objects.filter(id_campus=campus_id,id_annee=annee_id,cycle_id = cycle_id,id_classe_active=classe_id).first()
+        cycle = Classe_cycle_actif.objects.filter(id_cycle_actif=cycle_id).first()
+        classe = Classe_active.objects.filter(id_classe_active=classe_id).first()
 
         if not all([institution, annee, campus, cycle, classe]):
             missing = []
@@ -90,8 +90,8 @@ def generate_pupils_pdf(request):
         elements.append(Paragraph(f"{institution}", title_style))
         elements.append(Paragraph(f"Année scolaire : {annee.annee}", subtitle_style))
         elements.append(Paragraph(f"Campus : {campus.campus}", subtitle_style))
-        elements.append(Paragraph(f"Cycle : {cycle.cycle_id.cycle}", subtitle_style))
-        classe_info = f"Classe : {classe.classe_id.classe}"
+        elements.append(Paragraph(f"Cycle : {cycle.cycle}", subtitle_style))
+        classe_info = f"Classe : {classe.classe_id.classe if hasattr(classe, 'classe_id') and classe.classe_id else str(classe)}"
         if hasattr(classe, 'groupe') and classe.groupe:
             classe_info += f" - Groupe : {classe.groupe}"
         elements.append(Paragraph(classe_info, subtitle_style))

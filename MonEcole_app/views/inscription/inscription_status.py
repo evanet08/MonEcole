@@ -45,8 +45,8 @@ def update_redoublement(request):
 
         annee = Annee.objects.filter(id_annee=id_annee).first()
         campus = Campus.objects.filter(id_campus=id_campus).first()
-        cycle = Classe_cycle_actif.objects.filter(id_campus=campus, id_annee=annee, id_cycle_actif=id_cycle).first()
-        classe = Classe_active.objects.filter(id_campus=campus, id_annee=annee, cycle_id=id_cycle, id_classe_active=id_classe).first()
+        cycle = Classe_cycle_actif.objects.filter(id_cycle_actif=id_cycle).first()
+        classe = Classe_active.objects.filter(id_classe_active=id_classe).first()
 
         if not all([annee, campus, cycle, classe]):
             return JsonResponse({'error': 'Données de référence manquantes'}, status=400)
@@ -60,16 +60,14 @@ def update_redoublement(request):
 
         campus_precedent = Campus.objects.filter(campus=campus.campus).first()
         cycle_precedent = Classe_cycle_actif.objects.filter(
-            id_campus=campus_precedent.id_campus,
-            id_annee=annee_precedente,
-            cycle_id__cycle=cycle.cycle_id.cycle
+            cycle=cycle.cycle
         ).first()
-        classe_precedente = Classe_active.objects.filter(
-            id_campus=campus_precedent.id_campus,
-            id_annee=annee_precedente,
-            cycle_id=cycle_precedent.id_cycle_actif,
-            classe_id__classe=classe.classe_id.classe
-        ).first()
+        if cycle_precedent:
+            classe_precedente = Classe_active.objects.filter(
+                id_classe_active=id_classe
+            ).first()
+        else:
+            classe_precedente = None
         
         if not all([campus_precedent, cycle_precedent, classe_precedente]):
             return JsonResponse({
@@ -232,18 +230,13 @@ def check_historical_inscriptions(id_eleve, id_annee, redoublement, inscription,
                 continue  
 
             cycle = Classe_cycle_actif.objects.filter(
-                id_campus=campus,
-                id_annee=annee,
-                cycle_id__cycle=cycle_nom
+                cycle=cycle_nom
             ).first()
             if not cycle:
                 continue
             classe = Classe_active.objects.filter(
-                id_campus=campus,
-                id_annee=annee,
-                cycle_id=cycle.id_cycle_actif,
-                classe_id__classe=classe_nom
-            ).first()
+                id_classe_active=id_classe
+            ).first() if cycle else None
             if not classe:
                 continue 
 

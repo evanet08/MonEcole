@@ -1044,7 +1044,7 @@ def get_cycles_parCours(request):
 def get_cycles_parAnnee_pop(request):
     id_annee = request.GET.get('id_annee')
     if id_annee:
-        cycles = list(Classe_cycle_actif.objects.filter(id_annee=id_annee).values('id_cycle', 'cycle'))
+        cycles = list(Classe_cycle_actif.objects.all().values('id_cycle_actif', 'cycle'))
     else:
         cycles = []
 
@@ -1805,20 +1805,21 @@ def load_classes_by_year_exclude_responsible(request):
             id_annee_id=annee_id
         ).values_list('id_classe_id', flat=True)
 
-        classes = Classe_active.objects.filter(id_annee_id=annee_id, id_campus__in=get_tenant_campus_ids(request)).select_related('id_campus', 'cycle_id__cycle_id', 'classe_id').order_by('cycle_id__cycle_id')
+        from MonEcole_app.models.country_structure import EtablissementAnneeClasse
+        classes = EtablissementAnneeClasse.objects.filter(
+            etablissement_annee__annee_id=annee_id
+        ).select_related('classe', 'classe__cycle', 'etablissement_annee').order_by('classe__cycle__ordre')
         for classe in classes:
-            nom_campus = classe.id_campus.campus
-            nom_cycle = classe.cycle_id.cycle_id.cycle
-            nom_classe = classe.classe_id.classe
+            nom_cycle = classe.classe.cycle.cycle if classe.classe.cycle else ''
+            nom_classe = classe.classe.classe
             groupe = classe.groupe or ""
-            label = f"{nom_campus} - {nom_cycle} - {nom_classe} {groupe}".strip()
+            label = f"{nom_cycle} - {nom_classe} {groupe}".strip()
 
             data.append({
-                "id": classe.id_classe_active,
+                "id": classe.id,
                 "label": label,
-                "id_campus": classe.id_campus.id_campus,
-                "id_cycle": classe.cycle_id.id_cycle_actif,
-                "id_classe": classe.classe_id.id_classe
+                "id_cycle": classe.classe.cycle_id if classe.classe.cycle else None,
+                "id_classe": classe.classe_id
             })
         return JsonResponse(data, safe=False)
 
