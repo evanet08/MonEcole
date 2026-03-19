@@ -153,7 +153,7 @@ class Classe_deliberation(models.Model):
 class Responsable_classe(models.Model):
     """
     Responsable (titulaire) d'une classe pour une année.
-    Table locale spoke : db_monecole.classe_active_responsable
+    Table locale spoke : db_monecole.responsable_classe
     """
     id_classe_active_resp = models.AutoField(primary_key=True)
     id_annee = models.ForeignKey("Annee", on_delete=models.PROTECT, null=False)
@@ -165,7 +165,7 @@ class Responsable_classe(models.Model):
     id_etablissement = models.IntegerField(null=True, blank=True)
 
     class Meta:
-        db_table = "classe_active_responsable"
+        db_table = "responsable_classe"
         verbose_name = "Responsable de Classe"
 
     def __str__(self):
