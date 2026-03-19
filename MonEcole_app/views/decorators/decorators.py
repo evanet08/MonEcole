@@ -26,20 +26,26 @@ def module_required(module_name):
                 personnel = user.personnel
 
                 # Tier 1: Check with etat_annee = "En Cours"
+                # Annee is in countryStructure (hub), UserModule in db_monecole (spoke)
+                # Can't do cross-DB JOINs, so fetch year IDs from hub first
+                from MonEcole_app.models.models_import import Annee
+                annees_en_cours = list(Annee.objects.filter(
+                    etat_annee="En Cours"
+                ).values_list('id_annee', flat=True))
+
                 has_module = UserModule.objects.filter(
                     user=personnel,
                     module__module=module_name,
                     is_active=True,
-                    id_annee__etat_annee="En Cours"
+                    id_annee_id__in=annees_en_cours
                 ).exists()
 
-                # Tier 2: Fallback to any active year
+                # Tier 2: Fallback to any active assignment
                 if not has_module:
                     has_module = UserModule.objects.filter(
                         user=personnel,
                         module__module=module_name,
                         is_active=True,
-                        id_annee__is_active=True
                     ).exists()
 
                 # Tier 3: Fallback to any active assignment

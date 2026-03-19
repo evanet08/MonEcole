@@ -589,7 +589,16 @@ def get_all_course_attribute(request):
             "last_name": user_info['last_name']
         })
 
-    current_year = Attribution_cours.objects.filter(id_annee__etat_annee="En Cours").values_list('id_annee', flat=True).distinct()
+    # Annee is in hub (countryStructure), Attribution_cours in spoke (db_monecole)
+    # Can't do cross-DB JOINs — fetch year IDs from hub first
+    from MonEcole_app.models.models_import import Annee
+    annees_en_cours = list(Annee.objects.filter(
+        etat_annee="En Cours"
+    ).values_list('id_annee', flat=True))
+
+    current_year = Attribution_cours.objects.filter(
+        id_annee_id__in=annees_en_cours
+    ).values_list('id_annee', flat=True).distinct()
 
     if not current_year:
         return render(request, "enseignement/index_enseignement.html", {
@@ -599,19 +608,19 @@ def get_all_course_attribute(request):
             "last_name": user_info['last_name']
         })
 
-    user_modules = UserModule.objects.filter(user=personnel, id_annee__in=current_year, is_active=True).values_list('module__module', flat=True)
+    user_modules = UserModule.objects.filter(user=personnel, id_annee_id__in=current_year, is_active=True).values_list('module__module', flat=True)
     has_full_access = any(module in full_access_modules for module in user_modules)
 
     if has_full_access:
-        cours_attrib = Attribution_cours.objects.filter(id_annee__etat_annee="En Cours")
+        cours_attrib = Attribution_cours.objects.filter(id_annee_id__in=annees_en_cours)
     else:
         cycles_ids = Classe_active_responsable.objects.filter(
             id_personnel=personnel,
-            id_annee__in=current_year
+            id_annee_id__in=current_year
         ).values_list('id_cycle', flat=True)
 
         cours_attrib = Attribution_cours.objects.filter(
-            id_annee__etat_annee="En Cours",
+            id_annee_id__in=annees_en_cours,
             id_cycle__in=cycles_ids
         )
 
