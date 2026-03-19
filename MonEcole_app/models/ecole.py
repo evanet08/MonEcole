@@ -18,7 +18,6 @@ class Institution(models.Model):
     sigle = models.CharField(max_length=50, null=True, blank=True)
     telephone = models.CharField(max_length=50, null=True, blank=True)
     email = models.EmailField(null=True, blank=True)
-    domaine = models.CharField(max_length=100, null=True, blank=True)
     logo_ecole = models.ImageField(upload_to='logos/ecole/', blank=True, null=True)
     siege = models.TextField(null=True, blank=True, db_column='adresse')
     fax = models.CharField(max_length=20, null=True, blank=True)
