@@ -9,7 +9,9 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.db.models import Exists, OuterRef
-from MonEcole_app.views.tools.tenant_utils import deny_cross_tenant_access
+from MonEcole_app.views.tools.tenant_utils import (
+    deny_cross_tenant_access, get_trimestres_for_etab, get_periodes_for_trimestre
+)
 logger = logging.getLogger(__name__)
 
 
@@ -42,20 +44,19 @@ def get_trimestres_table(request):
         if denied:
             return denied
 
-    trimestres = Annee_trimestre.objects.filter(
-        id_annee=id_annee,
-        id_campus=id_campus,
-        id_cycle=id_cycle,
-        id_classe=id_classe
-    ).values(
-        'id_trimestre',
-        'trimestre__trimestre', 
-        'debut',
-        'fin',
-        'isOpen'
-    )
+    trimestres_qs = get_trimestres_for_etab(id_campus, id_annee)
+    data = [
+        {
+            'id_trimestre': t.id_trimestre,
+            'trimestre__trimestre': t.repartition.nom,
+            'debut': str(t.debut) if t.debut else None,
+            'fin': str(t.fin) if t.fin else None,
+            'isOpen': t.isOpen
+        }
+        for t in trimestres_qs
+    ]
 
-    return JsonResponse(list(trimestres), safe=False)
+    return JsonResponse(data, safe=False)
 
 def get_periodes_table(request):
     id_annee = request.GET.get('id_annee')
@@ -70,22 +71,19 @@ def get_periodes_table(request):
         if denied:
             return denied
     
-    periodes = Annee_periode.objects.filter(
-        id_annee=id_annee,
-        id_campus=id_campus,
-        id_cycle=id_cycle,
-        id_classe=id_classe,
-        id_trimestre_annee = id_trimestre
-        
-    ).values(
-        'id_periode',
-        'periode__periode', 
-        'debut',
-        'fin',
-        'isOpen'
-    )
+    periodes_qs = get_periodes_for_trimestre(id_campus, id_annee, id_trimestre)
+    data = [
+        {
+            'id_periode': p.id_periode,
+            'periode__periode': p.repartition.nom,
+            'debut': str(p.debut) if p.debut else None,
+            'fin': str(p.fin) if p.fin else None,
+            'isOpen': p.isOpen
+        }
+        for p in periodes_qs
+    ]
 
-    return JsonResponse(list(periodes), safe=False)
+    return JsonResponse(data, safe=False)
 
 @require_GET
 def get_trimestre_par_classe(request):
@@ -103,13 +101,7 @@ def get_trimestre_par_classe(request):
         if denied:
             return denied
 
-        trimestres = Annee_trimestre.objects.filter(
-            id_annee=id_annee,
-            id_campus=id_campus,
-            id_cycle=id_cycle,
-            id_classe=id_classe,
-            
-        ).select_related('repartition')
+        trimestres = get_trimestres_for_etab(id_campus, id_annee)
 
         data = [
             {
@@ -291,13 +283,9 @@ def get_trimestres_with_notes(request):
             id_type_note_id=id_type_note
         ).values_list('id_trimestre', flat=True).distinct()
 
-        trimestres = Annee_trimestre.objects.filter(
-            id_trimestre__in=trimestre_ids,
-            id_annee_id=id_annee,
-            id_campus_id=id_campus,
-            id_cycle_id=id_cycle_actif,
-            id_classe_id=id_classe_active
-        ).select_related('repartition')
+        trimestres = get_trimestres_for_etab(id_campus, id_annee).filter(
+            id_trimestre__in=trimestre_ids
+        )
 
         data = [
             {
@@ -320,13 +308,7 @@ def get_periodes_notes_par_classe(request):
     id_type_note = request.GET.get('id_type_note')
     id_trimestre = request.GET.get('id_trimestre')
 
-    periodes = Annee_periode.objects.filter(
-        id_annee=id_annee,
-        id_campus=id_campus,
-        id_cycle=id_cycle,
-        id_classe=id_classe,
-        id_trimestre_annee=id_trimestre,
-        id_periode__in=Eleve_note.objects.filter(
+    periodes_ids = Eleve_note.objects.filter(
             id_annee=id_annee,
             id_campus=id_campus,
             id_cycle_actif=id_cycle,
@@ -335,6 +317,9 @@ def get_periodes_notes_par_classe(request):
             id_type_note=id_type_note,
             id_trimestre=id_trimestre
         ).values_list('id_periode', flat=True).distinct()
+    
+    periodes = get_periodes_for_trimestre(id_campus, id_annee, id_trimestre).filter(
+        id_periode__in=periodes_ids
     )
 
     data = [

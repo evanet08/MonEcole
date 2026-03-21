@@ -148,3 +148,113 @@ def tenant_etablissement_filter(request, queryset, field='id_etablissement'):
     filter_kwargs = {field: tenant_id}
     return queryset.filter(**filter_kwargs)
 
+
+# ============================================================
+# RÉPARTITIONS TEMPORELLES — Fonctions utilitaires
+# Bridge entre l'ancien pattern spoke (id_campus, id_annee)
+# et le nouveau système Hub (EtablissementAnnee → RepartitionConfigEtabAnnee)
+# ============================================================
+
+def get_etab_annee(id_campus, id_annee):
+    """
+    Résout (id_campus, id_annee) → EtablissementAnnee du Hub.
+    
+    Le spoke connaît id_campus (local) et id_annee (hub).
+    Cette fonction fait le pont vers EtablissementAnnee
+    qui est la clé pour accéder aux répartitions.
+    
+    Returns: EtablissementAnnee instance or None
+    """
+    from MonEcole_app.models.country_structure import EtablissementAnnee
+    try:
+        campus = Campus.objects.get(id_campus=id_campus)
+        return EtablissementAnnee.objects.filter(
+            etablissement_id=campus.id_etablissement,
+            annee_id=id_annee
+        ).first()
+    except (Campus.DoesNotExist, ValueError, TypeError):
+        return None
+
+
+def get_etab_annee_from_request(request, id_annee):
+    """
+    Résout EtablissementAnnee en utilisant le tenant_id de la requête.
+    Plus direct que get_etab_annee car utilise directement id_etablissement.
+    
+    Returns: EtablissementAnnee instance or None
+    """
+    from MonEcole_app.models.country_structure import EtablissementAnnee
+    tenant_id = get_tenant_id(request)
+    if tenant_id is None:
+        # Mode base — cherche le premier campus actif
+        campus = Campus.objects.filter(is_active=True).first()
+        if not campus:
+            return None
+        tenant_id = campus.id_etablissement
+    try:
+        return EtablissementAnnee.objects.filter(
+            etablissement_id=tenant_id,
+            annee_id=id_annee
+        ).first()
+    except (ValueError, TypeError):
+        return None
+
+
+def get_trimestres_for_etab(id_campus, id_annee):
+    """
+    Retourne les trimestres/semestres (répartitions RACINE) pour un campus+année.
+    
+    Remplace: Annee_trimestre.objects.filter(id_annee=X, id_campus=Y, ...)
+    Par:      Filtrage via EtablissementAnnee → repartition_configs_etab_annee (has_parent=False)
+    
+    Le spoke ne sait pas si c'est le calendrier national ou personnalisé.
+    Il lit simplement ce qui est configuré pour son établissement.
+    
+    Returns: QuerySet de Annee_trimestre (= RepartitionConfigEtabAnnee avec has_parent=False)
+    """
+    from MonEcole_app.models.annee import Annee_trimestre
+    ea = get_etab_annee(id_campus, id_annee)
+    if not ea:
+        return Annee_trimestre.objects.none()
+    return Annee_trimestre.objects.filter(
+        etablissement_annee=ea,
+        has_parent=False
+    ).select_related('repartition').order_by('repartition__ordre')
+
+
+def get_periodes_for_trimestre(id_campus, id_annee, trimestre_id):
+    """
+    Retourne les périodes (répartitions ENFANTS) pour un trimestre donné.
+    
+    Remplace: Annee_periode.objects.filter(id_annee=X, id_campus=Y, id_trimestre_annee=Z, ...)
+    Par:      Filtrage via EtablissementAnnee → repartition_configs_etab_annee (has_parent=True, parent_id=Z)
+    
+    Returns: QuerySet de Annee_periode (= RepartitionConfigEtabAnnee avec has_parent=True)
+    """
+    from MonEcole_app.models.annee import Annee_periode
+    ea = get_etab_annee(id_campus, id_annee)
+    if not ea:
+        return Annee_periode.objects.none()
+    return Annee_periode.objects.filter(
+        etablissement_annee=ea,
+        has_parent=True,
+        id_trimestre_annee_id=trimestre_id
+    ).select_related('repartition').order_by('repartition__ordre')
+
+
+def get_all_periodes_for_etab(id_campus, id_annee):
+    """
+    Retourne TOUTES les périodes (enfants) pour un campus+année.
+    Utile quand on n'a pas besoin de filtrer par trimestre parent.
+    
+    Returns: QuerySet de Annee_periode
+    """
+    from MonEcole_app.models.annee import Annee_periode
+    ea = get_etab_annee(id_campus, id_annee)
+    if not ea:
+        return Annee_periode.objects.none()
+    return Annee_periode.objects.filter(
+        etablissement_annee=ea,
+        has_parent=True
+    ).select_related('repartition').order_by('repartition__ordre')
+

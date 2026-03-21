@@ -16,7 +16,8 @@ from django.views.decorators.csrf import csrf_exempt
 from MonEcole_app.models import Deliberation_annuelle_finalite
 from django.views.decorators.http import require_POST
 from MonEcole_app.views.tools.tenant_utils import (
-    get_tenant_campus_ids, deny_cross_tenant_access, validate_campus_access
+    get_tenant_campus_ids, deny_cross_tenant_access, validate_campus_access,
+    get_trimestres_for_etab, get_periodes_for_trimestre, get_etab_annee
 )
 import logging
 logger = logging.getLogger(__name__)
@@ -319,13 +320,9 @@ def get_all_periodes(request):
 def get_all_trimestres_par_classe(request):
     id_annee = request.GET.get('id_annee')
     id_campus = request.GET.get('id_campus')
-    id_cycle_actif = request.GET.get('id_cycle')  
-    id_classe_active = request.GET.get('id_classe')
-    trimestres = Annee_trimestre.objects.filter(id_annee = id_annee,
-                                                id_campus = id_campus,
-                                                id_cycle = id_cycle_actif,
-                                                id_classe = id_classe_active,
-                                                isOpen=True)
+    # id_cycle et id_classe ne sont plus nécessaires pour filtrer les répartitions
+    # Les répartitions sont configurées au niveau établissement+année
+    trimestres = get_trimestres_for_etab(id_campus, id_annee).filter(isOpen=True)
     data = [
         {
             'id': trimestre.id_trimestre,
@@ -350,7 +347,8 @@ def get_all_trimestres_par_classe_avec_notes(request):
         id_cycle_actif_id=id_cycle_actif,
         id_classe_active_id=id_classe_active
     ).values_list('id_trimestre_id', flat=True).distinct()
-    trimestres = Annee_trimestre.objects.filter(
+    # Filtrer parmi les trimestres de cet établissement
+    trimestres = get_trimestres_for_etab(id_campus, id_annee).filter(
         id_trimestre__in=trimestres_ids
     )
 
@@ -369,11 +367,9 @@ def get_all_trimestres_par_classe_avec_notes(request):
 def get_all_periodes_par_classe(request):
     id_annee = request.GET.get('id_annee')
     id_campus = request.GET.get('id_campus')
-    id_cycle_actif = request.GET.get('id_cycle')  
-    id_classe_active = request.GET.get('id_classe')
     id_trimestre = request.GET.get('id_trimestre')
     
-    periodes = Annee_periode.objects.filter(id_annee = id_annee,id_campus = id_campus,id_cycle = id_cycle_actif,id_classe = id_classe_active,id_trimestre_annee = id_trimestre)
+    periodes = get_periodes_for_trimestre(id_campus, id_annee, id_trimestre)
     data = [
         {
             'id': periode.id_periode,
@@ -392,16 +388,10 @@ def get_all_periodes_par_classe_avec_notes(request):
     id_trimestre = request.GET.get('id_trimestre_annee')
    
 
-    if not all([id_annee, id_campus, id_cycle_actif, id_classe_active, id_trimestre]):
+    if not all([id_annee, id_campus, id_trimestre]):
         return JsonResponse({'data': []})
     
-    periodes_definies = Annee_periode.objects.filter(
-        id_annee=id_annee,
-        id_campus=id_campus,
-        id_cycle=id_cycle_actif,
-        id_classe=id_classe_active,
-        id_trimestre_annee=id_trimestre
-    )
+    periodes_definies = get_periodes_for_trimestre(id_campus, id_annee, id_trimestre)
 
     periodes_utilisees_ids = Eleve_note.objects.filter(
         id_annee_id=id_annee,
@@ -429,14 +419,8 @@ def get_all_periodes_par_classe_avec_notes(request):
 def get_last_trimestres_par_classe(request):
     id_annee = request.GET.get('id_annee')
     id_campus = request.GET.get('id_campus')
-    id_cycle_actif = request.GET.get('id_cycle')  
-    id_classe_active = request.GET.get('id_classe')
 
-    dernier_trimestre = Annee_trimestre.objects.filter(
-        id_annee=id_annee,
-        id_campus=id_campus,
-        id_cycle=id_cycle_actif,
-        id_classe=id_classe_active,
+    dernier_trimestre = get_trimestres_for_etab(id_campus, id_annee).filter(
         isOpen=False
     ).order_by('-id_trimestre').first()  
 
@@ -454,11 +438,9 @@ def get_last_trimestres_par_classe(request):
 def get_all_periodes_par_classe(request):
     id_annee = request.GET.get('id_annee')
     id_campus = request.GET.get('id_campus')
-    id_cycle_actif = request.GET.get('id_cycle')  
-    id_classe_active = request.GET.get('id_classe')
     id_trimestre = request.GET.get('id_trimestre')
     
-    periodes = Annee_periode.objects.filter(id_annee = id_annee,id_campus = id_campus,id_cycle = id_cycle_actif,id_classe = id_classe_active,id_trimestre_annee = id_trimestre)
+    periodes = get_periodes_for_trimestre(id_campus, id_annee, id_trimestre)
     data = [
         {
             'id': periode.id_periode,
@@ -563,7 +545,7 @@ def get_trimestres_by_evaluationsCours_soumises(request):
     ).values('id_trimestre').distinct()
     trimestre_ids = [eval['id_trimestre'] for eval in evaluations]
 
-    trimestres = Annee_trimestre.objects.filter(id_trimestre__in=trimestre_ids,isOpen=True)
+    trimestres = get_trimestres_for_etab(id_campus, id_annee).filter(id_trimestre__in=trimestre_ids, isOpen=True)
     data = [
         {
             'id': trimestre.id_trimestre,
@@ -874,11 +856,10 @@ def get_available_trimestres(request):
     # Déterminer le nombre max de périodes selon le type de classe
     max_periods = get_max_deliberation_periods(id_campus, id_classe)
 
-    # Récupérer les IDs valides (les N premiers par ordre d'id_trimestre)
+    # Récupérer les IDs valides (les N premiers par ordre) via le Hub
     valid_trimestre_ids = list(
-        Annee_trimestre.objects.filter(
-            id_annee=id_annee, id_campus=id_campus, id_cycle=id_cycle, id_classe=id_classe
-        ).order_by('id_trimestre').values_list('id_trimestre', flat=True).distinct()[:max_periods]
+        get_trimestres_for_etab(id_campus, id_annee)
+        .order_by('id_trimestre').values_list('id_trimestre', flat=True).distinct()[:max_periods]
     )
 
     deliberated_trimestres = Deliberation_trimistrielle_resultat.objects.filter(
@@ -890,20 +871,20 @@ def get_available_trimestres(request):
 
     deliberated_ids = [d['id_trimestre_id'] for d in deliberated_trimestres]
 
-    trimestres = Annee_trimestre.objects.filter(
+    trimestres = get_trimestres_for_etab(id_campus, id_annee).filter(
         id_trimestre__in=valid_trimestre_ids,
         isOpen=True
     ).exclude(
         id_trimestre__in=deliberated_ids
-    ).order_by('id_trimestre').values('id_trimestre', 'trimestre__trimestre').distinct()
+    ).order_by('id_trimestre')
 
     # Pour les classes à 2 semestres, renommer si nécessaire
     trimestres_list = []
     for i, t in enumerate(trimestres):
-        name = t['trimestre__trimestre']
+        name = t.repartition.nom
         if max_periods == 2 and name.startswith('Trimestre'):
             name = f"Semestre {i + 1}"
-        trimestres_list.append({'id': t['id_trimestre'], 'name': name})
+        trimestres_list.append({'id': t.id_trimestre, 'name': name})
 
     return JsonResponse({'trimestres': trimestres_list}, status=200)
 
@@ -1223,7 +1204,7 @@ def generate_notes_pdf(request):
         classe = Classe_active.objects.get(id_annee=id_annee, id_campus=id_campus, cycle_id=id_cycle_actif, id_classe_active=id_classe_active).classe_id.classe
         cours = Cours_par_classe.objects.get(id_annee=id_annee, id_campus=id_campus, id_cycle=id_cycle_actif, id_classe=id_classe_active, id_cours_classe=id_cours_classe).id_cours.cours
         type_note = Eleve_note_type.objects.get(id_type_note=id_type_note).sigle
-        trimestre = Annee_trimestre.objects.get(id_annee=id_annee, id_campus=id_campus, id_cycle=id_cycle_actif, id_classe=id_classe_active,id_trimestre = id_trimestre)
+        trimestre = Annee_trimestre.objects.get(id_trimestre=id_trimestre)
 
         pupils = Eleve_inscription.objects.filter(
             id_annee=id_annee,

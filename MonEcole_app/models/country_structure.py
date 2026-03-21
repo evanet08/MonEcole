@@ -184,6 +184,8 @@ class RepartitionInstance(models.Model):
                              db_column='type_id', related_name='hub_instances')
     annee = models.ForeignKey('Annee', on_delete=models.CASCADE,
                               db_column='annee_id', null=True, blank=True)
+    pays = models.ForeignKey('Pays', on_delete=models.CASCADE,
+                             db_column='pays_id', null=True, blank=True)
     nom = models.CharField(max_length=100)
     code = models.CharField(max_length=20)
     ordre = models.PositiveIntegerField(default=1)
@@ -219,6 +221,7 @@ class RepartitionConfigEtabAnnee(models.Model):
     debut = models.DateField(null=True, blank=True)
     fin = models.DateField(null=True, blank=True)
     is_open = models.BooleanField(default=True)
+    is_national = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
