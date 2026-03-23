@@ -1,49 +1,39 @@
 from pathlib import Path
 import os
-from django.contrib.messages import constants as messages
-from decouple import config
-import logging
 import sys
+import logging
+from decouple import config
+from django.contrib.messages import constants as messages
 
-
-
-# Configurer le handler du logger pour utiliser UTF-8
+# Logging UTF-8
 for handler in logging.getLogger().handlers:
     if isinstance(handler, logging.StreamHandler):
         handler.setStream(sys.stdout)
         handler.stream.reconfigure(encoding='utf-8')
+
 BASE_DIR = Path(__file__).resolve().parent.parent
-#  configurations des messages:
-# configuration des messages selon l'evenement
+
+# Messages
 try:
     MESSAGE_TAGS = {
         messages.DEBUG: 'alert-info',
         messages.INFO: 'alert-info',
         messages.SUCCESS: 'alert-success',
         messages.WARNING: 'alert-warning',
-        messages.ERROR: 'alert-danger'
+        messages.ERROR: 'alert-danger',
     }
-except Exception as e:
-    pass   
+except Exception:
+    pass
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.1/howto/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY')
-
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default='True', cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost').split(',')
-# Ajouter le wildcard pour les sous-domaines MonEcole si pas déjà présent
 if '.monecole.pro' not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append('.monecole.pro')
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
-
-# Application definition
 
 INSTALLED_APPS = [
     'jazzmin',
@@ -54,11 +44,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'widget_tweaks',
-    'phonenumber_field',
     'MonEcole_app',
-    'library_manager'
 ]
-
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -71,13 +58,13 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-TEMPLATES_DIR = os.path.join(BASE_DIR, 'templates') 
+
 ROOT_URLCONF = 'MonEcole_project.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [TEMPLATES_DIR],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -92,9 +79,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'MonEcole_project.wsgi.application'
 
-# Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
+# ── Databases ──
+# default = spoke (db_monecole) — données opérationnelles établissement
+# countryStructure = hub — données structurelles nationales
 DATABASES = {
     'default': {
         'ENGINE': config('DB_ENGINE'),
@@ -111,39 +98,27 @@ DATABASES = {
         'PASSWORD': config('DB_PASSWORD'),
         'HOST': config('DB_HOST'),
         'PORT': config('DB_PORT'),
-    }
+    },
 }
 
 DATABASE_ROUTERS = ['MonEcole_app.db_routers.CountryStructureRouter']
 
-# Urls used
-LOGIN_URL = 'log_in'
-LOGIN_REDIRECT_URL='/login'
-LOGOUT_REDIRECT_URL = '/log_in/'
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = '/login/'
+LOGOUT_REDIRECT_URL = '/login/'
 
-# Password validation
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-# Internationalization
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+LANGUAGE_CODE = 'fr-fr'
+TIME_ZONE = 'Africa/Bujumbura'
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
@@ -151,7 +126,6 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGGING = {
@@ -162,7 +136,7 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'level': 'DEBUG',
             'formatter': 'simple',
-            'stream': sys.stdout,  
+            'stream': sys.stdout,
         },
     },
     'formatters': {
@@ -179,7 +153,6 @@ LOGGING = {
     },
 }
 
-# CSRF Trusted Origins
 CSRF_TRUSTED_ORIGINS = [
     'https://monecole.pro',
     'https://www.monecole.pro',

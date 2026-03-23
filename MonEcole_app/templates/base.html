@@ -1,0 +1,459 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>MonEcole - {% block title %}Dashboard{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}MonEcole - Gestion Scolaire{% endblock %}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+
+    <style>
+        /* ================= CSS VARIABLES ================= */
+        :root {
+            --bg-color: #f3f4f6;
+            --sidebar-width: 120px;
+            --nav-bg: #0f172a;
+            --sidebar-text: #94a3b8;
+            --text-dark: #1e293b;
+            --text-light: #64748b;
+            --accent-color: #2563eb;
+            --topbar-height: 50px;
+            --grad-purple: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+            --grad-orange: linear-gradient(135deg, #ea580c 0%, #fb923c 100%);
+            --grad-teal: linear-gradient(135deg, #0d9488 0%, #2dd4bf 100%);
+            --grad-pink: linear-gradient(135deg, #db2777 0%, #f472b6 100%);
+            --grad-blue: linear-gradient(135deg, #1d4ed8 0%, #60a5fa 100%);
+            --grad-emerald: linear-gradient(135deg, #059669 0%, #34d399 100%);
+            --grad-amber: linear-gradient(135deg, #d97706 0%, #fbbf24 100%);
+        }
+
+        * { -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            color: var(--text-dark);
+            height: 100vh; height: 100dvh;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+            background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
+        }
+
+        /* ================= BODY ROW ================= */
+        .body-row { flex: 1; display: flex; overflow: hidden; }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: rgba(240, 244, 255, 0.75);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(200, 210, 230, 0.4);
+            display: flex; flex-direction: column;
+            padding: 10px 6px; gap: 0; z-index: 1050;
+            flex-shrink: 0; align-items: center;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto; overflow-x: hidden;
+        }
+        .sidebar-nav-center {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 6px; width: 100%;
+        }
+        .sidebar::-webkit-scrollbar { width: 3px; }
+        .sidebar::-webkit-scrollbar-track { background: transparent; }
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+
+        .sidebar-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); z-index: 1049; opacity: 0; transition: opacity 0.3s ease;
+        }
+        .sidebar-overlay.active { display: block; opacity: 1; }
+
+        .hamburger-btn {
+            display: none; background: none; border: none; color: #f1f5f9;
+            font-size: 1.2rem; cursor: pointer; padding: 0.4rem; border-radius: 6px;
+            transition: background 0.2s; flex-shrink: 0;
+        }
+        .hamburger-btn:hover { background: rgba(255,255,255,0.08); }
+
+        .sidebar-logo-container {
+            width: 80px; height: 80px; min-width: 60px; min-height: 60px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 0.5rem; padding: 8px !important;
+            background: white; overflow: hidden; border-radius: 12px;
+            border: 1px solid rgba(0,0,0,0.06);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08); flex-shrink: 0;
+        }
+        .brand-logo-img {
+            width: 100% !important; height: 100% !important;
+            object-fit: contain !important; display: block;
+        }
+
+        /* ===== Nav Items ===== */
+        .nav-item {
+            width: 100%; padding: 0.7rem 0.5rem; color: #8899b4; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+            text-decoration: none;
+            background: rgba(15, 23, 42, 0.82); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 22px; backdrop-filter: blur(8px);
+            transition: all 0.25s ease; position: relative; overflow: hidden;
+        }
+        .nav-item::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 22px; opacity: 0;
+            background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(59,130,246,0.15));
+            transition: opacity 0.25s ease; pointer-events: none;
+        }
+        .nav-item i {
+            font-size: 1.1rem; position: relative; z-index: 1;
+            width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+            border-radius: 50%; background: rgba(255,255,255,0.08);
+        }
+        .nav-item span { font-size: 0.68rem; font-weight: 500; position: relative; z-index: 1; line-height: 1.2; }
+
+        .nav-item:hover {
+            color: #e2e8f0; background: rgba(15,23,42,0.9);
+            border-color: rgba(255,255,255,0.15);
+            transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .nav-item:hover::before { opacity: 0.5; }
+
+        .nav-item.active {
+            color: #f1f5f9; background: rgba(15,23,42,0.92);
+            border: 1px solid rgba(124,58,237,0.5); border-radius: 22px;
+            box-shadow: 0 0 15px rgba(124,58,237,0.2), 0 4px 12px rgba(0,0,0,0.2),
+                inset 0 0 20px rgba(124,58,237,0.08), 0 0 0 1px rgba(99,102,241,0.3);
+        }
+        .nav-item.active::before { opacity: 1; }
+        .nav-item.active i { filter: drop-shadow(0 0 6px currentColor); }
+
+        .nav-item i.text-blue { color: #60a5fa !important; }
+        .nav-item i.text-orange { color: #fb923c !important; }
+        .nav-item i.text-purple { color: #a78bfa !important; }
+        .nav-item i.text-indigo { color: #818cf8 !important; }
+        .nav-item i.text-teal { color: #2dd4bf !important; }
+        .nav-item i.text-pink { color: #f472b6 !important; }
+        .nav-item i.text-emerald { color: #34d399 !important; }
+
+        .logout-btn {
+            margin-top: auto; color: #ef4444;
+            background: rgba(239,68,68,0.06) !important;
+            border-color: rgba(239,68,68,0.12) !important;
+        }
+        .logout-btn:hover {
+            background: rgba(239,68,68,0.12) !important;
+            border-color: rgba(239,68,68,0.25) !important;
+            color: #f87171 !important;
+        }
+
+        /* ================= MAIN WRAPPER ================= */
+        .main-wrapper { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* ================= TOP BAR ================= */
+        .top-bar {
+            height: var(--topbar-height);
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: #f8fafc; display: flex; align-items: center; justify-content: space-between;
+            padding: 0 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+            z-index: 1001; border-bottom: 1px solid #475569; flex-shrink: 0;
+        }
+        .top-bar .search-bar { flex: 0 1 400px; position: relative; }
+        .top-bar .search-bar input {
+            width: 100%; padding: 0.45rem 1rem 0.45rem 2.5rem;
+            border: 1px solid #475569; border-radius: 10px;
+            background: rgba(255,255,255,0.08); font-size: 0.82rem; color: #f1f5f9;
+            transition: all 0.2s; outline: none;
+        }
+        .top-bar .search-bar input:focus {
+            border-color: #60a5fa; background: rgba(255,255,255,0.15);
+            box-shadow: 0 0 0 3px rgba(96,165,250,0.2);
+        }
+        .top-bar .search-bar input::placeholder { color: #94a3b8; }
+        .top-bar .search-bar i {
+            position: absolute; left: 0.85rem; top: 50%;
+            transform: translateY(-50%); color: #94a3b8; font-size: 0.8rem;
+        }
+
+        /* ================= CONTENT AREA ================= */
+        .content-area {
+            flex: 1; padding: 1.25rem; overflow-y: auto; overflow-x: hidden;
+            display: flex; flex-direction: column;
+            background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 100%);
+        }
+
+        /* ================= LOADER ================= */
+        .loader-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.9); z-index: 9999; display: none;
+            align-items: center; justify-content: center; flex-direction: column; gap: 1rem;
+        }
+        .loader-overlay.active { display: flex; }
+
+        /* ================= TOAST ================= */
+        .toast-container {
+            position: fixed; top: 1rem; right: 1rem; z-index: 10000;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .custom-toast {
+            background: white; border-radius: 10px; padding: 10px 16px;
+            display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 0.82rem;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* ================= GRADIENTS ================= */
+        .grad-purple { background: var(--grad-purple); }
+        .grad-orange { background: var(--grad-orange); }
+        .grad-teal { background: var(--grad-teal); }
+        .grad-pink { background: var(--grad-pink); }
+        .grad-blue { background: var(--grad-blue); }
+
+        /* ================= RESPONSIVE ================= */
+        @media (max-width: 992px) {
+            :root { --sidebar-width: 90px; }
+            .nav-item span { font-size: 0.65rem; }
+            .content-area { padding: 1rem; }
+        }
+        @media (max-width: 768px) {
+            :root { --sidebar-width: 220px; --topbar-height: 48px; }
+            .hamburger-btn { display: flex; align-items: center; justify-content: center; }
+            .sidebar {
+                position: fixed; top: 0; left: 0; height: 100vh;
+                transform: translateX(-100%); padding-top: 0.5rem;
+                box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+            }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar .nav-item { flex-direction: row; gap: 0.75rem; padding: 0.85rem 1.2rem; border-radius: 0; }
+            .sidebar .nav-item.active { border-left: 3px solid var(--accent-color); }
+            .sidebar .nav-item span { font-size: 0.82rem; }
+            .top-bar .search-bar { display: none; }
+            .user-email-text, .user-scope-text, .user-info-column { display: none !important; }
+            .content-area { padding: 0.75rem; }
+        }
+        @media print {
+            .top-bar, .sidebar, .sidebar-overlay, .hamburger-btn { display: none !important; }
+            .body-row { display: block !important; }
+            .content-area { padding: 0 !important; overflow: visible !important; }
+        }
+
+        /* ================= TAB BAR ================= */
+        .tab-bar {
+            display: flex; gap: 8px; padding: 0.6rem 1rem;
+            background: linear-gradient(135deg, #f0f4ff 0%, #e8edf5 100%);
+            border-bottom: 1px solid #dde3ed;
+        }
+        .tab-link {
+            display: flex; align-items: center; gap: 6px; padding: 0.5rem 1rem;
+            font-size: 0.8rem; font-weight: 500; color: #64748b;
+            background: #e8ecf1; border-radius: 8px; border: 1px solid #d5dbe5;
+            border-top: 3px solid transparent; cursor: pointer;
+            transition: all 0.2s ease; white-space: nowrap; user-select: none;
+        }
+        .tab-link:hover { background: #fff; color: #334155; transform: translateY(-1px); }
+        .tab-link.active {
+            background: #fff; color: #1e40af; font-weight: 700;
+            border-top: 3px solid #2563eb; box-shadow: 0 4px 12px rgba(37,99,235,0.15);
+        }
+        .tab-link i { font-size: 0.82rem; opacity: 0.6; }
+        .tab-link.active i { opacity: 1; color: #2563eb; }
+    </style>
+
+    {% block page_css %}{% endblock %}
+</head>
+
+<body>
+    <!-- Loader -->
+    <div id="loader" class="loader-overlay">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+        <p class="text-muted fw-bold">{% block loader_text %}Chargement...{% endblock %}</p>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Sidebar Overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+    <!-- ========== TOP BAR ========== -->
+    <div class="top-bar">
+        <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Menu">
+            <i class="fas fa-bars" id="hamburgerIcon"></i>
+        </button>
+
+        <div class="d-flex align-items-center gap-2" style="flex-shrink: 0;">
+            <div style="width: 30px; height: 30px; border-radius: 6px; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-graduation-cap" style="color: white; font-size: 0.8rem;"></i>
+            </div>
+            <span style="font-size: 0.95rem; font-weight: 700; color: #f1f5f9; white-space: nowrap;">MonEcole</span>
+            <span style="color: #475569; font-size: 1.1rem; margin: 0 4px;">|</span>
+            <span id="topbar-page-indicator" style="font-size: 0.8rem; color: #94a3b8;">{% block page_indicator %}Dashboard{% endblock %}</span>
+        </div>
+
+        <!-- Search -->
+        <div class="search-bar">
+            <i class="fas fa-search"></i>
+            <input type="text" id="globalSearch" placeholder="Rechercher..." autocomplete="off">
+        </div>
+
+        <!-- Right: Module Switcher + User -->
+        <div class="d-flex align-items-center gap-2" style="flex-shrink: 0;">
+            <!-- Module Switcher Dropdown -->
+            {% if user_modules %}
+            <div class="dropdown">
+                <button class="btn btn-link p-0 dropdown-toggle" type="button" id="moduleSwitcher"
+                    data-bs-toggle="dropdown" aria-expanded="false"
+                    style="display:flex; align-items:center; gap:6px; padding:4px 10px; background:rgba(255,255,255,0.08); border-radius:8px; border:1px solid rgba(255,255,255,0.12); color:#cbd5e1; font-size:0.78rem; text-decoration:none;">
+                    <i class="fas fa-th-large"></i>
+                    <span class="d-none d-md-inline">Modules</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="moduleSwitcher"
+                    style="min-width:220px; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.2); padding:8px;">
+                    <li><span class="dropdown-header"
+                        style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.5px; color:#94a3b8;">Mes modules</span></li>
+                    {% for mod in user_modules %}
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center gap-2 py-2 {% if mod.page == active_module %}fw-bold{% endif %}"
+                           href="{{ mod.url }}"
+                           style="border-radius:8px; font-size:0.82rem;">
+                            <div style="width:28px; height:28px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:white; font-size:0.75rem;
+                                background: {% if mod.page == 'administration' %}linear-gradient(135deg,#db2777,#f472b6){% elif mod.page == 'scolarite' %}linear-gradient(135deg,#0d9488,#2dd4bf){% elif mod.page == 'evaluations' %}linear-gradient(135deg,#7c3aed,#a78bfa){% elif mod.page == 'enseignements' %}linear-gradient(135deg,#ea580c,#fb923c){% else %}linear-gradient(135deg,#475569,#94a3b8){% endif %};">
+                                <i class="{{ mod.icon }}"></i>
+                            </div>
+                            <span>{{ mod.label }}</span>
+                            {% if mod.page == active_module %}
+                            <i class="fas fa-check-circle ms-auto" style="color:#22c55e; font-size:0.85rem;"></i>
+                            {% endif %}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- User Profile -->
+            <div class="dropdown">
+                <button class="btn btn-link p-0 dropdown-toggle" type="button" id="userDropdown"
+                    data-bs-toggle="dropdown" aria-expanded="false"
+                    style="width: 32px; height: 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display:flex; align-items:center; justify-content:center; font-weight:700; color:white; font-size:0.8rem; text-decoration:none;">
+                    <i class="fas fa-user" style="font-size: 0.7rem;"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown"
+                    style="min-width:200px; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.15); padding:8px;">
+                    {% if user_email %}
+                    <li class="px-3 py-2">
+                        <div style="font-size:0.78rem; color:#64748b;">{{ user_email }}</div>
+                    </li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    {% endif %}
+                    <li><a class="dropdown-item d-flex align-items-center gap-2 py-2" href="#" onclick="doLogout(); return false;"
+                        style="border-radius:8px; font-size:0.82rem; color:#ef4444;">
+                        <i class="fas fa-sign-out-alt" style="width:18px; text-align:center;"></i>Déconnexion</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== BODY ROW ========== -->
+    <div class="body-row">
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <div class="sidebar-nav-center">
+                <!-- Logo -->
+                <div class="sidebar-logo-container">
+                    <i class="fas fa-graduation-cap" style="font-size: 1.8rem; color: #667eea;"></i>
+                </div>
+
+                <a href="/dashboard/administration/" class="nav-item {% if active_page == 'administration' %}active{% endif %}" title="Administration">
+                    <i class="fas fa-building text-blue"></i>
+                    <span class="text-center">Administration</span>
+                </a>
+                <a href="/dashboard/enseignements/" class="nav-item {% if active_page == 'enseignements' %}active{% endif %}" title="Enseignements">
+                    <i class="fas fa-chalkboard-teacher text-emerald"></i>
+                    <span class="text-center">Enseignements</span>
+                </a>
+                <a href="/dashboard/evaluations/" class="nav-item {% if active_page == 'evaluations' %}active{% endif %}" title="Évaluations">
+                    <i class="fas fa-file-alt" style="color:#f59e0b"></i>
+                    <span class="text-center">Évaluations</span>
+                </a>
+                <a href="/dashboard/scolarite/" class="nav-item {% if active_page == 'scolarite' %}active{% endif %}" title="Scolarité">
+                    <i class="fas fa-user-graduate text-purple"></i>
+                    <span class="text-center">Scolarité</span>
+                </a>
+
+                <!-- Logout -->
+                <a href="#" class="nav-item logout-btn" onclick="doLogout(); return false;" title="Déconnexion">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span class="text-center">Quitter</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="main-wrapper">
+            {% block content_tabs %}{% endblock %}
+            <div class="content-area">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Sidebar toggle
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+        function closeSidebar() {
+            document.querySelector('.sidebar').classList.remove('open');
+            document.getElementById('sidebarOverlay').classList.remove('active');
+        }
+
+        // Logout
+        async function doLogout() {
+            try {
+                await fetch('/api/auth/logout/', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+            } catch(e) {}
+            window.location.href = '/login/';
+        }
+
+        // Toast
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const colors = { success: '#22c55e', error: '#ef4444', warning: '#f59e0b', info: '#3b82f6' };
+            const icons = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
+            const toast = document.createElement('div');
+            toast.className = 'custom-toast';
+            toast.innerHTML = `<i class="fas ${icons[type]}" style="color:${colors[type]}"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 4000);
+        }
+
+        // Session timeout (30 min)
+        let lastActivity = Date.now();
+        const SESSION_TIMEOUT = 30 * 60 * 1000;
+        document.addEventListener('click', () => lastActivity = Date.now());
+        document.addEventListener('keydown', () => lastActivity = Date.now());
+        setInterval(() => {
+            if (Date.now() - lastActivity > SESSION_TIMEOUT) {
+                doLogout();
+            }
+        }, 60000);
+
+        // CSRF helper
+        function getCsrfToken() {
+            return document.querySelector('meta[name="csrf-token"]')?.content || '';
+        }
+    </script>
+
+    {% block page_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_indicator %}Tableau de Bord{% endblock %}
+
+{% block content %}
+<div style="max-width: 1200px; margin: 0 auto; width: 100%;">
+    <!-- Stats Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <!-- Cycles -->
+        <div style="background: white; border-radius: 16px; padding: 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.04);">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--grad-purple); display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-layer-group" style="color: white; font-size: 1.1rem;"></i>
+                </div>
+                <div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">{{ stats.cycles_actifs }}</div>
+                    <div style="font-size: 0.78rem; color: #64748b;">Cycles actifs</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Classes -->
+        <div style="background: white; border-radius: 16px; padding: 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.04);">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--grad-blue); display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-chalkboard" style="color: white; font-size: 1.1rem;"></i>
+                </div>
+                <div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">{{ stats.classes }}</div>
+                    <div style="font-size: 0.78rem; color: #64748b;">Classes</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enseignants -->
+        <div style="background: white; border-radius: 16px; padding: 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.04);">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--grad-emerald); display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-chalkboard-teacher" style="color: white; font-size: 1.1rem;"></i>
+                </div>
+                <div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">{{ stats.enseignants }}</div>
+                    <div style="font-size: 0.78rem; color: #64748b;">Enseignants</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Élèves -->
+        <div style="background: white; border-radius: 16px; padding: 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.04);">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--grad-amber); display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-user-graduate" style="color: white; font-size: 1.1rem;"></i>
+                </div>
+                <div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">{{ stats.eleves_inscrits }}</div>
+                    <div style="font-size: 0.78rem; color: #64748b;">Élèves inscrits</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Welcome -->
+    <div style="background: white; border-radius: 16px; padding: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center;">
+        <i class="fas fa-graduation-cap" style="font-size: 3rem; color: #667eea; margin-bottom: 1rem;"></i>
+        <h2 style="font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;">Bienvenue sur MonEcole</h2>
+        <p style="color: #64748b; max-width: 500px; margin: 0 auto;">
+            {% if etab_nom %}{{ etab_nom }}{% else %}Votre espace de gestion scolaire{% endif %}
+        </p>
+    </div>
+</div>
+{% endblock %}

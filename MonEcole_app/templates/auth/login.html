@@ -1,0 +1,634 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion - MonEcole</title>
+    <meta name="description" content="Connectez-vous à votre espace de gestion MonEcole">
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            --dark-gradient: linear-gradient(135deg, #1a1c20 0%, #2d3748 100%);
+            --glass-bg: rgba(255, 255, 255, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-dark: #1a1c20;
+            --text-muted: #6b7280;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            background: var(--dark-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Animated Background */
+        .bg-shapes { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; overflow: hidden; }
+        .bg-shape {
+            position: absolute; border-radius: 50%;
+            filter: blur(80px); opacity: 0.4;
+            animation: float 20s infinite ease-in-out;
+        }
+        .bg-shape-1 { width: 600px; height: 600px; background: var(--primary-gradient); top: -200px; right: -200px; animation-delay: 0s; }
+        .bg-shape-2 { width: 500px; height: 500px; background: var(--secondary-gradient); bottom: -150px; left: -150px; animation-delay: -5s; }
+        .bg-shape-3 { width: 400px; height: 400px; background: var(--success-gradient); top: 50%; left: 50%; transform: translate(-50%, -50%); animation-delay: -10s; }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(30px, -30px) scale(1.05); }
+            50% { transform: translate(-20px, 20px) scale(0.95); }
+            75% { transform: translate(20px, 30px) scale(1.02); }
+        }
+
+        /* Login Card */
+        .login-container { position: relative; z-index: 10; width: 100%; max-width: 420px; }
+        .login-card {
+            background: var(--glass-bg); border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            padding: 40px; backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+        }
+
+        /* Logo Section */
+        .logo-section { text-align: center; margin-bottom: 32px; }
+        .app-logo {
+            width: 100px; height: 100px; border-radius: 24px;
+            background: var(--primary-gradient);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 16px;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+        .app-logo i { font-size: 2.5rem; color: white; }
+        .login-title { font-size: 1.5rem; font-weight: 700; color: var(--text-dark); margin-bottom: 4px; }
+        .login-subtitle { font-size: 0.875rem; color: var(--text-muted); }
+
+        /* Form Styles */
+        .form-step { display: none; }
+        .form-step.active { display: block; animation: fadeIn 0.3s ease; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-floating { margin-bottom: 16px; }
+        .form-floating>.form-control {
+            border: 2px solid #e5e7eb; border-radius: 12px;
+            padding: 16px 16px 8px; height: 60px;
+            font-size: 1rem; transition: all 0.2s ease;
+        }
+        .form-floating>.form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+        }
+        .form-floating>label { padding: 16px; color: var(--text-muted); }
+
+        .btn-primary-gradient {
+            background: var(--primary-gradient); border: none; border-radius: 12px;
+            padding: 16px 24px; font-size: 1rem; font-weight: 600; color: white;
+            width: 100%; transition: all 0.2s ease;
+            display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+        }
+        .btn-primary-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3); color: white;
+        }
+        .btn-primary-gradient:disabled { opacity: 0.6; transform: none; cursor: not-allowed; }
+
+        /* OTP Section */
+        .otp-choice { display: flex; gap: 12px; margin-bottom: 20px; }
+        .otp-choice-btn {
+            flex: 1; padding: 16px; border: 2px solid #e5e7eb; border-radius: 12px;
+            background: white; cursor: pointer; transition: all 0.2s ease; text-align: center;
+        }
+        .otp-choice-btn:hover { border-color: #667eea; }
+        .otp-choice-btn.active { border-color: #667eea; background: rgba(102, 126, 234, 0.05); }
+        .otp-choice-btn i { font-size: 1.5rem; color: #667eea; margin-bottom: 8px; }
+        .otp-choice-btn span { display: block; font-size: 0.875rem; font-weight: 500; color: var(--text-dark); }
+        .masked-info { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+
+        /* OTP Input */
+        .otp-inputs { display: flex; gap: 8px; justify-content: center; margin: 24px 0; }
+        .otp-input {
+            width: 50px; height: 60px; border: 2px solid #e5e7eb; border-radius: 12px;
+            text-align: center; font-size: 1.5rem; font-weight: 700; transition: all 0.2s ease;
+        }
+        .otp-input:focus { border-color: #667eea; box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15); outline: none; }
+
+        /* Messages */
+        .alert-custom {
+            border-radius: 12px; padding: 12px 16px; font-size: 0.875rem;
+            margin-bottom: 16px; display: flex; align-items: center; gap: 10px;
+        }
+        .alert-info-custom { background: rgba(102, 126, 234, 0.1); color: #667eea; border: 1px solid rgba(102, 126, 234, 0.2); }
+        .alert-error-custom { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+        .alert-success-custom { background: rgba(34, 197, 94, 0.1); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.2); }
+
+        /* Back Button */
+        .back-link {
+            display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted);
+            text-decoration: none; font-size: 0.875rem; margin-bottom: 16px; transition: color 0.2s ease;
+        }
+        .back-link:hover { color: #667eea; }
+
+        /* Level Badge */
+        .level-badge {
+            display: inline-block; padding: 4px 12px; border-radius: 20px;
+            font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+            background: var(--primary-gradient); color: white;
+        }
+
+        /* Password Toggle */
+        .password-toggle {
+            position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+            background: none; border: none; color: var(--text-muted); cursor: pointer; z-index: 10;
+        }
+
+        /* Resend OTP */
+        .resend-otp { display: block; text-align: center; margin-top: 16px; font-size: 0.875rem; color: var(--text-muted); }
+        .resend-otp a { color: #667eea; text-decoration: none; font-weight: 500; }
+        .resend-otp a:hover { text-decoration: underline; }
+
+        .login-footer { text-align: center; margin-top: 24px; font-size: 0.75rem; color: var(--text-muted); }
+        .spinner-border-sm { width: 1rem; height: 1rem; }
+    </style>
+</head>
+
+<body>
+    <!-- Animated Background -->
+    <div class="bg-shapes">
+        <div class="bg-shape bg-shape-1"></div>
+        <div class="bg-shape bg-shape-2"></div>
+        <div class="bg-shape bg-shape-3"></div>
+    </div>
+
+    <!-- Login Container -->
+    <div class="login-container">
+        <div class="login-card">
+            <!-- Logo Section -->
+            <div class="logo-section">
+                <div class="app-logo">
+                    <i class="fas fa-graduation-cap"></i>
+                </div>
+                <h1 class="login-title">MonEcole</h1>
+                <p class="login-subtitle">Espace de gestion scolaire</p>
+            </div>
+
+            <!-- Step 1: Email -->
+            <div class="form-step active" id="step-email">
+                <div class="alert-custom alert-info-custom d-none" id="emailInfo">
+                    <i class="fas fa-info-circle"></i>
+                    <span></span>
+                </div>
+                <div class="alert-custom alert-error-custom d-none" id="emailError">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span></span>
+                </div>
+
+                <form id="emailForm">
+                    <div class="form-floating">
+                        <input type="email" class="form-control" id="emailInput" placeholder="email@example.com" required autofocus>
+                        <label for="emailInput"><i class="fas fa-envelope me-2"></i>Adresse email</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary-gradient" id="btnEmailSubmit">
+                        <span>Continuer</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Step 2: Password -->
+            <div class="form-step" id="step-password">
+                <a href="#" class="back-link" onclick="goToStep('email'); return false;">
+                    <i class="fas fa-arrow-left"></i> Retour
+                </a>
+
+                <div class="alert-custom alert-success-custom mb-3" id="userInfo">
+                    <i class="fas fa-user-check"></i>
+                    <div>
+                        <strong id="userEmail"></strong>
+                        <span class="level-badge ms-2" id="userLevel"></span>
+                    </div>
+                </div>
+
+                <div class="alert-custom alert-error-custom d-none" id="passwordError">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span></span>
+                </div>
+
+                <form id="passwordForm">
+                    <div class="form-floating position-relative">
+                        <input type="password" class="form-control" id="passwordInput" placeholder="Mot de passe" required>
+                        <label for="passwordInput"><i class="fas fa-lock me-2"></i>Mot de passe</label>
+                        <button type="button" class="password-toggle" onclick="togglePassword('passwordInput', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <button type="submit" class="btn btn-primary-gradient" id="btnPasswordSubmit">
+                        <span>Se connecter</span>
+                        <i class="fas fa-sign-in-alt"></i>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Step 3: OTP Choice -->
+            <div class="form-step" id="step-otp-choice">
+                <a href="#" class="back-link" onclick="goToStep('email'); return false;">
+                    <i class="fas fa-arrow-left"></i> Retour
+                </a>
+
+                <div class="alert-custom alert-info-custom mb-3">
+                    <i class="fas fa-shield-alt"></i>
+                    <div>Votre compte nécessite une activation. Choisissez comment recevoir votre code.</div>
+                </div>
+
+                <div class="otp-choice">
+                    <div class="otp-choice-btn" onclick="selectOtpMethod('EMAIL')">
+                        <i class="fas fa-envelope"></i>
+                        <span>Par Email</span>
+                        <div class="masked-info" id="maskedEmail"></div>
+                    </div>
+                    <div class="otp-choice-btn" onclick="selectOtpMethod('SMS')">
+                        <i class="fas fa-mobile-alt"></i>
+                        <span>Par SMS</span>
+                        <div class="masked-info" id="maskedPhone"></div>
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-primary-gradient" id="btnSendOtp" disabled onclick="sendOtp()">
+                    <span>Envoyer le code</span>
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+
+            <!-- Step 4: OTP Verification -->
+            <div class="form-step" id="step-otp-verify">
+                <a href="#" class="back-link" onclick="goToStep('otp-choice'); return false;">
+                    <i class="fas fa-arrow-left"></i> Retour
+                </a>
+
+                <div class="alert-custom alert-info-custom mb-3" id="otpSentInfo">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Un code a été envoyé à <strong id="otpDestination"></strong></span>
+                </div>
+
+                <div class="alert-custom alert-error-custom d-none" id="otpError">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span></span>
+                </div>
+
+                <p class="text-center text-muted mb-2" style="font-size: 0.875rem;">Entrez le code à 6 chiffres</p>
+
+                <div class="otp-inputs">
+                    <input type="text" class="otp-input" maxlength="1" data-index="0">
+                    <input type="text" class="otp-input" maxlength="1" data-index="1">
+                    <input type="text" class="otp-input" maxlength="1" data-index="2">
+                    <input type="text" class="otp-input" maxlength="1" data-index="3">
+                    <input type="text" class="otp-input" maxlength="1" data-index="4">
+                    <input type="text" class="otp-input" maxlength="1" data-index="5">
+                </div>
+
+                <button type="button" class="btn btn-primary-gradient" id="btnVerifyOtp" onclick="verifyOtp()">
+                    <span>Vérifier</span>
+                    <i class="fas fa-check"></i>
+                </button>
+
+                <div class="resend-otp">
+                    Pas reçu ? <a href="#" onclick="resendOtp(); return false;">Renvoyer le code</a>
+                </div>
+            </div>
+
+            <!-- Step 5: Create Password -->
+            <div class="form-step" id="step-create-password">
+                <div class="alert-custom alert-success-custom mb-3">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Compte vérifié ! Créez maintenant votre mot de passe.</span>
+                </div>
+
+                <div class="alert-custom alert-error-custom d-none" id="createPasswordError">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span></span>
+                </div>
+
+                <form id="createPasswordForm">
+                    <div class="form-floating position-relative mb-3">
+                        <input type="password" class="form-control" id="newPasswordInput" placeholder="Nouveau mot de passe" required minlength="6">
+                        <label for="newPasswordInput"><i class="fas fa-lock me-2"></i>Nouveau mot de passe</label>
+                        <button type="button" class="password-toggle" onclick="togglePassword('newPasswordInput', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+
+                    <div class="form-floating position-relative">
+                        <input type="password" class="form-control" id="confirmPasswordInput" placeholder="Confirmer le mot de passe" required minlength="6">
+                        <label for="confirmPasswordInput"><i class="fas fa-lock me-2"></i>Confirmer le mot de passe</label>
+                        <button type="button" class="password-toggle" onclick="togglePassword('confirmPasswordInput', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary-gradient mt-3">
+                        <span>Activer mon compte</span>
+                        <i class="fas fa-rocket"></i>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Footer -->
+            <div class="login-footer">
+                © 2026 Nexora Tech (Next Aura Technologies)
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // State
+        let currentEmail = '';
+        let currentUser = null;
+        let selectedOtpMethod = null;
+        let otpToken = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            setupOtpInputs();
+        });
+
+        // Go to step
+        function goToStep(step) {
+            document.querySelectorAll('.form-step').forEach(el => el.classList.remove('active'));
+            document.getElementById(`step-${step}`).classList.add('active');
+        }
+
+        // Step 1: Email Form
+        document.getElementById('emailForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('emailInput').value.trim();
+            if (!email) return;
+
+            currentEmail = email;
+            const btn = document.getElementById('btnEmailSubmit');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Vérification...';
+            hideAllAlerts();
+
+            try {
+                const response = await fetch('/api/auth/check-email/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await response.json();
+
+                if (!data.exists) {
+                    showAlert('emailError', "Cette adresse email n'est pas reconnue dans le système.");
+                } else if (data.validated && data.has_password) {
+                    currentUser = data.user;
+                    document.getElementById('userEmail').textContent = email;
+                    document.getElementById('userLevel').textContent = data.user.niveau_nom;
+                    goToStep('password');
+                } else {
+                    currentUser = data.user;
+                    document.getElementById('maskedEmail').textContent = maskEmail(email);
+                    document.getElementById('maskedPhone').textContent = maskPhone(data.user.telephone);
+                    goToStep('otp-choice');
+                }
+            } catch (error) {
+                showAlert('emailError', 'Erreur de connexion au serveur. Veuillez réessayer.');
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '<span>Continuer</span><i class="fas fa-arrow-right"></i>';
+        });
+
+        // Step 2: Password Form
+        document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('passwordInput').value;
+            const btn = document.getElementById('btnPasswordSubmit');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Connexion...';
+            hideAlert('passwordError');
+
+            try {
+                const response = await fetch('/api/auth/login/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: currentEmail, password })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    window.location.href = data.redirect_url || '/dashboard/';
+                } else if (data.email_not_verified) {
+                    showAlert('passwordError', data.error || 'Email non vérifié.');
+                    setTimeout(() => {
+                        document.getElementById('maskedEmail').textContent = maskEmail(currentEmail);
+                        document.getElementById('maskedPhone').textContent = maskPhone(currentUser?.telephone || '');
+                        goToStep('otp-choice');
+                    }, 2000);
+                } else {
+                    showAlert('passwordError', data.error || 'Mot de passe incorrect.');
+                }
+            } catch (error) {
+                showAlert('passwordError', 'Erreur de connexion au serveur.');
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '<span>Se connecter</span><i class="fas fa-sign-in-alt"></i>';
+        });
+
+        // OTP Method Selection
+        function selectOtpMethod(method) {
+            selectedOtpMethod = method;
+            document.querySelectorAll('.otp-choice-btn').forEach(el => el.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            document.getElementById('btnSendOtp').disabled = false;
+        }
+
+        // Send OTP
+        async function sendOtp() {
+            if (!selectedOtpMethod) return;
+            const btn = document.getElementById('btnSendOtp');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Envoi...';
+
+            try {
+                const response = await fetch('/api/auth/request-otp/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: currentEmail, method: selectedOtpMethod })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    otpToken = data.token;
+                    document.getElementById('otpDestination').textContent =
+                        selectedOtpMethod === 'EMAIL' ? maskEmail(currentEmail) : maskPhone(currentUser.telephone);
+                    goToStep('otp-verify');
+                } else {
+                    alert(data.error || "Erreur lors de l'envoi du code");
+                }
+            } catch (error) {
+                alert('Erreur de connexion au serveur');
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '<span>Envoyer le code</span><i class="fas fa-paper-plane"></i>';
+        }
+
+        // Setup OTP Inputs
+        function setupOtpInputs() {
+            const inputs = document.querySelectorAll('.otp-input');
+            inputs.forEach((input, index) => {
+                input.addEventListener('input', (e) => {
+                    if (e.target.value.length === 1 && index < inputs.length - 1) {
+                        inputs[index + 1].focus();
+                    }
+                });
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Backspace' && !input.value && index > 0) {
+                        inputs[index - 1].focus();
+                    }
+                });
+                input.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    const paste = (e.clipboardData || window.clipboardData).getData('text');
+                    const chars = paste.replace(/\D/g, '').split('').slice(0, 6);
+                    chars.forEach((char, i) => { if (inputs[i]) inputs[i].value = char; });
+                    if (chars.length === 6) inputs[5].focus();
+                });
+            });
+        }
+
+        function getOtpValue() {
+            return Array.from(document.querySelectorAll('.otp-input')).map(i => i.value).join('');
+        }
+
+        // Verify OTP
+        async function verifyOtp() {
+            const code = getOtpValue();
+            if (code.length !== 6) { showAlert('otpError', 'Veuillez entrer le code à 6 chiffres.'); return; }
+
+            const btn = document.getElementById('btnVerifyOtp');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Vérification...';
+            hideAlert('otpError');
+
+            try {
+                const response = await fetch('/api/auth/verify-otp/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: currentEmail, code, token: otpToken })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    otpToken = data.token;
+                    goToStep('create-password');
+                } else {
+                    showAlert('otpError', data.error || 'Code incorrect ou expiré.');
+                }
+            } catch (error) {
+                showAlert('otpError', 'Erreur de connexion au serveur.');
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '<span>Vérifier</span><i class="fas fa-check"></i>';
+        }
+
+        async function resendOtp() {
+            await sendOtp();
+        }
+
+        // Create Password Form
+        document.getElementById('createPasswordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('newPasswordInput').value;
+            const confirm = document.getElementById('confirmPasswordInput').value;
+            hideAlert('createPasswordError');
+
+            if (password !== confirm) { showAlert('createPasswordError', 'Les mots de passe ne correspondent pas.'); return; }
+            if (password.length < 6) { showAlert('createPasswordError', 'Min 6 caractères.'); return; }
+
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Activation...';
+
+            try {
+                const response = await fetch('/api/auth/set-password/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: currentEmail, password, token: otpToken })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    window.location.href = data.redirect_url || '/dashboard/';
+                } else {
+                    showAlert('createPasswordError', data.error || 'Erreur.');
+                }
+            } catch (error) {
+                showAlert('createPasswordError', 'Erreur de connexion au serveur.');
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '<span>Activer mon compte</span><i class="fas fa-rocket"></i>';
+        });
+
+        // Utility Functions
+        function maskEmail(email) {
+            const [name, domain] = email.split('@');
+            return name.slice(0, 2) + '***' + name.slice(-1) + '@' + domain;
+        }
+
+        function maskPhone(phone) {
+            if (!phone) return '***';
+            return phone.slice(0, 4) + '****' + phone.slice(-2);
+        }
+
+        function togglePassword(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const icon = btn.querySelector('i');
+            if (input.type === 'password') { input.type = 'text'; icon.classList.replace('fa-eye', 'fa-eye-slash'); }
+            else { input.type = 'password'; icon.classList.replace('fa-eye-slash', 'fa-eye'); }
+        }
+
+        function showAlert(id, message) {
+            const el = document.getElementById(id);
+            const span = el.querySelector('span') || el;
+            span.textContent = message;
+            el.classList.remove('d-none');
+        }
+
+        function hideAlert(id) { document.getElementById(id).classList.add('d-none'); }
+
+        function hideAllAlerts() {
+            document.querySelectorAll('.alert-custom').forEach(el => {
+                if (el.id && (el.id.includes('Error') || el.id.includes('Info'))) el.classList.add('d-none');
+            });
+        }
+    </script>
+</body>
+</html>

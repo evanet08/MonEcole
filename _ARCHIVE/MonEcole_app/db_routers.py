@@ -5,46 +5,45 @@ class CountryStructureRouter:
 
     Hub = données structurelles partagées nationalement
     Spoke = données opérationnelles spécifiques à l'établissement
+
+    Connexion directe spoke ↔ hub via Django ORM, sans VIEWs MySQL.
     """
 
-    # Modèles qui vivent dans countryStructure (Hub)
+    # Tous les modèles qui vivent dans countryStructure (Hub)
     ROUTED_MODELS = [
-        # Structures hiérarchiques
+        # Structures hiérarchiques (country_structure.py)
         'Pays', 'StructurePedagogique', 'StructureAdministrative',
-        'PedagogicStructureInstance',
-        'AdministrativeStructureType', 'AdministrativeStructureInstance',
 
-        # Catalogues pédagogiques
-        'Classe_cycle', 'Classe', 'Cours', 'Cycle',
-        'TypeSubdivision', 'Section', 'Programme', 'Domaine',
+        # Catalogues pédagogiques (classe.py et matiere.py)
+        'Classe_cycle', 'Classe', 'Cours',
 
-        # Établissements
-        'Institution', 'Etablissement',
-        'GestionnaireEtablissement', 'Regime',
+        # Établissements (ecole.py → db: etablissements)
+        'Institution',
 
-        # Années scolaires
+        # Années scolaires (annee.py → db: annees)
         'Annee',
 
-        # Config établissement-année
+        # Config établissement-année (country_structure.py)
         'EtablissementAnnee', 'EtablissementAnneeClasse',
 
-        # Vues compatibilité → tables Hub
-        'Classe_active', 'Classe_cycle_actif',
-        'Annee_trimestre', 'Annee_periode',
-        'Cours_par_classe',
+        # Ex-VIEWs → pointent maintenant vers tables Hub directes
+        'Classe_active',       # → etablissements_annees_classes
+        'Classe_cycle_actif',  # → cycles
+        'Annee_trimestre',     # → repartition_configs_etab_annee
+        'Annee_periode',       # → repartition_configs_etab_annee
+        'Cours_par_classe',    # → cours_annee
 
-        # Références académiques
+        # Références académiques (country_structure.py)
         'Session', 'Mention',
 
-        # Répartitions temporelles
+        # Répartitions temporelles (country_structure.py)
         'RepartitionType', 'RepartitionInstance',
         'RepartitionConfigEtabAnnee',
-        'RepartitionHierarchie', 'RepartitionConfigCycle',
 
-        # Types d'évaluation/notes
+        # Types d'évaluation/notes (country_structure.py)
         'EvaluationType', 'NoteType',
 
-        # Cours par année
+        # Cours par année (country_structure.py)
         'CoursAnnee',
     ]
 
@@ -73,6 +72,10 @@ class CountryStructureRouter:
         return None
 
     def allow_migrate(self, db, app_label, model_name=None, **hints):
+        """
+        Les modèles Hub ne migrent que dans countryStructure.
+        Les modèles spoke ne migrent que dans default.
+        """
         if app_label == 'MonEcole_app' and model_name in self.ROUTED_MODELS_LOWER:
             return db == 'countryStructure'
         if db == 'countryStructure':

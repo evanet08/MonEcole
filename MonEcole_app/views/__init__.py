@@ -1,12 +1,5 @@
-from .home import *
-from .evaluation import *
-from .inscription import *
-from .structure import *
-from .enseignement import *
-from .personnel import *
-from .tools.utils import *
-from .decorators import * 
-from .espace_pedag import *
-from .direction_views import *
-from .rdc_structure import *
-from .recouvrement import *
+"""
+Package views pour MonEcole.
+Expose les vues d'auth au niveau du package.
+"""
+from MonEcole_app.views.auth_views import login_view, logout_view
