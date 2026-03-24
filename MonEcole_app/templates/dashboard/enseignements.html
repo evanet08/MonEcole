@@ -456,6 +456,7 @@
                 <span id="horaireWeekLabel" style="font-weight:700;font-size:.78rem;color:#1e293b;min-width:220px;text-align:center"></span>
                 <button class="btn btn-sm btn-outline-primary" onclick="nextHoraireWeek()" style="font-size:.7rem;border-radius:6px"><i class="fas fa-chevron-right"></i></button>
                 <span style="font-size:.65rem;color:#94a3b8;margin-left:8px" id="horaireWeekCounter"></span>
+                <button class="btn btn-sm" id="btnCopyPrevWeek" onclick="copyPreviousWeek()" style="display:none;font-size:.65rem;border-radius:6px;background:linear-gradient(135deg,#059669,#34d399);color:#fff;border:none;margin-left:auto;padding:4px 12px"><i class="fas fa-copy"></i> Copier semaine précédente</button>
             </div>
         </div>
         <div id="horaireContent">
@@ -490,6 +491,12 @@
                 <label style="font-size:.7rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">Fin</label>
                 <input type="time" id="hm_fin" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:.78rem">
             </div>
+        </div>
+        <div id="hm_bulk_wrap" style="margin-bottom:12px;padding:8px 12px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.72rem;font-weight:600;color:#15803d">
+                <input type="checkbox" id="hm_bulk" style="accent-color:#16a34a;width:16px;height:16px">
+                Appliquer à toute la semaine (même horaire, Lun-Ven)
+            </label>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
             <button onclick="closeHoraireModal()" style="padding:8px 16px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-size:.75rem;cursor:pointer">Annuler</button>
@@ -3624,6 +3631,8 @@ function renderHoraireWeek(){
     const week=horaireWeeks[horaireCurrentWeek];
     document.getElementById('horaireWeekLabel').textContent=week.week_label;
     document.getElementById('horaireWeekCounter').textContent=`${horaireCurrentWeek+1}/${horaireWeeks.length}`;
+    const copyBtn=document.getElementById('btnCopyPrevWeek');
+    if(copyBtn) copyBtn.style.display=horaireCurrentWeek>0?'inline-flex':'none';
 
     const timeSlots=[];
     for(let h=7;h<=16;h++) timeSlots.push(`${String(h).padStart(2,'0')}:00`);
@@ -3659,6 +3668,27 @@ function renderHoraireWeek(){
 function prevHoraireWeek(){if(horaireCurrentWeek>0){horaireCurrentWeek--;renderHoraireWeek();}}
 function nextHoraireWeek(){if(horaireCurrentWeek<horaireWeeks.length-1){horaireCurrentWeek++;renderHoraireWeek();}}
 
+async function copyPreviousWeek(){
+    if(horaireCurrentWeek<=0){showToast('Pas de semaine pr\u00e9c\u00e9dente','error');return;}
+    const prevWeek=horaireWeeks[horaireCurrentWeek-1];
+    const curWeek=horaireWeeks[horaireCurrentWeek];
+    const sourceDates=prevWeek.dates.map(d=>d.date);
+    const targetDates=curWeek.dates.map(d=>d.date);
+    const classeId=document.getElementById('horaireClasseSelect').value;
+    if(!classeId)return;
+    if(!confirm(`Copier l'horaire de la semaine pr\u00e9c\u00e9dente (${prevWeek.week_label}) vers cette semaine ?`))return;
+    const csrf=document.querySelector('[name=csrfmiddlewaretoken]')?.value||'';
+    try{
+        const res=await fetch('/api/dashboard/horaire/',{
+            method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+            body:JSON.stringify({action:'copy-week',id_etablissement:HORAIRE_ETAB_ID,id_classe:classeId,source_dates:sourceDates,target_dates:targetDates})
+        });
+        const data=await res.json();
+        if(data.success){showToast(data.message||'Semaine copi\u00e9e','success');reloadHoraireData();}
+        else showToast(data.error||'Erreur','error');
+    }catch(e){showToast('Erreur: '+e.message,'error');}
+}
+
 function openHoraireModal(date,debut,fin){
     document.getElementById('hm_id').value='';
     document.getElementById('hm_date').value=date;
@@ -3671,6 +3701,9 @@ function openHoraireModal(date,debut,fin){
     horaireCoursList.forEach(c=>{
         coursSel.innerHTML+=`<option value="${c.cours_annee_id}">${c.cours_nom} (${c.enseignant})</option>`;
     });
+    const bulkWrap=document.getElementById('hm_bulk_wrap');
+    if(bulkWrap) bulkWrap.style.display='block';
+    if(document.getElementById('hm_bulk')) document.getElementById('hm_bulk').checked=false;
     document.getElementById('horaireModal').style.display='flex';
 }
 
@@ -3687,6 +3720,8 @@ function openHoraireEdit(id,date,coursId,debut,fin){
         const sel=c.cours_annee_id==coursId?'selected':'';
         coursSel.innerHTML+=`<option value="${c.cours_annee_id}" ${sel}>${c.cours_nom} (${c.enseignant})</option>`;
     });
+    const bulkWrap2=document.getElementById('hm_bulk_wrap');
+    if(bulkWrap2) bulkWrap2.style.display='none';
     document.getElementById('horaireModal').style.display='flex';
 }
 
@@ -3699,21 +3734,38 @@ async function saveHoraireCreneau(){
     const debut=document.getElementById('hm_debut').value;
     const fin=document.getElementById('hm_fin').value;
     const classeId=document.getElementById('horaireClasseSelect').value;
+    const bulk=document.getElementById('hm_bulk')?.checked;
     if(!cours){showToast('S\u00e9lectionnez un cours','error');return;}
     if(!debut||!fin){showToast('Heures requises','error');return;}
     if(debut>=fin){showToast("L'heure de d\u00e9but doit \u00eatre avant la fin",'error');return;}
     const csrf=document.querySelector('[name=csrfmiddlewaretoken]')?.value||'';
     try{
-        const res=await fetch('/api/dashboard/horaire/',{
-            method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
-            body:JSON.stringify({action:'save',id_etablissement:HORAIRE_ETAB_ID,id_classe:classeId,id_cours:cours,date:date,debut:debut,fin:fin,id_horaire:id||null})
-        });
-        const data=await res.json();
-        if(data.success){
-            showToast('Cr\u00e9neau enregistr\u00e9','success');
-            closeHoraireModal();
-            reloadHoraireData();
-        }else{showToast(data.error||'Erreur','error');}
+        if(bulk&&!id&&horaireWeeks.length){
+            // Appliquer à toute la semaine
+            const week=horaireWeeks[horaireCurrentWeek];
+            const dates=week.dates.map(d=>d.date);
+            const res=await fetch('/api/dashboard/horaire/',{
+                method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+                body:JSON.stringify({action:'save-bulk',id_etablissement:HORAIRE_ETAB_ID,id_classe:classeId,id_cours:cours,dates:dates,debut:debut,fin:fin})
+            });
+            const data=await res.json();
+            if(data.success){
+                showToast(data.message||'Cr\u00e9neaux cr\u00e9\u00e9s','success');
+                closeHoraireModal();
+                reloadHoraireData();
+            }else{showToast(data.error||'Erreur','error');}
+        }else{
+            const res=await fetch('/api/dashboard/horaire/',{
+                method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+                body:JSON.stringify({action:'save',id_etablissement:HORAIRE_ETAB_ID,id_classe:classeId,id_cours:cours,date:date,debut:debut,fin:fin,id_horaire:id||null})
+            });
+            const data=await res.json();
+            if(data.success){
+                showToast('Cr\u00e9neau enregistr\u00e9','success');
+                closeHoraireModal();
+                reloadHoraireData();
+            }else{showToast(data.error||'Erreur','error');}
+        }
     }catch(e){showToast('Erreur: '+e.message,'error');}
 }
 

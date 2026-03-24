@@ -9844,6 +9844,130 @@ def dashboard_horaire(request):
 
             return JsonResponse({'success': True, 'cours': cours_list})
 
+        elif action == 'save-bulk':
+            # Sauvegarder un créneau sur plusieurs dates (toute la semaine)
+            from MonEcole_app.models.horaire import Horaire
+            from MonEcole_app.models.enseignmnts.matiere import Attribution_cours
+
+            id_classe = data.get('id_classe')
+            id_cours = data.get('id_cours')
+            dates = data.get('dates', [])
+            debut = data.get('debut')
+            fin = data.get('fin')
+            type_id = data.get('type_id', 1)
+
+            if not all([id_classe, id_cours, dates, debut, fin]):
+                return JsonResponse({'success': False, 'error': 'Tous les champs sont requis'})
+
+            attr = Attribution_cours.objects.filter(
+                id_cours_id=id_cours,
+                id_classe_id=id_classe,
+            ).first()
+            if not attr:
+                return JsonResponse({'success': False, 'error': "Pas d'attribution trouvée"})
+
+            created = 0
+            skipped = 0
+            for date_val in dates:
+                # Vérifier chevauchement
+                overlap = Horaire.objects.filter(
+                    id_etablissement=etab_id,
+                    id_classe_id=id_classe,
+                    date=date_val,
+                )
+                has_overlap = False
+                for existing in overlap:
+                    if not (fin <= existing.debut or debut >= existing.fin):
+                        has_overlap = True
+                        break
+                if has_overlap:
+                    skipped += 1
+                    continue
+
+                Horaire.objects.create(
+                    id_etablissement=etab_id,
+                    id_classe_id=id_classe,
+                    id_cours_id=id_cours,
+                    id_annee_id=attr.id_annee_id,
+                    id_campus_id=attr.id_campus_id,
+                    id_cycle_id=attr.id_cycle_id,
+                    id_horaire_type_id=type_id,
+                    date=date_val,
+                    debut=debut,
+                    fin=fin,
+                )
+                created += 1
+
+            msg = f'{created} créneau(x) créé(s)'
+            if skipped:
+                msg += f', {skipped} ignoré(s) (chevauchement)'
+            return JsonResponse({'success': True, 'message': msg, 'created': created, 'skipped': skipped})
+
+        elif action == 'copy-week':
+            # Copier les horaires d'une semaine source vers une semaine cible
+            from MonEcole_app.models.horaire import Horaire
+            from datetime import datetime, timedelta
+
+            id_classe = data.get('id_classe')
+            source_dates = data.get('source_dates', [])
+            target_dates = data.get('target_dates', [])
+
+            if not id_classe or not source_dates or not target_dates:
+                return JsonResponse({'success': False, 'error': 'Données insuffisantes'})
+
+            if len(source_dates) != len(target_dates):
+                return JsonResponse({'success': False, 'error': 'Nombre de jours incompatible'})
+
+            # Map source day -> target day
+            day_map = {}
+            for i, sd in enumerate(source_dates):
+                if i < len(target_dates):
+                    day_map[sd] = target_dates[i]
+
+            source_horaires = Horaire.objects.filter(
+                id_etablissement=etab_id,
+                id_classe_id=id_classe,
+                date__in=source_dates,
+            )
+
+            created = 0
+            skipped = 0
+            for h in source_horaires:
+                target_date = day_map.get(str(h.date))
+                if not target_date:
+                    continue
+
+                # Vérifier si déjà existant
+                exists = Horaire.objects.filter(
+                    id_etablissement=etab_id,
+                    id_classe_id=id_classe,
+                    date=target_date,
+                    debut=h.debut,
+                    fin=h.fin,
+                ).exists()
+                if exists:
+                    skipped += 1
+                    continue
+
+                Horaire.objects.create(
+                    id_etablissement=etab_id,
+                    id_classe_id=id_classe,
+                    id_cours_id=h.id_cours_id,
+                    id_annee_id=h.id_annee_id,
+                    id_campus_id=h.id_campus_id,
+                    id_cycle_id=h.id_cycle_id,
+                    id_horaire_type_id=h.id_horaire_type_id,
+                    date=target_date,
+                    debut=h.debut,
+                    fin=h.fin,
+                )
+                created += 1
+
+            msg = f'{created} créneau(x) copié(s)'
+            if skipped:
+                msg += f', {skipped} ignoré(s) (déjà existant)'
+            return JsonResponse({'success': True, 'message': msg, 'created': created, 'skipped': skipped})
+
         else:
             return JsonResponse({'success': False, 'error': f'Action inconnue: {action}'})
 
