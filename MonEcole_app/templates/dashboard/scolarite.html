@@ -277,7 +277,21 @@
 {% endblock %}
 {% block content %}
 <div class="etab-section {% if active_section == 'eleves' %}active-section{% endif %}" id="sec-eleves">
-    <!-- Classe selector -->\n    <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:10px">\n        <label style="font-size:.72rem;color:#64748b;margin:0;font-weight:600"><i class="fas fa-chalkboard" style="margin-right:4px;color:#6366f1"></i>Classe:</label>\n        <select id="selectClasseEleve" style="padding:4px 10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#1e293b;font-size:.72rem;font-weight:600;cursor:pointer;min-width:140px" onchange="onClasseFilterChange()">\n            <option value="">— Choisir une classe —</option>\n        </select>\n    </div>
+    <!-- Stat Cards Scolarité -->
+    <div class="stat-grid">
+        <div class="stat-card grad-purple"><div class="stat-icon"><i class="fas fa-users"></i></div><div><div class="stat-label">Élèves inscrits</div><div class="stat-value">{{ stats.n_eleves }}</div></div></div>
+        <div class="stat-card grad-teal"><div class="stat-icon"><i class="fas fa-chalkboard"></i></div><div><div class="stat-label">Classes</div><div class="stat-value">{{ stats.n_classes }}</div></div></div>
+        <div class="stat-card grad-blue"><div class="stat-icon"><i class="fas fa-mars"></i></div><div><div class="stat-label">Garçons</div><div class="stat-value">{{ stats.n_garcons }}</div></div></div>
+        <div class="stat-card grad-rose"><div class="stat-icon"><i class="fas fa-venus"></i></div><div><div class="stat-label">Filles</div><div class="stat-value">{{ stats.n_filles }}</div></div></div>
+    </div>
+
+    <!-- Classe selector -->
+    <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:10px">
+        <label style="font-size:.72rem;color:#64748b;margin:0;font-weight:600"><i class="fas fa-chalkboard" style="margin-right:4px;color:#6366f1"></i>Classe:</label>
+        <select id="selectClasseEleve" style="padding:4px 10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#1e293b;font-size:.72rem;font-weight:600;cursor:pointer;min-width:140px" onchange="onClasseFilterChange()">
+            <option value="">— Choisir une classe —</option>
+        </select>
+    </div>
     <!-- Selected class info -->
     <div id="selectedClasseInfo" style="display:none;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:8px 14px;margin-bottom:8px;font-size:.72rem;color:#4338ca;font-weight:600;align-items:center;gap:8px">
         <i class="fas fa-chalkboard"></i> Classe : <span id="selectedClasseLabel">—</span>

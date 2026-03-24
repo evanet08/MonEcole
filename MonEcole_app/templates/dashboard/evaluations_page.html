@@ -286,6 +286,13 @@
 {% block content %}
 <div class="etab-section {% if active_section == 'evaluations' %}active-section{% endif %}" id="sec-evaluations">
 
+    <!-- Stat Cards Évaluations -->
+    <div class="stat-grid">
+        <div class="stat-card grad-purple"><div class="stat-icon"><i class="fas fa-book"></i></div><div><div class="stat-label">Cours</div><div class="stat-value">{{ stats.n_cours }}</div></div></div>
+        <div class="stat-card grad-teal"><div class="stat-icon"><i class="fas fa-chalkboard"></i></div><div><div class="stat-label">Classes</div><div class="stat-value">{{ stats.n_classes }}</div></div></div>
+        <div class="stat-card grad-blue"><div class="stat-icon"><i class="fas fa-calendar-check"></i></div><div><div class="stat-label">Périodes ouvertes</div><div class="stat-value">{{ stats.n_trimestres_ouverts|default:"0" }}</div></div></div>
+        <div class="stat-card grad-rose"><div class="stat-icon"><i class="fas fa-users"></i></div><div><div class="stat-label">Élèves</div><div class="stat-value">{{ stats.n_eleves }}</div></div></div>
+    </div>
     <!-- TABS -->
     <div class="eleve-tabs" style="display:flex;gap:0;margin-bottom:10px;border-bottom:2px solid #e2e8f0">
         <button class="eleve-tab active" id="tabEvalGestion" onclick="switchEvalTab('gestion')"><i class="fas fa-th-list"></i> Gestion</button>
