@@ -347,7 +347,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
             <button class="eleve-btn" style="background:linear-gradient(135deg,#059669,#34d399);color:#fff;font-size:.65rem" onclick="toggleAddPersForm()"><i class="fas fa-user-plus"></i> Ajouter</button>
             <button class="eleve-btn" style="background:linear-gradient(135deg,#2563eb,#60a5fa);color:#fff;font-size:.65rem" onclick="loadPersonnelList()"><i class="fas fa-sync-alt"></i> Actualiser</button>
-            <button class="eleve-btn" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;font-size:.65rem" onclick="downloadImportTemplate()"><i class="fas fa-file-download"></i> Modèle Import</button>
+            <button class="eleve-btn" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;font-size:.65rem" onclick="downloadTemplate()"><i class="fas fa-file-download"></i> Modèle Import</button>
             <button class="eleve-btn" style="background:linear-gradient(135deg,#e11d48,#fb7185);color:#fff;font-size:.65rem" onclick="document.getElementById('importPersFile').click()"><i class="fas fa-file-upload"></i> Importer</button>
             <input type="file" id="importPersFile" accept=".xlsx,.xls" style="display:none" onchange="importPersonnel(this)">
         </div>
@@ -365,7 +365,7 @@
         <div class="dash-section" style="padding:10px 14px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
                 <div class="dash-section-title mb-0"><i class="fas fa-list"></i> Liste du Personnel <span id="personnelCountDesc" style="font-weight:400;font-size:.72rem;color:#94a3b8">({{ stats.n_enseignants }})</span></div>
-                <button class="btn btn-sm btn-outline-secondary" style="font-size:.65rem;border-radius:8px" onclick="togglePersColumns()"><i class="fas fa-columns"></i> Colonnes</button>
+                <button class="btn btn-sm btn-outline-secondary" style="font-size:.65rem;border-radius:8px" onclick="togglePersColSelector()"><i class="fas fa-columns"></i> Colonnes</button>
             </div>
             <div id="persColumnSelector" style="display:none;margin-bottom:8px;padding:10px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0"><div id="persColumnCheckboxes" style="display:flex;flex-wrap:wrap;gap:6px"></div></div>
             <div style="overflow-x:auto;max-height:55vh;overflow-y:auto" id="persGridContainer"></div>
