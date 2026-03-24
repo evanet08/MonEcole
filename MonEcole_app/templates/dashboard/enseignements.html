@@ -367,7 +367,7 @@
                 <div class="dash-section-title mb-0"><i class="fas fa-list"></i> Liste du Personnel <span id="personnelCountDesc" style="font-weight:400;font-size:.72rem;color:#94a3b8">({{ stats.n_enseignants }})</span></div>
                 <button class="btn btn-sm btn-outline-secondary" style="font-size:.65rem;border-radius:8px" onclick="togglePersColSelector()"><i class="fas fa-columns"></i> Colonnes</button>
             </div>
-            <div id="persColumnSelector" style="display:none;margin-bottom:8px;padding:10px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0"><div id="persColumnCheckboxes" style="display:flex;flex-wrap:wrap;gap:6px"></div></div>
+            <div id="persColumnSelector" style="display:none;margin-bottom:8px;padding:10px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0"><div id="persColumnCheckboxes" style="display:flex;flex-direction:column;gap:6px"></div></div>
             <div style="overflow-x:auto;max-height:55vh;overflow-y:auto" id="persGridContainer"></div>
         </div>
     </div>
@@ -440,7 +440,7 @@ function switchEnsSection(section){
     if(section==='reference' && !currentRefTable) selectRefTable('categories');
     if(section==='attribution'){
         const sel=document.getElementById('attrClasseSelect');
-        if(sel && sel.options.length<=1) populateAttrClasses();
+        if(sel && sel.options.length<=1) populateAttrClasseDropdown();
     }
 }
 const ANNEE_ID={% if annee_active %}{{ annee_active.id }}{% else %}0{% endif %};
