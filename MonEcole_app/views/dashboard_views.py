@@ -87,10 +87,10 @@ def _get_dashboard_context(request):
         ).first()
 
         if etab_annee:
-            # Classes configurées (section_id is IntegerField, not FK)
+            # Classes configurées
             classes_config = EtablissementAnneeClasse.objects.filter(
                 etablissement_annee=etab_annee
-            ).select_related('classe__cycle')
+            ).select_related('classe__cycle', 'section')
 
             stats['n_classes'] = classes_config.count()
 
@@ -124,7 +124,7 @@ def _get_dashboard_context(request):
                     'eac_id': cc.id,
                     'classe_nom': classe_label,
                     'cycle_nom': str(cc.classe.cycle) if cc.classe and cc.classe.cycle else '-',
-                    'section_nom': str(cc.section_id) if cc.section_id else '-',
+                    'section_nom': cc.section.nom if cc.section else '-',
                     'groupe': cc.groupe or '',
                 })
 

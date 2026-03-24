@@ -110,10 +110,12 @@ class EtablissementAnneeClasse(models.Model):
     """
     id = models.AutoField(primary_key=True)
     etablissement_annee = models.ForeignKey(EtablissementAnnee, on_delete=models.CASCADE,
-                                            db_column='etablissement_annee_id')
+                                            db_column='etablissement_annee_id',
+                                            related_name='classes_config')
     classe = models.ForeignKey('Classe', on_delete=models.CASCADE,
                                db_column='classe_id')
-    section_id = models.IntegerField(null=True, blank=True)
+    section = models.ForeignKey('Section', on_delete=models.SET_NULL,
+                                null=True, blank=True, db_column='section_id')
     groupe = models.CharField(max_length=5, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
