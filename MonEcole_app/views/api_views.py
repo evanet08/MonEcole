@@ -9713,6 +9713,7 @@ def dashboard_horaire(request):
                 return JsonResponse({'success': False, 'error': 'id_classe requis'})
 
             from MonEcole_app.models.horaire import Horaire, Horaire_type
+            from MonEcole_app.models.enseignmnts.matiere import Cours_par_classe
 
             qs = Horaire.objects.filter(
                 id_etablissement=etab_id,
@@ -9721,22 +9722,31 @@ def dashboard_horaire(request):
             if date_debut and date_fin:
                 qs = qs.filter(date__gte=date_debut, date__lte=date_fin)
 
+            # Get all horaires WITHOUT cross-DB joins
+            horaire_list = list(qs.order_by('date', 'debut').values(
+                'id_horaire', 'date', 'debut', 'fin', 'id_cours_id', 'id_horaire_type_id'
+            ))
+
+            # Resolve course names from Hub
+            cours_ids = set(h['id_cours_id'] for h in horaire_list if h['id_cours_id'])
+            cours_map = {}
+            if cours_ids:
+                for ca in Cours_par_classe.objects.filter(id_cours_classe__in=cours_ids).select_related('id_cours'):
+                    try:
+                        cours_map[ca.id_cours_classe] = ca.id_cours.cours if ca.id_cours else str(ca.id_cours_classe)
+                    except:
+                        cours_map[ca.id_cours_classe] = str(ca.id_cours_classe)
+
             horaires = []
-            for h in qs.order_by('date', 'debut'):
-                cours_nom = ''
-                try:
-                    if h.id_cours and h.id_cours.id_cours:
-                        cours_nom = h.id_cours.id_cours.cours
-                except:
-                    cours_nom = str(h.id_cours_id)
+            for h in horaire_list:
                 horaires.append({
-                    'id': h.id_horaire,
-                    'date': str(h.date),
-                    'debut': h.debut,
-                    'fin': h.fin,
-                    'cours_id': h.id_cours_id,
-                    'cours_nom': cours_nom,
-                    'type_id': h.id_horaire_type_id,
+                    'id': h['id_horaire'],
+                    'date': str(h['date']),
+                    'debut': h['debut'],
+                    'fin': h['fin'],
+                    'cours_id': h['id_cours_id'],
+                    'cours_nom': cours_map.get(h['id_cours_id'], f"Cours #{h['id_cours_id']}"),
+                    'type_id': h['id_horaire_type_id'],
                 })
 
             types = list(Horaire_type.objects.all().values('id_horaire_type', 'horaire_type'))
@@ -9813,33 +9823,47 @@ def dashboard_horaire(request):
             return JsonResponse({'success': True})
 
         elif action == 'get-cours':
-            from MonEcole_app.models.enseignmnts.matiere import Attribution_cours
+            from MonEcole_app.models.enseignmnts.matiere import Attribution_cours, Cours_par_classe, Cours
+            from MonEcole_app.models.personnel import Personnel
 
             id_classe = data.get('id_classe')
             if not id_classe:
                 return JsonResponse({'success': False, 'error': 'id_classe requis'})
 
+            # Ne PAS faire select_related cross-database (spoke→hub)
             attrs = Attribution_cours.objects.filter(
                 id_classe_id=id_classe,
-            ).select_related('id_cours', 'id_personnel')
+            ).values('id_cours_id', 'id_personnel_id')
 
-            cours_list = []
+            # Collecter les IDs
+            cours_annee_ids = set()
+            personnel_ids = set()
             for a in attrs:
-                cours_nom = ''
-                pers_nom = ''
-                try:
-                    if a.id_cours and a.id_cours.id_cours:
-                        cours_nom = a.id_cours.id_cours.cours
-                except:
-                    cours_nom = str(a.id_cours_id)
-                try:
-                    pers_nom = f"{a.id_personnel.nom} {a.id_personnel.prenom}"
-                except:
-                    pers_nom = ''
+                cours_annee_ids.add(a['id_cours_id'])
+                personnel_ids.add(a['id_personnel_id'])
+
+            # Charger les noms depuis le Hub (cours_annee → cours)
+            cours_map = {}
+            if cours_annee_ids:
+                for ca in Cours_par_classe.objects.filter(id_cours_classe__in=cours_annee_ids).select_related('id_cours'):
+                    try:
+                        cours_map[ca.id_cours_classe] = ca.id_cours.cours if ca.id_cours else str(ca.id_cours_classe)
+                    except:
+                        cours_map[ca.id_cours_classe] = str(ca.id_cours_classe)
+
+            # Charger les noms depuis le Spoke (personnel)
+            pers_map = {}
+            if personnel_ids:
+                for p in Personnel.objects.filter(id_personnel__in=personnel_ids):
+                    pers_map[p.id_personnel] = f"{p.nom} {p.prenom}"
+
+            # Construire la liste
+            cours_list = []
+            for a in Attribution_cours.objects.filter(id_classe_id=id_classe).values('id_cours_id', 'id_personnel_id'):
                 cours_list.append({
-                    'cours_annee_id': a.id_cours_id,
-                    'cours_nom': cours_nom,
-                    'enseignant': pers_nom,
+                    'cours_annee_id': a['id_cours_id'],
+                    'cours_nom': cours_map.get(a['id_cours_id'], f"Cours #{a['id_cours_id']}"),
+                    'enseignant': pers_map.get(a['id_personnel_id'], ''),
                 })
 
             return JsonResponse({'success': True, 'cours': cours_list})
