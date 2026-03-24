@@ -52,6 +52,7 @@ urlpatterns = [
     path('api/dashboard/personnel-template/', api_views.dashboard_personnel_template, name='dashboard_personnel_template'),
     path('api/dashboard/import-personnel/', api_views.dashboard_import_personnel, name='dashboard_import_personnel'),
     path('api/dashboard/attribution-cours/', api_views.dashboard_attribution_cours, name='dashboard_attribution_cours'),
+    path('api/dashboard/horaire/', api_views.dashboard_horaire, name='dashboard_horaire'),
 
     # Configuration (Structuration)
     path('api/get-cycles/', api_views.get_cycles_data, name='get_cycles'),

@@ -9618,3 +9618,236 @@ def bulk_activate_cours_annee(request):
         return JsonResponse({'success': True, 'count': created})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ============================================================
+# EMPLOI DU TEMPS / HORAIRE
+# ============================================================
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def dashboard_horaire(request):
+    """API pour la gestion de l'emploi du temps."""
+    try:
+        data = json.loads(request.body)
+        action = data.get('action')
+        etab_id = data.get('id_etablissement')
+
+        if not etab_id:
+            return JsonResponse({'success': False, 'error': 'id_etablissement requis'}, status=400)
+
+        if action == 'get-periods':
+            annee_id = data.get('id_annee')
+            if not annee_id:
+                return JsonResponse({'success': False, 'error': 'id_annee requis'})
+
+            etab_annee = EtablissementAnnee.objects.filter(
+                etablissement_id=etab_id, annee_id=annee_id
+            ).first()
+            if not etab_annee:
+                return JsonResponse({'success': True, 'periods': []})
+
+            configs = RepartitionConfigEtabAnnee.objects.filter(
+                etablissement_annee=etab_annee
+            ).select_related('repartition', 'repartition__type')
+
+            periods = []
+            for cfg in configs:
+                rep = cfg.repartition
+                if not rep:
+                    continue
+                periods.append({
+                    'id': cfg.id,
+                    'repartition_id': rep.id_instance,
+                    'nom': rep.nom,
+                    'code': rep.code,
+                    'type_nom': rep.type.nom if rep.type else '',
+                    'type_code': rep.type.code if rep.type else '',
+                    'debut': str(cfg.debut) if cfg.debut else str(rep.date_debut) if rep.date_debut else '',
+                    'fin': str(cfg.fin) if cfg.fin else str(rep.date_fin) if rep.date_fin else '',
+                    'ordre': rep.ordre,
+                })
+            periods.sort(key=lambda x: (x['type_code'], x['ordre']))
+            return JsonResponse({'success': True, 'periods': periods})
+
+        elif action == 'get-dates':
+            date_debut = data.get('date_debut')
+            date_fin = data.get('date_fin')
+            if not date_debut or not date_fin:
+                return JsonResponse({'success': False, 'error': 'date_debut et date_fin requis'})
+
+            from datetime import datetime, timedelta
+            d_start = datetime.strptime(date_debut, '%Y-%m-%d').date()
+            d_end = datetime.strptime(date_fin, '%Y-%m-%d').date()
+
+            weeks = []
+            current = d_start
+            while current.weekday() != 0:
+                current -= timedelta(days=1)
+
+            while current <= d_end:
+                week_start = current
+                week_dates = []
+                for i in range(5):
+                    day = week_start + timedelta(days=i)
+                    if d_start <= day <= d_end:
+                        week_dates.append({
+                            'date': str(day),
+                            'jour': ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'][day.weekday()],
+                        })
+                if week_dates:
+                    weeks.append({
+                        'week_label': f"Sem. {week_start.isocalendar()[1]} ({week_dates[0]['date']} au {week_dates[-1]['date']})",
+                        'dates': week_dates,
+                    })
+                current += timedelta(days=7)
+
+            return JsonResponse({'success': True, 'weeks': weeks})
+
+        elif action == 'list':
+            id_classe = data.get('id_classe')
+            date_debut = data.get('date_debut')
+            date_fin = data.get('date_fin')
+
+            if not id_classe:
+                return JsonResponse({'success': False, 'error': 'id_classe requis'})
+
+            from MonEcole_app.models.horaire import Horaire, Horaire_type
+
+            qs = Horaire.objects.filter(
+                id_etablissement=etab_id,
+                id_classe_id=id_classe,
+            )
+            if date_debut and date_fin:
+                qs = qs.filter(date__gte=date_debut, date__lte=date_fin)
+
+            horaires = []
+            for h in qs.order_by('date', 'debut'):
+                cours_nom = ''
+                try:
+                    if h.id_cours and h.id_cours.id_cours:
+                        cours_nom = h.id_cours.id_cours.cours
+                except:
+                    cours_nom = str(h.id_cours_id)
+                horaires.append({
+                    'id': h.id_horaire,
+                    'date': str(h.date),
+                    'debut': h.debut,
+                    'fin': h.fin,
+                    'cours_id': h.id_cours_id,
+                    'cours_nom': cours_nom,
+                    'type_id': h.id_horaire_type_id,
+                })
+
+            types = list(Horaire_type.objects.all().values('id_horaire_type', 'horaire_type'))
+            return JsonResponse({'success': True, 'horaires': horaires, 'types': types})
+
+        elif action == 'save':
+            from MonEcole_app.models.horaire import Horaire, Horaire_type
+            from MonEcole_app.models.enseignmnts.matiere import Attribution_cours
+
+            id_horaire = data.get('id_horaire')
+            id_classe = data.get('id_classe')
+            id_cours = data.get('id_cours')
+            date_val = data.get('date')
+            debut = data.get('debut')
+            fin = data.get('fin')
+            type_id = data.get('type_id', 1)
+
+            if not all([id_classe, id_cours, date_val, debut, fin]):
+                return JsonResponse({'success': False, 'error': 'Tous les champs sont requis'})
+
+            overlap = Horaire.objects.filter(
+                id_etablissement=etab_id,
+                id_classe_id=id_classe,
+                date=date_val,
+            ).exclude(id_horaire=id_horaire if id_horaire else 0)
+
+            for existing in overlap:
+                if not (fin <= existing.debut or debut >= existing.fin):
+                    return JsonResponse({
+                        'success': False,
+                        'error': f'Chevauchement avec un créneau existant ({existing.debut}-{existing.fin})'
+                    })
+
+            attr = Attribution_cours.objects.filter(
+                id_cours_id=id_cours,
+                id_classe_id=id_classe,
+            ).first()
+
+            if not attr:
+                return JsonResponse({'success': False, 'error': "Pas d'attribution trouvée pour ce cours/classe"})
+
+            if id_horaire:
+                h = Horaire.objects.get(id_horaire=id_horaire, id_etablissement=etab_id)
+                h.date = date_val
+                h.debut = debut
+                h.fin = fin
+                h.id_cours_id = id_cours
+                h.id_horaire_type_id = type_id
+                h.save()
+            else:
+                Horaire.objects.create(
+                    id_etablissement=etab_id,
+                    id_classe_id=id_classe,
+                    id_cours_id=id_cours,
+                    id_annee_id=attr.id_annee_id,
+                    id_campus_id=attr.id_campus_id,
+                    id_cycle_id=attr.id_cycle_id,
+                    id_horaire_type_id=type_id,
+                    date=date_val,
+                    debut=debut,
+                    fin=fin,
+                )
+
+            return JsonResponse({'success': True})
+
+        elif action == 'delete':
+            from MonEcole_app.models.horaire import Horaire
+
+            id_horaire = data.get('id_horaire')
+            if not id_horaire:
+                return JsonResponse({'success': False, 'error': 'id_horaire requis'})
+
+            Horaire.objects.filter(id_horaire=id_horaire, id_etablissement=etab_id).delete()
+            return JsonResponse({'success': True})
+
+        elif action == 'get-cours':
+            from MonEcole_app.models.enseignmnts.matiere import Attribution_cours
+
+            id_classe = data.get('id_classe')
+            if not id_classe:
+                return JsonResponse({'success': False, 'error': 'id_classe requis'})
+
+            attrs = Attribution_cours.objects.filter(
+                id_classe_id=id_classe,
+            ).select_related('id_cours', 'id_personnel')
+
+            cours_list = []
+            for a in attrs:
+                cours_nom = ''
+                pers_nom = ''
+                try:
+                    if a.id_cours and a.id_cours.id_cours:
+                        cours_nom = a.id_cours.id_cours.cours
+                except:
+                    cours_nom = str(a.id_cours_id)
+                try:
+                    pers_nom = f"{a.id_personnel.nom} {a.id_personnel.prenom}"
+                except:
+                    pers_nom = ''
+                cours_list.append({
+                    'cours_annee_id': a.id_cours_id,
+                    'cours_nom': cours_nom,
+                    'enseignant': pers_nom,
+                })
+
+            return JsonResponse({'success': True, 'cours': cours_list})
+
+        else:
+            return JsonResponse({'success': False, 'error': f'Action inconnue: {action}'})
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

@@ -21,6 +21,10 @@
     <i class="fas fa-user-tag" style="color:#ef4444"></i>
     <span class="text-center">Attribution</span>
 </a>
+<a href="#" class="nav-item {% if active_section == 'horaire' %}active{% endif %}" title="Horaire" onclick="switchEnsSection('horaire');return false;">
+    <i class="fas fa-calendar-alt" style="color:#d97706"></i>
+    <span class="text-center">Horaire</span>
+</a>
 {% endblock %}
 
 {% block page_css %}
@@ -411,6 +415,89 @@
     </div>
 </div>
 
+<!-- ===== SECTION 5: EMPLOI DU TEMPS ===== -->
+<div class="etab-section" id="sec-horaire">
+    <!-- Stat Cards -->
+    <div class="stat-grid">
+        <div class="stat-card grad-purple"><div class="stat-icon"><i class="fas fa-chalkboard-teacher"></i></div><div><div class="stat-label">Enseignants</div><div class="stat-value">{{ stats.n_enseignants }}</div></div></div>
+        <div class="stat-card grad-teal"><div class="stat-icon"><i class="fas fa-book"></i></div><div><div class="stat-label">Cours</div><div class="stat-value">{{ stats.n_cours }}</div></div></div>
+        <div class="stat-card grad-blue"><div class="stat-icon"><i class="fas fa-chalkboard"></i></div><div><div class="stat-label">Classes</div><div class="stat-value">{{ stats.n_classes }}</div></div></div>
+        <div class="stat-card grad-rose"><div class="stat-icon"><i class="fas fa-layer-group"></i></div><div><div class="stat-label">Cycles</div><div class="stat-value">{{ stats.n_cycles }}</div></div></div>
+    </div>
+    <!-- Emploi du temps -->
+    <div class="dash-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+            <div>
+                <div class="dash-section-title"><i class="fas fa-calendar-alt"></i> Emploi du Temps</div>
+                <div class="dash-section-sub">Planifiez les horaires de cours par classe et période</div>
+            </div>
+        </div>
+        <!-- Selectors Row -->
+        <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+            <!-- Classe selector -->
+            <div style="background:linear-gradient(135deg,#f0f1ff,#ede9fe);padding:10px 14px;border-radius:10px;border:1px solid #c7d2fe;display:flex;align-items:center;gap:10px">
+                <div style="width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center"><i class="fas fa-chalkboard" style="color:#fff;font-size:.8rem"></i></div>
+                <select id="horaireClasseSelect" onchange="onHoraireClasseChange()" style="padding:8px 12px;border:1px solid #c7d2fe;border-radius:8px;font-size:.78rem;font-weight:600;min-width:200px;background:#fff;cursor:pointer;color:#1e293b">
+                    <option value="">Sélectionner une classe...</option>
+                </select>
+            </div>
+            <!-- Période selector -->
+            <div style="background:linear-gradient(135deg,#fef3c7,#fef9c3);padding:10px 14px;border-radius:10px;border:1px solid #fde68a;display:flex;align-items:center;gap:10px">
+                <div style="width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#d97706,#f59e0b);display:flex;align-items:center;justify-content:center"><i class="fas fa-clock" style="color:#fff;font-size:.8rem"></i></div>
+                <select id="horairePeriodeSelect" onchange="onHorairePeriodeChange()" style="padding:8px 12px;border:1px solid #fde68a;border-radius:8px;font-size:.78rem;font-weight:600;min-width:200px;background:#fff;cursor:pointer;color:#1e293b">
+                    <option value="">Sélectionner une période...</option>
+                </select>
+            </div>
+        </div>
+        <!-- Weekly Grid -->
+        <div id="horaireWeekNav" style="display:none;margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-sm btn-outline-primary" onclick="prevHoraireWeek()" style="font-size:.7rem;border-radius:6px"><i class="fas fa-chevron-left"></i></button>
+                <span id="horaireWeekLabel" style="font-weight:700;font-size:.78rem;color:#1e293b;min-width:220px;text-align:center"></span>
+                <button class="btn btn-sm btn-outline-primary" onclick="nextHoraireWeek()" style="font-size:.7rem;border-radius:6px"><i class="fas fa-chevron-right"></i></button>
+                <span style="font-size:.65rem;color:#94a3b8;margin-left:8px" id="horaireWeekCounter"></span>
+            </div>
+        </div>
+        <div id="horaireContent">
+            <div style="text-align:center;padding:50px 20px"><div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#fef3c7,#fef9c3);margin:0 auto 14px;display:flex;align-items:center;justify-content:center"><i class="fas fa-calendar-alt" style="font-size:1.2rem;color:#d97706"></i></div><div style="font-weight:600;font-size:.85rem;color:#475569">Sélectionnez une classe et une période</div><div style="font-size:.72rem;color:#94a3b8;margin-top:4px">pour visualiser et gérer l'emploi du temps</div></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ajout Créneau -->
+<div id="horaireModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:none;align-items:center;justify-content:center">
+    <div style="background:#fff;border-radius:14px;padding:24px;width:400px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <h5 style="margin:0;font-size:.9rem;font-weight:700;color:#1e293b" id="horaireModalTitle">Ajouter un créneau</h5>
+            <button onclick="closeHoraireModal()" style="border:none;background:none;font-size:1.2rem;cursor:pointer;color:#94a3b8">&times;</button>
+        </div>
+        <input type="hidden" id="hm_id">
+        <input type="hidden" id="hm_date">
+        <div style="margin-bottom:12px">
+            <label style="font-size:.7rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">Date</label>
+            <div id="hm_date_display" style="font-size:.78rem;font-weight:600;color:#1e293b;padding:8px 12px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0"></div>
+        </div>
+        <div style="margin-bottom:12px">
+            <label style="font-size:.7rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">Cours</label>
+            <select id="hm_cours" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:.78rem"></select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+                <label style="font-size:.7rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">Début</label>
+                <input type="time" id="hm_debut" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:.78rem">
+            </div>
+            <div>
+                <label style="font-size:.7rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">Fin</label>
+                <input type="time" id="hm_fin" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:.78rem">
+            </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+            <button onclick="closeHoraireModal()" style="padding:8px 16px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-size:.75rem;cursor:pointer">Annuler</button>
+            <button onclick="saveHoraireCreneau()" style="padding:8px 16px;border:none;border-radius:8px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:.75rem;cursor:pointer;font-weight:600"><i class="fas fa-save"></i> Enregistrer</button>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block page_js %}
@@ -426,7 +513,7 @@ const ETAB_ID={{ etab.id_etablissement }};
 
 // === Section Navigation ===
 function switchEnsSection(section){
-    const sections=['enseignants','reference','gestion','attribution'];
+    const sections=['enseignants','reference','gestion','attribution','horaire'];
     sections.forEach(s=>{
         const el=document.getElementById('sec-'+s);
         if(el) el.classList.toggle('active-section',s===section);
@@ -441,6 +528,10 @@ function switchEnsSection(section){
     if(section==='attribution'){
         const sel=document.getElementById('attrClasseSelect');
         if(sel && sel.options.length<=1) populateAttrClasseDropdown();
+    }
+    if(section==='horaire'){
+        const sel=document.getElementById('horaireClasseSelect');
+        if(sel && sel.options.length<=1) populateHoraireClasses();
     }
 }
 const ANNEE_ID={% if annee_active %}{{ annee_active.id }}{% else %}0{% endif %};
@@ -3436,6 +3527,214 @@ function viewDocAgrement() {
         body.innerHTML = `<div style="text-align:center;padding:40px;color:#475569;font-size:.82rem"><i class="fas fa-file-download" style="font-size:2rem;color:#6366f1;display:block;margin-bottom:12px"></i><p>Ce type de document ne peut pas être prévisualisé.</p><a href="${url}" target="_blank" download style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#6366f1,#818cf8);color:#fff;padding:8px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:.78rem"><i class="fas fa-download"></i> Télécharger le document</a></div>`;
     }
     new bootstrap.Modal(document.getElementById('docAgrementModal')).show();
+}
+
+
+// ============================================================
+// EMPLOI DU TEMPS / HORAIRE
+// ============================================================
+let horaireWeeks=[], horaireCurrentWeek=0, horaireCoursList=[], horaireAllSlots=[];
+const HORAIRE_ETAB_ID=ETAB_ID;
+
+function populateHoraireClasses(){
+    const sel=document.getElementById('horaireClasseSelect');
+    if(!sel||sel.options.length>1)return;
+    fetch('/api/get-etablissement-config/?id_etablissement='+HORAIRE_ETAB_ID+'&id_annee='+(CA_ANNEE_ID||'')).then(r=>r.json()).then(data=>{
+        if(data.success&&data.activated_classes){
+            data.activated_classes.forEach(c=>{
+                const grp=c.groupe?' ('+c.groupe+')':'';
+                const sec=c.section_nom&&c.section_nom!=='-'?' - '+c.section_nom:'';
+                const label=c.classe_nom+sec+grp;
+                sel.innerHTML+=`<option value="${c.classe_par_annee_id}">${label}</option>`;
+            });
+        }
+    }).catch(e=>console.error('populateHoraireClasses',e));
+}
+
+function onHoraireClasseChange(){
+    const classeId=document.getElementById('horaireClasseSelect').value;
+    if(!classeId)return;
+    const periSel=document.getElementById('horairePeriodeSelect');
+    periSel.innerHTML='<option value="">Chargement...</option>';
+    const csrf=document.querySelector('[name=csrfmiddlewaretoken]')?.value||'';
+    fetch('/api/dashboard/horaire/',{
+        method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+        body:JSON.stringify({action:'get-periods',id_etablissement:HORAIRE_ETAB_ID,id_annee:CA_ANNEE_ID||ANNEE_ID})
+    }).then(r=>r.json()).then(data=>{
+        periSel.innerHTML='<option value="">S\u00e9lectionner une p\u00e9riode...</option>';
+        if(data.success&&data.periods){
+            data.periods.forEach(p=>{
+                if(p.debut&&p.fin){
+                    periSel.innerHTML+=`<option value="${p.id}" data-debut="${p.debut}" data-fin="${p.fin}">${p.nom} (${p.type_nom})</option>`;
+                }
+            });
+        }
+    }).catch(e=>{console.error(e);periSel.innerHTML='<option value="">Erreur</option>';});
+    fetch('/api/dashboard/horaire/',{
+        method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+        body:JSON.stringify({action:'get-cours',id_etablissement:HORAIRE_ETAB_ID,id_classe:classeId})
+    }).then(r=>r.json()).then(data=>{
+        if(data.success) horaireCoursList=data.cours||[];
+    }).catch(e=>console.error(e));
+}
+
+function onHorairePeriodeChange(){
+    const sel=document.getElementById('horairePeriodeSelect');
+    const opt=sel.options[sel.selectedIndex];
+    if(!opt||!opt.value)return;
+    const debut=opt.dataset.debut, fin=opt.dataset.fin;
+    if(!debut||!fin){showToast('P\u00e9riode sans dates','error');return;}
+    const csrf=document.querySelector('[name=csrfmiddlewaretoken]')?.value||'';
+    fetch('/api/dashboard/horaire/',{
+        method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+        body:JSON.stringify({action:'get-dates',id_etablissement:HORAIRE_ETAB_ID,date_debut:debut,date_fin:fin})
+    }).then(r=>r.json()).then(data=>{
+        if(data.success){
+            horaireWeeks=data.weeks||[];
+            horaireCurrentWeek=0;
+            loadHoraireSlots(debut,fin);
+        }
+    }).catch(e=>console.error(e));
+}
+
+function loadHoraireSlots(debut,fin){
+    const classeId=document.getElementById('horaireClasseSelect').value;
+    if(!classeId)return;
+    const csrf=document.querySelector('[name=csrfmiddlewaretoken]')?.value||'';
+    fetch('/api/dashboard/horaire/',{
+        method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+        body:JSON.stringify({action:'list',id_etablissement:HORAIRE_ETAB_ID,id_classe:classeId,date_debut:debut,date_fin:fin})
+    }).then(r=>r.json()).then(data=>{
+        if(data.success){
+            horaireAllSlots=data.horaires||[];
+            renderHoraireWeek();
+        }
+    }).catch(e=>console.error(e));
+}
+
+function renderHoraireWeek(){
+    const nav=document.getElementById('horaireWeekNav');
+    const content=document.getElementById('horaireContent');
+    if(!horaireWeeks.length){
+        nav.style.display='none';
+        content.innerHTML='<div style="text-align:center;padding:30px;color:#94a3b8;font-size:.78rem">Aucune semaine trouv\u00e9e pour cette p\u00e9riode</div>';
+        return;
+    }
+    nav.style.display='block';
+    const week=horaireWeeks[horaireCurrentWeek];
+    document.getElementById('horaireWeekLabel').textContent=week.week_label;
+    document.getElementById('horaireWeekCounter').textContent=`${horaireCurrentWeek+1}/${horaireWeeks.length}`;
+
+    const timeSlots=[];
+    for(let h=7;h<=16;h++) timeSlots.push(`${String(h).padStart(2,'0')}:00`);
+
+    let html='<div style="overflow-x:auto"><table class="eleves-table" style="width:100%;font-size:.7rem">';
+    html+='<thead><tr><th style="width:70px;text-align:center;background:#f8fafc">Heure</th>';
+    week.dates.forEach(d=>{
+        html+=`<th style="text-align:center;background:#f0f1ff;min-width:140px">${d.jour}<br><span style="font-weight:400;font-size:.62rem;color:#94a3b8">${d.date}</span></th>`;
+    });
+    html+='</tr></thead><tbody>';
+
+    timeSlots.forEach(ts=>{
+        const nextH=String(parseInt(ts.split(':')[0])+1).padStart(2,'0')+':00';
+        html+=`<tr><td style="text-align:center;font-weight:600;background:#fafbfc;color:#475569;font-size:.65rem;vertical-align:top;padding:8px 4px">${ts}<br><span style="color:#cbd5e1">\u2193</span><br>${nextH}</td>`;
+        week.dates.forEach(d=>{
+            const daySlots=horaireAllSlots.filter(s=>s.date===d.date && s.debut<nextH && s.fin>ts);
+            if(daySlots.length){
+                let cellHtml='';
+                daySlots.forEach(s=>{
+                    cellHtml+=`<div style="background:linear-gradient(135deg,#e0e7ff,#c7d2fe);border-radius:6px;padding:4px 6px;margin-bottom:3px;border-left:3px solid #6366f1;cursor:pointer;position:relative" onclick="openHoraireEdit(${s.id},'${s.date}',${s.cours_id},'${s.debut}','${s.fin}')" title="Cliquer pour modifier"><div style="font-weight:700;font-size:.68rem;color:#312e81">${s.cours_nom||'Cours'}</div><div style="font-size:.6rem;color:#6366f1">${s.debut} - ${s.fin}</div><button onclick="event.stopPropagation();deleteHoraireCreneau(${s.id})" style="position:absolute;top:2px;right:2px;background:none;border:none;color:#ef4444;font-size:.6rem;cursor:pointer;padding:2px 4px" title="Supprimer"><i class="fas fa-times"></i></button></div>`;
+                });
+                html+=`<td style="vertical-align:top;padding:4px">${cellHtml}</td>`;
+            } else {
+                html+=`<td style="vertical-align:top;padding:4px;cursor:pointer" onclick="openHoraireModal('${d.date}','${ts}','${nextH}')" title="Ajouter"><div style="height:100%;min-height:30px;border:1px dashed #e2e8f0;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:.7rem;transition:all .2s" onmouseenter="this.style.borderColor='#6366f1';this.style.color='#6366f1';this.style.background='#f0f1ff'" onmouseleave="this.style.borderColor='#e2e8f0';this.style.color='#cbd5e1';this.style.background=''"><i class="fas fa-plus"></i></div></td>`;
+            }
+        });
+        html+='</tr>';
+    });
+    html+='</tbody></table></div>';
+    content.innerHTML=html;
+}
+
+function prevHoraireWeek(){if(horaireCurrentWeek>0){horaireCurrentWeek--;renderHoraireWeek();}}
+function nextHoraireWeek(){if(horaireCurrentWeek<horaireWeeks.length-1){horaireCurrentWeek++;renderHoraireWeek();}}
+
+function openHoraireModal(date,debut,fin){
+    document.getElementById('hm_id').value='';
+    document.getElementById('hm_date').value=date;
+    document.getElementById('hm_date_display').textContent=date;
+    document.getElementById('hm_debut').value=debut||'08:00';
+    document.getElementById('hm_fin').value=fin||'09:00';
+    document.getElementById('horaireModalTitle').textContent='Ajouter un cr\u00e9neau';
+    const coursSel=document.getElementById('hm_cours');
+    coursSel.innerHTML='<option value="">Choisir un cours...</option>';
+    horaireCoursList.forEach(c=>{
+        coursSel.innerHTML+=`<option value="${c.cours_annee_id}">${c.cours_nom} (${c.enseignant})</option>`;
+    });
+    document.getElementById('horaireModal').style.display='flex';
+}
+
+function openHoraireEdit(id,date,coursId,debut,fin){
+    document.getElementById('hm_id').value=id;
+    document.getElementById('hm_date').value=date;
+    document.getElementById('hm_date_display').textContent=date;
+    document.getElementById('hm_debut').value=debut;
+    document.getElementById('hm_fin').value=fin;
+    document.getElementById('horaireModalTitle').textContent='Modifier le cr\u00e9neau';
+    const coursSel=document.getElementById('hm_cours');
+    coursSel.innerHTML='<option value="">Choisir un cours...</option>';
+    horaireCoursList.forEach(c=>{
+        const sel=c.cours_annee_id==coursId?'selected':'';
+        coursSel.innerHTML+=`<option value="${c.cours_annee_id}" ${sel}>${c.cours_nom} (${c.enseignant})</option>`;
+    });
+    document.getElementById('horaireModal').style.display='flex';
+}
+
+function closeHoraireModal(){document.getElementById('horaireModal').style.display='none';}
+
+async function saveHoraireCreneau(){
+    const id=document.getElementById('hm_id').value;
+    const date=document.getElementById('hm_date').value;
+    const cours=document.getElementById('hm_cours').value;
+    const debut=document.getElementById('hm_debut').value;
+    const fin=document.getElementById('hm_fin').value;
+    const classeId=document.getElementById('horaireClasseSelect').value;
+    if(!cours){showToast('S\u00e9lectionnez un cours','error');return;}
+    if(!debut||!fin){showToast('Heures requises','error');return;}
+    if(debut>=fin){showToast("L'heure de d\u00e9but doit \u00eatre avant la fin",'error');return;}
+    const csrf=document.querySelector('[name=csrfmiddlewaretoken]')?.value||'';
+    try{
+        const res=await fetch('/api/dashboard/horaire/',{
+            method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+            body:JSON.stringify({action:'save',id_etablissement:HORAIRE_ETAB_ID,id_classe:classeId,id_cours:cours,date:date,debut:debut,fin:fin,id_horaire:id||null})
+        });
+        const data=await res.json();
+        if(data.success){
+            showToast('Cr\u00e9neau enregistr\u00e9','success');
+            closeHoraireModal();
+            reloadHoraireData();
+        }else{showToast(data.error||'Erreur','error');}
+    }catch(e){showToast('Erreur: '+e.message,'error');}
+}
+
+async function deleteHoraireCreneau(id){
+    if(!confirm('Supprimer ce cr\u00e9neau ?'))return;
+    const csrf=document.querySelector('[name=csrfmiddlewaretoken]')?.value||'';
+    try{
+        const res=await fetch('/api/dashboard/horaire/',{
+            method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+            body:JSON.stringify({action:'delete',id_etablissement:HORAIRE_ETAB_ID,id_horaire:id})
+        });
+        const data=await res.json();
+        if(data.success){showToast('Cr\u00e9neau supprim\u00e9','success');reloadHoraireData();}
+        else showToast(data.error||'Erreur','error');
+    }catch(e){showToast('Erreur: '+e.message,'error');}
+}
+
+function reloadHoraireData(){
+    const periSel=document.getElementById('horairePeriodeSelect');
+    const opt=periSel.options[periSel.selectedIndex];
+    if(opt&&opt.value) loadHoraireSlots(opt.dataset.debut,opt.dataset.fin);
 }
 
 </script>

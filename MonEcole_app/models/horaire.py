@@ -26,15 +26,14 @@ class Horaire(models.Model):
     id_cycle = models.ForeignKey("Classe_cycle_actif",on_delete=models.PROTECT,null= False)
     id_classe = models.ForeignKey("Classe_active",on_delete=models.PROTECT,null=False)
     id_cours = models.ForeignKey("Cours_par_classe",on_delete=models.PROTECT,null=False)
-    jour = models.CharField(max_length=100, null=False)
+    date = models.DateField(null=False)
     debut = models.CharField(max_length=100,null=False)
     fin = models.CharField(max_length=100,null=False)
     date_creation = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
-    
       
     def __str__(self):
-        return f"{self.id_classe} - {self.debut} - {self.fin}"
+        return f"{self.id_classe} - {self.date} {self.debut}-{self.fin}"
 
     class Meta:
         db_table = 'horaire'
