@@ -285,15 +285,7 @@
 {% endblock %}
 {% block content %}
 <div class="etab-section {% if active_section == 'evaluations' %}active-section{% endif %}" id="sec-evaluations">
-    <div class="section-header" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
-        <div style="display:flex;align-items:center;gap:10px">
-            <i class="fas fa-file-alt"></i>
-            <div>
-                <h2 style="margin:0">Gestion des Évaluations</h2>
-                <div class="section-desc">Créez, gérez et composez les évaluations par cours</div>
-            </div>
-        </div>
-    </div>
+
     <!-- TABS -->
     <div class="eleve-tabs" style="display:flex;gap:0;margin-bottom:10px;border-bottom:2px solid #e2e8f0">
         <button class="eleve-tab active" id="tabEvalGestion" onclick="switchEvalTab('gestion')"><i class="fas fa-th-list"></i> Gestion</button>
@@ -1050,15 +1042,7 @@ async function saveComposition() {
 
 
 <div class="etab-section {% if active_section == 'notes' %}active-section{% endif %}" id="sec-notes">
-    <div class="section-header">
-        <div style="display:flex;align-items:center;gap:10px">
-            <i class="fas fa-clipboard-list"></i>
-            <div>
-                <h2 style="margin:0">Gestion des Notes</h2>
-                <div class="section-desc">Saisie et gestion des notes par classe et période</div>
-            </div>
-        </div>
-    </div>
+
     <!-- Selectors: Classe + Période + Cours on ONE LINE -->
     <div class="dash-section" style="padding:14px">
         <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
@@ -1817,7 +1801,7 @@ function toggleBulletinAccordion(accId) {
 
 
 <div class="etab-section {% if active_section == 'resultats' %}active-section{% endif %}" id="sec-resultats">
-    <div class="section-header"><i class="fas fa-graduation-cap"></i><div><h2>Résultats Scolaires</h2><div class="section-desc">Cours par domaine</div></div></div>
+
     <div class="dash-section"><div class="dash-section-title"><i class="fas fa-chart-bar"></i> Cours par Domaine</div><div id="domaineChartContainer"></div></div>
 </div>
 {% endblock %}

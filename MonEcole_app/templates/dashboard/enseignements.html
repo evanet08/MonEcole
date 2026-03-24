@@ -277,7 +277,6 @@
 {% endblock %}
 {% block content %}
 <div class="etab-section {% if active_section == 'enseignants' %}active-section{% endif %}" id="sec-enseignants">
-    <div class="section-header"><i class="fas fa-chalkboard-teacher"></i><div><h2>Enseignants & Personnel</h2><div class="section-desc" id="personnelCountDesc">{{ stats.n_enseignants }} membre{{ stats.n_enseignants|pluralize }}</div></div></div>
     <!-- TABS -->
     <div class="eleve-tabs" style="display:flex;gap:0;margin-bottom:10px;border-bottom:2px solid #e2e8f0">
         <button class="eleve-tab active" id="tabPersStat" onclick="switchPersTab('stat')"><i class="fas fa-chart-pie"></i> Statistiques</button>
