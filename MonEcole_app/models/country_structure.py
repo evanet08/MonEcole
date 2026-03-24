@@ -477,11 +477,16 @@ class Cycle(models.Model):
     """Version complète du modèle Cycle (Hub), avec tous les champs."""
     id_cycle = models.AutoField(primary_key=True)
     nom = models.CharField(max_length=100)
-    pays = models.ForeignKey(Pays, on_delete=models.CASCADE, related_name='hub_cycles')
+    pays = models.ForeignKey(Pays, on_delete=models.CASCADE, related_name='cycles')
     ordre = models.PositiveIntegerField(default=1)
     duree = models.PositiveIntegerField(default=1)
     hasSections = models.BooleanField(default=False)
     coursUniformes = models.BooleanField(default=True)
+    labelSection = models.ForeignKey(
+        'TypeSubdivision', on_delete=models.SET_NULL,
+        null=True, blank=True, db_column='labelSection_id',
+        related_name='cycles_using_label'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -188,7 +188,7 @@
             <div class="logo-section">
                 {% if etab_logo %}
                 <div class="app-logo" style="background: white; padding: 8px;">
-                    <img src="/media/{{ etab_logo }}" alt="{{ etab_nom }}" style="max-width: 80px; max-height: 80px; object-fit: contain;" onerror="this.style.display='none';this.parentElement.style.background='var(--primary-gradient)';this.parentElement.innerHTML='<i class=\'fas fa-graduation-cap\' style=\'font-size:2.5rem;color:white\'></i>';">
+                    <img src="{{ etab_logo }}" alt="{{ etab_nom }}" style="max-width: 80px; max-height: 80px; object-fit: contain;" onerror="this.style.display='none';this.parentElement.style.background='var(--primary-gradient)';this.parentElement.innerHTML='<i class=\'fas fa-graduation-cap\' style=\'font-size:2.5rem;color:white\'></i>';">
                 </div>
                 {% else %}
                 <div class="app-logo">

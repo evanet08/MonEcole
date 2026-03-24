@@ -1820,7 +1820,7 @@ def get_cycles_data(request):
         results = []
         for c in cycles:
             # Classes belong directly to cycles — limited by duree
-            all_classes = c.classes.all().order_by('ordre').values('id_classe', 'nom', 'ordre')
+            all_classes = Classe.objects.filter(cycle_id=c.id_cycle).order_by('ordre').values('id_classe', 'nom', 'ordre')
             # Respect the duree limit: only return up to 'duree' classes per cycle
             if c.duree and c.duree > 0:
                 classes = list(all_classes[:c.duree])
@@ -1834,7 +1834,7 @@ def get_cycles_data(request):
                 'duree': c.duree,
                 'hasSections': bool(c.hasSections),
                 'coursUniformes': bool(c.coursUniformes),
-                'labelSection_id': c.labelSection_id,
+                'labelSection_id': c.labelSection_id if c.labelSection_id else None,
                 'labelSection_nom': c.labelSection.nom if c.labelSection else 'Sections',
                 'classes': classes,
                 'total_classes': all_classes.count()
@@ -2353,7 +2353,7 @@ def get_cours_data(request):
         cycles = pays.cycles.all().order_by('ordre')
         classes_data = []
         for cycle in cycles:
-            cycle_classes = cycle.classes.order_by('ordre')
+            cycle_classes = Classe.objects.filter(cycle_id=cycle.id_cycle).order_by('ordre')
             if cycle.duree and cycle.duree > 0:
                 cycle_classes = cycle_classes[:cycle.duree]
             
