@@ -101,7 +101,17 @@ def login_view(request):
             from MonEcole_app.models.country_structure import Etablissement
             etab = Etablissement.objects.get(id_etablissement=etab_id)
             context['etab_nom'] = etab.nom
-            context['etab_logo'] = etab.logo_ecole or ''
+            logo = etab.logo_ecole or ''
+            # Fallback: try spoke DB logo
+            if not logo:
+                try:
+                    from MonEcole_app.models.ecole import Institution
+                    inst = Institution.objects.get(id_ecole=etab_id)
+                    if inst.logo_ecole:
+                        logo = str(inst.logo_ecole)
+                except Exception:
+                    pass
+            context['etab_logo'] = logo
         except Exception:
             pass
 

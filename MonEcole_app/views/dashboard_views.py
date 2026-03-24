@@ -277,15 +277,15 @@ def _get_dashboard_context(request):
     # --- Cross-DB stats from spoke (db_monecole = default) ---
     try:
         with connections['default'].cursor() as cur:
-            # Elèves
+            # Elèves — filtrer par établissement
             cur.execute("""
                 SELECT COUNT(*) as total,
                        SUM(CASE WHEN e.genre='M' THEN 1 ELSE 0 END) as garcons,
                        SUM(CASE WHEN e.genre='F' THEN 1 ELSE 0 END) as filles
                 FROM eleve_inscription ei
                 JOIN eleve e ON e.id_eleve = ei.id_eleve_id
-                WHERE ei.status = 1
-            """)
+                WHERE ei.status = 1 AND ei.id_etablissement = %s
+            """, [etab_id])
             row = cur.fetchone()
             if row:
                 eleves_stats['total'] = int(row[0] or 0)
@@ -297,9 +297,9 @@ def _get_dashboard_context(request):
                 SELECT TIMESTAMPDIFF(YEAR, e.date_naissance, CURDATE()) as age, COUNT(*) as nb
                 FROM eleve_inscription ei
                 JOIN eleve e ON e.id_eleve = ei.id_eleve_id
-                WHERE ei.status = 1 AND e.date_naissance IS NOT NULL AND e.date_naissance != '0000-00-00'
+                WHERE ei.status = 1 AND ei.id_etablissement = %s AND e.date_naissance IS NOT NULL AND e.date_naissance != '0000-00-00'
                 GROUP BY age ORDER BY age
-            """)
+            """, [etab_id])
             eleves_stats['age_distribution'] = [
                 {'tranche': f"{int(r[0])} ans", 'nb': int(r[1])} for r in cur.fetchall()
             ]
@@ -311,9 +311,9 @@ def _get_dashboard_context(request):
                        SUM(CASE WHEN e.genre='F' THEN 1 ELSE 0 END) as filles
                 FROM eleve_inscription ei
                 JOIN eleve e ON e.id_eleve = ei.id_eleve_id
-                WHERE ei.status = 1
+                WHERE ei.status = 1 AND ei.id_etablissement = %s
                 GROUP BY ei.id_classe_id
-            """)
+            """, [etab_id])
             epc_raw = {int(r[0]): {'total': int(r[1]), 'garcons': int(r[2] or 0), 'filles': int(r[3] or 0)} for r in cur.fetchall()}
 
             # Match with classes_detail
@@ -333,15 +333,15 @@ def _get_dashboard_context(request):
                 SELECT c.campus as campus_nom, COUNT(*) as total
                 FROM eleve_inscription ei
                 JOIN campus c ON c.id_campus = ei.id_campus_id
-                WHERE ei.status = 1
+                WHERE ei.status = 1 AND ei.id_etablissement = %s
                 GROUP BY c.id_campus, c.campus ORDER BY total DESC
-            """)
+            """, [etab_id])
             eleves_par_campus = [
                 {'campus_nom': r[0], 'total': int(r[1])} for r in cur.fetchall()
             ]
 
-            # Enseignants
-            cur.execute("SELECT COUNT(*) FROM personnel WHERE en_fonction = 1")
+            # Enseignants — filtrer par établissement
+            cur.execute("SELECT COUNT(*) FROM personnel WHERE en_fonction = 1 AND id_etablissement = %s", [etab_id])
             row = cur.fetchone()
             stats['n_enseignants'] = int(row[0]) if row else 0
 
