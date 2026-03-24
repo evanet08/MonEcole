@@ -46,9 +46,6 @@ class CountryStructureRouter:
 
         # Cours par année
         'CoursAnnee',
-
-        # Authentification Hub
-        'AdminUser', 'OTPCode',
     ]
 
     ROUTED_MODELS_LOWER = [m.lower() for m in ROUTED_MODELS]
