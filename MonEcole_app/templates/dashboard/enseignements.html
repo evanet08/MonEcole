@@ -347,7 +347,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
             <button class="eleve-btn" style="background:linear-gradient(135deg,#059669,#34d399);color:#fff;font-size:.65rem" onclick="toggleAddPersForm()"><i class="fas fa-user-plus"></i> Ajouter</button>
             <button class="eleve-btn" style="background:linear-gradient(135deg,#2563eb,#60a5fa);color:#fff;font-size:.65rem" onclick="loadPersonnelList()"><i class="fas fa-sync-alt"></i> Actualiser</button>
-            <button class="eleve-btn" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;font-size:.65rem" onclick="downloadTemplate()"><i class="fas fa-file-download"></i> Modèle Import</button>
+            <button class="eleve-btn" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;font-size:.65rem" onclick="downloadPersTemplate()"><i class="fas fa-file-download"></i> Modèle Import</button>
             <button class="eleve-btn" style="background:linear-gradient(135deg,#e11d48,#fb7185);color:#fff;font-size:.65rem" onclick="document.getElementById('importPersFile').click()"><i class="fas fa-file-upload"></i> Importer</button>
             <input type="file" id="importPersFile" accept=".xlsx,.xls" style="display:none" onchange="importPersonnel(this)">
         </div>
@@ -2641,8 +2641,9 @@ function initPersColSelector(){
 }
 
 function togglePersColSelector(){
-    const dd=document.getElementById('persColumnSelectorDropdown');
-    if(dd.style.display==='none'){
+    const dd=document.getElementById('persColumnSelector');
+    if(!dd)return;
+    if(dd.style.display==='none'||dd.style.display===''){
         initPersColSelector();
         dd.style.display='block';
     }else dd.style.display='none';
@@ -2650,9 +2651,9 @@ function togglePersColSelector(){
 
 // Close dropdown on outside click
 document.addEventListener('click',e=>{
-    const dd=document.getElementById('persColumnSelectorDropdown');
-    const btn=document.getElementById('btnPersColSelector');
-    if(dd && dd.style.display==='block' && !dd.contains(e.target) && !btn.contains(e.target)){
+    const dd=document.getElementById('persColumnSelector');
+    const btn=e.target.closest('[onclick*="togglePersCol"]');
+    if(dd && dd.style.display==='block' && !dd.contains(e.target) && !btn){
         dd.style.display='none';
     }
 });
@@ -2923,6 +2924,12 @@ async function savePersonnel(){
         }
     }catch(e){showToast('Erreur: '+e.message,'error')}
 }
+
+function downloadPersTemplate(){
+    window.open('/api/dashboard/personnel-template/?id_etablissement='+ETAB_ID,'_blank');
+}
+
+function importPersonnel(input){importPersonnelFile(input);}
 
 async function importPersonnelFile(input){
     const file=input.files[0];
