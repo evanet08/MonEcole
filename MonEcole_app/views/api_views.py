@@ -9851,11 +9851,14 @@ def dashboard_horaire(request):
                     except:
                         cours_map[ca.id_cours_classe] = str(ca.id_cours_classe)
 
-            # Charger les noms depuis le Spoke (personnel)
+            # Charger les noms depuis le Spoke (personnel → user)
             pers_map = {}
             if personnel_ids:
-                for p in Personnel.objects.filter(id_personnel__in=personnel_ids):
-                    pers_map[p.id_personnel] = f"{p.nom} {p.prenom}"
+                for p in Personnel.objects.filter(id_personnel__in=personnel_ids).select_related('user'):
+                    try:
+                        pers_map[p.id_personnel] = f"{p.user.first_name} {p.user.last_name} ({p.matricule})"
+                    except:
+                        pers_map[p.id_personnel] = f"Personnel #{p.id_personnel}"
 
             # Construire la liste
             cours_list = []
