@@ -277,7 +277,14 @@
 {% endblock %}
 {% block content %}
 <div class="etab-section {% if active_section == 'enseignants' %}active-section{% endif %}" id="sec-enseignants">
-    <!-- TABS -->
+    <!-- Stat Cards Enseignements -->
+    <div class="stat-grid">
+        <div class="stat-card grad-purple"><div class="stat-icon"><i class="fas fa-chalkboard-teacher"></i></div><div><div class="stat-label">Enseignants</div><div class="stat-value">{{ stats.n_enseignants }}</div></div></div>
+        <div class="stat-card grad-teal"><div class="stat-icon"><i class="fas fa-book"></i></div><div><div class="stat-label">Cours</div><div class="stat-value">{{ stats.n_cours }}</div></div></div>
+        <div class="stat-card grad-blue"><div class="stat-icon"><i class="fas fa-chalkboard"></i></div><div><div class="stat-label">Classes</div><div class="stat-value">{{ stats.n_classes }}</div></div></div>
+        <div class="stat-card grad-rose"><div class="stat-icon"><i class="fas fa-layer-group"></i></div><div><div class="stat-label">Cycles</div><div class="stat-value">{{ stats.n_cycles }}</div></div></div>
+    </div>
+
     <div class="eleve-tabs" style="display:flex;gap:0;margin-bottom:10px;border-bottom:2px solid #e2e8f0">
         <button class="eleve-tab active" id="tabPersStat" onclick="switchPersTab('stat')"><i class="fas fa-chart-pie"></i> Statistiques</button>
         <button class="eleve-tab" id="tabPersGestion" onclick="switchPersTab('gestion')"><i class="fas fa-th-list"></i> Gestion</button>
