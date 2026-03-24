@@ -287,10 +287,23 @@
         </button>
 
         <div class="d-flex align-items-center gap-2" style="flex-shrink: 0;">
-            <div style="width: 30px; height: 30px; border-radius: 6px; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center;">
-                <i class="fas fa-graduation-cap" style="color: white; font-size: 0.8rem;"></i>
+            <!-- eSchool Brand -->
+            <div style="width: 28px; height: 28px; border-radius: 6px; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <i class="fas fa-graduation-cap" style="color: white; font-size: 0.75rem;"></i>
             </div>
-            <span style="font-size: 0.95rem; font-weight: 700; color: #f1f5f9; white-space: nowrap;">MonEcole</span>
+            <span style="font-size: 0.85rem; font-weight: 700; color: #f1f5f9; white-space: nowrap;">eSchoolRDC</span>
+            <span style="color: #475569; font-size: 1.1rem; margin: 0 2px;">|</span>
+            <!-- Établissement Brand -->
+            {% if etab.logo_ecole %}
+            <div style="width: 26px; height: 26px; border-radius: 5px; background: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;">
+                <img src="{{ etab.logo_ecole }}" alt="" style="max-width: 22px; max-height: 22px; object-fit: contain;" onerror="this.parentElement.innerHTML='<i class=\'fas fa-school\' style=\'font-size:0.7rem;color:#667eea\'></i>'">
+            </div>
+            {% else %}
+            <div style="width: 26px; height: 26px; border-radius: 5px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <i class="fas fa-school" style="color: #94a3b8; font-size: 0.7rem;"></i>
+            </div>
+            {% endif %}
+            <span style="font-size: 0.85rem; font-weight: 600; color: #cbd5e1; white-space: nowrap;">MonEcole</span>
             <span style="color: #475569; font-size: 1.1rem; margin: 0 4px;">|</span>
             <span id="topbar-page-indicator" style="font-size: 0.8rem; color: #94a3b8;">{% block page_indicator %}Dashboard{% endblock %}</span>
         </div>
@@ -367,7 +380,7 @@
                 <!-- Logo -->
                 <div class="sidebar-logo-container">
                     {% if etab.logo_ecole %}
-                    <img src="/media/{{ etab.logo_ecole }}" alt="{{ etab.nom }}" style="max-width:50px; max-height:50px; object-fit:contain; border-radius:8px;">
+                    <img src="{{ etab.logo_ecole }}" alt="{{ etab.nom }}" style="max-width:50px; max-height:50px; object-fit:contain; border-radius:8px;" onerror="this.outerHTML='<i class=\'fas fa-graduation-cap\' style=\'font-size: 1.8rem; color: #667eea;\'></i>'">
                     {% else %}
                     <i class="fas fa-graduation-cap" style="font-size: 1.8rem; color: #667eea;"></i>
                     {% endif %}

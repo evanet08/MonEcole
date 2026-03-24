@@ -1,4 +1,5 @@
 import json
+from django.conf import settings
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
@@ -186,7 +187,7 @@ def get_pays_data(request):
         return JsonResponse({
             'success': False,
             'error': f"Erreur interne du serveur: {str(e)}",
-            'traceback': tb if DEBUG else None
+            'traceback': tb if settings.DEBUG else None
         }, status=500)
 
 
@@ -1820,7 +1821,8 @@ def get_cycles_data(request):
         results = []
         for c in cycles:
             # Classes belong directly to cycles — limited by duree
-            all_classes = Classe.objects.filter(cycle_id=c.id_cycle).order_by('ordre').values('id_classe', 'nom', 'ordre')
+            all_classes_qs = Classe.objects.filter(cycle_id=c.id_cycle).order_by('ordre')
+            all_classes = [{'id_classe': c2.id_classe, 'nom': c2.classe, 'ordre': c2.ordre} for c2 in all_classes_qs]
             # Respect the duree limit: only return up to 'duree' classes per cycle
             if c.duree and c.duree > 0:
                 classes = list(all_classes[:c.duree])
@@ -1837,7 +1839,7 @@ def get_cycles_data(request):
                 'labelSection_id': c.labelSection_id if c.labelSection_id else None,
                 'labelSection_nom': c.labelSection.nom if c.labelSection else 'Sections',
                 'classes': classes,
-                'total_classes': all_classes.count()
+                'total_classes': len(all_classes)
             }
             
             # For cycles with sections, include sections filtered by type
@@ -1871,7 +1873,7 @@ def get_cycles_data(request):
         return JsonResponse({
             'success': False, 
             'error': f"Erreur lors du chargement des cycles: {str(e)}",
-            'traceback': tb if DEBUG else None
+            'traceback': tb if settings.DEBUG else None
         }, status=500)
 
 
@@ -2172,7 +2174,7 @@ def get_programmes_data(request):
         return JsonResponse({
             'success': False, 
             'error': f"Erreur lors du chargement des programmes: {str(e)}",
-            'traceback': tb if DEBUG else None
+            'traceback': tb if settings.DEBUG else None
         }, status=500)
 
 
