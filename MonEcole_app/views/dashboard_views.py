@@ -416,6 +416,24 @@ def _get_dashboard_context(request):
         admin_instances_by_ordre[o].append({
             'id': inst['id_structure'], 'nom': inst['nom'], 'code': inst['code'],
         })
+    # Build admin_chain for the Adresse section in the fiche
+    admin_chain = []
+    ref_admin = getattr(etab, 'ref_administrative', '') or ''
+    if ref_admin:
+        ref_ids = [int(x) for x in ref_admin.split('-') if x.strip().isdigit()]
+        # Build a lookup: id -> instance dict (with type name)
+        id_to_instance = {}
+        for inst in all_admin_instances:
+            id_to_instance[inst['id_structure']] = inst
+        # Map ordre -> type name
+        type_by_ordre = {t['ordre']: t['nom'] for t in admin_types}
+        for rid in ref_ids:
+            inst = id_to_instance.get(rid)
+            if inst:
+                admin_chain.append({
+                    'type_nom': type_by_ordre.get(inst['ordre'], f'Niveau {inst["ordre"]}'),
+                    'instance_nom': inst['nom'],
+                })
 
     # JSON data
     cours_domaine_json = json.dumps(
@@ -451,6 +469,7 @@ def _get_dashboard_context(request):
         'admin_types_json': json.dumps(admin_types, ensure_ascii=False, default=str),
         'admin_instances_json': json.dumps(admin_instances_by_ordre, ensure_ascii=False, default=str),
         'is_calendar_synched': etab.is_calendar_synched,
+        'admin_chain': admin_chain,
     }
     return context
 
