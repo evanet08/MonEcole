@@ -288,8 +288,8 @@
 
         <div class="d-flex align-items-center gap-2" style="flex-shrink: 0;">
             <!-- eSchool Brand -->
-            <div style="width: 28px; height: 28px; border-radius: 6px; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                <i class="fas fa-graduation-cap" style="color: white; font-size: 0.75rem;"></i>
+            <div style="width: 28px; height: 28px; border-radius: 6px; background: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <img src="{% static 'MonEcole_app/img/logo_eschool_rdc.png' %}" alt="eSchool" style="width: 22px; height: 22px; object-fit: contain;" onerror="this.outerHTML='<i class=\'fas fa-graduation-cap\' style=\'font-size:0.75rem;color:#667eea\'></i>'">
             </div>
             <span style="font-size: 0.85rem; font-weight: 700; color: #f1f5f9; white-space: nowrap;">eSchoolRDC</span>
             <span style="color: #475569; font-size: 1.1rem; margin: 0 2px;">|</span>
@@ -316,56 +316,56 @@
 
         <!-- Right: Module Switcher + User -->
         <div class="d-flex align-items-center gap-2" style="flex-shrink: 0;">
-            <!-- Module Switcher Dropdown -->
-            {% if user_modules %}
+            <!-- User Profile with integrated Modules -->
             <div class="dropdown">
-                <button class="btn btn-link p-0 dropdown-toggle" type="button" id="moduleSwitcher"
+                <button class="btn btn-link p-0 dropdown-toggle" type="button" id="userDropdown"
                     data-bs-toggle="dropdown" aria-expanded="false"
-                    style="display:flex; align-items:center; gap:6px; padding:4px 10px; background:rgba(255,255,255,0.08); border-radius:8px; border:1px solid rgba(255,255,255,0.12); color:#cbd5e1; font-size:0.78rem; text-decoration:none;">
-                    <i class="fas fa-th-large"></i>
-                    <span class="d-none d-md-inline">Modules</span>
+                    style="position:relative; width: 32px; height: 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display:flex; align-items:center; justify-content:center; font-weight:700; color:white; font-size:0.8rem; text-decoration:none;">
+                    <i class="fas fa-user" style="font-size: 0.7rem;"></i>
+                    {% if user_modules %}
+                    <span style="position:absolute; top:-5px; right:-5px; min-width:16px; height:16px; background:linear-gradient(135deg,#f59e0b,#ef4444); border-radius:50%; font-size:0.55rem; font-weight:800; color:#fff; display:flex; align-items:center; justify-content:center; border:2px solid #1e293b; line-height:1;">{{ user_modules|length }}</span>
+                    {% endif %}
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="moduleSwitcher"
-                    style="min-width:220px; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.2); padding:8px;">
-                    <li><span class="dropdown-header"
-                        style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.5px; color:#94a3b8;">Mes modules</span></li>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown"
+                    style="min-width:240px; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.15); padding:8px;">
+                    {% if user_email %}
+                    <li class="px-3 py-2">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div style="width:30px; height:30px; background:linear-gradient(135deg,#667eea,#764ba2); border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <i class="fas fa-user" style="color:#fff; font-size:0.65rem;"></i>
+                            </div>
+                            <div>
+                                <div style="font-size:0.78rem; font-weight:600; color:#1e293b;">{{ user_email }}</div>
+                                {% if etab %}<div style="font-size:0.62rem; color:#94a3b8;">{{ etab.nom|truncatechars:30 }}</div>{% endif %}
+                            </div>
+                        </div>
+                    </li>
+                    {% endif %}
+                    {% if user_modules %}
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li class="px-3 py-1">
+                        <span style="font-size:0.6rem; text-transform:uppercase; letter-spacing:0.8px; color:#94a3b8; font-weight:700;">Mes modules ({{ user_modules|length }})</span>
+                    </li>
                     {% for mod in user_modules %}
                     <li>
                         <a class="dropdown-item d-flex align-items-center gap-2 py-2 {% if mod.page == active_module %}fw-bold{% endif %}"
                            href="{{ mod.url }}"
-                           style="border-radius:8px; font-size:0.82rem;">
-                            <div style="width:28px; height:28px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:white; font-size:0.75rem;
+                           style="border-radius:8px; font-size:0.8rem;">
+                            <div style="width:26px; height:26px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:white; font-size:0.68rem;
                                 background: {% if mod.page == 'administration' %}linear-gradient(135deg,#db2777,#f472b6){% elif mod.page == 'scolarite' %}linear-gradient(135deg,#0d9488,#2dd4bf){% elif mod.page == 'evaluations' %}linear-gradient(135deg,#7c3aed,#a78bfa){% elif mod.page == 'enseignements' %}linear-gradient(135deg,#ea580c,#fb923c){% else %}linear-gradient(135deg,#475569,#94a3b8){% endif %};">
                                 <i class="{{ mod.icon }}"></i>
                             </div>
                             <span>{{ mod.label }}</span>
                             {% if mod.page == active_module %}
-                            <i class="fas fa-check-circle ms-auto" style="color:#22c55e; font-size:0.85rem;"></i>
+                            <i class="fas fa-check-circle ms-auto" style="color:#22c55e; font-size:0.75rem;"></i>
                             {% endif %}
                         </a>
                     </li>
                     {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
-
-            <!-- User Profile -->
-            <div class="dropdown">
-                <button class="btn btn-link p-0 dropdown-toggle" type="button" id="userDropdown"
-                    data-bs-toggle="dropdown" aria-expanded="false"
-                    style="width: 32px; height: 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display:flex; align-items:center; justify-content:center; font-weight:700; color:white; font-size:0.8rem; text-decoration:none;">
-                    <i class="fas fa-user" style="font-size: 0.7rem;"></i>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown"
-                    style="min-width:200px; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.15); padding:8px;">
-                    {% if user_email %}
-                    <li class="px-3 py-2">
-                        <div style="font-size:0.78rem; color:#64748b;">{{ user_email }}</div>
-                    </li>
-                    <li><hr class="dropdown-divider my-1"></li>
                     {% endif %}
+                    <li><hr class="dropdown-divider my-1"></li>
                     <li><a class="dropdown-item d-flex align-items-center gap-2 py-2" href="#" onclick="doLogout(); return false;"
-                        style="border-radius:8px; font-size:0.82rem; color:#ef4444;">
+                        style="border-radius:8px; font-size:0.8rem; color:#ef4444;">
                         <i class="fas fa-sign-out-alt" style="width:18px; text-align:center;"></i>Déconnexion</a></li>
                 </ul>
             </div>
@@ -377,14 +377,6 @@
         <!-- SIDEBAR -->
         <div class="sidebar">
             <div class="sidebar-nav-center">
-                <!-- Logo -->
-                <div class="sidebar-logo-container">
-                    {% if etab.logo_ecole %}
-                    <img src="{{ etab.logo_ecole }}" alt="{{ etab.nom }}" style="max-width:50px; max-height:50px; object-fit:contain; border-radius:8px;" onerror="this.outerHTML='<i class=\'fas fa-graduation-cap\' style=\'font-size: 1.8rem; color: #667eea;\'></i>'">
-                    {% else %}
-                    <i class="fas fa-graduation-cap" style="font-size: 1.8rem; color: #667eea;"></i>
-                    {% endif %}
-                </div>
 
                 {% block sidebar_items %}
                 <!-- Default: module links (override in each page template) -->

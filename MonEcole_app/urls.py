@@ -79,6 +79,22 @@ urlpatterns = [
     path('api/toggle-calendar-synch/', api_views.toggle_calendar_synch, name='toggle_calendar_synch'),
     path('api/update-calendar-config/', api_views.update_calendar_config, name='update_calendar_config'),
 
+    # Domaines
+    path('api/get-domaines/', api_views.get_domaines_data, name='get_domaines'),
+    path('api/save-domaine/', api_views.save_domaine, name='save_domaine'),
+    path('api/delete-domaine/', api_views.delete_domaine, name='delete_domaine'),
+
+    # Cours (Catalogue)
+    path('api/get-cours/', api_views.get_cours_data, name='get_cours'),
+    path('api/save-cours/', api_views.save_cours, name='save_cours'),
+    path('api/delete-cours/', api_views.delete_cours, name='delete_cours'),
+
+    # Cours Annee (Configuration Annuelle)
+    path('api/get-cours-annee/', api_views.get_cours_annee_data, name='get_cours_annee'),
+    path('api/save-cours-annee/', api_views.save_cours_annee, name='save_cours_annee'),
+    path('api/delete-cours-annee/', api_views.delete_cours_annee, name='delete_cours_annee'),
+    path('api/bulk-activate-cours-annee/', api_views.bulk_activate_cours_annee, name='bulk_activate_cours_annee'),
+
     # Évaluations
     path('api/evaluations/types/', api_views.get_evaluation_types, name='get_evaluation_types'),
     path('api/evaluations/types/save/', api_views.save_evaluation_type, name='save_evaluation_type'),

@@ -543,6 +543,93 @@
     </div>
 
     <!-- TAB 3: Cours & Pondérations -->
+    <div class="config-tab-content" id="tab-cours">
+        <div class="dash-section">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <div class="dash-section-title"><i class="fas fa-book"></i> Cours personnalisables</div>
+                    <div class="dash-section-sub">Pour les cycles non-uniformes (ex: CFP), configurez les cours et pondérations spécifiques à votre établissement.</div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary" style="font-size:.72rem;border-radius:8px" onclick="openDomaineModal()">
+                        <i class="fas fa-layer-group me-1"></i>Domaines
+                    </button>
+                    <button class="btn btn-sm btn-primary" style="font-size:.72rem;border-radius:8px" onclick="openCoursModal()" id="btnAddCoursEtab">
+                        <i class="fas fa-plus me-1"></i>Ajouter un cours
+                    </button>
+                </div>
+            </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-3" id="coursFilters">
+                <select id="cours-cycle-select" class="form-select form-select-sm" style="max-width:180px;font-size:.78rem" onchange="onCoursCycleChange()">
+                    <option value="">— Cycle —</option>
+                </select>
+                <select id="cours-classe-select" class="form-select form-select-sm" style="max-width:180px;font-size:.78rem" onchange="onCoursClasseChange()">
+                    <option value="">— Classe —</option>
+                </select>
+                <select id="cours-section-select" class="form-select form-select-sm" style="max-width:200px;font-size:.78rem" onchange="loadCoursEtab()">
+                    <option value="">— (aucune filière) —</option>
+                </select>
+            </div>
+            <div id="coursEtabGrid">
+                <div class="ca-loading"><i class="fas fa-info-circle"></i> Sélectionnez un cycle, une classe et une filière pour voir les cours.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Domaines -->
+    <div class="modal fade" id="domaineModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:16px 16px 0 0;padding:.8rem 1.2rem;">
+                    <h6 class="modal-title text-white mb-0"><i class="fas fa-layer-group me-2"></i>Gestion des Domaines</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="max-height:50vh;overflow-y:auto">
+                    <div id="domaineList"><div class="text-center text-muted py-3"><i class="fas fa-spinner fa-spin"></i></div></div>
+                    <hr>
+                    <div class="d-flex gap-2">
+                        <input type="text" id="newDomaineName" class="form-control form-control-sm" placeholder="Nom du domaine" style="font-size:.78rem;">
+                        <input type="text" id="newDomaineCode" class="form-control form-control-sm" placeholder="Code" style="font-size:.78rem;max-width:80px;">
+                        <button class="btn btn-sm btn-primary" onclick="saveDomaine()" style="font-size:.72rem;white-space:nowrap;"><i class="fas fa-plus me-1"></i>Ajouter</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Ajouter/Modifier un Cours -->
+    <div class="modal fade" id="coursModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" style="background:linear-gradient(135deg,#059669,#10b981);border-radius:16px 16px 0 0;padding:.8rem 1.2rem;">
+                    <h6 class="modal-title text-white mb-0" id="coursModalTitle"><i class="fas fa-plus-circle me-2"></i>Nouveau Cours</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editCoursId">
+                    <div class="mb-2">
+                        <label class="form-label" style="font-size:.75rem;font-weight:600">Nom du cours *</label>
+                        <input type="text" class="form-control form-control-sm" id="coursNom" placeholder="Ex: Mathématiques" style="font-size:.8rem;">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label" style="font-size:.75rem;font-weight:600">Code *</label>
+                        <input type="text" class="form-control form-control-sm" id="coursCode" placeholder="Ex: MATH01" style="font-size:.8rem;">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label" style="font-size:.75rem;font-weight:600">Domaine</label>
+                        <select class="form-select form-select-sm" id="coursDomaine" style="font-size:.8rem;">
+                            <option value="">— Aucun —</option>
+                        </select>
+                    </div>
+                    <div class="alert alert-danger d-none" id="coursModalError" style="font-size:.75rem;border-radius:8px;"></div>
+                </div>
+                <div class="modal-footer" style="padding:.6rem 1rem;">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-success btn-sm" onclick="saveCoursFromModal()"><i class="fas fa-save me-1"></i>Enregistrer</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 </div>
 
@@ -1394,7 +1481,7 @@ async function loadCampusList(){
     const c=document.getElementById('campusTableContainer');
     c.innerHTML='<div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
     try{
-        const res=await fetch('/api/dashboard/campus-list/?id_etablissement='+ELEVE_ETAB_ID).then(r=>r.json());
+        const res=await fetch('/api/dashboard/campus-list/?id_etablissement={{ etab.id_etablissement }}').then(r=>r.json());
         if(res.success){campusList=res.campus||[];window._campusLoaded=true;renderCampusTable()}
         else{c.innerHTML='<div class="chart-empty"><i class="fas fa-exclamation-circle"></i> '+res.error+'</div>'}
     }catch(e){c.innerHTML='<div class="chart-empty"><i class="fas fa-exclamation-circle"></i> Erreur connexion</div>'}
@@ -1457,7 +1544,7 @@ async function saveEditCampus(id){
 async function saveCampus(){
     const nom=document.getElementById('newCampusName').value.trim();
     if(!nom){alert('Le nom du campus est requis');return}
-    const data={id_etablissement:parseInt(ELEVE_ETAB_ID),campus:nom,adresse:document.getElementById('newCampusAdresse').value.trim(),localisation:document.getElementById('newCampusLocalisation').value.trim()};
+    const data={id_etablissement:{{ etab.id_etablissement }},campus:nom,adresse:document.getElementById('newCampusAdresse').value.trim(),localisation:document.getElementById('newCampusLocalisation').value.trim()};
     try{
         const res=await fetch('/api/dashboard/campus-create/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},body:JSON.stringify(data)}).then(r=>r.json());
         if(res.success){hideAddCampusForm();window._campusLoaded=false;loadCampusList()}else{alert(res.error||'Erreur')}
@@ -1480,7 +1567,7 @@ async function deleteCampus(id,nom){
 }
 
 // Auto-load campus on page load if config section active
-if(ACTIVE_SECTION==='configuration') loadCampusList();
+if(ACTIVE_SECTION==='structuration') loadCampusList();
 
 /* ===== CYCLES & PÉRIODES (TAB 1) ===== */
 let cpAllCycles = [];
@@ -2423,7 +2510,7 @@ async function saveEleve(){
         const res=await fetch('/api/dashboard/add-eleve/',{
             method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken},
             body:JSON.stringify({
-                id_etablissement:parseInt(ELEVE_ETAB_ID),
+                id_etablissement:{{ etab.id_etablissement }},
                 id_annee:parseInt(CA_ANNEE_ID),
                 numero_serie:numeroSerie,nom,postnom,prenom,date_naissance:dn,genre,
                 classe_par_annee_id:parseInt(classeId),

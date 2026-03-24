@@ -239,17 +239,19 @@ class RepartitionConfigEtabAnnee(models.Model):
 # --- TYPES D'ÉVALUATION ET NOTES ---
 
 class EvaluationType(models.Model):
-    id_evaluation_type = models.AutoField(primary_key=True)
+    id_type_eval = models.AutoField(primary_key=True)
     nom = models.CharField(max_length=100)
-    code = models.CharField(max_length=20)
+    sigle = models.CharField(max_length=20)
+    description = models.TextField(default='')
     is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'evaluation_types'
         managed = False
 
     def __str__(self):
-        return f"{self.nom} ({self.code})"
+        return f"{self.nom} ({self.sigle})"
 
 
 class NoteType(models.Model):
@@ -290,6 +292,7 @@ class CoursAnnee(models.Model):
     is_obligatory = models.BooleanField(default=False)
     heure_semaine = models.IntegerField(null=True, blank=True)
     ordre = models.IntegerField(null=True, blank=True)
+    domaine_id = models.IntegerField(null=True, blank=True)
     is_second_semester = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -50,11 +50,11 @@ def _get_dashboard_context(request):
 
     # --- Année scolaire active ---
     # Annee.pays_id is an IntegerField, not a FK
+    # etat_annee can be 'En Cours', 'ouverte', or 'actif' depending on config
     annee_active = Annee.objects.filter(
-        pays_id=pays.id_pays, etat_annee='En Cours'
+        pays_id=pays.id_pays, etat_annee__in=['En Cours', 'actif']
     ).order_by('-annee').first()
     if not annee_active:
-        # fallback: la plus récente (etat_annee peut être 'ouverte' dans certaines configs)
         annee_active = Annee.objects.filter(
             pays_id=pays.id_pays, etat_annee='ouverte'
         ).order_by('-annee').first()
@@ -63,9 +63,11 @@ def _get_dashboard_context(request):
             pays_id=pays.id_pays
         ).order_by('-annee').first()
 
-    annees_list = list(Annee.objects.filter(
+    annees_raw = Annee.objects.filter(
         pays_id=pays.id_pays
-    ).order_by('-annee').values('id_annee', 'annee', 'etat_annee'))
+    ).order_by('-annee').values('id_annee', 'annee', 'etat_annee')
+    # Template uses {{ a.etat }}, so alias etat_annee → etat
+    annees_list = [{'id_annee': a['id_annee'], 'annee': a['annee'], 'etat': a['etat_annee'] or ''} for a in annees_raw]
 
     # --- Stats ---
     stats = {

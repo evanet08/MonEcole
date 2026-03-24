@@ -18,6 +18,7 @@ from MonEcole_app.models.country_structure import (
     RepartitionConfigCycle, RepartitionConfigEtabAnnee,
     CoursAnnee, EtablissementAnnee, EtablissementAnneeClasse,
     Session, Mention,
+    EvaluationType,
 )
 from MonEcole_app.models.classe import Classe
 from MonEcole_app.models.annee import Annee
@@ -75,6 +76,23 @@ def get_user_scope(request):
 def get_all_user_scopes(request):
     """MonEcole stub — no RBAC multi-structure filtering needed."""
     return []
+
+
+def _get_tenant_etab(request):
+    """
+    Get the current tenant Etablissement from the TenantMiddleware.
+    In MonEcole, AdminUser does NOT have an 'etablissement' FK.
+    The establishment is resolved by TenantMiddleware from the subdomain.
+    Returns (Etablissement, None) or (None, JsonResponse_error).
+    """
+    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    if not etab_id:
+        return None, JsonResponse({'success': False, 'error': 'Établissement non résolu (tenant).'}, status=403)
+    etab = Etablissement.objects.select_related('pays').filter(id_etablissement=etab_id).first()
+    if not etab:
+        return None, JsonResponse({'success': False, 'error': f'Établissement {etab_id} introuvable.'}, status=404)
+    return etab, None
+
 
 
 def get_country_context_logic(request):
@@ -2390,7 +2408,7 @@ def get_cours_data(request):
                     })
 
         # Récupérer les cours avec le domaine et section FK
-        cours_qs = Cours.objects.filter(classe__cycle__pays=pays).select_related('domaine', 'section')
+        cours_qs = Cours.objects.filter(classe__cycle__pays=pays)
         if id_classe:
             cours_qs = cours_qs.filter(classe_id=id_classe)
             # Filtrer par section si spécifié
@@ -2398,7 +2416,15 @@ def get_cours_data(request):
                 cours_qs = cours_qs.filter(section_id=id_section)
             else:
                 # Si pas de section spécifiée, ne montrer que les cours sans section
-                cours_qs = cours_qs.filter(section__isnull=True)
+                cours_qs = cours_qs.filter(section_id__isnull=True)
+
+        # Build lookup maps for domaine/section (IntegerFields on Cours)
+        _domaine_map = {}
+        if Domaine:
+            _domaine_map = {d['id_domaine']: d['nom'] for d in Domaine.objects.filter(pays=pays).values('id_domaine', 'nom')}
+        _section_map = {}
+        if Section:
+            _section_map = {s['id_section']: s['nom'] for s in Section.objects.all().values('id_section', 'nom')}
 
         cours_data = []
         for c in cours_qs:
@@ -2407,10 +2433,10 @@ def get_cours_data(request):
                 'cours': c.cours,
                 'code_cours': c.code_cours,
                 'domaine_id': c.domaine_id,
-                'domaine_nom': c.domaine.nom if c.domaine else '',
+                'domaine_nom': _domaine_map.get(c.domaine_id, ''),
                 'classe_id': c.classe_id,
                 'section_id': c.section_id,
-                'section_nom': c.section.nom if c.section else '',
+                'section_nom': _section_map.get(c.section_id, ''),
             })
 
         # Récupérer les domaines du pays
@@ -2646,11 +2672,11 @@ def get_cours_annee_data(request):
             return JsonResponse({'success': True, 'cours_annee': [], 'annees': annees, 'domaines': domaines})
 
         # Tous les cours du catalogue pour cette classe (+section)
-        cours_catalogue = Cours.objects.filter(classe_id=id_classe).select_related('domaine', 'section').order_by('domaine__nom', 'cours')
+        cours_catalogue = Cours.objects.filter(classe_id=id_classe).order_by('cours')
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
-            cours_catalogue = cours_catalogue.filter(section__isnull=True)
+            cours_catalogue = cours_catalogue.filter(section_id__isnull=True)
 
         # Les configs existantes pour cette année (même filtre section)
         # IMPORTANT: filter etablissement__isnull=True for national configs only
@@ -2658,11 +2684,11 @@ def get_cours_annee_data(request):
         configs_qs = CoursAnnee.objects.filter(
             cours__classe_id=id_classe, annee_id=id_annee,
             etablissement__isnull=True
-        ).select_related('cours', 'domaine')
+        ).select_related('cours')
         if id_section:
             configs_qs = configs_qs.filter(cours__section_id=id_section)
         else:
-            configs_qs = configs_qs.filter(cours__section__isnull=True)
+            configs_qs = configs_qs.filter(cours__section_id__isnull=True)
         for ca in configs_qs:
             configs_map[ca.cours_id] = ca
 
@@ -2671,16 +2697,16 @@ def get_cours_annee_data(request):
         for c in cours_catalogue:
             ca = configs_map.get(c.id_cours)
             # Domaine : priorité au CoursAnnee, sinon fallback sur Cours
-            domaine_obj = ca.domaine if ca and ca.domaine else c.domaine
+            dom_id = (ca.domaine_id if ca and ca.domaine_id else c.domaine_id)
             entry = {
                 'id_cours': c.id_cours,
                 'code_cours': c.code_cours,
                 'cours': c.cours,
-                'domaine_id': domaine_obj.id_domaine if domaine_obj else None,
-                'domaine_nom': domaine_obj.nom if domaine_obj else '',
+                'domaine_id': dom_id,
+                'domaine_nom': '',
                 'is_configured': ca is not None,
                 'section_id': c.section_id,
-                'section_nom': c.section.nom if c.section else '',
+                'section_nom': '',
             }
             if ca:
                 entry.update({
@@ -2739,7 +2765,7 @@ def save_cours_annee(request):
             # Handle domaine_id update
             if 'domaine_id' in data:
                 domaine_id = data['domaine_id']
-                ca.domaine = Domaine.objects.filter(id_domaine=domaine_id).first() if domaine_id else None
+                ca.domaine_id = int(domaine_id) if domaine_id else None
             ca.save()
         else:
             # CREATE: need cours_id and annee_id
@@ -2802,7 +2828,7 @@ def bulk_activate_cours_annee(request):
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
-            cours_catalogue = cours_catalogue.filter(section__isnull=True)
+            cours_catalogue = cours_catalogue.filter(section_id__isnull=True)
         annee = get_object_or_404(Annee, id_annee=id_annee)
 
         created = 0
@@ -3628,9 +3654,13 @@ def get_etablissement_config(request):
         if not id_etablissement or not id_annee:
             return JsonResponse({'success': False, 'error': 'Paramètres manquants'})
         
-        # Get or create the EtablissementAnnee link
-        etablissement = get_object_or_404(Etablissement, id_etablissement=id_etablissement)
-        annee = get_object_or_404(Annee, id_annee=id_annee)
+        # Get the Etablissement and Annee (no get_object_or_404 — must return JSON, not HTML 404)
+        etablissement = Etablissement.objects.filter(id_etablissement=id_etablissement).first()
+        if not etablissement:
+            return JsonResponse({'success': False, 'error': f'Établissement {id_etablissement} introuvable'})
+        annee = Annee.objects.filter(id_annee=id_annee).first()
+        if not annee:
+            return JsonResponse({'success': False, 'error': f'Année {id_annee} introuvable'})
         
         etab_annee, created = EtablissementAnnee.objects.get_or_create(
             etablissement=etablissement,
@@ -3671,8 +3701,12 @@ def save_etablissement_config(request):
         id_annee = data.get('id_annee')
         classes_config = data.get('classes', [])  # [{classe_id: X, section_id: Y or null}, ...]
         
-        etablissement = get_object_or_404(Etablissement, id_etablissement=id_etablissement)
-        annee = get_object_or_404(Annee, id_annee=id_annee)
+        etablissement = Etablissement.objects.filter(id_etablissement=id_etablissement).first()
+        if not etablissement:
+            return JsonResponse({'success': False, 'error': 'Établissement introuvable'})
+        annee = Annee.objects.filter(id_annee=id_annee).first()
+        if not annee:
+            return JsonResponse({'success': False, 'error': 'Année introuvable'})
         
         # Get or create the link
         etab_annee, created = EtablissementAnnee.objects.get_or_create(
@@ -3689,7 +3723,9 @@ def save_etablissement_config(request):
             section_id = item.get('section_id')
             groupes = item.get('groupes', [])  # List of group letters, e.g. ['A', 'B', 'C'] or []
             
-            classe = get_object_or_404(Classe, id_classe=classe_id)
+            classe = Classe.objects.filter(id_classe=classe_id).first()
+            if not classe:
+                continue  # Skip unknown classes silently
             section = None
             if section_id:
                 section = Section.objects.filter(id_section=section_id).first()
@@ -5999,45 +6035,30 @@ def dashboard_etablissement_view(request):
         return redirect('/login/')
 
     try:
-        admin_user = AdminUser.objects.select_related(
-            'etablissement', 'etablissement__pays',
-            'etablissement__structure_pedagogique',
-            'etablissement__gestionnaire',
-            'pays'
-        ).get(id_admin=user_id)
-    except AdminUser.DoesNotExist:
+        etab, err = _get_tenant_etab(request)
+        if err:
+            from django.shortcuts import redirect
+            return redirect('/login/')
+    except Exception:
         from django.shortcuts import redirect
         return redirect('/login/')
 
-    etab = admin_user.etablissement
-    if not etab:
-        # Not an establishment admin → redirect to normal parametres
-        from django.shortcuts import redirect
-        return redirect('/parametres-generaux/')
-
     pays = etab.pays
 
-    # --- Etablissements accessibles (pour le switcher) ---
-    all_etab_accounts = AdminUser.objects.filter(
-        email__iexact=admin_user.email,
-        is_active=True,
-        etablissement__isnull=False
-    ).select_related('etablissement').order_by('etablissement__nom')
-    etab_list = []
-    for acc in all_etab_accounts:
-        etab_list.append({
-            'id_admin': acc.id_admin,
-            'id_etablissement': acc.etablissement.id_etablissement,
-            'nom': acc.etablissement.nom,
-            'is_current': acc.id_admin == admin_user.id_admin,
-        })
+    # --- Établissement courant (tenant) ---
+    etab_list = [{
+        'id_admin': user_id,
+        'id_etablissement': etab.id_etablissement,
+        'nom': etab.nom,
+        'is_current': True,
+    }]
 
     # --- Année scolaire active (fallback to most recent if none open) ---
-    annee_active = Annee.objects.filter(pays=pays, etat='ouverte').order_by('-annee').first()
+    annee_active = Annee.objects.filter(pays_id=pays.id_pays, etat_annee__in=['ouverte', 'actif']).order_by('-annee').first()
     if not annee_active:
-        annee_active = Annee.objects.filter(pays=pays).order_by('-annee').first()
-    annees_list = list(Annee.objects.filter(pays=pays).order_by('-annee').values(
-        'id_annee', 'annee', 'etat'
+        annee_active = Annee.objects.filter(pays_id=pays.id_pays).order_by('-annee').first()
+    annees_list = list(Annee.objects.filter(pays_id=pays.id_pays).order_by('-annee').values(
+        'id_annee', 'annee', 'etat_annee'
     ))
 
     # --- Stats pour l'année active ---
@@ -6105,13 +6126,25 @@ def dashboard_etablissement_view(request):
             cours_annee_qs = CoursAnnee.objects.filter(
                 annee=annee_active,
                 cours__classe_id__in=classe_ids
-            ).select_related('domaine', 'cours')
+            ).select_related('cours')
             stats['n_cours'] = cours_annee_qs.count()
 
             # --- Cours par Domaine (pour le chart) ---
+            # Build domaine name map (domaine_id is IntegerField, not FK)
+            all_dom_ids = set()
+            for ca in cours_annee_qs:
+                if ca.domaine_id:
+                    all_dom_ids.add(ca.domaine_id)
+                if ca.cours and ca.cours.domaine_id:
+                    all_dom_ids.add(ca.cours.domaine_id)
+            dom_name_map = {}
+            if all_dom_ids and Domaine:
+                dom_name_map = {d['id_domaine']: d['nom'] for d in Domaine.objects.filter(id_domaine__in=all_dom_ids).values('id_domaine', 'nom')}
+
             domaine_counts = {}
             for ca in cours_annee_qs:
-                dom_name = ca.domaine.nom if ca.domaine else (ca.cours.domaine.nom if ca.cours.domaine else 'Sans domaine')
+                dom_id = ca.domaine_id or (ca.cours.domaine_id if ca.cours else None)
+                dom_name = dom_name_map.get(dom_id, 'Sans domaine') if dom_id else 'Sans domaine'
                 domaine_counts[dom_name] = domaine_counts.get(dom_name, 0) + 1
             # Sort by count descending, limit to top 8
             cours_par_domaine = sorted(domaine_counts.items(), key=lambda x: x[1], reverse=True)[:8]
@@ -6248,7 +6281,8 @@ def dashboard_etablissement_view(request):
     )
 
     # --- Admin display name ---
-    admin_display_name = admin_user.email.split('@')[0] if admin_user.email else 'Administrateur'
+    admin_email = request.session.get('user_email', '')
+    admin_display_name = admin_email.split('@')[0] if admin_email else 'Administrateur'
 
     # --- Fiche établissement ---
     regime_nom = '-'
@@ -6600,8 +6634,8 @@ def update_mon_etablissement(request):
         if not user_id:
             return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
 
-        admin_user = AdminUser.objects.select_related('etablissement').get(id_admin=user_id)
-        etab = admin_user.etablissement
+        etab, err = _get_tenant_etab(request)
+        if err: return err
         if not etab:
             return JsonResponse({'success': False, 'error': 'Pas un admin établissement.'}, status=403)
 
@@ -6663,8 +6697,8 @@ def toggle_calendar_synch(request):
         if not user_id:
             return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
 
-        admin_user = AdminUser.objects.select_related('etablissement').get(id_admin=user_id)
-        etab = admin_user.etablissement
+        etab, err = _get_tenant_etab(request)
+        if err: return err
         if not etab:
             return JsonResponse({'success': False, 'error': 'Pas un admin établissement.'}, status=403)
 
@@ -6677,7 +6711,7 @@ def toggle_calendar_synch(request):
         repartitions = []
 
         # Get allowed repartition types from active cycles
-        annee_active = Annee.objects.filter(etat='actif').first()
+        annee_active = Annee.objects.filter(etat_annee='actif').first()
         allowed_type_ids = set()
         if annee_active:
             etab_annee, _ = EtablissementAnnee.objects.get_or_create(
@@ -6790,8 +6824,8 @@ def update_calendar_config(request):
         if not user_id:
             return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
 
-        admin_user = AdminUser.objects.select_related('etablissement').get(id_admin=user_id)
-        etab = admin_user.etablissement
+        etab, err = _get_tenant_etab(request)
+        if err: return err
         if not etab:
             return JsonResponse({'success': False, 'error': 'Pas un admin établissement.'}, status=403)
         if etab.is_calendar_synched:
@@ -6840,8 +6874,8 @@ def upload_etab_logo(request):
         if not user_id:
             return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
 
-        admin_user = AdminUser.objects.select_related('etablissement').get(id_admin=user_id)
-        etab = admin_user.etablissement
+        etab, err = _get_tenant_etab(request)
+        if err: return err
         if not etab:
             return JsonResponse({'success': False, 'error': 'Pas un admin établissement.'}, status=403)
 
@@ -6906,8 +6940,8 @@ def upload_etab_document(request):
         if not user_id:
             return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
 
-        admin_user = AdminUser.objects.select_related('etablissement').get(id_admin=user_id)
-        etab = admin_user.etablissement
+        etab, err = _get_tenant_etab(request)
+        if err: return err
         if not etab:
             return JsonResponse({'success': False, 'error': 'Pas un admin établissement.'}, status=403)
 
@@ -6970,13 +7004,8 @@ def get_mon_etablissement(request):
         if not user_id:
             return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
 
-        admin_user = AdminUser.objects.select_related(
-            'etablissement', 'etablissement__pays',
-            'etablissement__gestionnaire'
-        ).get(id_admin=user_id)
-        etab = admin_user.etablissement
-        if not etab:
-            return JsonResponse({'success': False, 'error': 'Pas un admin établissement.'}, status=403)
+        etab, err = _get_tenant_etab(request)
+        if err: return err
 
         regime_nom = '-'
         if etab.id_regime:
@@ -7802,7 +7831,7 @@ def get_evaluation_cours(request):
             annee_id=annee_id
         ).filter(
             Q(etablissement__isnull=True) | Q(etablissement_id=etab_id)
-        ).select_related('cours', 'domaine').order_by('cours__cours')
+        ).select_related('cours').order_by('cours__cours')
 
         cours = [{
             'id_cours_classe': ca.id_cours_annee,
@@ -7831,8 +7860,9 @@ def get_evaluations_list(request):
         user_id = request.session.get('user_id')
         if not user_id:
             return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
-        admin_user = AdminUser.objects.select_related('etablissement').get(id_admin=user_id)
-        etab_id = admin_user.etablissement.id_etablissement
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        etab_id = etab.id_etablissement
 
         conn = _get_spoke_connection()
         try:
@@ -7879,8 +7909,9 @@ def save_evaluation(request):
         user_id = request.session.get('user_id')
         if not user_id:
             return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
-        admin_user = AdminUser.objects.select_related('etablissement').get(id_admin=user_id)
-        etab_id = admin_user.etablissement.id_etablissement
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        etab_id = etab.id_etablissement
 
         # FormData (not JSON)
         eval_id = request.POST.get('id_evaluation', '').strip()
@@ -8047,8 +8078,9 @@ def get_evaluation_candidates(request):
         user_id = request.session.get('user_id')
         if not user_id:
             return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
-        admin_user = AdminUser.objects.select_related('etablissement').get(id_admin=user_id)
-        etab_id = admin_user.etablissement.id_etablissement
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        etab_id = etab.id_etablissement
 
         # Get repartition config dates
         # already imported at top
@@ -8245,8 +8277,9 @@ def get_notes_grid(request):
         user_id = request.session.get('user_id')
         if not user_id:
             return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
-        admin_user = AdminUser.objects.select_related('etablissement').get(id_admin=user_id)
-        etab_id = admin_user.etablissement.id_etablissement
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        etab_id = etab.id_etablissement
 
         # Get repartition config for dates (auto-creates if synched mode)
         config = _get_or_create_repartition_config(repartition_id, etab_id)
@@ -8391,8 +8424,9 @@ def save_notes(request):
         user_id = request.session.get('user_id')
         if not user_id:
             return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
-        admin_user = AdminUser.objects.select_related('etablissement').get(id_admin=user_id)
-        etab_id = admin_user.etablissement.id_etablissement
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        etab_id = etab.id_etablissement
 
         data = json.loads(request.body)
         notes_data = data.get('notes', [])
@@ -8492,8 +8526,9 @@ def download_notes_template(request):
         user_id = request.session.get('user_id')
         if not user_id:
             return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
-        admin_user = AdminUser.objects.select_related('etablissement').get(id_admin=user_id)
-        etab_id = admin_user.etablissement.id_etablissement
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        etab_id = etab.id_etablissement
 
         config = _get_or_create_repartition_config(repartition_id, etab_id)
 
@@ -8631,8 +8666,9 @@ def import_notes_excel(request):
         user_id = request.session.get('user_id')
         if not user_id:
             return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
-        admin_user = AdminUser.objects.select_related('etablissement').get(id_admin=user_id)
-        etab_id = admin_user.etablissement.id_etablissement
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        etab_id = etab.id_etablissement
 
         uploaded_file = request.FILES.get('file')
         if not uploaded_file:
@@ -8771,8 +8807,9 @@ def calculate_notes_bulletin(request):
         user_id = request.session.get('user_id')
         if not user_id:
             return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
-        admin_user = AdminUser.objects.select_related('etablissement').get(id_admin=user_id)
-        etab_id = admin_user.etablissement.id_etablissement
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        etab_id = etab.id_etablissement
 
         data = json.loads(request.body)
         classe_id = data.get('classe_id')
@@ -9031,8 +9068,9 @@ def get_notes_bulletin(request):
         user_id = request.session.get('user_id')
         if not user_id:
             return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
-        admin_user = AdminUser.objects.select_related('etablissement').get(id_admin=user_id)
-        etab_id = admin_user.etablissement.id_etablissement
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        etab_id = etab.id_etablissement
 
         config = _get_or_create_repartition_config(repartition_id, etab_id)
 
@@ -9123,4 +9161,460 @@ def get_notes_bulletin(request):
     except Exception as e:
         import traceback
         traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ============================================================
+# --- CRUD DOMAINES ---
+# ============================================================
+
+@require_http_methods(["GET"])
+def get_domaines_data(request):
+    """Liste les domaines pour un pays donné."""
+    try:
+        sigle = request.GET.get('sigle')
+        if not sigle:
+            return JsonResponse({'success': False, 'error': 'Sigle manquant'})
+        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        if not pays:
+            return JsonResponse({'success': True, 'domaines': []})
+        if Domaine is None:
+            return JsonResponse({'success': True, 'domaines': []})
+        domaines = list(Domaine.objects.filter(pays=pays).values(
+            'id_domaine', 'nom', 'code'
+        ))
+        return JsonResponse({'success': True, 'domaines': domaines})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def save_domaine(request):
+    """Crée ou modifie un domaine."""
+    try:
+        data = json.loads(request.body)
+        id_domaine = data.get('id_domaine')
+        nom = data.get('nom', '').strip()
+        code = data.get('code', '').strip()
+        sigle = data.get('sigle', '').strip()
+
+        if not nom:
+            return JsonResponse({'success': False, 'error': 'Le nom du domaine est requis.'}, status=400)
+        if Domaine is None:
+            return JsonResponse({'success': False, 'error': 'Modèle Domaine non disponible.'}, status=500)
+
+        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        if not pays:
+            return JsonResponse({'success': False, 'error': 'Pays introuvable.'}, status=400)
+
+        if id_domaine:
+            d = Domaine.objects.filter(id_domaine=id_domaine).first()
+            if not d:
+                return JsonResponse({'success': False, 'error': 'Domaine introuvable.'}, status=404)
+            d.nom = nom
+            d.code = code
+            d.save()
+        else:
+            if Domaine.objects.filter(pays=pays, nom=nom).exists():
+                return JsonResponse({'success': False, 'error': f'Le domaine "{nom}" existe déjà.'}, status=400)
+            Domaine.objects.create(nom=nom, code=code, pays=pays)
+
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def delete_domaine(request):
+    """Supprime un domaine s'il n'est pas référencé."""
+    try:
+        data = json.loads(request.body)
+        if Domaine is None:
+            return JsonResponse({'success': False, 'error': 'Modèle Domaine non disponible.'}, status=500)
+        domaine = Domaine.objects.filter(id_domaine=data.get('id_domaine')).first()
+        if not domaine:
+            return JsonResponse({'success': False, 'error': 'Domaine introuvable.'}, status=404)
+
+        if Cours:
+            cours_count = Cours.objects.filter(domaine=domaine).count()
+        else:
+            cours_count = 0
+        ca_count = CoursAnnee.objects.filter(domaine=domaine).count()
+        if cours_count > 0 or ca_count > 0:
+            return JsonResponse({
+                'success': False,
+                'error': f'Ce domaine est utilisé par {cours_count} cours et {ca_count} config(s) annuelle(s).'
+            }, status=400)
+
+        domaine.delete()
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ============================================================
+# --- CRUD COURS (Catalogue) ---
+# ============================================================
+
+@require_http_methods(["GET"])
+def get_cours_data(request):
+    """Liste les cours, filtré par pays (sigle) et optionnellement par classe+section."""
+    try:
+        sigle = request.GET.get('sigle')
+        id_classe = request.GET.get('id_classe')
+        id_section = request.GET.get('id_section')
+
+        if not sigle:
+            return JsonResponse({'success': False, 'error': 'Sigle manquant'})
+
+        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        if not pays:
+            return JsonResponse({'success': True, 'cours': [], 'classes': []})
+        if Cours is None:
+            return JsonResponse({'success': True, 'cours': [], 'classes': []})
+
+        all_sections = []
+        if Section:
+            all_sections = list(Section.objects.all().order_by('nom').values('id_section', 'nom', 'code'))
+
+        cycles = pays.cycles.all().order_by('ordre')
+        classes_data = []
+        for cycle in cycles:
+            cycle_classes = cycle.classes.order_by('ordre')
+            if cycle.duree and cycle.duree > 0:
+                cycle_classes = cycle_classes[:cycle.duree]
+
+            if cycle.hasSections and all_sections:
+                for section in all_sections:
+                    for cls in cycle_classes:
+                        classes_data.append({
+                            'id_classe': cls.id_classe, 'id_section': section['id_section'],
+                            'nom': f"{cls.nom} — {section['nom']}",
+                            'cycle_nom': f"{cycle.nom} / {section['nom']}",
+                            'cycle_id': cycle.id_cycle, 'has_sections': True,
+                        })
+            else:
+                for cls in cycle_classes:
+                    classes_data.append({
+                        'id_classe': cls.id_classe, 'id_section': None,
+                        'nom': cls.nom, 'cycle_nom': cycle.nom,
+                        'cycle_id': cycle.id_cycle, 'has_sections': False,
+                    })
+
+        # Build lookup dicts (Cours has IntegerField domaine_id/section_id, NOT FKs)
+        domaine_map = {}
+        if Domaine:
+            domaine_map = {d['id_domaine']: d['nom'] for d in Domaine.objects.filter(pays=pays).values('id_domaine', 'nom')}
+        section_map = {}
+        if Section:
+            section_map = {s['id_section']: s['nom'] for s in Section.objects.all().values('id_section', 'nom')}
+
+        cours_qs = Cours.objects.filter(classe__cycle__pays=pays)
+        if id_classe:
+            cours_qs = cours_qs.filter(classe_id=id_classe)
+            if id_section:
+                cours_qs = cours_qs.filter(section_id=id_section)
+            else:
+                cours_qs = cours_qs.filter(section_id__isnull=True)
+
+        cours_data = []
+        for c in cours_qs:
+            cours_data.append({
+                'id_cours': c.id_cours, 'cours': c.cours, 'code_cours': c.code_cours,
+                'domaine_id': c.domaine_id,
+                'domaine_nom': domaine_map.get(c.domaine_id, ''),
+                'classe_id': c.classe_id,
+                'section_id': c.section_id,
+                'section_nom': section_map.get(c.section_id, ''),
+            })
+
+        domaines = list(Domaine.objects.filter(pays=pays).values('id_domaine', 'nom', 'code')) if Domaine else []
+
+        return JsonResponse({
+            'success': True, 'cours': cours_data,
+            'classes': classes_data, 'domaines': domaines,
+            'sections': all_sections,
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def save_cours(request):
+    """Crée ou modifie un cours."""
+    try:
+        data = json.loads(request.body)
+        id_cours = data.get('id_cours')
+        code_cours = data.get('code_cours', '').strip()
+        nom_cours = data.get('cours', '').strip()
+        domaine_id = data.get('domaine_id')
+        id_classe = data.get('id_classe')
+        id_section = data.get('id_section')
+
+        if not code_cours or not nom_cours or not id_classe:
+            return JsonResponse({'success': False, 'error': 'Code, nom du cours et classe sont requis.'}, status=400)
+        if Cours is None:
+            return JsonResponse({'success': False, 'error': 'Modèle Cours non disponible.'}, status=500)
+
+        classe = Classe.objects.filter(id_classe=id_classe).first()
+        if not classe:
+            return JsonResponse({'success': False, 'error': 'Classe introuvable.'}, status=404)
+        # domaine_id and section_id are IntegerFields on Cours, not FKs
+        dom_id = int(domaine_id) if domaine_id else None
+        sec_id = int(id_section) if id_section else None
+
+        if id_cours:
+            c = Cours.objects.filter(id_cours=id_cours).first()
+            if not c:
+                return JsonResponse({'success': False, 'error': 'Cours introuvable.'}, status=404)
+            c.cours = nom_cours
+            c.code_cours = code_cours
+            c.domaine_id = dom_id
+            c.classe = classe
+            c.section_id = sec_id
+            c.save()
+        else:
+            if Cours.objects.filter(classe=classe, section_id=sec_id, code_cours=code_cours).exists():
+                return JsonResponse({'success': False, 'error': f'Le code "{code_cours}" existe déjà pour cette classe.'}, status=400)
+            Cours.objects.create(cours=nom_cours, code_cours=code_cours, domaine_id=dom_id, classe=classe, section_id=sec_id)
+
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def delete_cours(request):
+    """Supprime un cours."""
+    try:
+        data = json.loads(request.body)
+        if Cours is None:
+            return JsonResponse({'success': False, 'error': 'Modèle Cours non disponible.'}, status=500)
+        c = Cours.objects.filter(id_cours=data.get('id_cours')).first()
+        if c:
+            c.delete()
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ============================================================
+# --- CRUD COURS_ANNEE (Configuration Annuelle des Cours) ---
+# ============================================================
+
+@require_http_methods(["GET"])
+def get_cours_annee_data(request):
+    """Liste la configuration annuelle des cours, filtrée par classe (+section) et année."""
+    try:
+        id_classe = request.GET.get('id_classe')
+        id_annee = request.GET.get('id_annee')
+        id_section = request.GET.get('id_section')
+        sigle = request.GET.get('sigle')
+
+        if not sigle:
+            return JsonResponse({'success': False, 'error': 'Sigle manquant'})
+
+        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        if not pays:
+            return JsonResponse({'success': True, 'cours_annee': [], 'annees': []})
+
+        annees = list(Annee.objects.filter(pays_id=pays.id_pays).order_by('-annee').values('id_annee', 'annee', 'etat_annee'))
+        domaines = list(Domaine.objects.filter(pays=pays).values('id_domaine', 'nom', 'code')) if Domaine else []
+
+        if not id_classe or not id_annee:
+            return JsonResponse({'success': True, 'cours_annee': [], 'annees': annees, 'domaines': domaines})
+
+        if Cours is None:
+            return JsonResponse({'success': True, 'cours_annee': [], 'annees': annees, 'domaines': domaines})
+
+        # Tous les cours du catalogue pour cette classe (+section)
+        # NOTE: Cours.domaine_id is IntegerField, NOT FK — cannot use select_related/order_by FK
+        cours_catalogue = Cours.objects.filter(classe_id=id_classe).order_by('cours')
+        if id_section:
+            cours_catalogue = cours_catalogue.filter(section_id=id_section)
+        else:
+            cours_catalogue = cours_catalogue.filter(section_id__isnull=True)
+
+        # Build domaine/section lookup maps
+        domaine_map = {}
+        if Domaine:
+            domaine_map = {d['id_domaine']: d['nom'] for d in Domaine.objects.filter(pays=pays).values('id_domaine', 'nom')}
+        section_map = {}
+        if Section:
+            section_map = {s['id_section']: s['nom'] for s in Section.objects.all().values('id_section', 'nom')}
+
+        # Get tenant etab for per-establishment configs
+        etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+
+        # Les configs existantes (check for etablissement-specific then national)
+        configs_map = {}
+        configs_qs = CoursAnnee.objects.filter(
+            cours__classe_id=id_classe, annee_id=id_annee
+        ).select_related('cours')
+        if id_section:
+            configs_qs = configs_qs.filter(cours__section_id=id_section)
+        else:
+            configs_qs = configs_qs.filter(cours__section_id__isnull=True)
+        for ca in configs_qs:
+            configs_map[ca.cours_id] = ca
+
+        # Construire la réponse
+        cours_data = []
+        for c in cours_catalogue:
+            ca = configs_map.get(c.id_cours)
+            # Domaine: priority to CoursAnnee.domaine_id, else fallback to Cours.domaine_id (both IntegerFields)
+            dom_id = (ca.domaine_id if ca and ca.domaine_id else c.domaine_id)
+            dom_nom = domaine_map.get(dom_id, '') if dom_id else ''
+            entry = {
+                'id_cours': c.id_cours, 'code_cours': c.code_cours, 'cours': c.cours,
+                'domaine_id': dom_id,
+                'domaine_nom': dom_nom,
+                'is_configured': ca is not None,
+                'section_id': c.section_id,
+                'section_nom': section_map.get(c.section_id, ''),
+            }
+            if ca:
+                entry.update({
+                    'id_cours_annee': ca.id_cours_annee,
+                    'ponderation': ca.ponderation,
+                    'CM': ca.CM, 'TD': ca.TD,
+                    'maxima_tp': ca.maxima_tp, 'maxima_tpe': ca.maxima_tpe,
+                    'credits': ca.credits, 'heure_semaine': ca.heure_semaine,
+                    'is_obligatory': ca.is_obligatory, 'ordre': ca.ordre,
+                    'compte_au_nombre_echec': ca.compte_au_nombre_echec,
+                    'total_considerable_trimestre': ca.total_considerable_trimestre,
+                    'est_considerer_echec_lorsque_pourcentage_est': ca.est_considerer_echec_lorsque_pourcentage_est,
+                    'is_second_semester': ca.is_second_semester,
+                })
+            cours_data.append(entry)
+
+        return JsonResponse({'success': True, 'cours_annee': cours_data, 'annees': annees, 'domaines': domaines})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def save_cours_annee(request):
+    """Crée ou modifie une configuration annuelle de cours."""
+    try:
+        data = json.loads(request.body)
+        id_cours_annee = data.get('id_cours_annee')
+        cours_id = data.get('cours_id')
+        annee_id = data.get('annee_id')
+
+        int_fields = ['ponderation', 'CM', 'TD', 'maxima_tp', 'maxima_tpe', 'credits',
+                      'heure_semaine', 'ordre', 'est_considerer_echec_lorsque_pourcentage_est']
+        bool_fields = ['is_obligatory', 'compte_au_nombre_echec', 'total_considerable_trimestre', 'is_second_semester']
+
+        if id_cours_annee:
+            ca = CoursAnnee.objects.filter(id_cours_annee=id_cours_annee).first()
+            if not ca:
+                return JsonResponse({'success': False, 'error': 'Config introuvable.'}, status=404)
+            for f in int_fields:
+                if f in data:
+                    v = data[f]
+                    try:
+                        setattr(ca, f, int(v) if v is not None and v != '' else None)
+                    except (ValueError, TypeError):
+                        setattr(ca, f, None)
+            for f in bool_fields:
+                if f in data:
+                    setattr(ca, f, bool(data[f]))
+            if 'domaine_id' in data and Domaine:
+                ca.domaine_id = int(data['domaine_id']) if data['domaine_id'] else None
+            ca.save()
+        else:
+            if not cours_id or not annee_id:
+                return JsonResponse({'success': False, 'error': 'Cours et année requis.'}, status=400)
+            if Cours is None:
+                return JsonResponse({'success': False, 'error': 'Modèle Cours non disponible.'}, status=500)
+
+            fields = {}
+            for f in int_fields:
+                v = data.get(f)
+                try:
+                    fields[f] = int(v) if v is not None and v != '' else None
+                except (ValueError, TypeError):
+                    fields[f] = None
+            for f in bool_fields:
+                fields[f] = bool(data.get(f, False))
+
+            cours = Cours.objects.filter(id_cours=cours_id).first()
+            annee = Annee.objects.filter(id_annee=annee_id).first()
+            if not cours or not annee:
+                return JsonResponse({'success': False, 'error': 'Cours ou année introuvable.'}, status=404)
+
+            etab_id = data.get('etablissement_id') or getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+            etab = Etablissement.objects.filter(id_etablissement=etab_id).first() if etab_id else None
+
+            if CoursAnnee.objects.filter(cours=cours, annee=annee, etablissement=etab).exists():
+                return JsonResponse({'success': False, 'error': 'Ce cours est déjà configuré pour cette année.'}, status=400)
+
+            dom_id = data.get('domaine_id') or (cours.domaine_id if cours.domaine_id else None)
+            if dom_id:
+                dom_id = int(dom_id)
+            CoursAnnee.objects.create(cours=cours, annee=annee, etablissement=etab, domaine_id=dom_id, **fields)
+
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def delete_cours_annee(request):
+    """Supprime une configuration annuelle de cours."""
+    try:
+        data = json.loads(request.body)
+        ca = CoursAnnee.objects.filter(id_cours_annee=data.get('id_cours_annee')).first()
+        if ca:
+            ca.delete()
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def bulk_activate_cours_annee(request):
+    """Active en masse les cours du catalogue pour une classe/année (+section)."""
+    try:
+        data = json.loads(request.body)
+        id_classe = data.get('id_classe')
+        id_annee = data.get('id_annee')
+        id_section = data.get('id_section')
+
+        if not id_classe or not id_annee:
+            return JsonResponse({'success': False, 'error': 'Classe et année requis.'}, status=400)
+        if Cours is None:
+            return JsonResponse({'success': False, 'error': 'Modèle Cours non disponible.'}, status=500)
+
+        cours_catalogue = Cours.objects.filter(classe_id=id_classe)
+        if id_section:
+            cours_catalogue = cours_catalogue.filter(section_id=id_section)
+        else:
+            cours_catalogue = cours_catalogue.filter(section_id__isnull=True)
+        annee = Annee.objects.filter(id_annee=id_annee).first()
+        if not annee:
+            return JsonResponse({'success': False, 'error': 'Année introuvable.'}, status=404)
+
+        created = 0
+        for c in cours_catalogue:
+            _, was_created = CoursAnnee.objects.get_or_create(
+                cours=c, annee=annee, defaults={'ordre': c.id_cours}
+            )
+            if was_created:
+                created += 1
+
+        return JsonResponse({'success': True, 'count': created})
+    except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
