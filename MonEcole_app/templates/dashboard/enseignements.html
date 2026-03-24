@@ -3673,29 +3673,43 @@ function renderHoraireWeek(){
     });
     html+='</tr></thead><tbody>';
 
-    timeSlots.forEach(ts=>{
+    // Pre-compute rowspan skip map: skipMap[rowIdx][colIdx] = true if covered by a rowspan
+    const skipMap={};
+    timeSlots.forEach((ts,ri)=>{
+        skipMap[ri]={};
+        visibleDates.forEach((d,ci)=>{
+            const nextH=String(parseInt(ts.split(':')[0])+1).padStart(2,'0')+':00';
+            const starting=horaireAllSlots.filter(s=>s.date===d.date && s.debut>=ts && s.debut<nextH);
+            if(starting.length){
+                const s=starting[0];
+                const spanH=Math.max(1, Math.ceil((parseInt(s.fin.split(':')[0])*60+parseInt(s.fin.split(':')[1]||0) - parseInt(s.debut.split(':')[0])*60-parseInt(s.debut.split(':')[1]||0))/60));
+                for(let k=1;k<spanH && (ri+k)<timeSlots.length;k++){
+                    skipMap[ri+k][ci]=true;
+                }
+            }
+        });
+    });
+
+    timeSlots.forEach((ts,ri)=>{
         const nextH=String(parseInt(ts.split(':')[0])+1).padStart(2,'0')+':00';
         html+=`<tr><td style="text-align:center;font-weight:600;background:#fafbfc;color:#475569;font-size:.65rem;vertical-align:top;padding:8px 4px">${ts}<br><span style="color:#cbd5e1">\u2193</span><br>${nextH}</td>`;
-        visibleDates.forEach(d=>{
+        visibleDates.forEach((d,ci)=>{
+            if(skipMap[ri][ci]) return; // cell covered by rowspan above
             const wkBg=d.is_weekend?';background:#fffbeb':'';
-            // Slots that START in this hour
             const startingSlots=horaireAllSlots.filter(s=>s.date===d.date && s.debut>=ts && s.debut<nextH);
-            // Slots that are ongoing (started BEFORE this hour but still running)
-            const ongoingSlots=horaireAllSlots.filter(s=>s.date===d.date && s.debut<ts && s.fin>ts);
             if(startingSlots.length){
                 let cellHtml='';
                 startingSlots.forEach(s=>{
-                    // Calculate duration in hours for visual height
                     const dH=parseInt(s.fin.split(':')[0])-parseInt(s.debut.split(':')[0]);
-                    const dM=(parseInt(s.fin.split(':')[1]||0)-parseInt(s.debut.split(':')[1]||0));
+                    const dM=parseInt(s.fin.split(':')[1]||0)-parseInt(s.debut.split(':')[1]||0);
+                    const totalMin=dH*60+dM;
+                    const spanH=Math.max(1, Math.ceil(totalMin/60));
                     const durLabel=dH>0?(dH+'h'+(dM>0?dM+'min':'')):(dM+'min');
-                    cellHtml+=`<div style="background:linear-gradient(135deg,#e0e7ff,#c7d2fe);border-radius:6px;padding:6px 8px;margin-bottom:3px;border-left:3px solid #6366f1;cursor:pointer;position:relative" onclick="openHoraireEdit(${s.id},'${s.date}',${s.cours_id},'${s.debut}','${s.fin}')" title="Cliquer pour modifier"><div style="font-weight:700;font-size:.7rem;color:#312e81">${s.cours_nom||'Cours'}</div><div style="font-size:.6rem;color:#6366f1">${s.debut} - ${s.fin} (${durLabel})</div><button onclick="event.stopPropagation();deleteHoraireCreneau(${s.id})" style="position:absolute;top:2px;right:2px;background:none;border:none;color:#ef4444;font-size:.6rem;cursor:pointer;padding:2px 4px" title="Supprimer"><i class="fas fa-times"></i></button></div>`;
+                    cellHtml+=`<div style="background:linear-gradient(135deg,#e0e7ff,#c7d2fe);border-radius:8px;padding:8px 10px;border-left:4px solid #6366f1;cursor:pointer;position:relative;height:100%;display:flex;flex-direction:column;justify-content:center" onclick="openHoraireEdit(${s.id},'${s.date}',${s.cours_id},'${s.debut}','${s.fin}')" title="Cliquer pour modifier"><div style="font-weight:700;font-size:.75rem;color:#312e81">${s.cours_nom||'Cours'}</div><div style="font-size:.62rem;color:#6366f1;margin-top:2px"><i class="fas fa-clock" style="margin-right:3px"></i>${s.debut} - ${s.fin} (${durLabel})</div><button onclick="event.stopPropagation();deleteHoraireCreneau(${s.id})" style="position:absolute;top:4px;right:4px;background:rgba(239,68,68,.1);border:none;color:#ef4444;font-size:.6rem;cursor:pointer;padding:3px 5px;border-radius:4px" title="Supprimer"><i class="fas fa-times"></i></button></div>`;
+                    // Apply rowspan
+                    html+=`<td rowspan="${spanH}" style="vertical-align:top;padding:4px${wkBg}">${cellHtml}</td>`;
+                    cellHtml='__done__';
                 });
-                html+=`<td style="vertical-align:top;padding:4px${wkBg}">${cellHtml}</td>`;
-            } else if(ongoingSlots.length){
-                // Show continuation bar (not clickable for add)
-                const s=ongoingSlots[0];
-                html+=`<td style="vertical-align:top;padding:0 4px${wkBg}"><div style="background:linear-gradient(180deg,#c7d2fe,#e0e7ff);border-left:3px solid #6366f1;height:100%;min-height:30px;border-radius:0;opacity:.5;display:flex;align-items:center;justify-content:center" title="${s.cours_nom} (${s.debut}-${s.fin})"><span style="font-size:.55rem;color:#4338ca;font-weight:600">\u2502</span></div></td>`;
             } else {
                 html+=`<td style="vertical-align:top;padding:4px;cursor:pointer${wkBg}" onclick="openHoraireModal('${d.date}','${ts}','${nextH}')" title="Ajouter"><div style="height:100%;min-height:30px;border:1px dashed #e2e8f0;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:.7rem;transition:all .2s" onmouseenter="this.style.borderColor='#6366f1';this.style.color='#6366f1';this.style.background='#f0f1ff'" onmouseleave="this.style.borderColor='#e2e8f0';this.style.color='#cbd5e1';this.style.background=''"><i class="fas fa-plus"></i></div></td>`;
             }
