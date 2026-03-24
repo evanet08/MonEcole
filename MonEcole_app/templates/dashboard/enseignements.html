@@ -3229,10 +3229,10 @@ function renderAttribution(courses,id_classe){
         html+=`<td style="padding:8px 12px;font-weight:700;color:#1e293b;font-size:.72rem"><div style="display:flex;align-items:center;gap:8px"><div style="width:28px;height:28px;border-radius:6px;background:${hasTeacher?'linear-gradient(135deg,#059669,#10b981)':'linear-gradient(135deg,#f59e0b,#fbbf24)'};display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas ${hasTeacher?'fa-check':'fa-clock'}" style="color:#fff;font-size:.55rem"></i></div>${c.cours}</div></td>`;
         html+=`<td style="padding:8px 12px;text-align:center"><span style="background:#f0f1ff;color:#4f46e5;padding:2px 8px;border-radius:6px;font-size:.6rem;font-weight:700">${c.code_cours}</span></td>`;
         html+=`<td style="padding:8px 12px;text-align:center;font-weight:600;color:#475569">${c.ponderation||'—'}</td>`;
-        html+=`<td style="padding:8px 10px"><select id="attrPers_${c.id_cours}" style="width:100%;padding:6px 8px;border:1px solid ${hasTeacher?'#86efac':'#e2e8f0'};border-radius:6px;font-size:.68rem;background:#fff;cursor:pointer;color:#334155"><option value="">— Non attribué —</option>${persOpts}</select></td>`;
-        html+=`<td style="padding:8px 6px;text-align:center"><select id="attrType_${c.id_cours}" style="width:100%;padding:6px 6px;border:1px solid #e2e8f0;border-radius:6px;font-size:.62rem;background:#fff;cursor:pointer;color:#475569">${typeOpts}</select></td>`;
+        html+=`<td style="padding:8px 10px"><select id="attrPers_${c.id_cours_classe}" style="width:100%;padding:6px 8px;border:1px solid ${hasTeacher?'#86efac':'#e2e8f0'};border-radius:6px;font-size:.68rem;background:#fff;cursor:pointer;color:#334155"><option value="">— Non attribué —</option>${persOpts}</select></td>`;
+        html+=`<td style="padding:8px 6px;text-align:center"><select id="attrType_${c.id_cours_classe}" style="width:100%;padding:6px 6px;border:1px solid #e2e8f0;border-radius:6px;font-size:.62rem;background:#fff;cursor:pointer;color:#475569">${typeOpts}</select></td>`;
         html+=`<td style="padding:8px 8px;text-align:center"><div style="display:flex;gap:4px;justify-content:center">`;
-        html+=`<button onclick="assignCours(${c.id_cours},'${id_classe}')" style="width:28px;height:28px;border-radius:6px;border:none;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;cursor:pointer;font-size:.62rem;box-shadow:0 1px 4px rgba(79,70,229,.3);transition:transform .15s" title="Attribuer" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='none'"><i class="fas fa-check"></i></button>`;
+        html+=`<button onclick="assignCours(${c.id_cours_classe},'${id_classe}')" style="width:28px;height:28px;border-radius:6px;border:none;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;cursor:pointer;font-size:.62rem;box-shadow:0 1px 4px rgba(79,70,229,.3);transition:transform .15s" title="Attribuer" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='none'"><i class="fas fa-check"></i></button>`;
         if(c.id_attribution){
             html+=`<button onclick="removeAttribution(${c.id_attribution},'${id_classe}')" style="width:28px;height:28px;border-radius:6px;border:1px solid #fecaca;background:#fff;color:#ef4444;cursor:pointer;font-size:.62rem;transition:all .15s" title="Retirer" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'"><i class="fas fa-times"></i></button>`;
         }
@@ -3242,15 +3242,15 @@ function renderAttribution(courses,id_classe){
     container.innerHTML=html;
 }
 
-async function assignCours(id_cours,id_classe){
-    const persId=document.getElementById(`attrPers_${id_cours}`).value;
-    const typeId=document.getElementById(`attrType_${id_cours}`).value||1;
+async function assignCours(id_cours_classe,id_classe){
+    const persId=document.getElementById(`attrPers_${id_cours_classe}`).value;
+    const typeId=document.getElementById(`attrType_${id_cours_classe}`).value||1;
     if(!persId){showToast('Sélectionnez un enseignant.','error');return}
     const csrfToken=document.querySelector('[name=csrfmiddlewaretoken]')?.value||'{{ csrf_token }}';
     try{
         const res=await fetch('/api/dashboard/attribution-cours/',{
             method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken},
-            body:JSON.stringify({action:'assign',id_etablissement:ATTR_ETAB_ID,id_classe:id_classe,id_cours:id_cours,id_personnel:persId,attribution_type_id:typeId})
+            body:JSON.stringify({action:'assign',id_etablissement:ATTR_ETAB_ID,id_classe:id_classe,id_cours_classe:id_cours_classe,id_personnel:persId,attribution_type_id:typeId})
         });
         const data=await res.json();
         if(data.success){showToast('Cours attribué!','success');loadAttribution()}

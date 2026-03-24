@@ -5746,10 +5746,11 @@ def dashboard_attribution_cours(request):
                     ).select_related('cours').order_by('cours__cours')
 
                     # Now get attributions from spoke for these courses
-                    ca_ids = [ca.cours_id for ca in cours_annee_list]
+                    # attribution_cours.id_cours_id → cours_annee.id_cours_annee (NOT cours.id_cours!)
+                    ca_annee_ids = [ca.id_cours_annee for ca in cours_annee_list]
                     attributions_map = {}
-                    if ca_ids:
-                        placeholders = ','.join(['%s'] * len(ca_ids))
+                    if ca_annee_ids:
+                        placeholders = ','.join(['%s'] * len(ca_annee_ids))
                         cur.execute(f"""
                             SELECT ac.id_attribution, ac.id_cours_id, ac.id_personnel_id,
                                    ac.attribution_type_id, ac.date_attribution,
@@ -5759,13 +5760,13 @@ def dashboard_attribution_cours(request):
                             LEFT JOIN personnel p ON p.id_personnel = ac.id_personnel_id
                             WHERE ac.id_cours_id IN ({placeholders})
                               AND ac.id_classe_id = %s AND ac.id_etablissement = %s
-                        """, ca_ids + [int(id_classe), id_etablissement])
+                        """, ca_annee_ids + [int(id_classe), id_etablissement])
                         for r in cur.fetchall():
                             attributions_map[r['id_cours_id']] = r
 
                     courses = []
                     for ca in cours_annee_list:
-                        attr = attributions_map.get(ca.cours_id, {})
+                        attr = attributions_map.get(ca.id_cours_annee, {})
                         pers_name = ''
                         if attr.get('pers_nom'):
                             pers_name = f"{attr['pers_nom']} {attr.get('pers_postnom') or ''} {attr.get('pers_prenom') or ''}".strip()
@@ -5810,12 +5811,12 @@ def dashboard_attribution_cours(request):
                     })
 
                 elif action == 'assign':
-                    id_cours = data.get('id_cours')
+                    id_cours_classe = data.get('id_cours_classe') or data.get('id_cours')
                     id_personnel = data.get('id_personnel')
                     id_cycle = data.get('id_cycle')
                     attr_type_id = data.get('attribution_type_id', 1)
 
-                    if not all([id_cours, id_personnel, id_classe]):
+                    if not all([id_cours_classe, id_personnel, id_classe]):
                         return JsonResponse({'success': False, 'error': 'Cours, personnel et classe requis.'}, status=400)
 
                     # Get current année and campus — direct Hub query
@@ -5830,19 +5831,22 @@ def dashboard_attribution_cours(request):
                     id_annee = classe_row['id_annee'] if classe_row else 1
                     id_campus = classe_row['id_campus'] if classe_row else 1
 
-                    # Get cycle from Hub (Cours → Classe → Cycle)
-                    CoursModel = Cours  # alias
+                    # Get cycle from Hub via cours_annee → cours → classe → cycle
                     try:
-                        hub_cours = CoursModel.objects.select_related('classe__cycle').get(id_cours=id_cours)
-                        id_cycle = hub_cours.classe.cycle_id if hub_cours.classe else (id_cycle or 1)
-                    except CoursModel.DoesNotExist:
+                        from MonEcole_app.models.enseignmnts.matiere import Cours_par_classe
+                        ca_obj = Cours_par_classe.objects.select_related('id_cours__classe__cycle').get(id_cours_classe=int(id_cours_classe))
+                        if ca_obj.id_cours and ca_obj.id_cours.classe:
+                            id_cycle = ca_obj.id_cours.classe.cycle_id
+                        else:
+                            id_cycle = id_cycle or 1
+                    except Exception:
                         id_cycle = id_cycle or 1
 
-                    # Check if attribution already exists
+                    # Check if attribution already exists (by cours_annee id)
                     cur.execute("""
                         SELECT id_attribution FROM attribution_cours
                         WHERE id_cours_id=%s AND id_classe_id=%s AND id_etablissement=%s
-                    """, [id_cours, id_classe, id_etablissement])
+                    """, [id_cours_classe, id_classe, id_etablissement])
                     existing = cur.fetchone()
 
                     if existing:
@@ -5856,7 +5860,7 @@ def dashboard_attribution_cours(request):
                             INSERT INTO attribution_cours
                             (attribution_type_id, id_annee_id, id_campus_id, id_classe_id, id_cours_id, id_cycle_id, id_personnel_id, date_attribution, id_etablissement)
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        """, [attr_type_id, id_annee, id_campus, id_classe, id_cours, id_cycle, id_personnel,
+                        """, [attr_type_id, id_annee, id_campus, id_classe, id_cours_classe, id_cycle, id_personnel,
                               __import__('datetime').date.today().strftime('%Y-%m-%d'), id_etablissement])
 
                     conn.commit()
