@@ -92,7 +92,20 @@ def login_view(request):
                 return redirect('/dashboard/')
         except Personnel.DoesNotExist:
             pass
-    return render(request, 'auth/login.html')
+
+    # Contexte établissement pour afficher le logo
+    context = {}
+    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    if etab_id:
+        try:
+            from MonEcole_app.models.country_structure import Etablissement
+            etab = Etablissement.objects.get(id_etablissement=etab_id)
+            context['etab_nom'] = etab.nom
+            context['etab_logo'] = etab.logo_ecole or ''
+        except Exception:
+            pass
+
+    return render(request, 'auth/login.html', context)
 
 
 def logout_view(request):

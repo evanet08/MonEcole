@@ -186,10 +186,16 @@
         <div class="login-card">
             <!-- Logo Section -->
             <div class="logo-section">
+                {% if etab_logo %}
+                <div class="app-logo" style="background: white; padding: 8px;">
+                    <img src="/media/{{ etab_logo }}" alt="{{ etab_nom }}" style="max-width: 80px; max-height: 80px; object-fit: contain;">
+                </div>
+                {% else %}
                 <div class="app-logo">
                     <i class="fas fa-graduation-cap"></i>
                 </div>
-                <h1 class="login-title">MonEcole</h1>
+                {% endif %}
+                <h1 class="login-title">{{ etab_nom|default:"MonEcole" }}</h1>
                 <p class="login-subtitle">Espace de gestion scolaire</p>
             </div>
 

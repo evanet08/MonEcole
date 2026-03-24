@@ -86,7 +86,7 @@ class EtablissementAnnee(models.Model):
     Utilisé pour toutes les jointures que faisaient les VIEWs.
     """
     id = models.AutoField(primary_key=True)
-    etablissement = models.ForeignKey('Institution', on_delete=models.CASCADE,
+    etablissement = models.ForeignKey('Etablissement', on_delete=models.CASCADE,
                                       db_column='etablissement_id')
     annee = models.ForeignKey('Annee', on_delete=models.CASCADE,
                               db_column='annee_id')
