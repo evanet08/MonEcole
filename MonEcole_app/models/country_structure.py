@@ -20,7 +20,9 @@ class Pays(models.Model):
     id_pays = models.AutoField(primary_key=True)
     nom = models.CharField(max_length=100, unique=True)
     sigle = models.CharField(max_length=5, unique=True)
-    nLevelsStructuraux = models.PositiveIntegerField(default=0)
+
+    domaine = models.CharField(max_length=255)
+    nLevelsPedagogiques = models.PositiveIntegerField(default=0)
     nLevelsAdministratifs = models.PositiveIntegerField(default=0)
     logo_ministere = models.ImageField(upload_to='logos/ministere/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
