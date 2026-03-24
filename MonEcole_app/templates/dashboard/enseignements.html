@@ -465,6 +465,25 @@
     </div>
 </div>
 
+<!-- Modal Copier Semaine -->
+<div id="copyWeekModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1001;align-items:center;justify-content:center">
+    <div style="background:#fff;border-radius:14px;padding:24px;width:550px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <h5 style="margin:0;font-size:.9rem;font-weight:700;color:#1e293b"><i class="fas fa-copy" style="color:#059669;margin-right:6px"></i>Copier depuis la semaine précédente</h5>
+            <button onclick="closeCopyWeekModal()" style="border:none;background:none;font-size:1.2rem;cursor:pointer;color:#94a3b8">&times;</button>
+        </div>
+        <div style="margin-bottom:12px;display:flex;gap:8px">
+            <button onclick="selectAllCopySlots(true)" style="font-size:.65rem;padding:4px 10px;border:1px solid #bbf7d0;border-radius:6px;background:#f0fdf4;cursor:pointer;color:#15803d;font-weight:600">Tout sélectionner</button>
+            <button onclick="selectAllCopySlots(false)" style="font-size:.65rem;padding:4px 10px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;cursor:pointer;color:#64748b;font-weight:600">Tout désélectionner</button>
+        </div>
+        <div id="copyWeekSlotsList" style="margin-bottom:16px"></div>
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+            <button onclick="closeCopyWeekModal()" style="padding:8px 16px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-size:.75rem;cursor:pointer">Annuler</button>
+            <button onclick="executeCopySelectedSlots()" style="padding:8px 16px;border:none;border-radius:8px;background:linear-gradient(135deg,#059669,#34d399);color:#fff;font-size:.75rem;cursor:pointer;font-weight:600"><i class="fas fa-copy"></i> Copier la sélection</button>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Ajout Créneau -->
 <div id="horaireModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:none;align-items:center;justify-content:center">
     <div style="background:#fff;border-radius:14px;padding:24px;width:400px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.2)">
@@ -492,11 +511,14 @@
                 <input type="time" id="hm_fin" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:.78rem">
             </div>
         </div>
-        <div id="hm_bulk_wrap" style="margin-bottom:12px;padding:8px 12px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.72rem;font-weight:600;color:#15803d">
-                <input type="checkbox" id="hm_bulk" style="accent-color:#16a34a;width:16px;height:16px">
-                Appliquer à toute la semaine (même horaire, Lun-Ven)
+        <div id="hm_bulk_wrap" style="margin-bottom:12px;padding:10px 12px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.72rem;font-weight:600;color:#15803d;margin-bottom:6px">
+                <input type="checkbox" id="hm_bulk" onchange="toggleBulkDays()" style="accent-color:#16a34a;width:16px;height:16px">
+                Appliquer à plusieurs jours
             </label>
+            <div id="hm_days_selector" style="display:none;padding-top:6px;border-top:1px solid #dcfce7">
+                <div style="display:flex;flex-wrap:wrap;gap:6px" id="hm_days_list"></div>
+            </div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
             <button onclick="closeHoraireModal()" style="padding:8px 16px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font-size:.75rem;cursor:pointer">Annuler</button>
@@ -3541,6 +3563,7 @@ function viewDocAgrement() {
 // EMPLOI DU TEMPS / HORAIRE
 // ============================================================
 let horaireWeeks=[], horaireCurrentWeek=0, horaireCoursList=[], horaireAllSlots=[];
+let showWeekends=false;
 const HORAIRE_ETAB_ID=ETAB_ID;
 
 function populateHoraireClasses(){
@@ -3634,29 +3657,36 @@ function renderHoraireWeek(){
     const copyBtn=document.getElementById('btnCopyPrevWeek');
     if(copyBtn) copyBtn.style.display=horaireCurrentWeek>0?'inline-flex':'none';
 
+    // Filter dates based on showWeekends toggle
+    const visibleDates=showWeekends?week.dates:week.dates.filter(d=>!d.is_weekend);
+
     const timeSlots=[];
     for(let h=7;h<=16;h++) timeSlots.push(`${String(h).padStart(2,'0')}:00`);
 
-    let html='<div style="overflow-x:auto"><table class="eleves-table" style="width:100%;font-size:.7rem">';
+    let html='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><label style="display:flex;align-items:center;gap:5px;font-size:.68rem;color:#64748b;cursor:pointer"><input type="checkbox" '+(showWeekends?'checked':'')+' onchange="showWeekends=this.checked;renderHoraireWeek()" style="accent-color:#6366f1"> Afficher Samedi/Dimanche</label></div>';
+    html+='<div style="overflow-x:auto"><table class="eleves-table" style="width:100%;font-size:.7rem">';
     html+='<thead><tr><th style="width:70px;text-align:center;background:#f8fafc">Heure</th>';
-    week.dates.forEach(d=>{
-        html+=`<th style="text-align:center;background:#f0f1ff;min-width:140px">${d.jour}<br><span style="font-weight:400;font-size:.62rem;color:#94a3b8">${d.date}</span></th>`;
+    visibleDates.forEach(d=>{
+        const wkStyle=d.is_weekend?'background:#fef3c7;color:#92400e':'background:#f0f1ff';
+        const wkBadge=d.is_weekend?'<span style="font-size:.5rem;background:#fbbf24;color:#fff;padding:1px 4px;border-radius:3px;margin-left:3px">WE</span>':'';
+        html+=`<th style="text-align:center;${wkStyle};min-width:130px">${d.jour}${wkBadge}<br><span style="font-weight:400;font-size:.62rem;color:#94a3b8">${d.date}</span></th>`;
     });
     html+='</tr></thead><tbody>';
 
     timeSlots.forEach(ts=>{
         const nextH=String(parseInt(ts.split(':')[0])+1).padStart(2,'0')+':00';
         html+=`<tr><td style="text-align:center;font-weight:600;background:#fafbfc;color:#475569;font-size:.65rem;vertical-align:top;padding:8px 4px">${ts}<br><span style="color:#cbd5e1">\u2193</span><br>${nextH}</td>`;
-        week.dates.forEach(d=>{
+        visibleDates.forEach(d=>{
             const daySlots=horaireAllSlots.filter(s=>s.date===d.date && s.debut<nextH && s.fin>ts);
+            const wkBg=d.is_weekend?';background:#fffbeb':'';
             if(daySlots.length){
                 let cellHtml='';
                 daySlots.forEach(s=>{
                     cellHtml+=`<div style="background:linear-gradient(135deg,#e0e7ff,#c7d2fe);border-radius:6px;padding:4px 6px;margin-bottom:3px;border-left:3px solid #6366f1;cursor:pointer;position:relative" onclick="openHoraireEdit(${s.id},'${s.date}',${s.cours_id},'${s.debut}','${s.fin}')" title="Cliquer pour modifier"><div style="font-weight:700;font-size:.68rem;color:#312e81">${s.cours_nom||'Cours'}</div><div style="font-size:.6rem;color:#6366f1">${s.debut} - ${s.fin}</div><button onclick="event.stopPropagation();deleteHoraireCreneau(${s.id})" style="position:absolute;top:2px;right:2px;background:none;border:none;color:#ef4444;font-size:.6rem;cursor:pointer;padding:2px 4px" title="Supprimer"><i class="fas fa-times"></i></button></div>`;
                 });
-                html+=`<td style="vertical-align:top;padding:4px">${cellHtml}</td>`;
+                html+=`<td style="vertical-align:top;padding:4px${wkBg}">${cellHtml}</td>`;
             } else {
-                html+=`<td style="vertical-align:top;padding:4px;cursor:pointer" onclick="openHoraireModal('${d.date}','${ts}','${nextH}')" title="Ajouter"><div style="height:100%;min-height:30px;border:1px dashed #e2e8f0;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:.7rem;transition:all .2s" onmouseenter="this.style.borderColor='#6366f1';this.style.color='#6366f1';this.style.background='#f0f1ff'" onmouseleave="this.style.borderColor='#e2e8f0';this.style.color='#cbd5e1';this.style.background=''"><i class="fas fa-plus"></i></div></td>`;
+                html+=`<td style="vertical-align:top;padding:4px;cursor:pointer${wkBg}" onclick="openHoraireModal('${d.date}','${ts}','${nextH}')" title="Ajouter"><div style="height:100%;min-height:30px;border:1px dashed #e2e8f0;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:.7rem;transition:all .2s" onmouseenter="this.style.borderColor='#6366f1';this.style.color='#6366f1';this.style.background='#f0f1ff'" onmouseleave="this.style.borderColor='#e2e8f0';this.style.color='#cbd5e1';this.style.background=''"><i class="fas fa-plus"></i></div></td>`;
             }
         });
         html+='</tr>';
@@ -3668,25 +3698,26 @@ function renderHoraireWeek(){
 function prevHoraireWeek(){if(horaireCurrentWeek>0){horaireCurrentWeek--;renderHoraireWeek();}}
 function nextHoraireWeek(){if(horaireCurrentWeek<horaireWeeks.length-1){horaireCurrentWeek++;renderHoraireWeek();}}
 
-async function copyPreviousWeek(){
-    if(horaireCurrentWeek<=0){showToast('Pas de semaine pr\u00e9c\u00e9dente','error');return;}
-    const prevWeek=horaireWeeks[horaireCurrentWeek-1];
-    const curWeek=horaireWeeks[horaireCurrentWeek];
-    const sourceDates=prevWeek.dates.map(d=>d.date);
-    const targetDates=curWeek.dates.map(d=>d.date);
-    const classeId=document.getElementById('horaireClasseSelect').value;
-    if(!classeId)return;
-    if(!confirm(`Copier l'horaire de la semaine pr\u00e9c\u00e9dente (${prevWeek.week_label}) vers cette semaine ?`))return;
-    const csrf=document.querySelector('[name=csrfmiddlewaretoken]')?.value||'';
-    try{
-        const res=await fetch('/api/dashboard/horaire/',{
-            method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
-            body:JSON.stringify({action:'copy-week',id_etablissement:HORAIRE_ETAB_ID,id_classe:classeId,source_dates:sourceDates,target_dates:targetDates})
+function toggleBulkDays(){
+    const checked=document.getElementById('hm_bulk').checked;
+    const daysDiv=document.getElementById('hm_days_selector');
+    daysDiv.style.display=checked?'block':'none';
+    if(checked&&horaireWeeks.length){
+        const week=horaireWeeks[horaireCurrentWeek];
+        const list=document.getElementById('hm_days_list');
+        list.innerHTML='';
+        week.dates.forEach(d=>{
+            const isWE=d.is_weekend;
+            const checked=!isWE;
+            const bgColor=isWE?'#fef3c7':'#eff6ff';
+            const borderColor=isWE?'#fde68a':'#bfdbfe';
+            const textColor=isWE?'#92400e':'#1e40af';
+            list.innerHTML+=`<label style="display:flex;align-items:center;gap:4px;padding:4px 8px;background:${bgColor};border:1px solid ${borderColor};border-radius:6px;font-size:.65rem;font-weight:600;color:${textColor};cursor:pointer">
+                <input type="checkbox" class="hm_day_cb" data-date="${d.date}" ${checked?'checked':''} style="accent-color:#6366f1;width:13px;height:13px">
+                ${d.jour.substring(0,3)} ${d.date.substring(5)}
+            </label>`;
         });
-        const data=await res.json();
-        if(data.success){showToast(data.message||'Semaine copi\u00e9e','success');reloadHoraireData();}
-        else showToast(data.error||'Erreur','error');
-    }catch(e){showToast('Erreur: '+e.message,'error');}
+    }
 }
 
 function openHoraireModal(date,debut,fin){
@@ -3703,7 +3734,7 @@ function openHoraireModal(date,debut,fin){
     });
     const bulkWrap=document.getElementById('hm_bulk_wrap');
     if(bulkWrap) bulkWrap.style.display='block';
-    if(document.getElementById('hm_bulk')) document.getElementById('hm_bulk').checked=false;
+    if(document.getElementById('hm_bulk')){document.getElementById('hm_bulk').checked=false;toggleBulkDays();}
     document.getElementById('horaireModal').style.display='flex';
 }
 
@@ -3740,10 +3771,11 @@ async function saveHoraireCreneau(){
     if(debut>=fin){showToast("L'heure de d\u00e9but doit \u00eatre avant la fin",'error');return;}
     const csrf=document.querySelector('[name=csrfmiddlewaretoken]')?.value||'';
     try{
-        if(bulk&&!id&&horaireWeeks.length){
-            // Appliquer à toute la semaine
-            const week=horaireWeeks[horaireCurrentWeek];
-            const dates=week.dates.map(d=>d.date);
+        if(bulk&&!id){
+            // Get selected days
+            const cbs=document.querySelectorAll('.hm_day_cb:checked');
+            const dates=Array.from(cbs).map(cb=>cb.dataset.date);
+            if(!dates.length){showToast('S\u00e9lectionnez au moins un jour','error');return;}
             const res=await fetch('/api/dashboard/horaire/',{
                 method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
                 body:JSON.stringify({action:'save-bulk',id_etablissement:HORAIRE_ETAB_ID,id_classe:classeId,id_cours:cours,dates:dates,debut:debut,fin:fin})
@@ -3787,6 +3819,94 @@ function reloadHoraireData(){
     const periSel=document.getElementById('horairePeriodeSelect');
     const opt=periSel.options[periSel.selectedIndex];
     if(opt&&opt.value) loadHoraireSlots(opt.dataset.debut,opt.dataset.fin);
+}
+
+// === COPY WEEK ===
+let copyWeekSourceSlots=[];
+function copyPreviousWeek(){
+    if(horaireCurrentWeek<=0){showToast('Pas de semaine pr\u00e9c\u00e9dente','error');return;}
+    const prevWeek=horaireWeeks[horaireCurrentWeek-1];
+    // Filter existing slots for previous week dates
+    const prevDates=prevWeek.dates.map(d=>d.date);
+    copyWeekSourceSlots=horaireAllSlots.filter(s=>prevDates.includes(s.date));
+    if(!copyWeekSourceSlots.length){
+        showToast('Aucun cr\u00e9neau dans la semaine pr\u00e9c\u00e9dente','warning');
+        return;
+    }
+    // Render the selection modal
+    const list=document.getElementById('copyWeekSlotsList');
+    // Group by day
+    let html='';
+    const dayMap={};
+    copyWeekSourceSlots.forEach((s,i)=>{
+        if(!dayMap[s.date]) dayMap[s.date]=[];
+        dayMap[s.date].push({...s,idx:i});
+    });
+    Object.keys(dayMap).sort().forEach(date=>{
+        const dayName=prevWeek.dates.find(d=>d.date===date)?.jour||date;
+        html+=`<div style="margin-bottom:10px"><div style="font-size:.7rem;font-weight:700;color:#475569;margin-bottom:4px;padding:4px 8px;background:#f1f5f9;border-radius:4px">${dayName} (${date})</div>`;
+        dayMap[date].forEach(s=>{
+            html+=`<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:4px;cursor:pointer;font-size:.7rem;transition:all .15s" onmouseenter="this.style.borderColor='#6366f1'" onmouseleave="this.style.borderColor='#e2e8f0'">
+                <input type="checkbox" class="copy_slot_cb" data-idx="${s.idx}" checked style="accent-color:#059669;width:14px;height:14px">
+                <span style="color:#312e81;font-weight:600">${s.cours_nom}</span>
+                <span style="color:#6366f1;font-size:.62rem">${s.debut} - ${s.fin}</span>
+            </label>`;
+        });
+        html+='</div>';
+    });
+    list.innerHTML=html;
+    document.getElementById('copyWeekModal').style.display='flex';
+}
+
+function closeCopyWeekModal(){document.getElementById('copyWeekModal').style.display='none';}
+
+function selectAllCopySlots(val){
+    document.querySelectorAll('.copy_slot_cb').forEach(cb=>cb.checked=val);
+}
+
+async function executeCopySelectedSlots(){
+    const selected=Array.from(document.querySelectorAll('.copy_slot_cb:checked')).map(cb=>parseInt(cb.dataset.idx));
+    if(!selected.length){showToast('S\u00e9lectionnez au moins un cr\u00e9neau','error');return;}
+    const prevWeek=horaireWeeks[horaireCurrentWeek-1];
+    const curWeek=horaireWeeks[horaireCurrentWeek];
+    // Build day mapping (same weekday index)
+    const prevByWeekday={};
+    prevWeek.dates.forEach(d=>{
+        const wd=new Date(d.date).getDay(); // 0=Sun, 1=Mon...
+        prevByWeekday[d.date]=wd;
+    });
+    const curByWeekday={};
+    curWeek.dates.forEach(d=>{
+        const wd=new Date(d.date).getDay();
+        curByWeekday[wd]=d.date;
+    });
+
+    const classeId=document.getElementById('horaireClasseSelect').value;
+    const csrf=document.querySelector('[name=csrfmiddlewaretoken]')?.value||'';
+    let created=0, skipped=0, errors=0;
+
+    for(const idx of selected){
+        const slot=copyWeekSourceSlots[idx];
+        if(!slot)continue;
+        const srcWD=prevByWeekday[slot.date];
+        const targetDate=curByWeekday[srcWD];
+        if(!targetDate){skipped++;continue;}
+        try{
+            const res=await fetch('/api/dashboard/horaire/',{
+                method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+                body:JSON.stringify({action:'save',id_etablissement:HORAIRE_ETAB_ID,id_classe:classeId,id_cours:slot.cours_id,date:targetDate,debut:slot.debut,fin:slot.fin})
+            });
+            const data=await res.json();
+            if(data.success) created++;
+            else skipped++;
+        }catch(e){errors++;}
+    }
+    closeCopyWeekModal();
+    let msg=`${created} cr\u00e9neau(x) copi\u00e9(s)`;
+    if(skipped) msg+=`, ${skipped} ignor\u00e9(s)`;
+    if(errors) msg+=`, ${errors} erreur(s)`;
+    showToast(msg, created>0?'success':'warning');
+    reloadHoraireData();
 }
 
 </script>

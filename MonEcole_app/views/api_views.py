@@ -9680,6 +9680,8 @@ def dashboard_horaire(request):
             d_start = datetime.strptime(date_debut, '%Y-%m-%d').date()
             d_end = datetime.strptime(date_fin, '%Y-%m-%d').date()
 
+            jour_noms = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+
             weeks = []
             current = d_start
             while current.weekday() != 0:
@@ -9688,12 +9690,13 @@ def dashboard_horaire(request):
             while current <= d_end:
                 week_start = current
                 week_dates = []
-                for i in range(5):
+                for i in range(7):  # 7 jours (Lun-Dim)
                     day = week_start + timedelta(days=i)
                     if d_start <= day <= d_end:
                         week_dates.append({
                             'date': str(day),
-                            'jour': ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'][day.weekday()],
+                            'jour': jour_noms[day.weekday()],
+                            'is_weekend': day.weekday() >= 5,
                         })
                 if week_dates:
                     weeks.append({
