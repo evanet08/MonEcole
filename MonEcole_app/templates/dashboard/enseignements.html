@@ -5,9 +5,21 @@
 {% block page_indicator %}Enseignements{% endblock %}
 
 {% block sidebar_items %}
-<a href="/dashboard/enseignements/" class="nav-item active" title="Enseignants">
-    <i class="fas fa-chalkboard-teacher" style="color:#10b981"></i>
-    <span class="text-center">Enseignants</span>
+<a href="/dashboard/enseignements/" class="nav-item {% if active_section == 'enseignants' or active_section == '' %}active{% endif %}" title="Dashboard" onclick="switchEnsSection('enseignants');return false;">
+    <i class="fas fa-th-large" style="color:#10b981"></i>
+    <span class="text-center">Dashboard</span>
+</a>
+<a href="#" class="nav-item {% if active_section == 'reference' %}active{% endif %}" title="Référence" onclick="switchEnsSection('reference');return false;">
+    <i class="fas fa-database" style="color:#8b5cf6"></i>
+    <span class="text-center">Référence</span>
+</a>
+<a href="#" class="nav-item {% if active_section == 'gestion' %}active{% endif %}" title="Personnel" onclick="switchEnsSection('gestion');return false;">
+    <i class="fas fa-users-cog" style="color:#f59e0b"></i>
+    <span class="text-center">Personnel</span>
+</a>
+<a href="#" class="nav-item {% if active_section == 'attribution' %}active{% endif %}" title="Attribution" onclick="switchEnsSection('attribution');return false;">
+    <i class="fas fa-user-tag" style="color:#ef4444"></i>
+    <span class="text-center">Attribution</span>
 </a>
 {% endblock %}
 
@@ -276,254 +288,129 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="etab-section {% if active_section == 'enseignants' %}active-section{% endif %}" id="sec-enseignants">
-    <!-- Stat Cards Enseignements -->
+<!-- ===== SECTION 1: DASHBOARD ===== -->
+<div class="etab-section active-section" id="sec-enseignants">
+    <!-- Stat Cards -->
     <div class="stat-grid">
         <div class="stat-card grad-purple"><div class="stat-icon"><i class="fas fa-chalkboard-teacher"></i></div><div><div class="stat-label">Enseignants</div><div class="stat-value">{{ stats.n_enseignants }}</div></div></div>
         <div class="stat-card grad-teal"><div class="stat-icon"><i class="fas fa-book"></i></div><div><div class="stat-label">Cours</div><div class="stat-value">{{ stats.n_cours }}</div></div></div>
         <div class="stat-card grad-blue"><div class="stat-icon"><i class="fas fa-chalkboard"></i></div><div><div class="stat-label">Classes</div><div class="stat-value">{{ stats.n_classes }}</div></div></div>
         <div class="stat-card grad-rose"><div class="stat-icon"><i class="fas fa-layer-group"></i></div><div><div class="stat-label">Cycles</div><div class="stat-value">{{ stats.n_cycles }}</div></div></div>
     </div>
+    <!-- Statistiques détaillées -->
+    <div class="stat-grid" id="persStatsCards" style="margin-bottom:12px"></div>
+    <div class="stats-grid-2col">
+        <div class="sg-left">
+            <div class="dash-section"><div class="dash-section-title"><i class="fas fa-venus-mars"></i> Par Genre</div><div id="persGenreChart"></div></div>
+        </div>
+        <div class="sg-right">
+            <div class="dash-section"><div class="dash-section-title"><i class="fas fa-tags"></i> Par Catégorie</div><div id="persCategorieChart"></div></div>
+        </div>
+    </div>
+    <div class="dash-section"><div class="dash-section-title"><i class="fas fa-building"></i> Répartition par Campus</div><div id="campusChart"></div></div>
+</div>
 
-    <div class="eleve-tabs" style="display:flex;gap:0;margin-bottom:10px;border-bottom:2px solid #e2e8f0">
-        <button class="eleve-tab active" id="tabPersStat" onclick="switchPersTab('stat')"><i class="fas fa-chart-pie"></i> Statistiques</button>
-        <button class="eleve-tab" id="tabPersGestion" onclick="switchPersTab('gestion')"><i class="fas fa-th-list"></i> Gestion</button>
-        <button class="eleve-tab" id="tabPersParam" onclick="switchPersTab('param')"><i class="fas fa-cogs"></i> Paramétrage</button>
+<!-- ===== SECTION 2: RÉFÉRENCE DU PERSONNEL ===== -->
+<div class="etab-section" id="sec-reference">
+    <!-- Stat Cards -->
+    <div class="stat-grid">
+        <div class="stat-card grad-purple"><div class="stat-icon"><i class="fas fa-chalkboard-teacher"></i></div><div><div class="stat-label">Enseignants</div><div class="stat-value">{{ stats.n_enseignants }}</div></div></div>
+        <div class="stat-card grad-teal"><div class="stat-icon"><i class="fas fa-book"></i></div><div><div class="stat-label">Cours</div><div class="stat-value">{{ stats.n_cours }}</div></div></div>
+        <div class="stat-card grad-blue"><div class="stat-icon"><i class="fas fa-chalkboard"></i></div><div><div class="stat-label">Classes</div><div class="stat-value">{{ stats.n_classes }}</div></div></div>
+        <div class="stat-card grad-rose"><div class="stat-icon"><i class="fas fa-layer-group"></i></div><div><div class="stat-label">Cycles</div><div class="stat-value">{{ stats.n_cycles }}</div></div></div>
     </div>
-    <!-- TAB 1: STATISTIQUES -->
-    <div id="persPanelStat">
-        <div class="stat-grid" id="persStatsCards" style="margin-bottom:12px"></div>
-        <div class="stats-grid-2col">
-            <div class="sg-left">
-                <div class="dash-section"><div class="dash-section-title"><i class="fas fa-venus-mars"></i> Par Genre</div><div id="persGenreChart"></div></div>
-            </div>
-            <div class="sg-right">
-                <div class="dash-section"><div class="dash-section-title"><i class="fas fa-tags"></i> Par Catégorie</div><div id="persCategorieChart"></div></div>
-            </div>
-        </div>
-        <div class="dash-section"><div class="dash-section-title"><i class="fas fa-building"></i> Répartition par Campus</div><div id="campusChart"></div></div>
+    <!-- Tables de Référence -->
+    <div style="font-size:.78rem;font-weight:700;color:#1e293b;margin-bottom:8px"><i class="fas fa-database" style="color:#6366f1;margin-right:4px"></i> Tables de Référence du Personnel</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="refTableSelector">
+        <button class="eleve-btn" style="background:linear-gradient(135deg,#6366f1,#a78bfa);color:#fff;font-size:.62rem" onclick="selectRefTable('categories')" id="refBtn_categories"><i class="fas fa-tags"></i> Catégories</button>
+        <button class="eleve-btn" style="background:#f1f5f9;color:#475569;font-size:.62rem" onclick="selectRefTable('types')" id="refBtn_types"><i class="fas fa-user-tag"></i> Types</button>
+        <button class="eleve-btn" style="background:#f1f5f9;color:#475569;font-size:.62rem" onclick="selectRefTable('postes')" id="refBtn_postes"><i class="fas fa-briefcase"></i> Postes</button>
+        <button class="eleve-btn" style="background:#f1f5f9;color:#475569;font-size:.62rem" onclick="selectRefTable('diplomes')" id="refBtn_diplomes"><i class="fas fa-graduation-cap"></i> Diplômes</button>
+        <button class="eleve-btn" style="background:#f1f5f9;color:#475569;font-size:.62rem" onclick="selectRefTable('specialites')" id="refBtn_specialites"><i class="fas fa-microscope"></i> Spécialités</button>
+        <button class="eleve-btn" style="background:#f1f5f9;color:#475569;font-size:.62rem" onclick="selectRefTable('vacations')" id="refBtn_vacations"><i class="fas fa-clock"></i> Vacations</button>
+        <button class="eleve-btn" style="background:#f1f5f9;color:#475569;font-size:.62rem" onclick="selectRefTable('taches')" id="refBtn_taches"><i class="fas fa-tasks"></i> Tâches</button>
     </div>
-    <!-- TAB 2: GESTION -->
-    <div id="persPanelGestion" style="display:none">
-        <!-- Actions bar -->
-        <div class="eleve-actions" style="margin-bottom:8px">
-            <button class="eleve-btn eleve-btn-add" onclick="toggleAddPersForm()"><i class="fas fa-user-plus"></i> Ajouter</button>
-            <button class="eleve-btn" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff" onclick="loadPersonnelList()"><i class="fas fa-sync-alt"></i> Actualiser</button>
-            <a href="/api/dashboard/personnel-template/?id_etablissement={{ etab.id_etablissement }}" class="eleve-btn" style="background:linear-gradient(135deg,#6366f1,#a78bfa);color:#fff;text-decoration:none;display:inline-flex;align-items:center;gap:3px"><i class="fas fa-file-excel"></i> Modèle Import</a>
-            <button class="eleve-btn" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff" onclick="document.getElementById('persImportFileInput').click()"><i class="fas fa-file-import"></i> Importer</button>
-            <input type="file" id="persImportFileInput" accept=".xlsx,.xls" style="display:none" onchange="importPersonnelFile(this)">
-        </div>
-        <!-- Add Form -->
-        <div id="addPersForm" class="eleve-form" style="display:none;margin-bottom:10px">
-            <div style="font-size:.75rem;font-weight:700;color:#1e293b;margin-bottom:8px"><i class="fas fa-user-plus" style="color:#059669;margin-right:4px"></i> Nouveau Personnel</div>
-            <!-- Identification -->
-            <div style="font-size:.62rem;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:.5px;margin:6px 0 4px;border-bottom:1px solid #eef2ff;padding-bottom:2px"><i class="fas fa-id-card" style="margin-right:3px"></i> Identification</div>
-            <div class="eleve-form-grid">
-                <div><label>Nom *</label><input id="persNom" placeholder="Nom"></div>
-                <div><label>Postnom</label><input id="persPostnom" placeholder="Postnom"></div>
-                <div><label>Prénom</label><input id="persPrenom" placeholder="Prénom"></div>
-                <div><label>Photo</label><input id="persPhotoFile" type="file" accept="image/*" style="font-size:.6rem"></div>
-                <div><label>Genre *</label><select id="persGenre"><option value="">--</option><option value="M">Masculin</option><option value="F">Féminin</option></select></div>
-                <div><label>Date Naissance</label><input id="persDN" type="text" placeholder="jj/mm/aaaa" maxlength="10"></div>
-                <div><label>État Civil</label><select id="persEtatCivil"><option value="">--</option><option value="Célibataire">Célibataire</option><option value="Marié(e)">Marié(e)</option><option value="Divorcé(e)">Divorcé(e)</option><option value="Veuf(ve)">Veuf(ve)</option></select></div>
-                <div><label>Type Pièce</label><input id="persTypeId" placeholder="CNI, Passeport..."></div>
-                <div><label>N° Pièce</label><input id="persNumId" placeholder="N° identité"></div>
-            </div>
-            <!-- Qualification -->
-            <div style="font-size:.62rem;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px;border-bottom:1px solid #eef2ff;padding-bottom:2px"><i class="fas fa-graduation-cap" style="margin-right:3px"></i> Qualification</div>
-            <div class="eleve-form-grid">
-                <div><label>Catégorie *</label><select id="persCategorie"></select></div>
-                <div><label>Type *</label><select id="persType"></select></div>
-                <div><label>Diplôme</label><select id="persDiplome"></select></div>
-                <div><label>Spécialité</label><select id="persSpecialite"></select></div>
-                <div><label>Vacation</label><select id="persVacation"></select></div>
-                <div><label>Poste Admin.</label><select id="persPoste"></select></div>
-            </div>
-            <!-- Contact -->
-            <div style="font-size:.62rem;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px;border-bottom:1px solid #eef2ff;padding-bottom:2px"><i class="fas fa-phone-alt" style="margin-right:3px"></i> Contact & Localisation</div>
-            <div class="eleve-form-grid">
-                <div><label>Téléphone</label><input id="persTel" placeholder="+243..."></div>
-                <div><label>Email</label><input id="persEmail" type="email" placeholder="email@example.com"></div>
-                <div><label>Mot de passe</label><input id="persPassword" type="text" placeholder="Mot de passe"></div>
-                <div><label>Adresse</label><input id="persAdresse" placeholder="Adresse"></div>
-                <div><label>Zone</label><input id="persZone" placeholder="Zone"></div>
-                <div><label>Commune</label><input id="persCommune" placeholder="Commune"></div>
-                <div><label>Province</label><input id="persProvince" placeholder="Province"></div>
-                <div><label>Pays</label><input id="persPays" placeholder="Pays"></div>
-            </div>
-            <!-- Fonction -->
-            <div style="font-size:.62rem;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px;border-bottom:1px solid #eef2ff;padding-bottom:2px"><i class="fas fa-briefcase" style="margin-right:3px"></i> Fonction</div>
-            <div class="eleve-form-grid">
-                <div><label>En Fonction</label><select id="persEnFonction"><option value="1">Oui</option><option value="0">Non</option></select></div>
-            </div>
-            <div class="eleve-form-actions" style="margin-top:8px">
-                <button class="eleve-btn" style="background:#94a3b8;color:#fff" onclick="toggleAddPersForm()"><i class="fas fa-times"></i> Annuler</button>
-                <button class="eleve-btn eleve-btn-add" onclick="savePersonnel()"><i class="fas fa-save"></i> Enregistrer</button>
-            </div>
-        </div>
-        <!-- Stats résumées -->
-        <div id="persGestionStats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:12px"></div>
-        <!-- Grid -->
-        <div id="persGridSection" class="dash-section" style="margin-bottom:.8rem">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
-                <div class="dash-section-title" style="margin-bottom:0"><i class="fas fa-list"></i> Liste du Personnel <span id="persGridCount" style="font-weight:400;color:#64748b;font-size:.7rem">(0)</span></div>
-                <div style="display:flex;gap:4px;align-items:center">
-                    <div style="position:relative">
-                        <button class="eleve-btn" style="background:linear-gradient(135deg,#6366f1,#a78bfa);color:#fff;font-size:.65rem" onclick="togglePersColSelector()" id="btnPersColSelector"><i class="fas fa-columns"></i> Colonnes</button>
-                        <div id="persColumnSelectorDropdown" style="display:none;position:absolute;right:0;top:100%;z-index:100;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.15);padding:10px;min-width:260px;max-height:420px;overflow-y:auto">
-                            <div style="font-size:.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #f1f5f9"><i class="fas fa-eye" style="margin-right:3px"></i> Colonnes Visibles</div>
-                            <div id="persColumnCheckboxes"></div>
-                            <div style="margin-top:6px;padding-top:6px;border-top:1px solid #f1f5f9;display:flex;gap:4px">
-                                <button style="flex:1;padding:4px;border:none;border-radius:5px;background:#eef2ff;color:#4338ca;font-size:.62rem;font-weight:600;cursor:pointer" onclick="selectAllPersCols(true)">Tout cocher</button>
-                                <button style="flex:1;padding:4px;border:none;border-radius:5px;background:#f1f5f9;color:#64748b;font-size:.62rem;font-weight:600;cursor:pointer" onclick="selectAllPersCols(false)">Tout décocher</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div id="persGridContainer" style="overflow-x:auto;max-height:550px;overflow-y:auto;border-radius:12px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,.04)"></div>
-        </div>
+    <div id="refTableContent" class="dash-section" style="margin-bottom:.8rem"></div>
+</div>
+
+<!-- ===== SECTION 3: GESTION DU PERSONNEL ===== -->
+<div class="etab-section" id="sec-gestion">
+    <!-- Stat Cards -->
+    <div class="stat-grid">
+        <div class="stat-card grad-purple"><div class="stat-icon"><i class="fas fa-chalkboard-teacher"></i></div><div><div class="stat-label">Enseignants</div><div class="stat-value">{{ stats.n_enseignants }}</div></div></div>
+        <div class="stat-card grad-teal"><div class="stat-icon"><i class="fas fa-book"></i></div><div><div class="stat-label">Cours</div><div class="stat-value">{{ stats.n_cours }}</div></div></div>
+        <div class="stat-card grad-blue"><div class="stat-icon"><i class="fas fa-chalkboard"></i></div><div><div class="stat-label">Classes</div><div class="stat-value">{{ stats.n_classes }}</div></div></div>
+        <div class="stat-card grad-rose"><div class="stat-icon"><i class="fas fa-layer-group"></i></div><div><div class="stat-label">Cycles</div><div class="stat-value">{{ stats.n_cycles }}</div></div></div>
     </div>
-    <!-- TAB 3: PARAMÉTRAGE -->
-    <div id="persPanelParam" style="display:none">
-        <div style="font-size:.72rem;font-weight:700;color:#1e293b;margin-bottom:8px"><i class="fas fa-database" style="color:#6366f1;margin-right:4px"></i> Tables de Référence du Personnel</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="refTableSelector">
-            <button class="eleve-btn" style="background:linear-gradient(135deg,#6366f1,#a78bfa);color:#fff;font-size:.62rem" onclick="selectRefTable('categories')" id="refBtn_categories"><i class="fas fa-tags"></i> Catégories</button>
-            <button class="eleve-btn" style="background:#f1f5f9;color:#475569;font-size:.62rem" onclick="selectRefTable('types')" id="refBtn_types"><i class="fas fa-user-tag"></i> Types</button>
-            <button class="eleve-btn" style="background:#f1f5f9;color:#475569;font-size:.62rem" onclick="selectRefTable('postes')" id="refBtn_postes"><i class="fas fa-briefcase"></i> Postes</button>
-            <button class="eleve-btn" style="background:#f1f5f9;color:#475569;font-size:.62rem" onclick="selectRefTable('diplomes')" id="refBtn_diplomes"><i class="fas fa-graduation-cap"></i> Diplômes</button>
-            <button class="eleve-btn" style="background:#f1f5f9;color:#475569;font-size:.62rem" onclick="selectRefTable('specialites')" id="refBtn_specialites"><i class="fas fa-microscope"></i> Spécialités</button>
-            <button class="eleve-btn" style="background:#f1f5f9;color:#475569;font-size:.62rem" onclick="selectRefTable('vacations')" id="refBtn_vacations"><i class="fas fa-clock"></i> Vacations</button>
-            <button class="eleve-btn" style="background:#f1f5f9;color:#475569;font-size:.62rem" onclick="selectRefTable('taches')" id="refBtn_taches"><i class="fas fa-tasks"></i> Tâches</button>
+    <!-- Gestion du Personnel -->
+    <div id="persPanelGestion">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+            <button class="eleve-btn" style="background:linear-gradient(135deg,#059669,#34d399);color:#fff;font-size:.65rem" onclick="toggleAddPersForm()"><i class="fas fa-user-plus"></i> Ajouter</button>
+            <button class="eleve-btn" style="background:linear-gradient(135deg,#2563eb,#60a5fa);color:#fff;font-size:.65rem" onclick="loadPersonnelList()"><i class="fas fa-sync-alt"></i> Actualiser</button>
+            <button class="eleve-btn" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;font-size:.65rem" onclick="downloadImportTemplate()"><i class="fas fa-file-download"></i> Modèle Import</button>
+            <button class="eleve-btn" style="background:linear-gradient(135deg,#e11d48,#fb7185);color:#fff;font-size:.65rem" onclick="document.getElementById('importPersFile').click()"><i class="fas fa-file-upload"></i> Importer</button>
+            <input type="file" id="importPersFile" accept=".xlsx,.xls" style="display:none" onchange="importPersonnel(this)">
         </div>
-        <div id="refTableContent" class="dash-section" style="margin-bottom:.8rem"></div>
+        <div id="addPersForm" style="display:none;background:#f8fafc;border-radius:12px;padding:16px;margin-bottom:12px;border:1px solid #e2e8f0">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+                <input type="text" id="addPersNom" placeholder="Nom" class="form-control form-control-sm" style="font-size:.72rem">
+                <input type="text" id="addPersPrenom" placeholder="Prénom" class="form-control form-control-sm" style="font-size:.72rem">
+                <input type="text" id="addPersPostnom" placeholder="Post-nom" class="form-control form-control-sm" style="font-size:.72rem">
+                <select id="addPersGenre" class="form-select form-select-sm" style="font-size:.72rem"><option value="">Genre</option><option value="M">Masculin</option><option value="F">Féminin</option></select>
+                <input type="text" id="addPersTel" placeholder="Téléphone" class="form-control form-control-sm" style="font-size:.72rem">
+                <input type="email" id="addPersEmail" placeholder="Email" class="form-control form-control-sm" style="font-size:.72rem">
+            </div>
+            <div style="text-align:right;margin-top:8px"><button class="btn btn-sm btn-primary" style="font-size:.72rem" onclick="saveNewPersonnel()"><i class="fas fa-save"></i> Enregistrer</button></div>
+        </div>
+        <div class="dash-section" style="padding:10px 14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <div class="dash-section-title mb-0"><i class="fas fa-list"></i> Liste du Personnel <span id="personnelCountDesc" style="font-weight:400;font-size:.72rem;color:#94a3b8">({{ stats.n_enseignants }})</span></div>
+                <button class="btn btn-sm btn-outline-secondary" style="font-size:.65rem;border-radius:8px" onclick="togglePersColumns()"><i class="fas fa-columns"></i> Colonnes</button>
+            </div>
+            <div id="persColumnSelector" style="display:none;margin-bottom:8px;padding:10px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0"><div id="persColumnCheckboxes" style="display:flex;flex-wrap:wrap;gap:6px"></div></div>
+            <div style="overflow-x:auto;max-height:55vh;overflow-y:auto" id="persGridContainer"></div>
+        </div>
     </div>
 </div>
 
-
-<!-- ============ COURS & PONDÉRATIONS ============ -->
-    <div class="config-tab-content" id="tab-cours">
-        <div class="dash-section">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <div>
-                    <div class="dash-section-title"><i class="fas fa-book"></i> Cours personnalisables</div>
-                    <div class="dash-section-sub">Pour les cycles non-uniformes (ex: CFP), configurez les cours et pondérations spécifiques à votre établissement.</div>
-                </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-sm btn-outline-primary" style="font-size:.72rem;border-radius:8px" onclick="openDomaineModal()">
-                        <i class="fas fa-layer-group me-1"></i>Domaines
-                    </button>
-                    <button class="btn btn-sm btn-primary" style="font-size:.72rem;border-radius:8px" onclick="openCoursModal()" id="btnAddCoursEtab">
-                        <i class="fas fa-plus me-1"></i>Ajouter un cours
-                    </button>
-                </div>
-            </div>
-            <div class="d-flex flex-wrap gap-2 align-items-center mb-3" id="coursFilters">
-                <select id="cours-cycle-select" class="form-select form-select-sm" style="max-width:180px;font-size:.78rem" onchange="onCoursCycleChange()">
-                    <option value="">— Cycle —</option>
-                </select>
-                <select id="cours-classe-select" class="form-select form-select-sm" style="max-width:180px;font-size:.78rem" onchange="onCoursClasseChange()">
-                    <option value="">— Classe —</option>
-                </select>
-                <select id="cours-section-select" class="form-select form-select-sm" style="max-width:200px;font-size:.78rem" onchange="loadCoursEtab()">
-                    <option value="">— (aucune filière) —</option>
-                </select>
-            </div>
-            <div id="coursEtabGrid">
-                <div class="ca-loading"><i class="fas fa-info-circle"></i> Sélectionnez un cycle, une classe et une filière pour voir les cours.</div>
-            </div>
-        </div>
+<!-- ===== SECTION 4: ATTRIBUTION DES COURS ===== -->
+<div class="etab-section" id="sec-attribution">
+    <!-- Stat Cards -->
+    <div class="stat-grid">
+        <div class="stat-card grad-purple"><div class="stat-icon"><i class="fas fa-chalkboard-teacher"></i></div><div><div class="stat-label">Enseignants</div><div class="stat-value">{{ stats.n_enseignants }}</div></div></div>
+        <div class="stat-card grad-teal"><div class="stat-icon"><i class="fas fa-book"></i></div><div><div class="stat-label">Cours</div><div class="stat-value">{{ stats.n_cours }}</div></div></div>
+        <div class="stat-card grad-blue"><div class="stat-icon"><i class="fas fa-chalkboard"></i></div><div><div class="stat-label">Classes</div><div class="stat-value">{{ stats.n_classes }}</div></div></div>
+        <div class="stat-card grad-rose"><div class="stat-icon"><i class="fas fa-layer-group"></i></div><div><div class="stat-label">Cycles</div><div class="stat-value">{{ stats.n_cycles }}</div></div></div>
     </div>
-
-    <!-- Modal: Domaines -->
-    <div class="modal fade" id="domaineModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:16px 16px 0 0;padding:.8rem 1.2rem;">
-                    <h6 class="modal-title text-white mb-0"><i class="fas fa-layer-group me-2"></i>Gestion des Domaines</h6>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body" style="max-height:50vh;overflow-y:auto">
-                    <div id="domaineList"><div class="text-center text-muted py-3"><i class="fas fa-spinner fa-spin"></i></div></div>
-                    <hr>
-                    <div class="d-flex gap-2">
-                        <input type="text" id="newDomaineName" class="form-control form-control-sm" placeholder="Nom du domaine" style="font-size:.78rem;">
-                        <input type="text" id="newDomaineCode" class="form-control form-control-sm" placeholder="Code" style="font-size:.78rem;max-width:80px;">
-                        <button class="btn btn-sm btn-primary" onclick="saveDomaine()" style="font-size:.72rem;white-space:nowrap;"><i class="fas fa-plus me-1"></i>Ajouter</button>
-                    </div>
+    <!-- Attribution des Cours -->
+    <div class="dash-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+            <div>
+                <div class="dash-section-title"><i class="fas fa-user-tag"></i> Attribution des Cours</div>
+                <div class="dash-section-sub">Attribuez un enseignant à chaque cours pour la classe sélectionnée</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+                <div style="background:linear-gradient(135deg,#f0f1ff,#ede9fe);padding:10px 16px;border-radius:10px;border:1px solid #c7d2fe;display:flex;align-items:center;gap:10px">
+                    <div style="width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center"><i class="fas fa-chalkboard" style="color:#fff;font-size:.8rem"></i></div>
+                    <select id="attrClasseSelect" onchange="loadAttribution()" style="padding:8px 12px;border:1px solid #c7d2fe;border-radius:8px;font-size:.78rem;font-weight:600;min-width:200px;background:#fff;cursor:pointer;color:#1e293b">
+                        <option value="">Sélectionner une classe...</option>
+                    </select>
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- Modal: Ajouter/Modifier un Cours -->
-    <div class="modal fade" id="coursModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header" style="background:linear-gradient(135deg,#059669,#10b981);border-radius:16px 16px 0 0;padding:.8rem 1.2rem;">
-                    <h6 class="modal-title text-white mb-0" id="coursModalTitle"><i class="fas fa-plus-circle me-2"></i>Nouveau Cours</h6>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <input type="hidden" id="editCoursId">
-                    <div class="mb-2">
-                        <label class="form-label" style="font-size:.75rem;font-weight:600">Nom du cours *</label>
-                        <input type="text" class="form-control form-control-sm" id="coursNom" placeholder="Ex: Mathématiques" style="font-size:.8rem;">
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label" style="font-size:.75rem;font-weight:600">Code *</label>
-                        <input type="text" class="form-control form-control-sm" id="coursCode" placeholder="Ex: MATH01" style="font-size:.8rem;">
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label" style="font-size:.75rem;font-weight:600">Domaine</label>
-                        <select class="form-select form-select-sm" id="coursDomaine" style="font-size:.8rem;">
-                            <option value="">— Aucun —</option>
-                        </select>
-                    </div>
-                    <div class="alert alert-danger d-none" id="coursModalError" style="font-size:.75rem;border-radius:8px;"></div>
-                </div>
-                <div class="modal-footer" style="padding:.6rem 1rem;">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
-                    <button type="button" class="btn btn-success btn-sm" onclick="saveCoursFromModal()"><i class="fas fa-save me-1"></i>Enregistrer</button>
-                </div>
+        <div id="attrSummary" style="display:none;margin-bottom:16px">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+                <div style="padding:12px 16px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border-radius:10px;border:1px solid #bbf7d0;text-align:center"><div style="font-size:1.3rem;font-weight:800;color:#059669" id="attrCountTotal">0</div><div style="font-size:.62rem;text-transform:uppercase;color:#6b7280;font-weight:600;letter-spacing:.5px">Total cours</div></div>
+                <div style="padding:12px 16px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:10px;border:1px solid #93c5fd;text-align:center"><div style="font-size:1.3rem;font-weight:800;color:#2563eb" id="attrCountOk">0</div><div style="font-size:.62rem;text-transform:uppercase;color:#6b7280;font-weight:600;letter-spacing:.5px">Attribués</div></div>
+                <div style="padding:12px 16px;background:linear-gradient(135deg,#fef2f2,#fee2e2);border-radius:10px;border:1px solid #fca5a5;text-align:center"><div style="font-size:1.3rem;font-weight:800;color:#dc2626" id="attrCountNone">0</div><div style="font-size:.62rem;text-transform:uppercase;color:#6b7280;font-weight:600;letter-spacing:.5px">Non attribués</div></div>
             </div>
         </div>
-    </div>
-
-
-    <!-- TAB 4: Attribution Cours -->
-
-<!-- ============ ATTRIBUTION COURS ============ -->
-    <div class="config-tab-content" id="tab-attribution">
-        <div class="dash-section">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">
-                <div>
-                    <div class="dash-section-title"><i class="fas fa-user-tag"></i> Attribution des Cours</div>
-                    <div class="dash-section-sub">Attribuez un enseignant à chaque cours pour la classe sélectionnée</div>
-                </div>
-                <div style="display:flex;align-items:center;gap:10px">
-                    <div style="background:linear-gradient(135deg,#f0f1ff,#ede9fe);padding:10px 16px;border-radius:10px;border:1px solid #c7d2fe;display:flex;align-items:center;gap:10px">
-                        <div style="width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center"><i class="fas fa-chalkboard" style="color:#fff;font-size:.8rem"></i></div>
-                        <select id="attrClasseSelect" onchange="loadAttribution()" style="padding:8px 12px;border:1px solid #c7d2fe;border-radius:8px;font-size:.78rem;font-weight:600;min-width:200px;background:#fff;cursor:pointer;color:#1e293b">
-                            <option value="">Sélectionner une classe...</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <div id="attrSummary" style="display:none;margin-bottom:16px;display:none">
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
-                    <div style="padding:12px 16px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border-radius:10px;border:1px solid #bbf7d0;text-align:center"><div style="font-size:1.3rem;font-weight:800;color:#059669" id="attrCountTotal">0</div><div style="font-size:.62rem;text-transform:uppercase;color:#6b7280;font-weight:600;letter-spacing:.5px">Total cours</div></div>
-                    <div style="padding:12px 16px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:10px;border:1px solid #93c5fd;text-align:center"><div style="font-size:1.3rem;font-weight:800;color:#2563eb" id="attrCountOk">0</div><div style="font-size:.62rem;text-transform:uppercase;color:#6b7280;font-weight:600;letter-spacing:.5px">Attribués</div></div>
-                    <div style="padding:12px 16px;background:linear-gradient(135deg,#fef2f2,#fee2e2);border-radius:10px;border:1px solid #fca5a5;text-align:center"><div style="font-size:1.3rem;font-weight:800;color:#dc2626" id="attrCountNone">0</div><div style="font-size:.62rem;text-transform:uppercase;color:#6b7280;font-weight:600;letter-spacing:.5px">Non attribués</div></div>
-                </div>
-            </div>
-            <div id="attrContent">
-                <div style="text-align:center;padding:50px 20px"><div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#e0e7ff,#f0f1ff);margin:0 auto 14px;display:flex;align-items:center;justify-content:center"><i class="fas fa-hand-pointer" style="font-size:1.2rem;color:#6366f1"></i></div><div style="font-weight:600;font-size:.85rem;color:#475569">Sélectionnez une classe</div><div style="font-size:.72rem;color:#94a3b8;margin-top:4px">pour voir et gérer les attributions de cours</div></div>
-            </div>
+        <div id="attrContent">
+            <div style="text-align:center;padding:50px 20px"><div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#e0e7ff,#f0f1ff);margin:0 auto 14px;display:flex;align-items:center;justify-content:center"><i class="fas fa-hand-pointer" style="font-size:1.2rem;color:#6366f1"></i></div><div style="font-weight:600;font-size:.85rem;color:#475569">Sélectionnez une classe</div><div style="font-size:.72rem;color:#94a3b8;margin-top:4px">pour voir et gérer les attributions de cours</div></div>
         </div>
     </div>
-
 </div>
+
 {% endblock %}
 
 {% block page_js %}
@@ -536,6 +423,26 @@ const PAYS_ID={{ etab.pays_id }};
 const REPARTITIONS_NOTES={{ repartitions_notes_json|safe }};
 let IS_CALENDAR_SYNCHED={{ is_calendar_synched|yesno:"true,false" }};
 const ETAB_ID={{ etab.id_etablissement }};
+
+// === Section Navigation ===
+function switchEnsSection(section){
+    const sections=['enseignants','reference','gestion','attribution'];
+    sections.forEach(s=>{
+        const el=document.getElementById('sec-'+s);
+        if(el) el.classList.toggle('active-section',s===section);
+    });
+    // Update sidebar active state
+    document.querySelectorAll('.sidebar .nav-item').forEach((a,i)=>{
+        a.classList.toggle('active',i===sections.indexOf(section));
+    });
+    // Auto-load data for sections
+    if(section==='gestion' && currentPersonnelList.length===0) loadPersonnelList();
+    if(section==='reference' && !currentRefTable) selectRefTable('categories');
+    if(section==='attribution'){
+        const sel=document.getElementById('attrClasseSelect');
+        if(sel && sel.options.length<=1) populateAttrClasses();
+    }
+}
 const ANNEE_ID={% if annee_active %}{{ annee_active.id }}{% else %}0{% endif %};
 const LEVEL_COLORS=['#6366f1','#8b5cf6','#0ea5e9','#14b8a6','#10b981','#f59e0b','#f43f5e','#ec4899'];
 const COLORS=['linear-gradient(90deg,#6366f1,#818cf8)','linear-gradient(90deg,#0ea5e9,#67e8f9)','linear-gradient(90deg,#f43f5e,#fb7185)','linear-gradient(90deg,#8b5cf6,#c4b5fd)','linear-gradient(90deg,#10b981,#6ee7b7)','linear-gradient(90deg,#f59e0b,#fcd34d)','linear-gradient(90deg,#ec4899,#f9a8d4)','linear-gradient(90deg,#14b8a6,#5eead4)'];
@@ -2706,15 +2613,10 @@ function savePersColumnState(){
 }
 
 function switchPersTab(tab){
-    const tabs=['stat','gestion','param'];
-    tabs.forEach(t=>{
-        const btn=document.getElementById('tabPers'+t.charAt(0).toUpperCase()+t.slice(1));
-        const panel=document.getElementById('persPanel'+t.charAt(0).toUpperCase()+t.slice(1));
-        if(btn) btn.classList.toggle('active',t===tab);
-        if(panel) panel.style.display=t===tab?'block':'none';
-    });
-    if(tab==='gestion'&&currentPersonnelList.length===0) loadPersonnelList();
-    if(tab==='param'&&!currentRefTable) selectRefTable('categories');
+    // Legacy: now handled by switchEnsSection
+    if(tab==='gestion') switchEnsSection('gestion');
+    else if(tab==='param') switchEnsSection('reference');
+    else switchEnsSection('enseignants');
 }
 
 function toggleAddPersForm(){
@@ -2779,8 +2681,8 @@ async function loadPersonnelList(){
         if(data.success){
             currentPersonnelList=data.personnel||[];
             personnelRefData=data.ref||{categories:[],types:[],postes:[],diplomes:[],specialites:[],vacations:[],taches:[]};
-            document.getElementById('persGridCount').textContent=`(${currentPersonnelList.length})`;
-            document.getElementById('personnelCountDesc').textContent=currentPersonnelList.length+' membre'+(currentPersonnelList.length>1?'s':'');
+            const pgc=document.getElementById('persGridCount');if(pgc)pgc.textContent=`(${currentPersonnelList.length})`;
+            const pcDesc=document.getElementById('personnelCountDesc');if(pcDesc)pcDesc.textContent='('+currentPersonnelList.length+')';
             // Populate form dropdowns
             populatePersDropdowns();
             renderPersGrid();
