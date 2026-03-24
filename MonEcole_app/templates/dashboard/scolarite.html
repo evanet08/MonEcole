@@ -4,6 +4,13 @@
 {% block meta_description %}Gestion des élèves de {{ etab.nom }}{% endblock %}
 {% block page_indicator %}Scolarité{% endblock %}
 
+{% block sidebar_items %}
+<a href="/dashboard/scolarite/" class="nav-item active" title="Élèves">
+    <i class="fas fa-user-graduate" style="color:#7c3aed"></i>
+    <span class="text-center">Élèves</span>
+</a>
+{% endblock %}
+
 {% block page_css %}
 <style>
 /* ================= DASHBOARD ETABLISSEMENT — PREMIUM ================= */

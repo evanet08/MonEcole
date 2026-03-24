@@ -4,6 +4,25 @@
 {% block meta_description %}Administration de {{ etab.nom }}{% endblock %}
 {% block page_indicator %}Administration{% endblock %}
 
+{% block sidebar_items %}
+<a href="/dashboard/administration/?section=dashboard" class="nav-item {% if active_section == 'dashboard' %}active{% endif %}" title="Dashboard">
+    <i class="fas fa-th-large" style="color:#6366f1"></i>
+    <span class="text-center">Dashboard</span>
+</a>
+<a href="/dashboard/administration/?section=structure" class="nav-item {% if active_section == 'structure' %}active{% endif %}" title="MonEcole">
+    <i class="fas fa-school" style="color:#0ea5e9"></i>
+    <span class="text-center">MonEcole</span>
+</a>
+<a href="/dashboard/administration/?section=structuration" class="nav-item {% if active_section == 'structuration' %}active{% endif %}" title="Configuration">
+    <i class="fas fa-cogs" style="color:#10b981"></i>
+    <span class="text-center">Configuration</span>
+</a>
+<a href="/dashboard/administration/?section=calendrier" class="nav-item {% if active_section == 'calendrier' %}active{% endif %}" title="Calendrier">
+    <i class="fas fa-calendar-alt" style="color:#f59e0b"></i>
+    <span class="text-center">Calendrier</span>
+</a>
+{% endblock %}
+
 {% block page_css %}
 <style>
 /* ================= DASHBOARD ETABLISSEMENT — PREMIUM ================= */

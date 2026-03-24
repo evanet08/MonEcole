@@ -4,6 +4,21 @@
 {% block meta_description %}Évaluations, notes et résultats de {{ etab.nom }}{% endblock %}
 {% block page_indicator %}Évaluations{% endblock %}
 
+{% block sidebar_items %}
+<a href="/dashboard/evaluations/?section=evaluations" class="nav-item {% if active_section == 'evaluations' %}active{% endif %}" title="Évaluations">
+    <i class="fas fa-file-alt" style="color:#f59e0b"></i>
+    <span class="text-center">Évaluations</span>
+</a>
+<a href="/dashboard/evaluations/?section=notes" class="nav-item {% if active_section == 'notes' %}active{% endif %}" title="Notes">
+    <i class="fas fa-pencil-alt" style="color:#8b5cf6"></i>
+    <span class="text-center">Notes</span>
+</a>
+<a href="/dashboard/evaluations/?section=resultats" class="nav-item {% if active_section == 'resultats' %}active{% endif %}" title="Résultats">
+    <i class="fas fa-chart-bar" style="color:#ec4899"></i>
+    <span class="text-center">Résultats</span>
+</a>
+{% endblock %}
+
 {% block page_css %}
 <style>
 /* ================= DASHBOARD ETABLISSEMENT — PREMIUM ================= */

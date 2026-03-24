@@ -366,25 +366,32 @@
             <div class="sidebar-nav-center">
                 <!-- Logo -->
                 <div class="sidebar-logo-container">
+                    {% if etab.logo_ecole %}
+                    <img src="/media/{{ etab.logo_ecole }}" alt="{{ etab.nom }}" style="max-width:50px; max-height:50px; object-fit:contain; border-radius:8px;">
+                    {% else %}
                     <i class="fas fa-graduation-cap" style="font-size: 1.8rem; color: #667eea;"></i>
+                    {% endif %}
                 </div>
 
-                <a href="/dashboard/administration/" class="nav-item {% if active_page == 'administration' %}active{% endif %}" title="Administration">
+                {% block sidebar_items %}
+                <!-- Default: module links (override in each page template) -->
+                <a href="/dashboard/administration/" class="nav-item {% if active_module == 'administration' %}active{% endif %}" title="Administration">
                     <i class="fas fa-building text-blue"></i>
                     <span class="text-center">Administration</span>
                 </a>
-                <a href="/dashboard/enseignements/" class="nav-item {% if active_page == 'enseignements' %}active{% endif %}" title="Enseignements">
+                <a href="/dashboard/enseignements/" class="nav-item {% if active_module == 'enseignements' %}active{% endif %}" title="Enseignements">
                     <i class="fas fa-chalkboard-teacher text-emerald"></i>
                     <span class="text-center">Enseignements</span>
                 </a>
-                <a href="/dashboard/evaluations/" class="nav-item {% if active_page == 'evaluations' %}active{% endif %}" title="Évaluations">
+                <a href="/dashboard/evaluations/" class="nav-item {% if active_module == 'evaluations' %}active{% endif %}" title="Évaluations">
                     <i class="fas fa-file-alt" style="color:#f59e0b"></i>
                     <span class="text-center">Évaluations</span>
                 </a>
-                <a href="/dashboard/scolarite/" class="nav-item {% if active_page == 'scolarite' %}active{% endif %}" title="Scolarité">
+                <a href="/dashboard/scolarite/" class="nav-item {% if active_module == 'scolarite' %}active{% endif %}" title="Scolarité">
                     <i class="fas fa-user-graduate text-purple"></i>
                     <span class="text-center">Scolarité</span>
                 </a>
+                {% endblock %}
 
                 <!-- Logout -->
                 <a href="#" class="nav-item logout-btn" onclick="doLogout(); return false;" title="Déconnexion">

@@ -4,6 +4,13 @@
 {% block meta_description %}Enseignements et attributions de {{ etab.nom }}{% endblock %}
 {% block page_indicator %}Enseignements{% endblock %}
 
+{% block sidebar_items %}
+<a href="/dashboard/enseignements/" class="nav-item active" title="Enseignants">
+    <i class="fas fa-chalkboard-teacher" style="color:#10b981"></i>
+    <span class="text-center">Enseignants</span>
+</a>
+{% endblock %}
+
 {% block page_css %}
 <style>
 /* ================= DASHBOARD ETABLISSEMENT — PREMIUM ================= */
