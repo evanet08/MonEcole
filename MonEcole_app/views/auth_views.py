@@ -128,11 +128,121 @@ def logout_view(request):
 
 # ── API Views ──
 
+# ── Helpers pour Super Admin Hub ──
+
+def _check_hub_admin(email, etab_id):
+    """
+    Vérifie si l'email correspond au admin_email du Hub pour cet établissement.
+    Retourne (is_admin, admin_email, admin_info_dict) ou (False, None, None).
+    """
+    if not etab_id or not email:
+        return False, None, None
+    try:
+        with connections['countryStructure'].cursor() as cur:
+            cur.execute(
+                "SELECT admin_email, admin_telephone, nom FROM etablissements WHERE id_etablissement=%s",
+                [etab_id]
+            )
+            row = cur.fetchone()
+            if not row:
+                return False, None, None
+            admin_email_hub = row[0]
+            if admin_email_hub and email.strip().lower() == admin_email_hub.strip().lower():
+                return True, admin_email_hub, {
+                    'telephone': row[1] or '',
+                    'nom_etab': row[2] or '',
+                }
+    except Exception:
+        import traceback
+        traceback.print_exc()
+    return False, None, None
+
+
+def _auto_provision_super_admin(email, etab_id, password=None):
+    """
+    Auto-crée auth_user + personnel + user_module pour le super admin Hub
+    s'ils n'existent pas encore dans le spoke. Retourne (django_user, personnel).
+    """
+    from django.contrib.auth.hashers import make_password
+
+    # 1. Chercher ou créer auth_user
+    try:
+        django_user = User.objects.get(email__iexact=email)
+    except User.DoesNotExist:
+        username = email.split('@')[0].lower().replace('.', '_')
+        # Garantir unicité du username
+        base_username = username
+        counter = 1
+        while User.objects.filter(username=username).exists():
+            username = f"{base_username}_{counter}"
+            counter += 1
+        django_user = User.objects.create(
+            username=username,
+            email=email.lower(),
+            first_name='Admin',
+            last_name='',
+            is_active=True,
+        )
+        if password:
+            django_user.set_password(password)
+            django_user.save()
+
+    # 2. Chercher ou créer personnel
+    try:
+        personnel = Personnel.objects.get(user=django_user)
+    except Personnel.DoesNotExist:
+        # Générer un matricule unique
+        last_pers = Personnel.objects.filter(
+            id_etablissement=etab_id
+        ).order_by('-id_personnel').first()
+        next_num = (last_pers.id_personnel + 1) if last_pers else 1
+        matricule = f"M_{etab_id}_{next_num}"
+
+        personnel = Personnel.objects.create(
+            user=django_user,
+            matricule=matricule,
+            id_etablissement=etab_id,
+            isUser=True,
+            is_verified=True,
+            en_fonction=True,
+            telephone='',
+        )
+
+    # 3. Garantir isUser, is_verified, en_fonction
+    if not personnel.isUser or not personnel.is_verified or not personnel.en_fonction:
+        Personnel.objects.filter(id_personnel=personnel.id_personnel).update(
+            isUser=True, is_verified=True, en_fonction=True
+        )
+        personnel.refresh_from_db()
+
+    # 4. Créer user_module pour TOUS les modules
+    all_modules = Module.objects.all()
+    annee = Annee.objects.order_by('-annee').first()
+    annee_id = annee.id_annee if annee else 1
+
+    for mod in all_modules:
+        um, created = UserModule.objects.get_or_create(
+            user=personnel,
+            module=mod,
+            id_etablissement=etab_id,
+            defaults={
+                'id_annee_id': annee_id,
+                'is_active': True,
+            }
+        )
+        if not created and not um.is_active:
+            um.is_active = True
+            um.save()
+
+    return django_user, personnel
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def check_email(request):
     """
     Étape 1: Vérifie si un email existe dans auth_user + personnel.
+    Si introuvable → cherche dans le Hub (admin_email) et auto-crée si match.
     """
     try:
         data = json.loads(request.body)
@@ -141,54 +251,52 @@ def check_email(request):
         if not email:
             return JsonResponse({'success': False, 'error': 'Email requis'}, status=400)
 
+        etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+
+        # Chercher dans le spoke
+        user = None
+        personnel = None
         try:
             user = User.objects.get(email__iexact=email)
-        except User.DoesNotExist:
-            return JsonResponse({
-                'success': True,
-                'exists': False,
-                'validated': False,
-                'has_password': False,
-            })
-
-        # Vérifier que le personnel existe
-        try:
-            personnel = Personnel.objects.get(user=user)
-        except Personnel.DoesNotExist:
-            return JsonResponse({
-                'success': True,
-                'exists': False,
-                'validated': False,
-                'has_password': False,
-            })
-
-        # Vérifier si c'est le super admin du Hub → bypass les checks
-        etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
-        is_hub_admin = False
-        if etab_id:
             try:
-                from django.db import connections as db_conns
-                with db_conns['countryStructure'].cursor() as hub_cur:
-                    hub_cur.execute(
-                        "SELECT admin_email FROM etablissements WHERE id_etablissement=%s",
-                        [etab_id]
-                    )
-                    hub_row = hub_cur.fetchone()
-                    admin_email_hub = hub_row[0] if hub_row else None
-                if admin_email_hub and email == admin_email_hub.strip().lower():
-                    is_hub_admin = True
-            except Exception:
+                personnel = Personnel.objects.get(user=user)
+            except Personnel.DoesNotExist:
                 pass
+        except User.DoesNotExist:
+            pass
 
+        # Si introuvable dans le spoke → chercher dans le Hub
+        is_hub_admin = False
+        if user is None or personnel is None:
+            is_hub_admin_check, _, _ = _check_hub_admin(email, etab_id)
+            if is_hub_admin_check:
+                is_hub_admin = True
+                # Auto-créer dans le spoke
+                user, personnel = _auto_provision_super_admin(email, etab_id)
+            else:
+                # Ni dans le spoke, ni admin Hub → n'existe pas
+                return JsonResponse({
+                    'success': True,
+                    'exists': False,
+                    'validated': False,
+                    'has_password': False,
+                })
+        else:
+            # L'utilisateur existe dans le spoke — vérifier s'il est aussi admin Hub
+            is_hub_admin, _, _ = _check_hub_admin(email, etab_id)
+            if is_hub_admin:
+                # Auto-provisionner (activer flags + modules)
+                _auto_provision_super_admin(email, etab_id)
+                personnel.refresh_from_db()
+
+        # Si pas admin Hub → checks normaux
         if not is_hub_admin:
-            # Vérifier que le personnel est autorisé
             if not personnel.isUser or not personnel.en_fonction:
                 return JsonResponse({
                     'success': False,
                     'error': "Ce compte n'est pas autorisé à se connecter."
                 }, status=403)
 
-            # Vérifier l'établissement (tenant)
             if etab_id:
                 has_modules = UserModule.objects.filter(
                     user=personnel,
@@ -265,64 +373,37 @@ def api_login(request):
         email = data.get('email', '').strip().lower()
         password = data.get('password', '')
 
-        # Trouver le user Django par email
+        etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+
+        # Chercher dans le spoke
+        django_user = None
+        personnel = None
         try:
             django_user = User.objects.get(email__iexact=email)
+            try:
+                personnel = Personnel.objects.get(user=django_user)
+            except Personnel.DoesNotExist:
+                pass
         except User.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'Identifiants incorrects'}, status=401)
+            pass
 
-        # Vérifier le personnel
-        try:
-            personnel = Personnel.objects.get(user=django_user)
-        except Personnel.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'Compte non configuré.'}, status=403)
-
-        # ── Auto-provisioning Super Admin (AVANT les checks bloquants) ──
-        etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+        # Si introuvable → chercher dans le Hub
         is_super_admin = False
-        try:
-            if etab_id:
-                from django.db import connections as db_conns
-                with db_conns['countryStructure'].cursor() as hub_cur:
-                    hub_cur.execute(
-                        "SELECT admin_email FROM etablissements WHERE id_etablissement=%s",
-                        [etab_id]
-                    )
-                    hub_row = hub_cur.fetchone()
-                    admin_email_hub = hub_row[0] if hub_row else None
+        if django_user is None or personnel is None:
+            is_hub_admin, _, _ = _check_hub_admin(email, etab_id)
+            if is_hub_admin:
+                is_super_admin = True
+                django_user, personnel = _auto_provision_super_admin(email, etab_id, password=password)
+            else:
+                return JsonResponse({'success': False, 'error': 'Identifiants incorrects'}, status=401)
+        else:
+            # L'utilisateur existe — vérifier s'il est admin Hub
+            is_super_admin, _, _ = _check_hub_admin(email, etab_id)
+            if is_super_admin:
+                _auto_provision_super_admin(email, etab_id)
+                personnel.refresh_from_db()
 
-                if admin_email_hub and email == admin_email_hub.strip().lower():
-                    is_super_admin = True
-                    # Activer le personnel si nécessaire
-                    if not personnel.isUser or not personnel.is_verified or not personnel.en_fonction:
-                        Personnel.objects.filter(id_personnel=personnel.id_personnel).update(
-                            isUser=True, is_verified=True, en_fonction=True
-                        )
-                        personnel.refresh_from_db()
-
-                    # Créer tous les user_module pour cet établissement
-                    all_modules = Module.objects.all()
-                    annee = Annee.objects.order_by('-annee').first()
-                    annee_id = annee.id_annee if annee else 1
-
-                    for mod in all_modules:
-                        um, created = UserModule.objects.get_or_create(
-                            user=personnel,
-                            module=mod,
-                            id_etablissement=etab_id,
-                            defaults={
-                                'id_annee_id': annee_id,
-                                'is_active': True,
-                            }
-                        )
-                        if not created and not um.is_active:
-                            um.is_active = True
-                            um.save()
-        except Exception:
-            import traceback
-            traceback.print_exc()
-
-        # Maintenant les checks normaux (le super admin les passe car auto-provisionné)
+        # Checks normaux (super admin déjà auto-provisionné, donc passe)
         if not personnel.isUser or not personnel.en_fonction:
             return JsonResponse({'success': False, 'error': 'Compte non autorisé.'}, status=403)
 
@@ -336,9 +417,15 @@ def api_login(request):
         # Authentifier via Django
         authenticated_user = authenticate(request, username=django_user.username, password=password)
         if authenticated_user is None:
-            return JsonResponse({'success': False, 'error': 'Identifiants incorrects'}, status=401)
+            # Si le user vient d'être créé, le mot de passe n'est peut-être pas encore défini
+            if is_super_admin and not django_user.has_usable_password():
+                django_user.set_password(password)
+                django_user.save()
+                authenticated_user = authenticate(request, username=django_user.username, password=password)
+            if authenticated_user is None:
+                return JsonResponse({'success': False, 'error': 'Identifiants incorrects'}, status=401)
 
-        # Vérifier l'établissement (tenant)
+        # Vérifier les modules pour l'établissement
         if etab_id:
             has_modules = UserModule.objects.filter(
                 user=personnel,
@@ -351,7 +438,6 @@ def api_login(request):
                     'error': "Vous n'avez pas accès à cet établissement."
                 }, status=403)
 
-        # Vérifier qu'il a au moins un module actif
         all_user_modules = UserModule.objects.filter(user=personnel, is_active=True)
         if not all_user_modules.exists():
             return JsonResponse({
@@ -362,7 +448,7 @@ def api_login(request):
         # Login Django
         login(request, authenticated_user)
 
-        # Session supplémentaire
+        # Session
         request.session['user_id'] = django_user.id
         request.session['user_email'] = django_user.email
         request.session['personnel_id'] = personnel.id_personnel
