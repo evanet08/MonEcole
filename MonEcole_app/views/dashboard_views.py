@@ -666,6 +666,25 @@ def espace_enseignant_view(request):
     context['personnel_id'] = personnel_id or 0
     context['personnel_info'] = json.dumps(personnel_info, ensure_ascii=False, default=str)
 
+    # Charger les répartitions (périodes) pour la section Notes
+    repartitions = []
+    try:
+        annee_active = context.get('annee_active')
+        if annee_active:
+            from structure_app.models import RepartitionCalendrier
+            reps = RepartitionCalendrier.objects.filter(
+                annee_id=annee_active['id_annee']
+            ).order_by('ordre', 'id_instance')
+            for r in reps:
+                repartitions.append({
+                    'id_instance': r.id_instance,
+                    'nom': r.nom,
+                    'is_leaf': not RepartitionCalendrier.objects.filter(parent=r).exists(),
+                })
+    except Exception:
+        pass
+    context['repartitions_notes_json'] = json.dumps(repartitions, ensure_ascii=False, default=str)
+
     return render(request, 'dashboard/espace_enseignant.html', context)
 
 
@@ -935,8 +954,13 @@ def api_enseignant_dashboard(request):
             if hub_conn:
                 hub_conn.close()
 
-            # 2. Horaire
+            # 2. Horaire (enrichi avec noms de cours/classe)
             schedule = []
+            # Build lookup for course/class names
+            cours_lookup = {}
+            for c in courses:
+                key = f"{c['id_cours_annee']}_{c['eac_id']}"
+                cours_lookup[key] = {'cours': c['cours'], 'code_cours': c['code_cours'], 'classe_nom': c['classe_nom'], 'cycle_nom': c['cycle_nom']}
             try:
                 cur.execute("""
                     SELECT h.id_horaire, h.date, h.debut, h.fin,
@@ -949,11 +973,18 @@ def api_enseignant_dashboard(request):
                     LIMIT 50
                 """, [personnel_id, etab_id])
                 for row in cur.fetchall():
+                    lookup_key = f"{row['id_cours_id']}_{row['id_classe_id']}"
+                    info = cours_lookup.get(lookup_key, {})
                     schedule.append({
                         'id': row['id_horaire'],
                         'date': str(row['date']),
                         'debut': row['debut'],
                         'fin': row['fin'],
+                        'cours_nom': info.get('cours', ''),
+                        'classe_nom': info.get('classe_nom', ''),
+                        'code_cours': info.get('code_cours', ''),
+                        'id_cours_id': row['id_cours_id'],
+                        'id_classe_id': row['id_classe_id'],
                     })
             except Exception:
                 pass
@@ -1015,3 +1046,167 @@ def api_enseignant_dashboard(request):
         conn.close()
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
+
+@require_http_methods(["GET", "POST"])
+@login_required(login_url='login')
+def api_enseignant_presences(request):
+    """API Présences enseignant: GET = charger élèves+présences, POST = sauvegarder."""
+    import pymysql
+    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    if not etab_id:
+        return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
+    db_settings = connections['default'].settings_dict
+    conn = pymysql.connect(
+        host=db_settings.get('HOST', 'localhost') or 'localhost',
+        user=db_settings['USER'], password=db_settings['PASSWORD'],
+        port=int(db_settings.get('PORT', 3306) or 3306),
+        database=db_settings['NAME'], charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor,
+    )
+    try:
+        if request.method == 'GET':
+            horaire_id = request.GET.get('horaire_id')
+            if not horaire_id:
+                conn.close()
+                return JsonResponse({'success': False, 'error': 'horaire_id requis'}, status=400)
+            with conn.cursor() as cur:
+                cur.execute("SELECT id_horaire, date, debut, fin, id_cours_id, id_classe_id FROM horaire WHERE id_horaire=%s", [horaire_id])
+                horaire = cur.fetchone()
+                if not horaire:
+                    conn.close()
+                    return JsonResponse({'success': False, 'error': 'Horaire non trouvé'}, status=404)
+                cur.execute("""
+                    SELECT DISTINCT e.id_eleve, e.nom, e.prenom, e.genre
+                    FROM eleve_inscription ei JOIN eleve e ON e.id_eleve=ei.id_eleve_id
+                    WHERE ei.id_classe_id=%s AND ei.status=1 AND ei.id_etablissement=%s
+                    ORDER BY e.nom, e.prenom
+                """, [horaire['id_classe_id'], etab_id])
+                eleves = cur.fetchall()
+                cur.execute("SELECT id_horaire_presence, id_eleve_id, present_ou_absent, si_absent_motif, comportement_note FROM horaire_presence WHERE id_horaire_id=%s", [horaire_id])
+                presences = {}
+                for p in cur.fetchall():
+                    presences[str(p['id_eleve_id'])] = {
+                        'id': p['id_horaire_presence'], 'present': bool(p['present_ou_absent']),
+                        'motif': p['si_absent_motif'] or '', 'comportement': p.get('comportement_note') or 0,
+                    }
+            conn.close()
+            return JsonResponse({
+                'success': True,
+                'horaire': {'id': horaire['id_horaire'], 'date': str(horaire['date']), 'debut': horaire['debut'], 'fin': horaire['fin']},
+                'eleves': [{'id': e['id_eleve'], 'nom': e['nom'] or '', 'prenom': e['prenom'] or '', 'genre': e['genre'] or ''} for e in eleves],
+                'presences': presences,
+            })
+        else:
+            data = json.loads(request.body)
+            horaire_id = data.get('horaire_id')
+            records = data.get('records', [])
+            if not horaire_id:
+                conn.close()
+                return JsonResponse({'success': False, 'error': 'horaire_id requis'}, status=400)
+            with conn.cursor() as cur:
+                try:
+                    cur.execute("ALTER TABLE horaire_presence ADD COLUMN comportement_note TINYINT DEFAULT NULL")
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+                cur.execute("SELECT date FROM horaire WHERE id_horaire=%s", [horaire_id])
+                h_date = (cur.fetchone() or {}).get('date')
+                for rec in records:
+                    eid, pres = rec['id_eleve'], (1 if rec.get('present') else 0)
+                    motif, comp = rec.get('motif') or None, rec.get('comportement', 0) or 0
+                    cur.execute("SELECT id_horaire_presence FROM horaire_presence WHERE id_horaire_id=%s AND id_eleve_id=%s", [horaire_id, eid])
+                    ex = cur.fetchone()
+                    if ex:
+                        cur.execute("UPDATE horaire_presence SET present_ou_absent=%s, si_absent_motif=%s, comportement_note=%s WHERE id_horaire_presence=%s", [pres, motif, comp, ex['id_horaire_presence']])
+                    else:
+                        cur.execute("INSERT INTO horaire_presence (id_horaire_id,id_eleve_id,present_ou_absent,date_presence,si_absent_motif,id_etablissement,comportement_note) VALUES (%s,%s,%s,%s,%s,%s,%s)", [horaire_id, eid, pres, h_date, motif, etab_id, comp])
+                conn.commit()
+            conn.close()
+            return JsonResponse({'success': True, 'saved': len(records)})
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        conn.close()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@require_http_methods(["GET", "POST"])
+@login_required(login_url='login')
+def api_enseignant_presences(request):
+    """API Presences enseignant: GET = charger eleves+presences, POST = sauvegarder."""
+    import pymysql
+    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    if not etab_id:
+        return JsonResponse({'success': False, 'error': 'Etablissement non trouve'}, status=400)
+    db_settings = connections['default'].settings_dict
+    conn = pymysql.connect(
+        host=db_settings.get('HOST', 'localhost') or 'localhost',
+        user=db_settings['USER'], password=db_settings['PASSWORD'],
+        port=int(db_settings.get('PORT', 3306) or 3306),
+        database=db_settings['NAME'], charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor,
+    )
+    try:
+        if request.method == 'GET':
+            horaire_id = request.GET.get('horaire_id')
+            if not horaire_id:
+                conn.close()
+                return JsonResponse({'success': False, 'error': 'horaire_id requis'}, status=400)
+            with conn.cursor() as cur:
+                cur.execute("SELECT id_horaire, date, debut, fin, id_cours_id, id_classe_id FROM horaire WHERE id_horaire=%s", [horaire_id])
+                horaire = cur.fetchone()
+                if not horaire:
+                    conn.close()
+                    return JsonResponse({'success': False, 'error': 'Horaire non trouve'}, status=404)
+                cur.execute("""
+                    SELECT DISTINCT e.id_eleve, e.nom, e.prenom, e.genre
+                    FROM eleve_inscription ei JOIN eleve e ON e.id_eleve=ei.id_eleve_id
+                    WHERE ei.id_classe_id=%s AND ei.status=1 AND ei.id_etablissement=%s
+                    ORDER BY e.nom, e.prenom
+                """, [horaire['id_classe_id'], etab_id])
+                eleves = cur.fetchall()
+                cur.execute("SELECT id_horaire_presence, id_eleve_id, present_ou_absent, si_absent_motif, comportement_note FROM horaire_presence WHERE id_horaire_id=%s", [horaire_id])
+                presences = {}
+                for p in cur.fetchall():
+                    presences[str(p['id_eleve_id'])] = {
+                        'id': p['id_horaire_presence'], 'present': bool(p['present_ou_absent']),
+                        'motif': p['si_absent_motif'] or '', 'comportement': p.get('comportement_note') or 0,
+                    }
+            conn.close()
+            return JsonResponse({
+                'success': True,
+                'horaire': {'id': horaire['id_horaire'], 'date': str(horaire['date']), 'debut': horaire['debut'], 'fin': horaire['fin']},
+                'eleves': [{'id': e['id_eleve'], 'nom': e['nom'] or '', 'prenom': e['prenom'] or '', 'genre': e['genre'] or ''} for e in eleves],
+                'presences': presences,
+            })
+        else:
+            data = json.loads(request.body)
+            horaire_id = data.get('horaire_id')
+            records = data.get('records', [])
+            if not horaire_id:
+                conn.close()
+                return JsonResponse({'success': False, 'error': 'horaire_id requis'}, status=400)
+            with conn.cursor() as cur:
+                try:
+                    cur.execute("ALTER TABLE horaire_presence ADD COLUMN comportement_note TINYINT DEFAULT NULL")
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+                cur.execute("SELECT date FROM horaire WHERE id_horaire=%s", [horaire_id])
+                h_date = (cur.fetchone() or {}).get('date')
+                for rec in records:
+                    eid, pres = rec['id_eleve'], (1 if rec.get('present') else 0)
+                    motif, comp = rec.get('motif') or None, rec.get('comportement', 0) or 0
+                    cur.execute("SELECT id_horaire_presence FROM horaire_presence WHERE id_horaire_id=%s AND id_eleve_id=%s", [horaire_id, eid])
+                    ex = cur.fetchone()
+                    if ex:
+                        cur.execute("UPDATE horaire_presence SET present_ou_absent=%s, si_absent_motif=%s, comportement_note=%s WHERE id_horaire_presence=%s", [pres, motif, comp, ex['id_horaire_presence']])
+                    else:
+                        cur.execute("INSERT INTO horaire_presence (id_horaire_id,id_eleve_id,present_ou_absent,date_presence,si_absent_motif,id_etablissement,comportement_note) VALUES (%s,%s,%s,%s,%s,%s,%s)", [horaire_id, eid, pres, h_date, motif, etab_id, comp])
+                conn.commit()
+            conn.close()
+            return JsonResponse({'success': True, 'saved': len(records)})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        conn.close()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

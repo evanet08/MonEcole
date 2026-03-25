@@ -5,6 +5,7 @@ from MonEcole_app.views.dashboard_views import (
     administration_view, enseignements_view,
     evaluations_view, scolarite_view,
     espace_enseignant_view, api_enseignant_dashboard, api_enseignant_debug,
+    api_enseignant_presences,
 )
 from MonEcole_app.views import api_views
 
@@ -32,6 +33,7 @@ urlpatterns = [
     # API Enseignant
     path('api/enseignant/dashboard/', api_enseignant_dashboard, name='api_enseignant_dashboard'),
     path('api/enseignant/debug/', api_enseignant_debug, name='api_enseignant_debug'),
+    path('api/enseignant/presences/', api_enseignant_presences, name='api_enseignant_presences'),
 
     # ============ API DASHBOARD (copiées depuis eSchool) ============
     # Dashboard — Student Management

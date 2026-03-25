@@ -1,50 +1,24 @@
 {% extends 'base.html' %}
-
 {% block title %}Espace Enseignant — {{ etab.nom }}{% endblock %}
 {% block meta_description %}Espace personnel de l'enseignant — {{ etab.nom }}{% endblock %}
 {% block page_indicator %}Espace Enseignant{% endblock %}
 
 {% block sidebar_items %}
-<a href="/dashboard/enseignant/?section=dashboard" class="nav-item {% if active_section == 'dashboard' %}active{% endif %}" title="Dashboard">
-    <i class="fas fa-th-large" style="color:#6366f1"></i>
-    <span>Dashboard</span>
-</a>
-<a href="/dashboard/enseignant/?section=cours" class="nav-item {% if active_section == 'cours' %}active{% endif %}" title="Mes Cours">
-    <i class="fas fa-book-open" style="color:#0ea5e9"></i>
-    <span>Mes Cours</span>
-</a>
-<a href="/dashboard/enseignant/?section=horaires" class="nav-item {% if active_section == 'horaires' %}active{% endif %}" title="Horaire">
-    <i class="fas fa-calendar-alt" style="color:#10b981"></i>
-    <span>Horaire</span>
-</a>
-<a href="/dashboard/enseignant/?section=evaluations" class="nav-item {% if active_section == 'evaluations' %}active{% endif %}" title="Évaluations">
-    <i class="fas fa-clipboard-check" style="color:#f59e0b"></i>
-    <span>Évaluations</span>
-</a>
-<a href="/dashboard/enseignant/?section=notes" class="nav-item {% if active_section == 'notes' %}active{% endif %}" title="Notes">
-    <i class="fas fa-chart-bar" style="color:#8b5cf6"></i>
-    <span>Notes</span>
-</a>
-<a href="/dashboard/enseignant/?section=presences" class="nav-item {% if active_section == 'presences' %}active{% endif %}" title="Présences">
-    <i class="fas fa-user-check" style="color:#ec4899"></i>
-    <span>Présences</span>
-</a>
-<a href="/dashboard/enseignant/?section=eleves" class="nav-item {% if active_section == 'eleves' %}active{% endif %}" title="Mes Élèves">
-    <i class="fas fa-users" style="color:#14b8a6"></i>
-    <span>Mes Élèves</span>
-</a>
-<a href="/dashboard/enseignant/?section=communication" class="nav-item {% if active_section == 'communication' %}active{% endif %}" title="Communication">
-    <i class="fas fa-comments" style="color:#f43f5e"></i>
-    <span>Communication</span>
-</a>
+<a href="/dashboard/enseignant/?section=dashboard" class="nav-item {% if active_section == 'dashboard' %}active{% endif %}"><i class="fas fa-th-large" style="color:#6366f1"></i><span>Dashboard</span></a>
+<a href="/dashboard/enseignant/?section=cours" class="nav-item {% if active_section == 'cours' %}active{% endif %}"><i class="fas fa-book-open" style="color:#0ea5e9"></i><span>Mes Cours</span></a>
+<a href="/dashboard/enseignant/?section=horaires" class="nav-item {% if active_section == 'horaires' %}active{% endif %}"><i class="fas fa-calendar-alt" style="color:#10b981"></i><span>Horaire</span></a>
+<a href="/dashboard/enseignant/?section=evaluations" class="nav-item {% if active_section == 'evaluations' %}active{% endif %}"><i class="fas fa-clipboard-check" style="color:#f59e0b"></i><span>Évaluations</span></a>
+<a href="/dashboard/enseignant/?section=notes" class="nav-item {% if active_section == 'notes' %}active{% endif %}"><i class="fas fa-chart-bar" style="color:#8b5cf6"></i><span>Notes</span></a>
+<a href="/dashboard/enseignant/?section=presences" class="nav-item {% if active_section == 'presences' %}active{% endif %}"><i class="fas fa-user-check" style="color:#ec4899"></i><span>Présences</span></a>
+<a href="/dashboard/enseignant/?section=eleves" class="nav-item {% if active_section == 'eleves' %}active{% endif %}"><i class="fas fa-users" style="color:#14b8a6"></i><span>Mes Élèves</span></a>
+<a href="/dashboard/enseignant/?section=communication" class="nav-item {% if active_section == 'communication' %}active{% endif %}"><i class="fas fa-comments" style="color:#f43f5e"></i><span>Communication</span></a>
 {% endblock %}
 
 {% block page_css %}
 <style>
 :root{--glass:rgba(255,255,255,.85);--shadow-sm:0 2px 12px rgba(0,0,0,.04);--shadow-md:0 4px 24px rgba(0,0,0,.07);--shadow-lg:0 8px 40px rgba(0,0,0,.10);--radius:16px;--radius-sm:10px}
-
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
-.stat-card{background:var(--glass);backdrop-filter:blur(12px);border-radius:var(--radius);padding:1.15rem 1.1rem;overflow:hidden;box-shadow:var(--shadow-md);transition:all .35s cubic-bezier(.22,1,.36,1);border:1px solid rgba(255,255,255,.6);display:flex;align-items:center;gap:14px;position:relative}
+.stat-card{background:var(--glass);backdrop-filter:blur(12px);border-radius:var(--radius);padding:1.15rem 1.1rem;box-shadow:var(--shadow-md);transition:all .35s;border:1px solid rgba(255,255,255,.6);display:flex;align-items:center;gap:14px;position:relative;overflow:hidden}
 .stat-card::after{content:'';position:absolute;top:0;right:0;width:60px;height:60px;border-radius:0 0 0 60px;opacity:.08}
 .stat-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
 .stat-card .stat-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.15rem;flex-shrink:0;box-shadow:0 4px 14px rgba(0,0,0,.15)}
@@ -57,182 +31,125 @@
 @keyframes statPop{from{opacity:0;transform:scale(.9) translateY(15px)}to{opacity:1;transform:scale(1) translateY(0)}}
 .stat-card{animation:statPop .5s cubic-bezier(.22,1,.36,1) forwards}
 .stat-card:nth-child(2){animation-delay:.08s}.stat-card:nth-child(3){animation-delay:.16s}.stat-card:nth-child(4){animation-delay:.24s}
-
-.dash-section{background:var(--glass);backdrop-filter:blur(10px);border-radius:var(--radius);padding:1.35rem;box-shadow:var(--shadow-sm);border:1px solid rgba(0,0,0,.03);margin-bottom:1.25rem;transition:box-shadow .3s ease}
+.dash-section{background:var(--glass);backdrop-filter:blur(10px);border-radius:var(--radius);padding:1.35rem;box-shadow:var(--shadow-sm);border:1px solid rgba(0,0,0,.03);margin-bottom:1.25rem;transition:box-shadow .3s}
 .dash-section:hover{box-shadow:var(--shadow-md)}
 .dash-section-title{font-size:.9rem;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:8px;margin-bottom:.3rem}
 .dash-section-title i{font-size:.82rem;color:#6366f1}
 .dash-section-sub{font-size:.72rem;color:#94a3b8;margin-bottom:.9rem;font-weight:500}
-
-.course-card{background:var(--glass);border-radius:var(--radius-sm);padding:1rem;border:1px solid rgba(0,0,0,.04);transition:all .25s ease;cursor:default;position:relative;overflow:hidden}
+.ca-loading{text-align:center;padding:3rem 1rem;color:#94a3b8;font-size:.82rem}
+.ca-loading i{font-size:1.5rem;display:block;margin-bottom:.8rem;opacity:.4}
+/* Schedule grid */
+.sched-card{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;transition:all .2s;margin-bottom:6px}
+.sched-card:hover{background:#eef2ff;border-color:#c7d2fe;transform:translateX(3px)}
+.sched-date{font-size:.68rem;font-weight:700;color:#6366f1;min-width:75px;text-align:center;background:linear-gradient(135deg,#eef2ff,#e0e7ff);padding:6px 8px;border-radius:8px;line-height:1.2}
+.sched-date .sd-day{font-size:1.1rem;display:block}
+.sched-time{font-size:.72rem;font-weight:600;color:#0f172a;display:flex;align-items:center;gap:4px}
+.sched-time i{color:#6366f1;font-size:.6rem}
+.sched-cours{font-size:.7rem;color:#475569;font-weight:500}
+.sched-classe{font-size:.6rem;color:#94a3b8;background:#f1f5f9;padding:2px 6px;border-radius:4px}
+/* Course card */
+.course-card{background:var(--glass);border-radius:var(--radius-sm);padding:1rem;border:1px solid rgba(0,0,0,.04);transition:all .25s;cursor:pointer;position:relative;overflow:hidden}
 .course-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
 .course-card .cc-color{position:absolute;top:0;left:0;width:4px;height:100%;border-radius:4px 0 0 4px}
 .course-card .cc-title{font-size:.82rem;font-weight:700;color:#0f172a;margin-bottom:2px}
 .course-card .cc-class{font-size:.66rem;color:#64748b;font-weight:500}
 .course-card .cc-stats{display:flex;gap:12px;margin-top:8px}
 .course-card .cc-stat{font-size:.62rem;color:#94a3b8;display:flex;align-items:center;gap:3px}
-.course-card .cc-stat i{font-size:.55rem}
-.course-card .cc-stat strong{color:#475569}
-
-.ca-loading{text-align:center;padding:3rem 1rem;color:#94a3b8;font-size:.82rem}
-.ca-loading i{font-size:1.5rem;display:block;margin-bottom:.8rem;opacity:.4}
-
-/* ═══ WhatsApp-style Chat ═══ */
-.chat-layout{display:flex;height:calc(100vh - 160px);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-md);border:1px solid rgba(0,0,0,.05)}
-.chat-sidebar{width:300px;background:#fff;border-right:1px solid #e5e7eb;display:flex;flex-direction:column;flex-shrink:0}
-.chat-sidebar-header{padding:12px 14px;background:linear-gradient(135deg,#075e54,#128c7e);color:#fff;display:flex;align-items:center;gap:10px}
-.chat-sidebar-header h3{font-size:.82rem;font-weight:700;margin:0}
-.chat-sidebar-search{padding:8px;background:#f0f2f5}
-.chat-sidebar-search input{width:100%;padding:6px 12px 6px 32px;border:none;border-radius:20px;background:#fff;font-size:.72rem;outline:none}
-.chat-sidebar-search{position:relative}
-.chat-sidebar-search i{position:absolute;left:18px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:.68rem}
-.chat-list{flex:1;overflow-y:auto}
-.chat-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;transition:background .15s;border-bottom:1px solid #f1f5f9}
-.chat-item:hover{background:#f0f2f5}
-.chat-item.active{background:#e8f5e9}
-.chat-item-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.7rem;flex-shrink:0}
-.chat-item-info{flex:1;min-width:0}
-.chat-item-name{font-size:.76rem;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chat-item-preview{font-size:.62rem;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chat-item-meta{text-align:right;flex-shrink:0}
-.chat-item-time{font-size:.55rem;color:#94a3b8}
-.chat-item-badge{background:#25d366;color:#fff;font-size:.5rem;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-left:auto;margin-top:2px}
-
-.chat-main{flex:1;display:flex;flex-direction:column;background:#e5ddd5;background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4cfc4' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
-.chat-header{padding:10px 16px;background:#ededed;border-bottom:1px solid #ddd;display:flex;align-items:center;gap:10px}
-.chat-header-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.65rem;flex-shrink:0}
-.chat-header-name{font-size:.8rem;font-weight:700;color:#0f172a}
-.chat-header-status{font-size:.6rem;color:#94a3b8}
-.chat-messages{flex:1;overflow-y:auto;padding:12px 50px;display:flex;flex-direction:column;gap:4px}
-.chat-msg{max-width:65%;padding:6px 10px;border-radius:8px;font-size:.72rem;line-height:1.5;position:relative;animation:msgIn .2s ease}
-@keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.chat-msg.sent{background:#dcf8c6;align-self:flex-end;border-bottom-right-radius:2px}
-.chat-msg.received{background:#fff;align-self:flex-start;border-bottom-left-radius:2px;box-shadow:0 1px 1px rgba(0,0,0,.05)}
-.chat-msg .msg-time{font-size:.5rem;color:#94a3b8;margin-left:8px;float:right;margin-top:4px}
-.chat-msg .msg-sender{font-size:.58rem;font-weight:700;margin-bottom:2px;display:block}
-.chat-input-area{padding:8px 12px;background:#f0f2f5;display:flex;align-items:center;gap:8px}
-.chat-input-area input{flex:1;padding:8px 14px;border:none;border-radius:20px;background:#fff;font-size:.75rem;outline:none}
-.chat-input-area button{width:36px;height:36px;border-radius:50%;border:none;background:#128c7e;color:#fff;font-size:.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
-.chat-input-area button:hover{background:#075e54}
-.chat-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#94a3b8;gap:12px}
-.chat-empty i{font-size:3rem;opacity:.25}
-.chat-empty p{font-size:.85rem;font-weight:500}
-
-@media(max-width:992px){.stat-grid{grid-template-columns:repeat(2,1fr)}.chat-sidebar{width:220px}}
-@media(max-width:600px){.stat-grid{grid-template-columns:1fr}.chat-layout{flex-direction:column;height:auto}.chat-sidebar{width:100%;max-height:200px}.chat-messages{padding:12px 16px}}
+.course-card .cc-stat i{font-size:.55rem}.course-card .cc-stat strong{color:#475569}
+/* Eval table */
+.eval-tbl{width:100%;border-collapse:collapse;font-size:.72rem}
+.eval-tbl th{padding:8px 10px;text-align:left;color:#94a3b8;font-size:.6rem;text-transform:uppercase;font-weight:700;border-bottom:2px solid #e2e8f0}
+.eval-tbl td{padding:7px 10px;border-bottom:1px solid #f1f5f9}
+.eval-tbl tr:hover td{background:#f8fafc}
+.eval-badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:.58rem;font-weight:700;text-transform:uppercase}
+/* Notes grid */
+.notes-tbl{width:100%;border-collapse:collapse;font-size:.72rem}
+.notes-tbl th{padding:6px 8px;text-align:center;font-size:.6rem;font-weight:700;text-transform:uppercase;border-bottom:2px solid #e2e8f0}
+.notes-tbl td{padding:4px 6px;border-bottom:1px solid #f1f5f9;text-align:center}
+.notes-tbl .eleve-cell{text-align:left;font-weight:600;color:#0f172a}
+.notes-tbl input[type=number]{width:60px;padding:4px;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.72rem;transition:border .2s}
+.notes-tbl input[type=number]:focus{border-color:#6366f1;outline:none;box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+/* Presence */
+.pres-row{display:grid;grid-template-columns:30px 1fr 60px 90px 1fr;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:.72rem}
+.pres-row:hover{background:#f8fafc}
+.pres-toggle{width:28px;height:16px;border-radius:8px;background:#e2e8f0;position:relative;cursor:pointer;transition:background .2s}
+.pres-toggle.on{background:#22c55e}
+.pres-toggle::after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.pres-toggle.on::after{left:14px}
+.star-row{display:flex;gap:1px}.star-row i{cursor:pointer;font-size:.65rem;color:#e2e8f0;transition:color .15s}
+.star-row i.active{color:#f59e0b}
+/* Selector */
+.ens-select{padding:6px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;background:#fff;font-weight:500;min-width:180px;transition:border .2s}
+.ens-select:focus{border-color:#6366f1;outline:none;box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.ens-btn{padding:6px 14px;border:none;border-radius:8px;font-size:.72rem;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:5px}
+.ens-btn-primary{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff}.ens-btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(99,102,241,.3)}
+.ens-btn-success{background:linear-gradient(135deg,#059669,#34d399);color:#fff}.ens-btn-success:hover{transform:translateY(-1px)}
+.ens-btn-sm{padding:4px 10px;font-size:.65rem}
+@media(max-width:992px){.stat-grid{grid-template-columns:repeat(2,1fr)}.pres-row{grid-template-columns:30px 1fr 50px 80px}}
+@media(max-width:600px){.stat-grid{grid-template-columns:1fr}}
 </style>
 {% endblock %}
 
 {% block content %}
-
 <!-- DASHBOARD -->
 <div id="sectionDashboard" style="{% if active_section != 'dashboard' %}display:none{% endif %}">
     <div class="stat-grid" id="statsGrid">
-        <div class="stat-card grad-blue">
-            <div class="stat-icon"><i class="fas fa-book-open"></i></div>
-            <div class="stat-info"><div class="stat-label">Mes Cours</div><div class="stat-value" id="statCours">—</div></div>
-        </div>
-        <div class="stat-card grad-teal">
-            <div class="stat-icon"><i class="fas fa-chalkboard"></i></div>
-            <div class="stat-info"><div class="stat-label">Mes Classes</div><div class="stat-value" id="statClasses">—</div></div>
-        </div>
-        <div class="stat-card grad-purple">
-            <div class="stat-icon"><i class="fas fa-users"></i></div>
-            <div class="stat-info"><div class="stat-label">Total Élèves</div><div class="stat-value" id="statEleves">—</div></div>
-        </div>
-        <div class="stat-card grad-amber">
-            <div class="stat-icon"><i class="fas fa-clipboard-check"></i></div>
-            <div class="stat-info"><div class="stat-label">Évaluations</div><div class="stat-value" id="statEvaluations">—</div></div>
-        </div>
+        <div class="stat-card grad-blue"><div class="stat-icon"><i class="fas fa-book-open"></i></div><div><div class="stat-label">Mes Cours</div><div class="stat-value" id="statCours">—</div></div></div>
+        <div class="stat-card grad-teal"><div class="stat-icon"><i class="fas fa-chalkboard"></i></div><div><div class="stat-label">Mes Classes</div><div class="stat-value" id="statClasses">—</div></div></div>
+        <div class="stat-card grad-purple"><div class="stat-icon"><i class="fas fa-users"></i></div><div><div class="stat-label">Total Élèves</div><div class="stat-value" id="statEleves">—</div></div></div>
+        <div class="stat-card grad-amber"><div class="stat-icon"><i class="fas fa-clipboard-check"></i></div><div><div class="stat-label">Évaluations</div><div class="stat-value" id="statEvaluations">—</div></div></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem">
-        <div class="dash-section">
-            <div class="dash-section-title"><i class="fas fa-book-open"></i> Mes Cours Attribués</div>
-            <div class="dash-section-sub">Cours que vous enseignez cette année</div>
-            <div id="coursesContainer" style="display:grid;gap:8px;max-height:350px;overflow-y:auto">
-                <div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>
-            </div>
-        </div>
-        <div class="dash-section">
-            <div class="dash-section-title"><i class="fas fa-calendar-alt"></i> Horaire Récent</div>
-            <div class="dash-section-sub">Vos séances récentes et à venir</div>
-            <div id="scheduleContainer" style="max-height:350px;overflow-y:auto">
-                <div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>
-            </div>
-        </div>
+        <div class="dash-section"><div class="dash-section-title"><i class="fas fa-book-open"></i> Mes Cours Attribués</div><div class="dash-section-sub">Cours que vous enseignez cette année</div><div id="coursesContainer"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div></div></div>
+        <div class="dash-section"><div class="dash-section-title"><i class="fas fa-calendar-alt"></i> Horaire Récent</div><div class="dash-section-sub">Vos séances récentes et à venir</div><div id="scheduleContainer" style="max-height:400px;overflow-y:auto"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div></div></div>
     </div>
-    <div class="dash-section">
-        <div class="dash-section-title"><i class="fas fa-user-check"></i> Statistiques de Présences</div>
-        <div class="dash-section-sub">Synthèse des présences de vos élèves</div>
-        <div id="presencesStatsContainer"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div></div>
-    </div>
+    <div class="dash-section"><div class="dash-section-title"><i class="fas fa-user-check"></i> Statistiques de Présences</div><div class="dash-section-sub">Synthèse des présences de vos élèves</div><div id="presencesStatsContainer"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div></div></div>
 </div>
-
 <!-- COURS -->
-<div id="sectionCours" style="{% if active_section != 'cours' %}display:none{% endif %}">
-    <div id="coursesFullContainer"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement des cours...</div></div>
-</div>
-
+<div id="sectionCours" style="{% if active_section != 'cours' %}display:none{% endif %}"><div id="coursesFullContainer"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div></div></div>
 <!-- HORAIRES -->
-<div id="sectionHoraires" style="{% if active_section != 'horaires' %}display:none{% endif %}">
-    <div id="scheduleFullContainer"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement de l'horaire...</div></div>
-</div>
-
+<div id="sectionHoraires" style="{% if active_section != 'horaires' %}display:none{% endif %}"><div id="scheduleFullContainer"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div></div></div>
 <!-- EVALUATIONS -->
 <div id="sectionEvaluations" style="{% if active_section != 'evaluations' %}display:none{% endif %}">
     <div class="dash-section">
-        <div class="ca-loading" id="evaluationsContainer"><i class="fas fa-clipboard-list" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>Sélectionnez un cours dans "Mes Cours" pour gérer les évaluations.</div>
+        <div class="dash-section-title"><i class="fas fa-clipboard-check"></i> Évaluations</div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:1rem">
+            <select class="ens-select" id="evalClasseSelect" onchange="onEvalClasseChange()"><option value="">— Classe —</option></select>
+            <select class="ens-select" id="evalCoursSelect" onchange="loadEvaluationsList()"><option value="">— Cours —</option></select>
+            <button class="ens-btn ens-btn-primary" onclick="showNewEvalModal()"><i class="fas fa-plus"></i> Nouvelle Évaluation</button>
+        </div>
+        <div id="evalsListContainer"><div class="ca-loading"><i class="fas fa-clipboard-list" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>Sélectionnez une classe et un cours.</div></div>
     </div>
 </div>
-
 <!-- NOTES -->
 <div id="sectionNotes" style="{% if active_section != 'notes' %}display:none{% endif %}">
     <div class="dash-section">
-        <div class="ca-loading" id="notesContainer"><i class="fas fa-chart-line" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>Sélectionnez un cours dans "Mes Cours" pour saisir les notes.</div>
+        <div class="dash-section-title"><i class="fas fa-chart-bar"></i> Saisie des Notes</div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:1rem">
+            <select class="ens-select" id="notesClasseSelect" onchange="onNotesClasseChange()"><option value="">— Classe —</option></select>
+            <select class="ens-select" id="notesPeriodeSelect" onchange="loadNotesGrid()"><option value="">— Période —</option></select>
+            <select class="ens-select" id="notesCoursSelect" onchange="loadNotesGrid()"><option value="">— Cours —</option></select>
+            <button class="ens-btn ens-btn-success" id="btnSaveNotes" onclick="saveNotes()" disabled><i class="fas fa-save"></i> Enregistrer</button>
+        </div>
+        <div id="notesGridContainer"><div class="ca-loading"><i class="fas fa-chart-line" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>Sélectionnez classe, période et cours.</div></div>
     </div>
 </div>
-
 <!-- PRESENCES -->
 <div id="sectionPresences" style="{% if active_section != 'presences' %}display:none{% endif %}">
     <div class="dash-section">
-        <div class="ca-loading" id="presencesContainer"><i class="fas fa-clipboard-list" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>La gestion des présences sera disponible à partir de vos horaires planifiés.</div>
+        <div class="dash-section-title"><i class="fas fa-user-check"></i> Gestion des Présences</div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:1rem">
+            <select class="ens-select" id="presHoraireSelect" onchange="loadPresences()"><option value="">— Sélectionner un créneau —</option></select>
+            <button class="ens-btn ens-btn-success" id="btnSavePres" onclick="savePresences()" disabled><i class="fas fa-save"></i> Enregistrer</button>
+            <button class="ens-btn ens-btn-primary ens-btn-sm" onclick="markAllPresent()"><i class="fas fa-check-double"></i> Tous présents</button>
+        </div>
+        <div id="presContainer"><div class="ca-loading"><i class="fas fa-clipboard-list" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>Sélectionnez un créneau horaire pour gérer les présences.</div></div>
     </div>
 </div>
-
 <!-- ELEVES -->
-<div id="sectionEleves" style="{% if active_section != 'eleves' %}display:none{% endif %}">
-    <div id="elevesContainer"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement des élèves...</div></div>
-</div>
-
-<!-- COMMUNICATION — WhatsApp Style -->
-<div id="sectionCommunication" style="{% if active_section != 'communication' %}display:none{% endif %}">
-    <div class="chat-layout">
-        <!-- Chat Sidebar -->
-        <div class="chat-sidebar">
-            <div class="chat-sidebar-header">
-                <i class="fas fa-comments"></i>
-                <h3>Discussions</h3>
-            </div>
-            <div class="chat-sidebar-search">
-                <i class="fas fa-search"></i>
-                <input type="text" id="chatSearch" placeholder="Rechercher..." oninput="filterChats(this.value)">
-            </div>
-            <div class="chat-list" id="chatList">
-                <!-- Will be populated dynamically -->
-            </div>
-        </div>
-
-        <!-- Chat Main -->
-        <div class="chat-main" id="chatMain">
-            <div class="chat-empty">
-                <i class="fas fa-comments"></i>
-                <p>Sélectionnez une discussion</p>
-                <span style="font-size:.68rem;color:#b0b0b0">Choisissez une classe ou un parent pour commencer</span>
-            </div>
-        </div>
-    </div>
-</div>
-
+<div id="sectionEleves" style="{% if active_section != 'eleves' %}display:none{% endif %}"><div id="elevesContainer"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div></div></div>
+<!-- COMMUNICATION -->
+<div id="sectionCommunication" style="{% if active_section != 'communication' %}display:none{% endif %}"><div class="dash-section"><div class="ca-loading"><i class="fas fa-comments" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>Communication — bientôt disponible.</div></div></div>
 {% endblock %}
 
 {% block page_js %}
@@ -241,263 +158,234 @@ const PERSONNEL_ID = {{ personnel_id }};
 const PERSONNEL_INFO = {{ personnel_info|safe }};
 const ETAB_ID = {{ etab.id_etablissement }};
 const ACTIVE_SECTION = '{{ active_section }}';
-const COURSE_COLORS = ['#6366f1','#0ea5e9','#10b981','#f59e0b','#ec4899','#8b5cf6','#ef4444','#14b8a6','#f97316','#06b6d4'];
+const CC = ['#6366f1','#0ea5e9','#10b981','#f59e0b','#ec4899','#8b5cf6','#ef4444','#14b8a6','#f97316','#06b6d4'];
+const REPARTITIONS = {{ repartitions_notes_json|safe }};
+let DD = null; // dashboardData
 
-let dashboardData = null;
-let chatMessages = {};
-let activeChatId = null;
+document.addEventListener('DOMContentLoaded', loadDashboardData);
 
-document.addEventListener('DOMContentLoaded', () => { loadDashboardData(); });
-
-/* ═══ LOAD DATA ═══ */
-async function loadDashboardData() {
-    try {
-        const res = await fetch('/api/enseignant/dashboard/', {headers:{'X-CSRFToken':getCsrfToken()}});
-        const data = await res.json();
-        if (!data.success) {
-            const errHtml = `<div class="ca-loading" style="color:#ef4444"><i class="fas fa-exclamation-triangle"></i> ${data.error}</div>`;
-            ['coursesContainer','scheduleContainer','presencesStatsContainer','coursesFullContainer','scheduleFullContainer','elevesContainer'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.innerHTML = errHtml;
-            });
-            return;
-        }
-        dashboardData = data;
-        renderStats(data);
-        renderCourses(data.courses);
-        renderCoursesFullList(data.courses);
-        renderSchedule(data.schedule);
-        renderPresencesStats(data.presences_stats);
-        renderElevesList(data.courses);
-        renderChatList(data.courses);
-    } catch(e) {
-        console.error(e);
-        const errHtml = `<div class="ca-loading" style="color:#ef4444"><i class="fas fa-exclamation-triangle"></i> Erreur de chargement</div>`;
-        ['coursesContainer','scheduleContainer','presencesStatsContainer'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.innerHTML = errHtml;
-        });
-    }
+async function loadDashboardData(){
+    try{
+        const r=await fetch('/api/enseignant/dashboard/',{headers:{'X-CSRFToken':getCsrfToken()}});
+        const d=await r.json();
+        if(!d.success){const e=`<div class="ca-loading" style="color:#ef4444"><i class="fas fa-exclamation-triangle"></i> ${d.error}</div>`;['coursesContainer','scheduleContainer','presencesStatsContainer','coursesFullContainer','scheduleFullContainer','elevesContainer'].forEach(i=>{const el=document.getElementById(i);if(el)el.innerHTML=e;});return;}
+        DD=d;
+        renderStats(d);renderCoursesDash(d.courses);renderCoursesFullList(d.courses);
+        renderScheduleDash(d.schedule);renderScheduleFull(d.schedule);
+        renderPresencesStats(d.presences_stats);renderElevesList(d.courses);
+        populateEvalSelects(d.courses);populateNotesSelects(d.courses);populatePresHoraire(d.schedule);
+    }catch(e){console.error(e);const eh=`<div class="ca-loading" style="color:#ef4444"><i class="fas fa-exclamation-triangle"></i> Erreur</div>`;['coursesContainer','scheduleContainer','presencesStatsContainer'].forEach(i=>{const el=document.getElementById(i);if(el)el.innerHTML=eh;});}
 }
 
-/* ═══ STATS ═══ */
-function renderStats(d) {
-    document.getElementById('statCours').textContent = d.n_courses||0;
-    document.getElementById('statClasses').textContent = d.n_classes||0;
-    document.getElementById('statEleves').textContent = d.n_eleves_total||0;
-    document.getElementById('statEvaluations').textContent = d.n_evaluations||0;
+function renderStats(d){
+    document.getElementById('statCours').textContent=d.n_courses||0;
+    document.getElementById('statClasses').textContent=d.n_classes||0;
+    document.getElementById('statEleves').textContent=d.n_eleves_total||0;
+    document.getElementById('statEvaluations').textContent=d.n_evaluations||0;
 }
 
-/* ═══ COURSES (compact) ═══ */
-function renderCourses(courses) {
-    const c = document.getElementById('coursesContainer');
+/* ═══ COURSES GROUPED BY CLASS (Dashboard) ═══ */
+function renderCoursesDash(courses){
+    const c=document.getElementById('coursesContainer');
     if(!courses.length){c.innerHTML='<div class="ca-loading"><i class="fas fa-book-open"></i> Aucun cours attribué.</div>';return;}
-    c.innerHTML = courses.map((x,i)=>{
-        const col=COURSE_COLORS[i%COURSE_COLORS.length];
-        return `<div class="course-card"><div class="cc-color" style="background:${col}"></div><div style="padding-left:8px"><div class="cc-title">${x.cours}</div><div class="cc-class">${x.cycle_nom} — ${x.classe_nom}</div><div class="cc-stats"><span class="cc-stat"><i class="fas fa-users"></i> <strong>${x.n_eleves}</strong> élèves</span><span class="cc-stat"><i class="fas fa-weight-hanging"></i> Pond: <strong>${x.ponderation}%</strong></span>${x.heure_semaine?`<span class="cc-stat"><i class="fas fa-clock"></i> <strong>${x.heure_semaine}h</strong>/sem</span>`:''}</div></div></div>`;
-    }).join('');
-}
-
-/* ═══ COURSES FULL ═══ */
-function renderCoursesFullList(courses) {
-    const c = document.getElementById('coursesFullContainer');
-    if(!courses.length){c.innerHTML='<div class="dash-section"><div class="ca-loading"><i class="fas fa-book-open"></i> Aucun cours attribué.</div></div>';return;}
     const grouped={};courses.forEach(x=>{const k=`${x.cycle_nom} — ${x.classe_nom}`;if(!grouped[k])grouped[k]=[];grouped[k].push(x);});
-    let h='',ci=0;
+    let h='';let ci=0;
     Object.entries(grouped).forEach(([cn,cls])=>{
-        h+=`<div class="dash-section"><div class="dash-section-title"><i class="fas fa-chalkboard"></i> ${cn}</div><div class="dash-section-sub">${cls.length} cours · ${cls[0]?.n_eleves||0} élèves</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">`;
-        cls.forEach(x=>{
-            const col=COURSE_COLORS[ci++%COURSE_COLORS.length];
-            h+=`<div class="course-card" style="cursor:pointer" onclick="selectCourseForAction(${x.id_cours_annee},'${x.cours.replace(/'/g,"\\'")}','${cn.replace(/'/g,"\\'")}',${x.eac_id})"><div class="cc-color" style="background:${col}"></div><div style="padding-left:8px"><div class="cc-title">${x.cours} ${x.code_cours?`<span style="font-size:.58rem;color:#94a3b8">(${x.code_cours})</span>`:''}</div><div class="cc-class">${cn}</div><div class="cc-stats"><span class="cc-stat"><i class="fas fa-users"></i> <strong>${x.n_eleves}</strong> élèves</span><span class="cc-stat"><i class="fas fa-weight-hanging"></i> Pond: <strong>${x.ponderation}%</strong></span></div><div style="margin-top:6px;display:flex;gap:4px"><span style="font-size:.55rem;background:rgba(99,102,241,.08);color:#6366f1;padding:2px 6px;border-radius:4px;font-weight:600"><i class="fas fa-clipboard-check" style="margin-right:2px"></i>Évaluations</span><span style="font-size:.55rem;background:rgba(16,185,129,.08);color:#10b981;padding:2px 6px;border-radius:4px;font-weight:600"><i class="fas fa-chart-bar" style="margin-right:2px"></i>Notes</span></div></div></div>`;
-        });
+        h+=`<div style="margin-bottom:10px"><div style="font-size:.7rem;font-weight:700;color:#475569;margin-bottom:6px;display:flex;align-items:center;gap:6px"><i class="fas fa-chalkboard" style="color:#6366f1;font-size:.6rem"></i>${cn} <span style="font-size:.58rem;color:#94a3b8;font-weight:500">(${cls[0]?.n_eleves||0} élèves)</span></div>`;
+        h+='<div style="display:grid;gap:6px">';
+        cls.forEach(x=>{const col=CC[ci++%CC.length];h+=`<div class="course-card"><div class="cc-color" style="background:${col}"></div><div style="padding-left:8px"><div class="cc-title">${x.cours} ${x.code_cours?`<span style="font-size:.58rem;color:#94a3b8">(${x.code_cours})</span>`:''}</div><div class="cc-stats"><span class="cc-stat"><i class="fas fa-users"></i> <strong>${x.n_eleves}</strong> élèves</span><span class="cc-stat"><i class="fas fa-weight-hanging"></i> <strong>${x.ponderation}%</strong></span>${x.heure_semaine?`<span class="cc-stat"><i class="fas fa-clock"></i> <strong>${x.heure_semaine}h</strong>/sem</span>`:''}</div></div></div>`;});
         h+='</div></div>';
     });
     c.innerHTML=h;
 }
 
-function selectCourseForAction(id,nom,cn,eac){showToast(`Cours "${nom}" sélectionné.`,'info');}
-
-/* ═══ SCHEDULE ═══ */
-function renderSchedule(schedule) {
-    const c=document.getElementById('scheduleContainer'),f=document.getElementById('scheduleFullContainer');
-    if(!schedule.length){const e='<div class="ca-loading"><i class="fas fa-calendar-alt"></i> Aucun horaire planifié.</div>';c.innerHTML=e;f.innerHTML=`<div class="dash-section">${e}</div>`;return;}
-    const mk=s=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:#f8fafc;margin-bottom:4px;border-left:3px solid #6366f1"><div style="font-size:.7rem;font-weight:700;color:#0f172a;min-width:80px">${s.date}</div><div style="font-size:.68rem;color:#475569">${s.debut} — ${s.fin}</div></div>`;
-    c.innerHTML=schedule.slice(0,8).map(mk).join('');
-    f.innerHTML=`<div class="dash-section">${schedule.map(mk).join('')}</div>`;
+/* ═══ COURSES FULL LIST ═══ */
+function renderCoursesFullList(courses){
+    const c=document.getElementById('coursesFullContainer');
+    if(!courses.length){c.innerHTML='<div class="dash-section"><div class="ca-loading"><i class="fas fa-book-open"></i> Aucun cours attribué.</div></div>';return;}
+    const grouped={};courses.forEach(x=>{const k=`${x.cycle_nom} — ${x.classe_nom}`;if(!grouped[k])grouped[k]=[];grouped[k].push(x);});
+    let h='',ci=0;
+    Object.entries(grouped).forEach(([cn,cls])=>{
+        h+=`<div class="dash-section"><div class="dash-section-title"><i class="fas fa-chalkboard"></i> ${cn}</div><div class="dash-section-sub">${cls.length} cours · ${cls[0]?.n_eleves||0} élèves</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">`;
+        cls.forEach(x=>{const col=CC[ci++%CC.length];
+        h+=`<div class="course-card"><div class="cc-color" style="background:${col}"></div><div style="padding-left:8px"><div class="cc-title">${x.cours} ${x.code_cours?`<span style="font-size:.58rem;color:#94a3b8">(${x.code_cours})</span>`:''}</div><div class="cc-class">${cn}</div><div class="cc-stats"><span class="cc-stat"><i class="fas fa-users"></i> <strong>${x.n_eleves}</strong></span><span class="cc-stat"><i class="fas fa-weight-hanging"></i> <strong>${x.ponderation}%</strong></span></div></div></div>`;
+        });h+='</div></div>';
+    });
+    c.innerHTML=h;
 }
 
+/* ═══ SCHEDULE DASHBOARD (pretty grid) ═══ */
+function renderScheduleDash(schedule){
+    const c=document.getElementById('scheduleContainer');
+    if(!schedule.length){c.innerHTML='<div class="ca-loading"><i class="fas fa-calendar-alt"></i> Aucun horaire planifié.</div>';return;}
+    c.innerHTML=schedule.slice(0,8).map(s=>{
+        const d=new Date(s.date);const day=d.getDate();const mon=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'][d.getMonth()];
+        return `<div class="sched-card"><div class="sched-date"><span class="sd-day">${day}</span>${mon}</div><div style="flex:1"><div class="sched-time"><i class="fas fa-clock"></i> ${s.debut} — ${s.fin}</div><div class="sched-cours">${s.cours_nom||'—'}</div></div><span class="sched-classe">${s.classe_nom||''}</span></div>`;
+    }).join('');
+}
+
+/* ═══ SCHEDULE FULL ═══ */
+function renderScheduleFull(schedule){
+    const c=document.getElementById('scheduleFullContainer');
+    if(!schedule.length){c.innerHTML='<div class="dash-section"><div class="ca-loading"><i class="fas fa-calendar-alt"></i> Aucun horaire.</div></div>';return;}
+    // Group by week
+    const weeks={};schedule.forEach(s=>{const d=new Date(s.date);const w=getWeekLabel(d);if(!weeks[w])weeks[w]=[];weeks[w].push(s);});
+    let h='';
+    Object.entries(weeks).forEach(([wk,items])=>{
+        h+=`<div class="dash-section"><div class="dash-section-title"><i class="fas fa-calendar-week"></i> ${wk}</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">`;
+        items.forEach(s=>{const d=new Date(s.date);const day=d.getDate();const mon=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'][d.getMonth()];const jours=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+            h+=`<div class="sched-card" style="flex-direction:column;align-items:stretch;gap:6px"><div style="display:flex;align-items:center;gap:10px"><div class="sched-date" style="min-width:auto;padding:4px 10px"><span class="sd-day" style="font-size:.9rem">${day}</span>${mon}</div><div><div style="font-size:.62rem;color:#94a3b8;font-weight:600">${jours[d.getDay()]}</div><div class="sched-time"><i class="fas fa-clock"></i> ${s.debut} — ${s.fin}</div></div></div><div style="display:flex;justify-content:space-between;align-items:center"><div class="sched-cours" style="font-weight:600">${s.cours_nom||'—'}</div><span class="sched-classe">${s.classe_nom||''}</span></div></div>`;
+        });
+        h+='</div></div>';
+    });
+    c.innerHTML=h;
+}
+function getWeekLabel(d){const s=new Date(d);s.setDate(s.getDate()-s.getDay()+1);const e=new Date(s);e.setDate(s.getDate()+6);return `${s.getDate()}/${s.getMonth()+1} — ${e.getDate()}/${e.getMonth()+1}/${e.getFullYear()}`;}
+
 /* ═══ PRESENCES STATS ═══ */
-function renderPresencesStats(s) {
+function renderPresencesStats(s){
     const c=document.getElementById('presencesStatsContainer');
-    const t=(s.total_presents||0)+(s.total_absents||0);
-    const p=t>0?Math.round(s.total_presents/t*100):0;
+    const t=(s.total_presents||0)+(s.total_absents||0);const p=t>0?Math.round(s.total_presents/t*100):0;
     c.innerHTML=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem"><div style="text-align:center;padding:1rem;background:#f0fdf4;border-radius:12px"><div style="font-size:1.8rem;font-weight:800;color:#059669">${s.total_seances}</div><div style="font-size:.7rem;color:#64748b;font-weight:600">Séances tenues</div></div><div style="text-align:center;padding:1rem;background:#f0f9ff;border-radius:12px"><div style="font-size:1.8rem;font-weight:800;color:#0ea5e9">${p}%</div><div style="font-size:.7rem;color:#64748b;font-weight:600">Taux de présence</div></div><div style="text-align:center;padding:1rem;background:#fef2f2;border-radius:12px"><div style="font-size:1.8rem;font-weight:800;color:#ef4444">${s.total_absents||0}</div><div style="font-size:.7rem;color:#64748b;font-weight:600">Total absences</div></div></div>`;
 }
 
 /* ═══ ELEVES ═══ */
-function renderElevesList(courses) {
+function renderElevesList(courses){
     const c=document.getElementById('elevesContainer');
-    if(!courses.length){c.innerHTML='<div class="dash-section"><div class="ca-loading"><i class="fas fa-users"></i> Aucune classe attribuée.</div></div>';return;}
-    const classMap={};courses.forEach(x=>{if(!classMap[x.eac_id])classMap[x.eac_id]={classe_nom:x.classe_nom,cycle_nom:x.cycle_nom,n_eleves:x.n_eleves,eac_id:x.eac_id};});
-    const cls=Object.values(classMap);
-    let h='<div class="dash-section"><div class="dash-section-title"><i class="fas fa-users"></i> Mes Classes</div><div class="dash-section-sub">Cliquez sur une classe pour voir la liste des élèves</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">';
-    cls.forEach((cl,i)=>{
-        const col=COURSE_COLORS[i%COURSE_COLORS.length];
-        h+=`<div style="background:white;border-radius:12px;padding:1rem;border:1px solid #e2e8f0;cursor:pointer;transition:all .2s;position:relative;overflow:hidden" onclick="loadClassEleves(${cl.eac_id},'${cl.classe_nom.replace(/'/g,"\\'")}')"><div style="position:absolute;top:0;left:0;width:100%;height:3px;background:${col}"></div><div style="font-size:.82rem;font-weight:700;color:#0f172a">${cl.cycle_nom} — ${cl.classe_nom}</div><div style="display:flex;align-items:center;gap:6px;margin-top:6px"><span style="font-size:.68rem;background:rgba(99,102,241,.08);color:#6366f1;padding:2px 8px;border-radius:6px;font-weight:600"><i class="fas fa-users" style="margin-right:3px"></i>${cl.n_eleves} élèves</span></div></div>`;
-    });
+    if(!courses.length){c.innerHTML='<div class="dash-section"><div class="ca-loading"><i class="fas fa-users"></i> Aucune classe.</div></div>';return;}
+    const cm={};courses.forEach(x=>{if(!cm[x.eac_id])cm[x.eac_id]={classe_nom:x.classe_nom,cycle_nom:x.cycle_nom,n_eleves:x.n_eleves,eac_id:x.eac_id};});
+    const cls=Object.values(cm);let h='<div class="dash-section"><div class="dash-section-title"><i class="fas fa-users"></i> Mes Classes</div><div class="dash-section-sub">Cliquez sur une classe pour voir les élèves</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">';
+    cls.forEach((cl,i)=>{const col=CC[i%CC.length];h+=`<div style="background:white;border-radius:12px;padding:1rem;border:1px solid #e2e8f0;cursor:pointer;transition:all .2s;position:relative;overflow:hidden" onclick="loadClassEleves(${cl.eac_id},'${cl.classe_nom.replace(/'/g,"\\'")}')"><div style="position:absolute;top:0;left:0;width:100%;height:3px;background:${col}"></div><div style="font-size:.82rem;font-weight:700;color:#0f172a">${cl.cycle_nom} — ${cl.classe_nom}</div><div style="display:flex;align-items:center;gap:6px;margin-top:6px"><span style="font-size:.68rem;background:rgba(99,102,241,.08);color:#6366f1;padding:2px 8px;border-radius:6px;font-weight:600"><i class="fas fa-users" style="margin-right:3px"></i>${cl.n_eleves} élèves</span></div></div>`;});
     h+='</div></div><div id="elevesListDetail"></div>';c.innerHTML=h;
 }
-
-async function loadClassEleves(eacId, className) {
-    const d=document.getElementById('elevesListDetail');
-    d.innerHTML='<div class="dash-section"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div></div>';
-    try {
-        const res=await fetch('/api/dashboard/eleves-list/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({id_etablissement:ETAB_ID,id_classe:eacId})});
-        const data=await res.json();
-        if(!data.success){d.innerHTML=`<div class="dash-section"><div class="ca-loading" style="color:#ef4444">${data.error}</div></div>`;return;}
-        const eleves=data.eleves||[];
-        if(!eleves.length){d.innerHTML='<div class="dash-section"><div class="ca-loading"><i class="fas fa-users"></i> Aucun élève.</div></div>';return;}
-        let h=`<div class="dash-section"><div class="dash-section-title"><i class="fas fa-list"></i> ${className} — ${eleves.length} élèves</div><div style="overflow-x:auto;max-height:500px;overflow-y:auto"><table style="width:100%;border-collapse:collapse;font-size:.72rem"><thead><tr style="border-bottom:2px solid #e2e8f0"><th style="padding:6px 8px;text-align:left;color:#94a3b8;font-size:.6rem;text-transform:uppercase;font-weight:700">#</th><th style="padding:6px 8px;text-align:left;color:#94a3b8;font-size:.6rem;text-transform:uppercase;font-weight:700">Nom complet</th><th style="padding:6px 8px;text-align:left;color:#94a3b8;font-size:.6rem;text-transform:uppercase;font-weight:700">Genre</th><th style="padding:6px 8px;text-align:left;color:#94a3b8;font-size:.6rem;text-transform:uppercase;font-weight:700">Date naiss.</th></tr></thead><tbody>`;
-        eleves.forEach((el,i)=>{
-            const name=`${el.nom||''} ${el.postnom||''} ${el.prenom||''}`.trim();
-            const badge=el.genre==='M'?'<span style="background:#dbeafe;color:#2563eb;padding:1px 6px;border-radius:4px;font-size:.6rem;font-weight:600">M</span>':'<span style="background:#fce7f3;color:#db2777;padding:1px 6px;border-radius:4px;font-size:.6rem;font-weight:600">F</span>';
-            h+=`<tr style="border-bottom:1px solid #f1f5f9" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'"><td style="padding:5px 8px;color:#94a3b8;font-weight:600;font-size:.6rem">${i+1}</td><td style="padding:5px 8px;font-weight:600;color:#0f172a">${name||'—'}</td><td style="padding:5px 8px">${badge}</td><td style="padding:5px 8px;color:#64748b">${el.date_naissance||'—'}</td></tr>`;
-        });
-        h+='</tbody></table></div></div>';d.innerHTML=h;
-    }catch(e){d.innerHTML=`<div class="dash-section"><div class="ca-loading" style="color:#ef4444">${e.message}</div></div>`;}
+async function loadClassEleves(eacId,cn){
+    const d=document.getElementById('elevesListDetail');d.innerHTML='<div class="dash-section"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div></div>';
+    try{const r=await fetch('/api/dashboard/eleves-list/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({id_etablissement:ETAB_ID,id_classe:eacId})});const data=await r.json();
+    if(!data.success){d.innerHTML=`<div class="dash-section"><div class="ca-loading" style="color:#ef4444">${data.error}</div></div>`;return;}
+    const el=data.eleves||[];if(!el.length){d.innerHTML='<div class="dash-section"><div class="ca-loading">Aucun élève.</div></div>';return;}
+    let h=`<div class="dash-section"><div class="dash-section-title"><i class="fas fa-list"></i> ${cn} — ${el.length} élèves</div><div style="overflow-x:auto;max-height:500px;overflow-y:auto"><table class="eval-tbl"><thead><tr><th>#</th><th>Nom</th><th>Prénom</th><th>Genre</th><th>Date naiss.</th></tr></thead><tbody>`;
+    el.forEach((e,i)=>{const nm=`${e.nom||''} ${e.postnom||''}`.trim();const bg=e.genre==='M'?'#dbeafe;color:#2563eb':'#fce7f3;color:#db2777';h+=`<tr><td style="color:#94a3b8">${i+1}</td><td class="eleve-cell">${nm||'—'}</td><td>${e.prenom||'—'}</td><td><span class="eval-badge" style="background:${bg}">${e.genre||'?'}</span></td><td style="color:#64748b">${e.date_naissance||'—'}</td></tr>`;});
+    h+='</tbody></table></div></div>';d.innerHTML=h;}catch(e){d.innerHTML=`<div class="dash-section"><div class="ca-loading" style="color:#ef4444">${e.message}</div></div>`;}
 }
 
-/* ═══════════════════════════════════════════
-   WHATSAPP-STYLE CHAT - Communication
-   ═══════════════════════════════════════════ */
-function renderChatList(courses) {
-    const list = document.getElementById('chatList');
-    if(!courses.length){list.innerHTML='<div class="ca-loading" style="padding:2rem"><i class="fas fa-comments"></i> Aucun cours attribué. Les discussions sont liées à vos classes.</div>';return;}
+/* ═══ EVALUATIONS ═══ */
+function populateEvalSelects(courses){
+    const cs=document.getElementById('evalClasseSelect');
+    const cm={};courses.forEach(x=>{if(!cm[x.eac_id])cm[x.eac_id]={nom:`${x.cycle_nom} — ${x.classe_nom}`,courses:[]};cm[x.eac_id].courses.push(x);});
+    Object.entries(cm).forEach(([id,cl])=>{cs.innerHTML+=`<option value="${id}">${cl.nom}</option>`;});
+}
+function onEvalClasseChange(){
+    const cid=document.getElementById('evalClasseSelect').value;const cs=document.getElementById('evalCoursSelect');cs.innerHTML='<option value="">— Cours —</option>';
+    if(!cid||!DD)return;DD.courses.filter(c=>c.eac_id==cid).forEach(c=>{cs.innerHTML+=`<option value="${c.id_cours_annee}">${c.cours} ${c.code_cours?'('+c.code_cours+')':''}</option>`;});
+}
+async function loadEvaluationsList(){
+    const cid=document.getElementById('evalClasseSelect').value;const crs=document.getElementById('evalCoursSelect').value;
+    const c=document.getElementById('evalsListContainer');
+    if(!cid||!crs){c.innerHTML='<div class="ca-loading">Sélectionnez classe et cours.</div>';return;}
+    c.innerHTML='<div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
+    try{const r=await fetch(`/api/evaluations/list/?classe_id=${cid}&cours_id=${crs}`);const d=await r.json();
+    if(!d.success){c.innerHTML=`<div class="ca-loading" style="color:#ef4444">${d.error}</div>`;return;}
+    const ev=d.evaluations||[];
+    let stats=`<div style="display:flex;gap:12px;margin-bottom:12px"><div style="background:#fff7ed;padding:8px 16px;border-radius:10px;text-align:center"><div style="font-size:1.2rem;font-weight:800;color:#ea580c">${ev.length}</div><div style="font-size:.6rem;color:#94a3b8;font-weight:600">TOTAL</div></div><div style="background:#f0fdf4;padding:8px 16px;border-radius:10px;text-align:center"><div style="font-size:1.2rem;font-weight:800;color:#16a34a">${ev.filter(e=>e.is_assigned).length}</div><div style="font-size:.6rem;color:#94a3b8;font-weight:600">ASSIGNÉES</div></div></div>`;
+    if(!ev.length){c.innerHTML=stats+'<div class="ca-loading">Aucune évaluation pour ce cours.</div>';return;}
+    const typeColors={'IE':'#3b82f6','DC':'#f59e0b','DM':'#8b5cf6','EB':'#ef4444','EXP':'#ec4899','IO':'#14b8a6','TP':'#0ea5e9'};
+    let h=stats+`<table class="eval-tbl"><thead><tr><th>Titre</th><th>Type</th><th>Date</th><th>Max</th><th>Doc</th><th>Actions</th></tr></thead><tbody>`;
+    ev.forEach(e=>{const tc=typeColors[e.type_sigle]||'#64748b';h+=`<tr><td style="font-weight:600;color:#0f172a">${e.title}${e.contenu?`<div style="font-size:.58rem;color:#94a3b8">${e.contenu.substring(0,40)}...</div>`:''}</td><td><span class="eval-badge" style="background:${tc}22;color:${tc}">${e.type_sigle||'—'}</span></td><td style="color:#64748b">${e.date_eval||'—'}</td><td style="font-weight:700;color:#6366f1">${e.ponderer_eval||0}</td><td>${e.document_url?`<a href="${e.document_url}" target="_blank" style="color:#ef4444;font-size:.68rem;font-weight:600"><i class="fas fa-file-pdf"></i> PDF</a>`:'—'}</td><td><button class="ens-btn ens-btn-primary ens-btn-sm" onclick="editEval(${e.id_evaluation})"><i class="fas fa-pen"></i></button> <button class="ens-btn ens-btn-sm" style="background:#fef2f2;color:#ef4444" onclick="deleteEval(${e.id_evaluation})"><i class="fas fa-trash"></i></button></td></tr>`;});
+    h+='</tbody></table>';c.innerHTML=h;
+    }catch(e){c.innerHTML=`<div class="ca-loading" style="color:#ef4444">${e.message}</div>`;}
+}
+function showNewEvalModal(){showToast('Créez via le module Évaluations (Administration)','info');}
+function editEval(id){showToast('Éditez via le module Évaluations','info');}
+async function deleteEval(id){if(!confirm('Supprimer cette évaluation?'))return;try{const r=await fetch('/api/evaluations/delete/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({id_evaluation:id})});const d=await r.json();if(d.success){showToast('Évaluation supprimée','success');loadEvaluationsList();}else showToast(d.error,'error');}catch(e){showToast(e.message,'error');}}
 
-    // Create unique class-based chats (group discussions)
-    const classMap = {};
-    courses.forEach(c=>{
-        if(!classMap[c.eac_id]) classMap[c.eac_id] = {classe_nom:c.classe_nom, cycle_nom:c.cycle_nom, n_eleves:c.n_eleves, eac_id:c.eac_id, courses:[]};
-        classMap[c.eac_id].courses.push(c.cours);
+/* ═══ NOTES ═══ */
+function populateNotesSelects(courses){
+    const cs=document.getElementById('notesClasseSelect');
+    const cm={};courses.forEach(x=>{if(!cm[x.eac_id])cm[x.eac_id]={nom:`${x.cycle_nom} — ${x.classe_nom}`,courses:[]};cm[x.eac_id].courses.push(x);});
+    Object.entries(cm).forEach(([id,cl])=>{cs.innerHTML+=`<option value="${id}">${cl.nom}</option>`;});
+    // Périodes
+    const ps=document.getElementById('notesPeriodeSelect');
+    (REPARTITIONS||[]).filter(r=>r.is_leaf).forEach(r=>{ps.innerHTML+=`<option value="${r.id_instance}">${r.nom}</option>`;});
+}
+function onNotesClasseChange(){
+    const cid=document.getElementById('notesClasseSelect').value;const cs=document.getElementById('notesCoursSelect');cs.innerHTML='<option value="">— Cours —</option>';
+    if(!cid||!DD)return;DD.courses.filter(c=>c.eac_id==cid).forEach(c=>{cs.innerHTML+=`<option value="${c.id_cours_annee}">${c.cours}</option>`;});
+}
+let notesData=null;
+async function loadNotesGrid(){
+    const cid=document.getElementById('notesClasseSelect').value;const pid=document.getElementById('notesPeriodeSelect').value;
+    const c=document.getElementById('notesGridContainer');
+    if(!cid||!pid){c.innerHTML='<div class="ca-loading">Sélectionnez classe et période.</div>';return;}
+    c.innerHTML='<div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
+    try{const r=await fetch(`/api/notes/grid/?classe_id=${cid}&repartition_id=${pid}`);const d=await r.json();
+    if(!d.success){c.innerHTML=`<div class="ca-loading" style="color:#ef4444">${d.error}</div>`;return;}
+    notesData=d;
+    const el=d.eleves||[];const cours=d.cours||[];const notes=d.notes||{};
+    // Filter to only teacher's courses
+    const myCourseIds=DD?DD.courses.map(c=>c.id_cours_annee):[];
+    const myCours=cours.filter(c=>myCourseIds.includes(c.cours_id));
+    if(!myCours.length){c.innerHTML='<div class="ca-loading">Aucune évaluation assignée pour vos cours dans cette période.</div>';return;}
+    let allEvals=[];myCours.forEach(cr=>{cr.evaluations.forEach(ev=>{allEvals.push({...ev,cours_nom:cr.cours_nom,cours_code:cr.cours_code,cours_id:cr.cours_id});});});
+    if(!allEvals.length){c.innerHTML='<div class="ca-loading">Aucune évaluation assignée.</div>';return;}
+    const info=`<div style="font-size:.72rem;color:#64748b;margin-bottom:8px"><i class="fas fa-info-circle" style="color:#6366f1"></i> ${d.repartition_name} — ${el.length} élève(s), ${allEvals.length} évaluation(s)</div>`;
+    let h=info+`<div style="overflow-x:auto"><table class="notes-tbl"><thead><tr><th colspan="2" style="text-align:left;background:#1e293b;color:#fff;border-radius:8px 0 0 0">ÉLÈVE</th>`;
+    allEvals.forEach(ev=>{const tc={'IE':'#3b82f6','DC':'#f59e0b','DM':'#8b5cf6','EB':'#ef4444','EXP':'#ec4899'}[ev.type_sigle]||'#64748b';h+=`<th style="background:#f8fafc"><span class="eval-badge" style="background:${tc}22;color:${tc}">${ev.type_sigle}</span> ${ev.title}<div style="font-size:.5rem;color:#94a3b8">/${ev.max}</div></th>`;});
+    if(d.bulletin_maxima)h+=`<th style="background:linear-gradient(135deg,#059669,#34d399);color:#fff;border-radius:0 8px 0 0"><i class="fas fa-chart-bar"></i> NOTE<br>BULLETIN<div style="font-size:.5rem">/${d.bulletin_maxima}</div></th>`;
+    h+='</tr></thead><tbody>';
+    el.forEach(e=>{
+        const nom=`${e.nom||''} ${(e.prenom||'')}`;h+=`<tr><td class="eleve-cell" style="white-space:nowrap">${e.nom||''}</td><td style="text-align:left;color:#64748b">${e.prenom||''}</td>`;
+        let total=0,count=0,maxTotal=0;
+        allEvals.forEach(ev=>{const key=`${e.id}_${ev.id_evaluation}`;const n=notes[key];const val=n?n.note:'';h+=`<td><input type="number" step="0.1" min="0" max="${ev.max}" value="${val!==null&&val!==''?val:''}" data-eleve="${e.id}" data-eval="${ev.id_evaluation}" data-max="${ev.max}" onchange="document.getElementById('btnSaveNotes').disabled=false"></td>`;if(n&&n.note!==null){total+=n.note;maxTotal+=ev.max;count++;}});
+        if(d.bulletin_maxima){const bn=maxTotal>0?(total/maxTotal*d.bulletin_maxima).toFixed(1):'—';h+=`<td style="font-weight:800;color:#059669;font-size:.82rem">${bn}</td>`;}
+        h+='</tr>';
     });
-
-    const chatColors = ['#128c7e','#6366f1','#ef4444','#f59e0b','#ec4899','#0ea5e9','#10b981','#8b5cf6'];
-    let html = '';
-
-    // Group chats for each class
-    Object.values(classMap).forEach((cl, i)=>{
-        const chatId = `class_${cl.eac_id}`;
-        const color = chatColors[i % chatColors.length];
-        const initials = cl.classe_nom.substring(0,2).toUpperCase();
-
-        // Initialize demo messages
-        if(!chatMessages[chatId]) {
-            chatMessages[chatId] = {
-                type: 'group',
-                name: `${cl.cycle_nom} — ${cl.classe_nom}`,
-                color: color,
-                initials: initials,
-                members: cl.n_eleves,
-                messages: [
-                    {sender:'Système', text:`Groupe de discussion créé pour la classe ${cl.classe_nom}. ${cl.n_eleves} élèves inscrits.`, time:'09:00', type:'system'},
-                ]
-            };
-        }
-
-        html += `<div class="chat-item" id="chatItem_${chatId}" onclick="openChat('${chatId}')">
-            <div class="chat-item-avatar" style="background:${color}"><i class="fas fa-users" style="font-size:.7rem"></i></div>
-            <div class="chat-item-info">
-                <div class="chat-item-name">${cl.cycle_nom} — ${cl.classe_nom}</div>
-                <div class="chat-item-preview"><i class="fas fa-users" style="font-size:.5rem;margin-right:3px"></i>${cl.n_eleves} participants · Groupe classe</div>
-            </div>
-            <div class="chat-item-meta">
-                <div class="chat-item-time">Auj.</div>
-            </div>
-        </div>`;
-    });
-
-    // Add a "Direction" chat
-    const dirChatId = 'direction';
-    if(!chatMessages[dirChatId]) {
-        chatMessages[dirChatId] = {type:'private', name:'Direction', color:'#1e293b', initials:'DR', messages:[
-            {sender:'Direction', text:'Bienvenue dans l\'espace de communication avec la direction. N\'hésitez pas à nous contacter pour toute question.', time:'08:30', type:'received'}
-        ]};
-    }
-    html += `<div class="chat-item" id="chatItem_${dirChatId}" onclick="openChat('${dirChatId}')">
-        <div class="chat-item-avatar" style="background:linear-gradient(135deg,#1e293b,#475569)"><i class="fas fa-crown" style="font-size:.65rem"></i></div>
-        <div class="chat-item-info">
-            <div class="chat-item-name">Direction</div>
-            <div class="chat-item-preview">Canal de communication avec la direction</div>
-        </div>
-        <div class="chat-item-meta"><div class="chat-item-time">Auj.</div></div>
-    </div>`;
-
-    list.innerHTML = html;
+    h+='</tbody></table></div>';c.innerHTML=h;document.getElementById('btnSaveNotes').disabled=false;
+    }catch(e){c.innerHTML=`<div class="ca-loading" style="color:#ef4444">${e.message}</div>`;}
+}
+async function saveNotes(){
+    const inputs=document.querySelectorAll('#notesGridContainer input[type=number]');
+    const notes=[];inputs.forEach(inp=>{const v=inp.value.trim();if(v!=='')notes.push({id_eleve:parseInt(inp.dataset.eleve),id_evaluation:parseInt(inp.dataset.eval),note:parseFloat(v)});});
+    if(!notes.length){showToast('Aucune note à enregistrer','info');return;}
+    const cid=document.getElementById('notesClasseSelect').value;const pid=document.getElementById('notesPeriodeSelect').value;
+    try{const r=await fetch('/api/notes/save/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({classe_id:cid,repartition_id:pid,notes:notes,context:notesData?.context})});const d=await r.json();
+    if(d.success){showToast(`${d.saved||notes.length} notes enregistrées`,'success');document.getElementById('btnSaveNotes').disabled=true;}else showToast(d.error||'Erreur','error');
+    }catch(e){showToast(e.message,'error');}
 }
 
-function openChat(chatId) {
-    activeChatId = chatId;
-    const chat = chatMessages[chatId];
-    if(!chat) return;
-
-    // Highlight active
-    document.querySelectorAll('.chat-item').forEach(el=>el.classList.remove('active'));
-    document.getElementById(`chatItem_${chatId}`)?.classList.add('active');
-
-    const main = document.getElementById('chatMain');
-    const isGroup = chat.type === 'group';
-
-    main.innerHTML = `
-    <div class="chat-header">
-        <div class="chat-header-avatar" style="background:${chat.color}">${isGroup?'<i class="fas fa-users" style="font-size:.6rem"></i>':chat.initials}</div>
-        <div>
-            <div class="chat-header-name">${chat.name}</div>
-            <div class="chat-header-status">${isGroup?chat.members+' participants':'En ligne'}</div>
-        </div>
-    </div>
-    <div class="chat-messages" id="chatMsgsArea">
-        ${chat.messages.map(m=>{
-            if(m.type==='system') return `<div style="text-align:center;margin:8px 0"><span style="background:rgba(225,218,208,.8);padding:3px 10px;border-radius:6px;font-size:.6rem;color:#54656f">${m.text}</span></div>`;
-            const isSent = m.type === 'sent';
-            const senderHtml = isGroup && !isSent ? `<span class="msg-sender" style="color:${chat.color}">${m.sender}</span>` : '';
-            return `<div class="chat-msg ${isSent?'sent':'received'}">${senderHtml}${m.text}<span class="msg-time">${m.time}${isSent?' <i class="fas fa-check-double" style="color:#53bdeb;font-size:.45rem"></i>':''}</span></div>`;
-        }).join('')}
-    </div>
-    <div class="chat-input-area">
-        <button onclick="return false" style="background:transparent;color:#54656f;font-size:.9rem"><i class="fas fa-smile"></i></button>
-        <input type="text" id="chatMsgInput" placeholder="Tapez un message..." onkeypress="if(event.key==='Enter')sendChatMsg()">
-        <button onclick="sendChatMsg()"><i class="fas fa-paper-plane" style="font-size:.7rem"></i></button>
-    </div>`;
-
-    // Scroll to bottom
-    setTimeout(()=>{const area=document.getElementById('chatMsgsArea');if(area)area.scrollTop=area.scrollHeight;},50);
+/* ═══ PRESENCES ═══ */
+function populatePresHoraire(schedule){
+    const sel=document.getElementById('presHoraireSelect');
+    schedule.forEach(s=>{sel.innerHTML+=`<option value="${s.id}">${s.date} ${s.debut}—${s.fin} | ${s.cours_nom||'—'} (${s.classe_nom||''})</option>`;});
 }
-
-function sendChatMsg() {
-    if(!activeChatId) return;
-    const input = document.getElementById('chatMsgInput');
-    const text = input.value.trim();
-    if(!text) return;
-
-    const now = new Date();
-    const time = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
-
-    chatMessages[activeChatId].messages.push({
-        sender: PERSONNEL_INFO.prenom ? `${PERSONNEL_INFO.prenom} ${PERSONNEL_INFO.nom}` : 'Moi',
-        text: text,
-        time: time,
-        type: 'sent'
+async function loadPresences(){
+    const hid=document.getElementById('presHoraireSelect').value;const c=document.getElementById('presContainer');
+    if(!hid){c.innerHTML='<div class="ca-loading">Sélectionnez un créneau.</div>';return;}
+    c.innerHTML='<div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
+    try{const r=await fetch(`/api/enseignant/presences/?horaire_id=${hid}`);const d=await r.json();
+    if(!d.success){c.innerHTML=`<div class="ca-loading" style="color:#ef4444">${d.error}</div>`;return;}
+    const el=d.eleves||[];const pr=d.presences||{};
+    if(!el.length){c.innerHTML='<div class="ca-loading">Aucun élève inscrit.</div>';return;}
+    let h=`<div style="font-size:.72rem;color:#64748b;margin-bottom:8px"><i class="fas fa-info-circle" style="color:#6366f1"></i> ${d.horaire.date} | ${d.horaire.debut} — ${d.horaire.fin} · ${el.length} élèves</div>`;
+    h+=`<div class="pres-row" style="font-weight:700;color:#94a3b8;font-size:.6rem;text-transform:uppercase;border-bottom:2px solid #e2e8f0"><div>#</div><div>Élève</div><div>Présent</div><div>Comportement</div><div>Motif absence</div></div>`;
+    el.forEach((e,i)=>{
+        const p=pr[String(e.id)]||{present:true,comportement:5,motif:''};const isOn=p.present;const comp=p.comportement||5;
+        const nm=`${e.nom||''} ${e.prenom||''}`.trim();
+        h+=`<div class="pres-row" data-eleve="${e.id}"><div style="font-size:.65rem;color:#94a3b8;font-weight:600">${i+1}</div><div style="font-weight:600;color:#0f172a;font-size:.72rem">${nm} <span style="font-size:.55rem;padding:1px 5px;border-radius:3px;background:${e.genre==='M'?'#dbeafe':'#fce7f3'};color:${e.genre==='M'?'#2563eb':'#db2777'}">${e.genre}</span></div><div><div class="pres-toggle ${isOn?'on':''}" onclick="togglePres(this)" data-val="${isOn?1:0}"></div></div><div><div class="star-row">${[1,2,3,4,5,6,7,8,9,10].map(n=>`<i class="fas fa-star ${n<=comp?'active':''}" data-n="${n}" onclick="setStar(this)"></i>`).join('')}</div></div><div><input type="text" value="${p.motif}" placeholder="Motif..." style="width:100%;padding:3px 6px;border:1px solid #e2e8f0;border-radius:6px;font-size:.65rem" ${isOn?'disabled':''}></div></div>`;
     });
-
-    input.value = '';
-    openChat(activeChatId);
+    c.innerHTML=h;document.getElementById('btnSavePres').disabled=false;
+    }catch(e){c.innerHTML=`<div class="ca-loading" style="color:#ef4444">${e.message}</div>`;}
 }
-
-function filterChats(q) {
-    document.querySelectorAll('.chat-item').forEach(el=>{
-        const name = el.querySelector('.chat-item-name')?.textContent?.toLowerCase()||'';
-        el.style.display = name.includes(q.toLowerCase()) ? '' : 'none';
-    });
+function togglePres(el){const on=el.classList.toggle('on');el.dataset.val=on?1:0;const row=el.closest('.pres-row');const inp=row.querySelector('input[type=text]');if(inp)inp.disabled=on;}
+function setStar(el){const n=parseInt(el.dataset.n);el.closest('.star-row').querySelectorAll('i').forEach(s=>{const sn=parseInt(s.dataset.n);s.classList.toggle('active',sn<=n);});}
+function markAllPresent(){document.querySelectorAll('.pres-toggle').forEach(t=>{t.classList.add('on');t.dataset.val='1';const inp=t.closest('.pres-row')?.querySelector('input[type=text]');if(inp)inp.disabled=true;});}
+async function savePresences(){
+    const hid=document.getElementById('presHoraireSelect').value;if(!hid)return;
+    const rows=document.querySelectorAll('#presContainer .pres-row[data-eleve]');const records=[];
+    rows.forEach(r=>{const eid=r.dataset.eleve;const toggle=r.querySelector('.pres-toggle');const stars=r.querySelectorAll('.star-row i.active');const motifInp=r.querySelector('input[type=text]');
+        records.push({id_eleve:parseInt(eid),present:toggle?.dataset.val==='1',comportement:stars.length,motif:motifInp?.value||''});});
+    try{const r=await fetch('/api/enseignant/presences/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({horaire_id:parseInt(hid),records})});const d=await r.json();
+    if(d.success)showToast(`${d.saved} présences enregistrées`,'success');else showToast(d.error,'error');
+    }catch(e){showToast(e.message,'error');}
 }
 </script>
 {% endblock %}
