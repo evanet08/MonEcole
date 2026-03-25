@@ -134,6 +134,29 @@
         <div id="notesGridContainer"><div class="ca-loading"><i class="fas fa-chart-line" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>Sélectionnez classe, période et cours.</div></div>
     </div>
 </div>
+<!-- EVAL MODAL -->
+<div id="evalModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:none;align-items:center;justify-content:center">
+<div style="background:#fff;border-radius:16px;padding:1.5rem;width:420px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem"><h3 id="evalModalTitle" style="font-size:.9rem;font-weight:700;margin:0">Nouvelle Évaluation</h3><button onclick="closeEvalModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8">×</button></div>
+<input type="hidden" id="evalEditId">
+<div style="display:grid;gap:10px">
+<div><label style="font-size:.65rem;color:#64748b;font-weight:600">Titre *</label><input type="text" id="evalTitle" class="ens-select" style="width:100%" placeholder="Ex: Interro 1"></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<div><label style="font-size:.65rem;color:#64748b;font-weight:600">Type</label><select id="evalType" class="ens-select" style="width:100%"></select></div>
+<div><label style="font-size:.65rem;color:#64748b;font-weight:600">Max (pondération)</label><input type="number" id="evalMax" class="ens-select" style="width:100%" value="20" min="1"></div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<div><label style="font-size:.65rem;color:#64748b;font-weight:600">Date évaluation</label><input type="date" id="evalDate" class="ens-select" style="width:100%"></div>
+<div><label style="font-size:.65rem;color:#64748b;font-weight:600">Date soumission</label><input type="date" id="evalDateSoum" class="ens-select" style="width:100%"></div>
+</div>
+<div><label style="font-size:.65rem;color:#64748b;font-weight:600">Description</label><textarea id="evalContenu" class="ens-select" style="width:100%;height:50px;resize:none" placeholder="Description..."></textarea></div>
+</div>
+<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
+<button class="ens-btn" style="background:#f1f5f9;color:#475569" onclick="closeEvalModal()">Annuler</button>
+<button class="ens-btn ens-btn-primary" onclick="submitEval()"><i class="fas fa-save"></i> Enregistrer</button>
+</div>
+</div>
+</div>
 <!-- PRESENCES -->
 <div id="sectionPresences" style="{% if active_section != 'presences' %}display:none{% endif %}">
     <div class="dash-section">
@@ -281,17 +304,69 @@ async function loadEvaluationsList(){
     c.innerHTML='<div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
     try{const r=await fetch(`/api/evaluations/list/?classe_id=${cid}&cours_id=${crs}`);const d=await r.json();
     if(!d.success){c.innerHTML=`<div class="ca-loading" style="color:#ef4444">${d.error}</div>`;return;}
-    const ev=d.evaluations||[];
+    const ev=d.evaluations||[];window._lastEvals=ev;
     let stats=`<div style="display:flex;gap:12px;margin-bottom:12px"><div style="background:#fff7ed;padding:8px 16px;border-radius:10px;text-align:center"><div style="font-size:1.2rem;font-weight:800;color:#ea580c">${ev.length}</div><div style="font-size:.6rem;color:#94a3b8;font-weight:600">TOTAL</div></div><div style="background:#f0fdf4;padding:8px 16px;border-radius:10px;text-align:center"><div style="font-size:1.2rem;font-weight:800;color:#16a34a">${ev.filter(e=>e.is_assigned).length}</div><div style="font-size:.6rem;color:#94a3b8;font-weight:600">ASSIGNÉES</div></div></div>`;
     if(!ev.length){c.innerHTML=stats+'<div class="ca-loading">Aucune évaluation pour ce cours.</div>';return;}
     const typeColors={'IE':'#3b82f6','DC':'#f59e0b','DM':'#8b5cf6','EB':'#ef4444','EXP':'#ec4899','IO':'#14b8a6','TP':'#0ea5e9'};
     let h=stats+`<table class="eval-tbl"><thead><tr><th>Titre</th><th>Type</th><th>Date</th><th>Max</th><th>Doc</th><th>Actions</th></tr></thead><tbody>`;
-    ev.forEach(e=>{const tc=typeColors[e.type_sigle]||'#64748b';h+=`<tr><td style="font-weight:600;color:#0f172a">${e.title}${e.contenu?`<div style="font-size:.58rem;color:#94a3b8">${e.contenu.substring(0,40)}...</div>`:''}</td><td><span class="eval-badge" style="background:${tc}22;color:${tc}">${e.type_sigle||'—'}</span></td><td style="color:#64748b">${e.date_eval||'—'}</td><td style="font-weight:700;color:#6366f1">${e.ponderer_eval||0}</td><td>${e.document_url?`<a href="${e.document_url}" target="_blank" style="color:#ef4444;font-size:.68rem;font-weight:600"><i class="fas fa-file-pdf"></i> PDF</a>`:'—'}</td><td><button class="ens-btn ens-btn-primary ens-btn-sm" onclick="editEval(${e.id_evaluation})"><i class="fas fa-pen"></i></button> <button class="ens-btn ens-btn-sm" style="background:#fef2f2;color:#ef4444" onclick="deleteEval(${e.id_evaluation})"><i class="fas fa-trash"></i></button></td></tr>`;});
+    ev.forEach(e=>{const tc=typeColors[e.type_sigle]||'#64748b';h+=`<tr><td style="font-weight:600;color:#0f172a">${e.title}${e.contenu?`<div style="font-size:.58rem;color:#94a3b8">${e.contenu.substring(0,40)}...</div>`:''}</td><td><span class="eval-badge" style="background:${tc}22;color:${tc}">${e.type_sigle||'—'}</span></td><td style="color:#64748b">${e.date_eval?fmtDate(e.date_eval):'—'}</td><td style="font-weight:700;color:#6366f1">${e.ponderer_eval||0}</td><td>${e.document_url?`<a href="${e.document_url}" target="_blank" style="color:#ef4444;font-size:.68rem;font-weight:600"><i class="fas fa-file-pdf"></i> PDF</a>`:'—'}</td><td><button class="ens-btn ens-btn-primary ens-btn-sm" onclick="editEval(${e.id_evaluation})"><i class="fas fa-pen"></i></button> <button class="ens-btn ens-btn-sm" style="background:#fef2f2;color:#ef4444" onclick="deleteEval(${e.id_evaluation})"><i class="fas fa-trash"></i></button></td></tr>`;});
     h+='</tbody></table>';c.innerHTML=h;
     }catch(e){c.innerHTML=`<div class="ca-loading" style="color:#ef4444">${e.message}</div>`;}
 }
-function showNewEvalModal(){showToast('Créez via le module Évaluations (Administration)','info');}
-function editEval(id){showToast('Éditez via le module Évaluations','info');}
+function showNewEvalModal(){
+    document.getElementById('evalEditId').value='';
+    document.getElementById('evalTitle').value='';
+    document.getElementById('evalMax').value='20';
+    document.getElementById('evalDate').value='';
+    document.getElementById('evalDateSoum').value='';
+    document.getElementById('evalContenu').value='';
+    document.getElementById('evalModalTitle').textContent='Nouvelle Évaluation';
+    loadEvalTypes();
+    document.getElementById('evalModal').style.display='flex';
+}
+function editEval(id){
+    const ev=(window._lastEvals||[]).find(e=>e.id_evaluation==id);
+    if(!ev){showToast('Évaluation non trouvée','error');return;}
+    document.getElementById('evalEditId').value=id;
+    document.getElementById('evalTitle').value=ev.title||'';
+    document.getElementById('evalMax').value=ev.ponderer_eval||20;
+    document.getElementById('evalDate').value=ev.date_eval||'';
+    document.getElementById('evalDateSoum').value=ev.date_soumission||'';
+    document.getElementById('evalContenu').value=ev.contenu||'';
+    document.getElementById('evalModalTitle').textContent='Modifier Évaluation';
+    loadEvalTypes(ev.id_type_eval);
+    document.getElementById('evalModal').style.display='flex';
+}
+function closeEvalModal(){document.getElementById('evalModal').style.display='none';}
+async function loadEvalTypes(selected){
+    const sel=document.getElementById('evalType');
+    if(sel.options.length<=1){
+        try{const r=await fetch('/api/evaluations/types/');const d=await r.json();
+        if(d.success)(d.types||[]).forEach(t=>{sel.innerHTML+=`<option value="${t.id_type_eval}">${t.sigle} — ${t.nom}</option>`;});
+        }catch(e){}
+    }
+    if(selected)sel.value=selected;
+}
+async function submitEval(){
+    const cid=document.getElementById('evalClasseSelect').value;
+    const crs=document.getElementById('evalCoursSelect').value;
+    if(!cid||!crs){showToast('Sélectionnez classe et cours','error');return;}
+    const fd=new FormData();
+    const editId=document.getElementById('evalEditId').value;
+    if(editId)fd.append('id_evaluation',editId);
+    fd.append('classe_id',cid);fd.append('cours_id',crs);
+    fd.append('title',document.getElementById('evalTitle').value);
+    fd.append('id_type_eval',document.getElementById('evalType').value);
+    fd.append('ponderer_eval',document.getElementById('evalMax').value);
+    fd.append('date_eval',document.getElementById('evalDate').value);
+    fd.append('date_soumission',document.getElementById('evalDateSoum').value);
+    fd.append('contenu_evaluation',document.getElementById('evalContenu').value);
+    try{const r=await fetch('/api/evaluations/save/',{method:'POST',headers:{'X-CSRFToken':getCsrfToken()},body:fd});
+    const d=await r.json();
+    if(d.success){showToast(editId?'Évaluation modifiée':'Évaluation créée','success');closeEvalModal();loadEvaluationsList();}
+    else showToast(d.error||'Erreur','error');
+    }catch(e){showToast(e.message,'error');}
+}
 async function deleteEval(id){if(!confirm('Supprimer cette évaluation?'))return;try{const r=await fetch('/api/evaluations/delete/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({id_evaluation:id})});const d=await r.json();if(d.success){showToast('Évaluation supprimée','success');loadEvaluationsList();}else showToast(d.error,'error');}catch(e){showToast(e.message,'error');}}
 
 /* ═══ NOTES ═══ */

@@ -671,9 +671,10 @@ def espace_enseignant_view(request):
     try:
         annee_active = context.get('annee_active')
         if annee_active:
+            annee_id = annee_active.get('id') or annee_active.get('id_annee')
             from structure_app.models import RepartitionCalendrier
             reps = RepartitionCalendrier.objects.filter(
-                annee_id=annee_active['id_annee']
+                annee_id=annee_id
             ).order_by('ordre', 'id_instance')
             for r in reps:
                 repartitions.append({
@@ -911,7 +912,7 @@ def api_enseignant_dashboard(request):
                     # Class & cycle info from Hub
                     try:
                         hub_cur.execute("""
-                            SELECT cl.nom AS classe_nom, cy.nom AS cycle_nom
+                            SELECT cl.nom AS classe_nom, cy.nom AS cycle_nom, eac.groupe
                             FROM etablissements_annees_classes eac
                             JOIN classes cl ON cl.id_classe = eac.classe_id
                             LEFT JOIN cycles cy ON cy.id_cycle = cl.cycle_id
@@ -919,7 +920,8 @@ def api_enseignant_dashboard(request):
                         """, [classe_id])
                         cl = hub_cur.fetchone()
                         if cl:
-                            classe_nom = cl['classe_nom']
+                            grp = cl.get('groupe') or ''
+                            classe_nom = cl['classe_nom'] + (f' {grp}' if grp else '')
                             cycle_nom = cl['cycle_nom'] or '-'
                     except Exception:
                         pass
@@ -1087,17 +1089,8 @@ def api_enseignant_presences(request):
                 for p in cur.fetchall():
                     presences[str(p['id_eleve_id'])] = {
                         'id': p['id_horaire_presence'], 'present': bool(p['present_ou_absent']),
-                        'motif': p['si_absent_motif'] or '', 'comportement': 0,
+                        'motif': p['si_absent_motif'] or '', 'comportement': 5,
                     }
-                # Try to get comportement_note if column exists
-                try:
-                    cur.execute("SELECT id_eleve_id, comportement_note FROM horaire_presence WHERE id_horaire_id=%s AND comportement_note IS NOT NULL", [horaire_id])
-                    for p in cur.fetchall():
-                        k = str(p['id_eleve_id'])
-                        if k in presences:
-                            presences[k]['comportement'] = p['comportement_note'] or 0
-                except Exception:
-                    pass
             conn.close()
             return JsonResponse({
                 'success': True,
