@@ -4,6 +4,7 @@ from MonEcole_app.views import auth_views
 from MonEcole_app.views.dashboard_views import (
     administration_view, enseignements_view,
     evaluations_view, scolarite_view,
+    espace_enseignant_view, api_enseignant_dashboard,
 )
 from MonEcole_app.views import api_views
 
@@ -26,6 +27,10 @@ urlpatterns = [
     path('dashboard/enseignements/', enseignements_view, name='dashboard_enseignements'),
     path('dashboard/evaluations/', evaluations_view, name='dashboard_evaluations'),
     path('dashboard/scolarite/', scolarite_view, name='dashboard_scolarite'),
+    path('dashboard/enseignant/', espace_enseignant_view, name='dashboard_enseignant'),
+
+    # API Enseignant
+    path('api/enseignant/dashboard/', api_enseignant_dashboard, name='api_enseignant_dashboard'),
 
     # ============ API DASHBOARD (copiées depuis eSchool) ============
     # Dashboard — Student Management

@@ -1,0 +1,503 @@
+{% extends 'base.html' %}
+
+{% block title %}Espace Enseignant — {{ etab.nom }}{% endblock %}
+{% block meta_description %}Espace personnel de l'enseignant — {{ etab.nom }}{% endblock %}
+{% block page_indicator %}Espace Enseignant{% endblock %}
+
+{% block sidebar_items %}
+<a href="/dashboard/enseignant/?section=dashboard" class="nav-item {% if active_section == 'dashboard' %}active{% endif %}" title="Dashboard">
+    <i class="fas fa-th-large" style="color:#6366f1"></i>
+    <span>Dashboard</span>
+</a>
+<a href="/dashboard/enseignant/?section=cours" class="nav-item {% if active_section == 'cours' %}active{% endif %}" title="Mes Cours">
+    <i class="fas fa-book-open" style="color:#0ea5e9"></i>
+    <span>Mes Cours</span>
+</a>
+<a href="/dashboard/enseignant/?section=horaires" class="nav-item {% if active_section == 'horaires' %}active{% endif %}" title="Emploi du Temps">
+    <i class="fas fa-calendar-alt" style="color:#10b981"></i>
+    <span>Emploi du Temps</span>
+</a>
+<a href="/dashboard/enseignant/?section=evaluations" class="nav-item {% if active_section == 'evaluations' %}active{% endif %}" title="Évaluations">
+    <i class="fas fa-clipboard-check" style="color:#f59e0b"></i>
+    <span>Évaluations</span>
+</a>
+<a href="/dashboard/enseignant/?section=notes" class="nav-item {% if active_section == 'notes' %}active{% endif %}" title="Notes">
+    <i class="fas fa-chart-bar" style="color:#8b5cf6"></i>
+    <span>Notes</span>
+</a>
+<a href="/dashboard/enseignant/?section=presences" class="nav-item {% if active_section == 'presences' %}active{% endif %}" title="Présences">
+    <i class="fas fa-user-check" style="color:#ec4899"></i>
+    <span>Présences</span>
+</a>
+<a href="/dashboard/enseignant/?section=eleves" class="nav-item {% if active_section == 'eleves' %}active{% endif %}" title="Mes Élèves">
+    <i class="fas fa-users" style="color:#14b8a6"></i>
+    <span>Mes Élèves</span>
+</a>
+<a href="/dashboard/enseignant/?section=communication" class="nav-item {% if active_section == 'communication' %}active{% endif %}" title="Communication">
+    <i class="fas fa-comments" style="color:#f43f5e"></i>
+    <span>Communication</span>
+</a>
+{% endblock %}
+
+{% block page_css %}
+<style>
+/* ================= ESPACE ENSEIGNANT — PREMIUM ================= */
+:root{--grad-indigo:linear-gradient(135deg,#4338ca,#6366f1);--grad-purple:linear-gradient(135deg,#7c3aed,#a78bfa);--grad-teal:linear-gradient(135deg,#0d9488,#2dd4bf);--grad-blue:linear-gradient(135deg,#2563eb,#60a5fa);--grad-rose:linear-gradient(135deg,#e11d48,#fb7185);--grad-emerald:linear-gradient(135deg,#059669,#34d399);--grad-amber:linear-gradient(135deg,#d97706,#fbbf24);--glass:rgba(255,255,255,.85);--shadow-sm:0 2px 12px rgba(0,0,0,.04);--shadow-md:0 4px 24px rgba(0,0,0,.07);--shadow-lg:0 8px 40px rgba(0,0,0,.10);--radius:16px;--radius-sm:10px}
+
+/* Stat Cards */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
+.stat-card{background:var(--glass);backdrop-filter:blur(12px);border-radius:var(--radius);padding:1.15rem 1.1rem;overflow:hidden;box-shadow:var(--shadow-md);transition:all .35s cubic-bezier(.22,1,.36,1);border:1px solid rgba(255,255,255,.6);display:flex;align-items:center;gap:14px;position:relative}
+.stat-card::after{content:'';position:absolute;top:0;right:0;width:60px;height:60px;border-radius:0 0 0 60px;opacity:.08}
+.stat-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
+.stat-card .stat-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.15rem;flex-shrink:0;box-shadow:0 4px 14px rgba(0,0,0,.15)}
+.stat-card .stat-label{font-size:.7rem;color:#94a3b8;font-weight:600;letter-spacing:.3px;text-transform:uppercase}
+.stat-card .stat-value{font-size:1.65rem;font-weight:800;color:#0f172a;line-height:1.1}
+.stat-card.grad-blue .stat-icon{background:var(--grad-blue)}.stat-card.grad-blue::after{background:#2563eb}
+.stat-card.grad-purple .stat-icon{background:var(--grad-purple)}.stat-card.grad-purple::after{background:#7c3aed}
+.stat-card.grad-teal .stat-icon{background:var(--grad-teal)}.stat-card.grad-teal::after{background:#0d9488}
+.stat-card.grad-rose .stat-icon{background:var(--grad-rose)}.stat-card.grad-rose::after{background:#e11d48}
+.stat-card.grad-amber .stat-icon{background:var(--grad-amber)}.stat-card.grad-amber::after{background:#d97706}
+.stat-card.grad-emerald .stat-icon{background:var(--grad-emerald)}.stat-card.grad-emerald::after{background:#059669}
+@keyframes statPop{from{opacity:0;transform:scale(.9) translateY(15px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.stat-card{animation:statPop .5s cubic-bezier(.22,1,.36,1) forwards}
+.stat-card:nth-child(2){animation-delay:.08s}.stat-card:nth-child(3){animation-delay:.16s}.stat-card:nth-child(4){animation-delay:.24s}
+
+/* Section Cards */
+.dash-section{background:var(--glass);backdrop-filter:blur(10px);border-radius:var(--radius);padding:1.35rem;box-shadow:var(--shadow-sm);border:1px solid rgba(0,0,0,.03);margin-bottom:1.25rem;transition:box-shadow .3s ease}
+.dash-section:hover{box-shadow:var(--shadow-md)}
+.dash-section-title{font-size:.9rem;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:8px;margin-bottom:.3rem}
+.dash-section-title i{font-size:.82rem;color:#6366f1}
+.dash-section-sub{font-size:.72rem;color:#94a3b8;margin-bottom:.9rem;font-weight:500}
+
+/* Section header badge */
+.section-header{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 35%,#4338ca 100%);border-radius:var(--radius-sm);padding:.55rem 1rem;color:#fff;margin-bottom:.8rem;display:flex;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(67,56,202,.2)}
+.section-header i{font-size:.9rem;opacity:.8}
+.section-header h2{font-size:.88rem;font-weight:700;margin:0}
+.section-header .section-desc{font-size:.65rem;color:rgba(255,255,255,.55);margin:2px 0 0}
+
+/* Welcome Banner */
+.welcome-banner{background:linear-gradient(135deg,#312e81 0%,#4338ca 40%,#6366f1 100%);border-radius:var(--radius);padding:1.5rem 2rem;color:#fff;margin-bottom:1.25rem;position:relative;overflow:hidden;box-shadow:0 8px 32px rgba(99,102,241,.2)}
+.welcome-banner::before{content:'';position:absolute;top:-30%;right:-5%;width:200px;height:200px;background:radial-gradient(circle,rgba(255,255,255,.1) 0%,transparent 70%);border-radius:50%}
+.welcome-banner h1{font-size:1.3rem;font-weight:800;margin:0 0 4px}
+.welcome-banner p{font-size:.78rem;opacity:.7;margin:0}
+
+/* Course Card */
+.course-card{background:var(--glass);border-radius:var(--radius-sm);padding:1rem;border:1px solid rgba(0,0,0,.04);transition:all .25s ease;cursor:default;position:relative;overflow:hidden}
+.course-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
+.course-card .cc-color{position:absolute;top:0;left:0;width:4px;height:100%;border-radius:4px 0 0 4px}
+.course-card .cc-title{font-size:.82rem;font-weight:700;color:#0f172a;margin-bottom:2px}
+.course-card .cc-class{font-size:.66rem;color:#64748b;font-weight:500}
+.course-card .cc-stats{display:flex;gap:12px;margin-top:8px}
+.course-card .cc-stat{font-size:.62rem;color:#94a3b8;display:flex;align-items:center;gap:3px}
+.course-card .cc-stat i{font-size:.55rem}
+.course-card .cc-stat strong{color:#475569}
+
+/* Loading */
+.ca-loading{text-align:center;padding:3rem 1rem;color:#94a3b8;font-size:.82rem}
+.ca-loading i{font-size:1.5rem;display:block;margin-bottom:.8rem;opacity:.4}
+
+@media(max-width:992px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.stat-grid{grid-template-columns:1fr}.welcome-banner{padding:1rem 1.25rem}.welcome-banner h1{font-size:1.1rem}}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ===== ALL SECTIONS ===== -->
+
+<!-- DASHBOARD SECTION -->
+<div id="sectionDashboard" style="{% if active_section != 'dashboard' %}display:none{% endif %}">
+    <!-- Welcome Banner -->
+    <div class="welcome-banner" id="welcomeBanner">
+        <h1 id="welcomeName">Bienvenue, Enseignant</h1>
+        <p id="welcomeSub">Votre espace personnel — <span id="welcomeEtab">{{ etab.nom }}</span></p>
+    </div>
+
+    <!-- Stats -->
+    <div class="stat-grid" id="statsGrid">
+        <div class="stat-card grad-blue">
+            <div class="stat-icon"><i class="fas fa-book-open"></i></div>
+            <div class="stat-info"><div class="stat-label">Mes Cours</div><div class="stat-value" id="statCours">—</div></div>
+        </div>
+        <div class="stat-card grad-teal">
+            <div class="stat-icon"><i class="fas fa-chalkboard"></i></div>
+            <div class="stat-info"><div class="stat-label">Mes Classes</div><div class="stat-value" id="statClasses">—</div></div>
+        </div>
+        <div class="stat-card grad-purple">
+            <div class="stat-icon"><i class="fas fa-users"></i></div>
+            <div class="stat-info"><div class="stat-label">Total Élèves</div><div class="stat-value" id="statEleves">—</div></div>
+        </div>
+        <div class="stat-card grad-amber">
+            <div class="stat-icon"><i class="fas fa-clipboard-check"></i></div>
+            <div class="stat-info"><div class="stat-label">Évaluations</div><div class="stat-value" id="statEvaluations">—</div></div>
+        </div>
+    </div>
+
+    <!-- Two columns: Courses + Schedule -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem">
+        <!-- Mes Cours -->
+        <div class="dash-section">
+            <div class="dash-section-title"><i class="fas fa-book-open"></i> Mes Cours Attribués</div>
+            <div class="dash-section-sub">Cours que vous enseignez cette année</div>
+            <div id="coursesContainer" style="display:grid;gap:8px;max-height:350px;overflow-y:auto">
+                <div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>
+            </div>
+        </div>
+
+        <!-- Prochains horaires -->
+        <div class="dash-section">
+            <div class="dash-section-title"><i class="fas fa-calendar-alt"></i> Emploi du Temps Récent</div>
+            <div class="dash-section-sub">Vos séances récentes et à venir</div>
+            <div id="scheduleContainer" style="max-height:350px;overflow-y:auto">
+                <div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Présences stats -->
+    <div class="dash-section">
+        <div class="dash-section-title"><i class="fas fa-user-check"></i> Statistiques de Présences</div>
+        <div class="dash-section-sub">Synthèse des présences de vos élèves</div>
+        <div id="presencesStatsContainer">
+            <div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>
+        </div>
+    </div>
+</div>
+
+<!-- COURS SECTION -->
+<div id="sectionCours" style="{% if active_section != 'cours' %}display:none{% endif %}">
+    <div class="section-header">
+        <i class="fas fa-book-open"></i>
+        <div><h2>Mes Cours</h2><div class="section-desc">Tous les cours qui vous sont attribués pour cette année</div></div>
+    </div>
+    <div id="coursesFullContainer">
+        <div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement des cours...</div>
+    </div>
+</div>
+
+<!-- HORAIRES SECTION -->
+<div id="sectionHoraires" style="{% if active_section != 'horaires' %}display:none{% endif %}">
+    <div class="section-header">
+        <i class="fas fa-calendar-alt"></i>
+        <div><h2>Mon Emploi du Temps</h2><div class="section-desc">Vos horaires de cours planifiés</div></div>
+    </div>
+    <div id="scheduleFullContainer">
+        <div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement de l'emploi du temps...</div>
+    </div>
+</div>
+
+<!-- EVALUATIONS SECTION -->
+<div id="sectionEvaluations" style="{% if active_section != 'evaluations' %}display:none{% endif %}">
+    <div class="section-header">
+        <i class="fas fa-clipboard-check"></i>
+        <div><h2>Mes Évaluations</h2><div class="section-desc">Évaluations créées pour vos cours</div></div>
+    </div>
+    <div class="dash-section">
+        <div class="ca-loading" id="evaluationsContainer"><i class="fas fa-clipboard-list" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>Sélectionnez un cours dans la section "Mes Cours" pour gérer les évaluations.<br><small style="color:#6366f1;margin-top:6px;display:block">Les évaluations sont gérées par cours et par classe.</small></div>
+    </div>
+</div>
+
+<!-- NOTES SECTION -->
+<div id="sectionNotes" style="{% if active_section != 'notes' %}display:none{% endif %}">
+    <div class="section-header">
+        <i class="fas fa-chart-bar"></i>
+        <div><h2>Saisie des Notes</h2><div class="section-desc">Saisissez et consultez les notes de vos élèves</div></div>
+    </div>
+    <div class="dash-section">
+        <div class="ca-loading" id="notesContainer"><i class="fas fa-chart-line" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>Sélectionnez un cours dans la section "Mes Cours" pour saisir les notes.<br><small style="color:#6366f1;margin-top:6px;display:block">La grille de saisie sera affichée par cours, classe et période.</small></div>
+    </div>
+</div>
+
+<!-- PRESENCES SECTION -->
+<div id="sectionPresences" style="{% if active_section != 'presences' %}display:none{% endif %}">
+    <div class="section-header">
+        <i class="fas fa-user-check"></i>
+        <div><h2>Gestion des Présences</h2><div class="section-desc">Faites l'appel pour vos séances</div></div>
+    </div>
+    <div class="dash-section">
+        <div class="ca-loading" id="presencesContainer"><i class="fas fa-clipboard-list" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>La gestion des présences sera disponible à partir de vos horaires planifiés.<br><small style="color:#6366f1;margin-top:6px;display:block">Chaque séance permet de marquer les élèves présents/absents.</small></div>
+    </div>
+</div>
+
+<!-- ELEVES SECTION -->
+<div id="sectionEleves" style="{% if active_section != 'eleves' %}display:none{% endif %}">
+    <div class="section-header">
+        <i class="fas fa-users"></i>
+        <div><h2>Mes Élèves</h2><div class="section-desc">Élèves des classes où vous enseignez</div></div>
+    </div>
+    <div id="elevesContainer">
+        <div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement des élèves...</div>
+    </div>
+</div>
+
+<!-- COMMUNICATION SECTION -->
+<div id="sectionCommunication" style="{% if active_section != 'communication' %}display:none{% endif %}">
+    <div class="section-header">
+        <i class="fas fa-comments"></i>
+        <div><h2>Communication</h2><div class="section-desc">Échangez avec les parents et la direction</div></div>
+    </div>
+    <div class="dash-section">
+        <div class="ca-loading"><i class="fas fa-envelope-open-text" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>La messagerie sera bientôt disponible.<br><small style="color:#6366f1;margin-top:6px;display:block">Vous pourrez communiquer avec les parents et la direction depuis cet espace.</small></div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block page_js %}
+<script>
+const PERSONNEL_ID = {{ personnel_id }};
+const PERSONNEL_INFO = {{ personnel_info|safe }};
+const ETAB_ID = {{ etab.id_etablissement }};
+const ACTIVE_SECTION = '{{ active_section }}';
+const COURSE_COLORS = ['#6366f1','#0ea5e9','#10b981','#f59e0b','#ec4899','#8b5cf6','#ef4444','#14b8a6','#f97316','#06b6d4'];
+
+let dashboardData = null;
+
+/* ===== INIT ===== */
+document.addEventListener('DOMContentLoaded', () => {
+    if (PERSONNEL_INFO.prenom) {
+        document.getElementById('welcomeName').textContent = `Bienvenue, ${PERSONNEL_INFO.prenom} ${PERSONNEL_INFO.nom}`;
+    }
+    loadDashboardData();
+});
+
+/* ===== LOAD DATA ===== */
+async function loadDashboardData() {
+    try {
+        const res = await fetch('/api/enseignant/dashboard/', {
+            headers: {'X-CSRFToken': getCsrfToken()}
+        });
+        const data = await res.json();
+        if (!data.success) {
+            document.getElementById('coursesContainer').innerHTML = `<div class="ca-loading" style="color:#ef4444"><i class="fas fa-exclamation-triangle"></i> ${data.error}</div>`;
+            return;
+        }
+        dashboardData = data;
+        renderStats(data);
+        renderCourses(data.courses);
+        renderCoursesFullList(data.courses);
+        renderSchedule(data.schedule);
+        renderPresencesStats(data.presences_stats);
+        renderElevesList(data.courses);
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+/* ===== RENDER STATS ===== */
+function renderStats(data) {
+    document.getElementById('statCours').textContent = data.n_courses || 0;
+    document.getElementById('statClasses').textContent = data.n_classes || 0;
+    document.getElementById('statEleves').textContent = data.n_eleves_total || 0;
+    document.getElementById('statEvaluations').textContent = data.n_evaluations || 0;
+}
+
+/* ===== RENDER COURSES (Dashboard Compact) ===== */
+function renderCourses(courses) {
+    const container = document.getElementById('coursesContainer');
+    if (!courses.length) {
+        container.innerHTML = '<div class="ca-loading"><i class="fas fa-book-open"></i> Aucun cours attribué pour cette année.</div>';
+        return;
+    }
+    container.innerHTML = courses.map((c, i) => {
+        const color = COURSE_COLORS[i % COURSE_COLORS.length];
+        return `<div class="course-card">
+            <div class="cc-color" style="background:${color}"></div>
+            <div style="padding-left:8px">
+                <div class="cc-title">${c.cours}</div>
+                <div class="cc-class">${c.cycle_nom} — ${c.classe_nom}</div>
+                <div class="cc-stats">
+                    <span class="cc-stat"><i class="fas fa-users"></i> <strong>${c.n_eleves}</strong> élèves</span>
+                    <span class="cc-stat"><i class="fas fa-weight-hanging"></i> Pond: <strong>${c.ponderation}%</strong></span>
+                    ${c.heure_semaine ? `<span class="cc-stat"><i class="fas fa-clock"></i> <strong>${c.heure_semaine}h</strong>/sem</span>` : ''}
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+/* ===== RENDER COURSES FULL (Section Cours) ===== */
+function renderCoursesFullList(courses) {
+    const container = document.getElementById('coursesFullContainer');
+    if (!courses.length) {
+        container.innerHTML = '<div class="dash-section"><div class="ca-loading"><i class="fas fa-book-open"></i> Aucun cours attribué pour cette année.</div></div>';
+        return;
+    }
+
+    const grouped = {};
+    courses.forEach(c => {
+        const key = `${c.cycle_nom} — ${c.classe_nom}`;
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(c);
+    });
+
+    let html = '';
+    let ci = 0;
+    Object.entries(grouped).forEach(([className, cls]) => {
+        html += `<div class="dash-section">
+            <div class="dash-section-title"><i class="fas fa-chalkboard"></i> ${className}</div>
+            <div class="dash-section-sub">${cls.length} cours · ${cls[0]?.n_eleves || 0} élèves</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">`;
+        cls.forEach(c => {
+            const color = COURSE_COLORS[ci++ % COURSE_COLORS.length];
+            html += `<div class="course-card" style="cursor:pointer" onclick="selectCourseForAction(${c.id_cours_annee},'${c.cours.replace(/'/g,"\\'")}','${className.replace(/'/g,"\\'")}',${c.eac_id})">
+                <div class="cc-color" style="background:${color}"></div>
+                <div style="padding-left:8px">
+                    <div class="cc-title">${c.cours} ${c.code_cours ? `<span style="font-size:.58rem;color:#94a3b8;font-weight:500">(${c.code_cours})</span>` : ''}</div>
+                    <div class="cc-class">${className}</div>
+                    <div class="cc-stats">
+                        <span class="cc-stat"><i class="fas fa-users"></i> <strong>${c.n_eleves}</strong> élèves</span>
+                        <span class="cc-stat"><i class="fas fa-weight-hanging"></i> Pond: <strong>${c.ponderation}%</strong></span>
+                        ${c.heure_semaine ? `<span class="cc-stat"><i class="fas fa-clock"></i> <strong>${c.heure_semaine}h</strong>/sem</span>` : ''}
+                    </div>
+                    <div style="margin-top:6px;display:flex;gap:4px">
+                        <span style="font-size:.55rem;background:rgba(99,102,241,.08);color:#6366f1;padding:2px 6px;border-radius:4px;font-weight:600"><i class="fas fa-clipboard-check" style="margin-right:2px"></i>Évaluations</span>
+                        <span style="font-size:.55rem;background:rgba(16,185,129,.08);color:#10b981;padding:2px 6px;border-radius:4px;font-weight:600"><i class="fas fa-chart-bar" style="margin-right:2px"></i>Notes</span>
+                    </div>
+                </div>
+            </div>`;
+        });
+        html += '</div></div>';
+    });
+    container.innerHTML = html;
+}
+
+/* ===== SELECT COURSE FOR ACTION ===== */
+function selectCourseForAction(coursAnneeId, coursNom, className, eacId) {
+    showToast(`Cours "${coursNom}" sélectionné. Fonctionnalité d\'évaluations/notes en cours de développement.`, 'info');
+}
+
+/* ===== RENDER SCHEDULE ===== */
+function renderSchedule(schedule) {
+    const container = document.getElementById('scheduleContainer');
+    const fullContainer = document.getElementById('scheduleFullContainer');
+
+    if (!schedule.length) {
+        const empty = '<div class="ca-loading"><i class="fas fa-calendar-alt"></i> Aucun horaire planifié.</div>';
+        container.innerHTML = empty;
+        fullContainer.innerHTML = `<div class="dash-section">${empty}</div>`;
+        return;
+    }
+
+    const makeRow = (s) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:#f8fafc;margin-bottom:4px;border-left:3px solid #6366f1">
+        <div style="font-size:.7rem;font-weight:700;color:#0f172a;min-width:80px">${s.date}</div>
+        <div style="font-size:.68rem;color:#475569">${s.debut} — ${s.fin}</div>
+    </div>`;
+
+    container.innerHTML = schedule.slice(0, 8).map(makeRow).join('');
+    fullContainer.innerHTML = `<div class="dash-section">${schedule.map(makeRow).join('')}</div>`;
+}
+
+/* ===== RENDER PRESENCES STATS ===== */
+function renderPresencesStats(stats) {
+    const container = document.getElementById('presencesStatsContainer');
+    const total = (stats.total_presents || 0) + (stats.total_absents || 0);
+    const pctPresent = total > 0 ? Math.round(stats.total_presents / total * 100) : 0;
+
+    container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem">
+        <div style="text-align:center;padding:1rem;background:#f0fdf4;border-radius:12px">
+            <div style="font-size:1.8rem;font-weight:800;color:#059669">${stats.total_seances}</div>
+            <div style="font-size:.7rem;color:#64748b;font-weight:600">Séances tenues</div>
+        </div>
+        <div style="text-align:center;padding:1rem;background:#f0f9ff;border-radius:12px">
+            <div style="font-size:1.8rem;font-weight:800;color:#0ea5e9">${pctPresent}%</div>
+            <div style="font-size:.7rem;color:#64748b;font-weight:600">Taux de présence</div>
+        </div>
+        <div style="text-align:center;padding:1rem;background:#fef2f2;border-radius:12px">
+            <div style="font-size:1.8rem;font-weight:800;color:#ef4444">${stats.total_absents || 0}</div>
+            <div style="font-size:.7rem;color:#64748b;font-weight:600">Total absences</div>
+        </div>
+    </div>`;
+}
+
+/* ===== RENDER ELEVES LIST ===== */
+function renderElevesList(courses) {
+    const container = document.getElementById('elevesContainer');
+    if (!courses.length) {
+        container.innerHTML = '<div class="dash-section"><div class="ca-loading"><i class="fas fa-users"></i> Aucune classe attribuée.</div></div>';
+        return;
+    }
+
+    // Get unique classes
+    const classMap = {};
+    courses.forEach(c => {
+        if (!classMap[c.eac_id]) {
+            classMap[c.eac_id] = { classe_nom: c.classe_nom, cycle_nom: c.cycle_nom, n_eleves: c.n_eleves, eac_id: c.eac_id };
+        }
+    });
+
+    const classes = Object.values(classMap);
+    let html = '<div class="dash-section">';
+    html += '<div class="dash-section-title"><i class="fas fa-users"></i> Mes Classes</div>';
+    html += '<div class="dash-section-sub">Cliquez sur une classe pour voir la liste des élèves</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">';
+
+    classes.forEach((cl, i) => {
+        const color = COURSE_COLORS[i % COURSE_COLORS.length];
+        html += `<div style="background:white;border-radius:12px;padding:1rem;border:1px solid #e2e8f0;cursor:pointer;transition:all .2s;position:relative;overflow:hidden" onclick="loadClassEleves(${cl.eac_id},'${cl.classe_nom.replace(/'/g,"\\'")}')">
+            <div style="position:absolute;top:0;left:0;width:100%;height:3px;background:${color}"></div>
+            <div style="font-size:.82rem;font-weight:700;color:#0f172a">${cl.cycle_nom} — ${cl.classe_nom}</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+                <span style="font-size:.68rem;background:rgba(99,102,241,.08);color:#6366f1;padding:2px 8px;border-radius:6px;font-weight:600"><i class="fas fa-users" style="margin-right:3px"></i>${cl.n_eleves} élèves</span>
+            </div>
+        </div>`;
+    });
+    html += '</div></div>';
+    html += '<div id="elevesListDetail"></div>';
+    container.innerHTML = html;
+}
+
+/* ===== LOAD CLASS ELEVES ===== */
+async function loadClassEleves(eacId, className) {
+    const detail = document.getElementById('elevesListDetail');
+    detail.innerHTML = '<div class="dash-section"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement de la liste...</div></div>';
+
+    try {
+        const res = await fetch('/api/dashboard/eleves-list/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+            body: JSON.stringify({id_etablissement: ETAB_ID, id_classe: eacId})
+        });
+        const data = await res.json();
+        if (!data.success) {
+            detail.innerHTML = `<div class="dash-section"><div class="ca-loading" style="color:#ef4444"><i class="fas fa-exclamation-triangle"></i> ${data.error}</div></div>`;
+            return;
+        }
+
+        const eleves = data.eleves || [];
+        if (!eleves.length) {
+            detail.innerHTML = `<div class="dash-section"><div class="ca-loading"><i class="fas fa-users"></i> Aucun élève dans cette classe.</div></div>`;
+            return;
+        }
+
+        let html = `<div class="dash-section">
+            <div class="dash-section-title"><i class="fas fa-list"></i> ${className} — ${eleves.length} élèves</div>
+            <div style="overflow-x:auto;max-height:500px;overflow-y:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:.72rem">
+                <thead><tr style="border-bottom:2px solid #e2e8f0">
+                    <th style="padding:6px 8px;text-align:left;color:#94a3b8;font-size:.6rem;text-transform:uppercase;font-weight:700">#</th>
+                    <th style="padding:6px 8px;text-align:left;color:#94a3b8;font-size:.6rem;text-transform:uppercase;font-weight:700">Nom complet</th>
+                    <th style="padding:6px 8px;text-align:left;color:#94a3b8;font-size:.6rem;text-transform:uppercase;font-weight:700">Genre</th>
+                    <th style="padding:6px 8px;text-align:left;color:#94a3b8;font-size:.6rem;text-transform:uppercase;font-weight:700">Date naiss.</th>
+                </tr></thead><tbody>`;
+
+        eleves.forEach((el, i) => {
+            const name = `${el.nom || ''} ${el.postnom || ''} ${el.prenom || ''}`.trim();
+            const genreBadge = el.genre === 'M'
+                ? '<span style="background:#dbeafe;color:#2563eb;padding:1px 6px;border-radius:4px;font-size:.6rem;font-weight:600">M</span>'
+                : '<span style="background:#fce7f3;color:#db2777;padding:1px 6px;border-radius:4px;font-size:.6rem;font-weight:600">F</span>';
+            html += `<tr style="border-bottom:1px solid #f1f5f9;transition:background .15s" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                <td style="padding:5px 8px;color:#94a3b8;font-weight:600;font-size:.6rem">${i+1}</td>
+                <td style="padding:5px 8px;font-weight:600;color:#0f172a">${name || '—'}</td>
+                <td style="padding:5px 8px">${genreBadge}</td>
+                <td style="padding:5px 8px;color:#64748b">${el.date_naissance || '—'}</td>
+            </tr>`;
+        });
+        html += '</tbody></table></div></div>';
+        detail.innerHTML = html;
+    } catch (e) {
+        detail.innerHTML = `<div class="dash-section"><div class="ca-loading" style="color:#ef4444"><i class="fas fa-exclamation-triangle"></i> Erreur: ${e.message}</div></div>`;
+    }
+}
+</script>
+{% endblock %}
