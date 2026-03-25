@@ -147,7 +147,7 @@
         .nav-item i.text-emerald { color: #34d399 !important; }
 
         .logout-btn {
-            margin-top: auto; color: #ef4444;
+            flex-shrink: 0; margin-bottom: 10px; color: #ef4444;
             background: rgba(239,68,68,0.06) !important;
             border-color: rgba(239,68,68,0.12) !important;
         }
@@ -405,12 +405,13 @@
                 </a>
                 {% endblock %}
 
-                <!-- Logout -->
-                <a href="#" class="nav-item logout-btn" onclick="doLogout(); return false;" title="Déconnexion">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>Quitter</span>
-                </a>
             </div>
+
+            <!-- Logout (outside center so items stay centered) -->
+            <a href="#" class="nav-item logout-btn" onclick="doLogout(); return false;" title="Déconnexion">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Quitter</span>
+            </a>
         </div>
 
         <!-- MAIN CONTENT -->
