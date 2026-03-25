@@ -710,7 +710,7 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
                 <div class="dash-section-title"><i class="fas fa-shield-alt"></i> Attribution des Droits</div>
-                <div class="dash-section-sub">Sélectionnez un personnel et assignez-lui les modules auxquels il a accès</div>
+                <div class="dash-section-sub">Cochez ou décochez les cases pour attribuer/retirer l'accès aux modules</div>
             </div>
             <div class="d-flex gap-2 align-items-center">
                 <input type="text" id="userSearchInput" placeholder="🔍 Rechercher..." onkeyup="filterUsersTable()"
@@ -721,40 +721,8 @@
                 </button>
             </div>
         </div>
-        <div style="overflow-x:auto;max-height:600px;overflow-y:auto" id="usersTableContainer">
+        <div style="overflow-x:auto;max-height:650px;overflow-y:auto" id="usersTableContainer">
             <div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement des utilisateurs...</div>
-        </div>
-    </div>
-
-    <!-- Module Assignment Modal -->
-    <div class="modal fade" id="moduleAssignModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content" style="border-radius:16px;overflow:hidden;border:none;box-shadow:0 20px 60px rgba(0,0,0,.2)">
-                <div class="modal-header" style="background:linear-gradient(135deg,#831843,#be185d);color:#fff;border:none;padding:12px 20px">
-                    <h5 class="modal-title" style="font-size:.85rem;font-weight:700" id="moduleModalTitle"><i class="fas fa-key me-2"></i>Attribution des Modules</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body" style="padding:20px">
-                    <div id="moduleModalUserInfo" style="background:#f8fafc;border-radius:12px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
-                        <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:.9rem" id="moduleModalAvatar">?</div>
-                        <div>
-                            <div style="font-weight:700;font-size:.82rem;color:#0f172a" id="moduleModalName">—</div>
-                            <div style="font-size:.68rem;color:#64748b" id="moduleModalEmail">—</div>
-                        </div>
-                    </div>
-                    <div style="font-size:.72rem;font-weight:600;color:#475569;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">
-                        <i class="fas fa-cubes me-1" style="color:#ec4899"></i>Modules Disponibles
-                    </div>
-                    <div id="moduleCheckboxes" style="display:flex;flex-direction:column;gap:6px"></div>
-                    <div class="alert alert-danger d-none mt-3" id="moduleModalError" style="font-size:.72rem;border-radius:8px"></div>
-                </div>
-                <div class="modal-footer" style="padding:10px 20px;border:none">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="border-radius:8px">Annuler</button>
-                    <button type="button" class="btn btn-sm" onclick="saveModuleAssignment()" style="background:linear-gradient(135deg,#be185d,#ec4899);color:#fff;border:none;border-radius:8px;font-weight:600;padding:6px 18px">
-                        <i class="fas fa-save me-1"></i>Enregistrer
-                    </button>
-                </div>
-            </div>
         </div>
     </div>
 </div>
@@ -3767,7 +3735,9 @@ function viewDocAgrement() {
 /* ===== GESTION DES UTILISATEURS & DROITS ===== */
 let usersData = [];
 let modulesData = [];
-let currentEditUserId = null;
+
+/* Module colors & icons */
+const MOD_COLORS = {1:'#6366f1',2:'#0ea5e9',3:'#10b981',4:'#f59e0b',5:'#ec4899',6:'#8b5cf6',7:'#ef4444',8:'#14b8a6'};
 
 function loadUsersData() {
     const container = document.getElementById('usersTableContainer');
@@ -3806,9 +3776,11 @@ function renderUsersTable() {
         return;
     }
 
-    const modHeaders = modulesData.map(m =>
-        `<th style="text-align:center;font-size:.55rem;max-width:80px;word-wrap:break-word;writing-mode:horizontal-tb">${m.name}</th>`
-    ).join('');
+    /* Build rotated module headers */
+    const modHeaders = modulesData.map(m => {
+        const c = MOD_COLORS[m.id] || '#6366f1';
+        return `<th class="mod-th"><div class="mod-th-inner"><span class="mod-th-text" style="color:${c}">${m.name}</span></div></th>`;
+    }).join('');
 
     let rows = '';
     usersData.forEach((u, i) => {
@@ -3816,66 +3788,156 @@ function renderUsersTable() {
         const fullName = `${u.last_name} ${u.first_name}`.trim() || u.email;
         const initials = ((u.first_name || '?')[0] + (u.last_name || '?')[0]).toUpperCase();
 
-        // Status badges
+        /* Status badge */
         let statusBadge = '';
         if (isSA) {
-            statusBadge = '<span style="background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#78350f;padding:2px 8px;border-radius:10px;font-size:.58rem;font-weight:700;display:inline-flex;align-items:center;gap:3px"><i class="fas fa-crown" style="font-size:.5rem"></i>Super Admin</span>';
+            statusBadge = '<span class="badge-sa"><i class="fas fa-crown"></i> Admin</span>';
         } else if (u.isUser && u.is_verified) {
-            statusBadge = '<span style="background:linear-gradient(135deg,#059669,#34d399);color:#fff;padding:2px 8px;border-radius:10px;font-size:.58rem;font-weight:600">Actif</span>';
+            statusBadge = '<span class="badge-active">Actif</span>';
         } else if (u.isUser) {
-            statusBadge = '<span style="background:linear-gradient(135deg,#f59e0b,#fcd34d);color:#78350f;padding:2px 8px;border-radius:10px;font-size:.58rem;font-weight:600">Non vérifié</span>';
+            statusBadge = '<span class="badge-pending">Non vérifié</span>';
         } else {
-            statusBadge = '<span style="background:#f1f5f9;color:#94a3b8;padding:2px 8px;border-radius:10px;font-size:.58rem;font-weight:600">Inactif</span>';
+            statusBadge = '<span class="badge-inactive">Inactif</span>';
         }
 
-        // Module dots
-        const modDots = modulesData.map(m => {
+        /* Module checkboxes — inline toggle */
+        const modCells = modulesData.map(m => {
             const active = u.modules[m.id] === true;
-            const color = active ? '#059669' : '#e2e8f0';
-            const icon = active ? '●' : '○';
-            return `<td style="text-align:center"><span style="color:${color};font-size:.8rem;font-weight:700" title="${m.name}: ${active? 'Actif':'Inactif'}">${icon}</span></td>`;
+            const c = MOD_COLORS[m.id] || '#6366f1';
+            if (isSA) {
+                return `<td class="mod-cell"><div class="mod-check-wrap sa" style="--mc:${c}"><i class="fas fa-check"></i></div></td>`;
+            }
+            const cbId = `cb_${u.id_personnel}_${m.id}`;
+            return `<td class="mod-cell">
+                <label class="mod-check-wrap ${active?'on':''}" style="--mc:${c}" for="${cbId}">
+                    <input type="checkbox" id="${cbId}" ${active?'checked':''}
+                        onchange="toggleModule(${u.id_personnel},${m.id},this.checked,this)">
+                    <span class="mod-check-icon"><i class="fas ${active?'fa-check':'fa-times'}"></i></span>
+                </label>
+            </td>`;
         }).join('');
 
-        // Avatar gradient
+        /* Avatar gradient */
         const gradients = ['#6366f1,#8b5cf6','#ec4899,#f472b6','#0ea5e9,#38bdf8','#10b981,#34d399','#f59e0b,#fbbf24','#ef4444,#f87171'];
         const grad = gradients[i % gradients.length];
 
-        rows += `<tr class="user-row" data-name="${fullName.toLowerCase()}" data-email="${u.email.toLowerCase()}" style="${isSA ? 'background:linear-gradient(90deg,rgba(251,191,36,.06),transparent)':''};transition:background .15s">
-            <td style="text-align:center;color:#94a3b8;font-size:.6rem;font-weight:600">${i+1}</td>
-            <td>
-                <div style="display:flex;align-items:center;gap:8px">
-                    <div style="width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,${grad});display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.65rem;flex-shrink:0">${initials}</div>
+        rows += `<tr class="user-row" data-name="${fullName.toLowerCase()}" data-email="${u.email.toLowerCase()}" style="${isSA ? 'background:linear-gradient(90deg,rgba(251,191,36,.05),transparent)':''}">
+            <td class="row-num">${i+1}</td>
+            <td class="user-info-cell">
+                <div class="user-info-flex">
+                    <div class="user-avatar" style="background:linear-gradient(135deg,${grad})">${initials}</div>
                     <div>
-                        <div style="font-weight:600;font-size:.72rem;color:#0f172a">${fullName} ${isSA?'<i class="fas fa-crown" style="color:#f59e0b;font-size:.6rem;margin-left:3px"></i>':''}</div>
-                        <div style="font-size:.6rem;color:#94a3b8">${u.email}</div>
+                        <div class="user-name">${fullName} ${isSA?'<i class="fas fa-crown" style="color:#f59e0b;font-size:.55rem;margin-left:2px"></i>':''}</div>
+                        <div class="user-email">${u.email}</div>
                     </div>
                 </div>
             </td>
-            <td style="font-size:.68rem;color:#475569">${u.matricule || '—'}</td>
-            <td style="font-size:.68rem;color:#475569">${u.telephone || '—'}</td>
+            <td class="user-meta">${u.matricule || '—'}</td>
+            <td class="user-meta">${u.telephone || '—'}</td>
             <td>${statusBadge}</td>
-            ${modDots}
-            <td style="text-align:center">
-                ${isSA
-                    ? '<span style="font-size:.6rem;color:#94a3b8;font-style:italic">Tous les droits</span>'
-                    : `<button onclick="openModuleModal(${u.id_personnel})" style="background:linear-gradient(135deg,#6366f1,#818cf8);color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:.62rem;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:3px" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='none'"><i class="fas fa-key" style="font-size:.55rem"></i>Droits</button>`
-                }
-            </td>
+            ${modCells}
         </tr>`;
     });
 
-    container.innerHTML = `<table class="eleves-table">
+    container.innerHTML = `
+    <style>
+    /* ─── Rotated Module Headers ─── */
+    .mod-th{text-align:center;vertical-align:bottom;padding:0!important;width:42px;min-width:42px;position:relative;height:120px}
+    .mod-th-inner{position:absolute;bottom:8px;left:50%;transform-origin:bottom left}
+    .mod-th-text{display:block;writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;line-height:1}
+    /* ─── Module Cells ─── */
+    .mod-cell{text-align:center;padding:2px 4px!important;vertical-align:middle}
+    .mod-check-wrap{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;border:2px solid #e2e8f0;background:#f8fafc;cursor:pointer;transition:all .2s;position:relative}
+    .mod-check-wrap input{position:absolute;opacity:0;width:0;height:0}
+    .mod-check-wrap .mod-check-icon{font-size:.6rem;color:#cbd5e1;transition:all .2s}
+    .mod-check-wrap.on{border-color:var(--mc);background:color-mix(in srgb,var(--mc) 10%,white)}
+    .mod-check-wrap.on .mod-check-icon{color:var(--mc)}
+    .mod-check-wrap.sa{border-color:var(--mc);background:var(--mc);cursor:default}
+    .mod-check-wrap.sa i{color:#fff;font-size:.6rem}
+    .mod-check-wrap:not(.sa):hover{border-color:var(--mc);transform:scale(1.1);box-shadow:0 0 0 3px color-mix(in srgb,var(--mc) 15%,transparent)}
+    .mod-check-wrap.saving{opacity:.5;pointer-events:none}
+    /* ─── User Info ─── */
+    .user-info-cell{white-space:nowrap}
+    .user-info-flex{display:flex;align-items:center;gap:8px}
+    .user-avatar{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.6rem;flex-shrink:0}
+    .user-name{font-weight:600;font-size:.7rem;color:#0f172a}
+    .user-email{font-size:.58rem;color:#94a3b8}
+    .user-meta{font-size:.66rem;color:#475569}
+    .row-num{text-align:center;color:#94a3b8;font-size:.58rem;font-weight:600;width:28px}
+    /* ─── Badges ─── */
+    .badge-sa{background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#78350f;padding:2px 8px;border-radius:10px;font-size:.55rem;font-weight:700;display:inline-flex;align-items:center;gap:3px}
+    .badge-sa i{font-size:.45rem}
+    .badge-active{background:linear-gradient(135deg,#059669,#34d399);color:#fff;padding:2px 8px;border-radius:10px;font-size:.55rem;font-weight:600}
+    .badge-pending{background:linear-gradient(135deg,#f59e0b,#fcd34d);color:#78350f;padding:2px 8px;border-radius:10px;font-size:.55rem;font-weight:600}
+    .badge-inactive{background:#f1f5f9;color:#94a3b8;padding:2px 8px;border-radius:10px;font-size:.55rem;font-weight:600}
+    /* ─── Row hover ─── */
+    .user-row{transition:background .15s}
+    .user-row:hover{background:rgba(99,102,241,.03)!important}
+    </style>
+    <table class="eleves-table" style="border-collapse:separate;border-spacing:0">
         <thead><tr>
-            <th style="width:30px">#</th>
-            <th>Personnel</th>
+            <th style="width:28px">#</th>
+            <th style="min-width:180px">Personnel</th>
             <th>Matricule</th>
             <th>Téléphone</th>
             <th>Statut</th>
             ${modHeaders}
-            <th style="text-align:center">Actions</th>
         </tr></thead>
         <tbody>${rows}</tbody>
     </table>`;
+}
+
+/* ─── Toggle module via API (inline) ─── */
+function toggleModule(personnelId, moduleId, checked, inputEl) {
+    const wrap = inputEl.closest('.mod-check-wrap');
+    const icon = wrap.querySelector('.mod-check-icon i');
+    wrap.classList.add('saving');
+
+    /* Build single-module payload */
+    const modules = {};
+    modules[moduleId] = checked;
+
+    fetch('/api/dashboard/users/modules/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+        body: JSON.stringify({id_personnel: personnelId, modules: modules})
+    })
+    .then(r => r.json())
+    .then(data => {
+        wrap.classList.remove('saving');
+        if (data.success) {
+            /* Update visual */
+            if (checked) {
+                wrap.classList.add('on');
+                icon.className = 'fas fa-check';
+            } else {
+                wrap.classList.remove('on');
+                icon.className = 'fas fa-times';
+            }
+            /* Update local data */
+            const user = usersData.find(u => u.id_personnel === personnelId);
+            if (user) user.modules[moduleId] = checked;
+            /* Update active users stat */
+            const activeCount = usersData.filter(u => {
+                if (!u.isUser || !u.is_verified) return false;
+                return Object.values(u.modules).some(v => v === true);
+            }).length;
+            document.getElementById('statActiveUsers').textContent = activeCount;
+        } else {
+            /* Revert on failure */
+            inputEl.checked = !checked;
+            if (!checked) { wrap.classList.add('on'); icon.className='fas fa-check'; }
+            else { wrap.classList.remove('on'); icon.className='fas fa-times'; }
+            showToast(data.error || 'Erreur', 'error');
+        }
+    })
+    .catch(e => {
+        wrap.classList.remove('saving');
+        inputEl.checked = !checked;
+        if (!checked) { wrap.classList.add('on'); icon.className='fas fa-check'; }
+        else { wrap.classList.remove('on'); icon.className='fas fa-times'; }
+        showToast('Erreur réseau: ' + e.message, 'error');
+    });
 }
 
 function filterUsersTable() {
@@ -3884,74 +3946,6 @@ function filterUsersTable() {
         const name = row.dataset.name || '';
         const email = row.dataset.email || '';
         row.style.display = (name.includes(q) || email.includes(q)) ? '' : 'none';
-    });
-}
-
-function openModuleModal(personnelId) {
-    const user = usersData.find(u => u.id_personnel === personnelId);
-    if (!user) return;
-    if (user.is_super_admin) {
-        alert('Les droits du super administrateur ne peuvent pas être modifiés.');
-        return;
-    }
-
-    currentEditUserId = personnelId;
-    const initials = ((user.first_name || '?')[0] + (user.last_name || '?')[0]).toUpperCase();
-    document.getElementById('moduleModalAvatar').textContent = initials;
-    document.getElementById('moduleModalName').textContent = `${user.last_name} ${user.first_name}`.trim();
-    document.getElementById('moduleModalEmail').textContent = user.email;
-    document.getElementById('moduleModalError').classList.add('d-none');
-
-    // Render module checkboxes
-    const container = document.getElementById('moduleCheckboxes');
-    const moduleIcons = {1:'fa-cogs',2:'fa-user-graduate',3:'fa-clipboard-check',4:'fa-chalkboard-teacher',5:'fa-school',6:'fa-money-bill',7:'fa-book',8:'fa-crown'};
-    const moduleColors = {1:'#6366f1',2:'#0ea5e9',3:'#10b981',4:'#f59e0b',5:'#ec4899',6:'#8b5cf6',7:'#ef4444',8:'#14b8a6'};
-
-    container.innerHTML = modulesData.map(m => {
-        const checked = user.modules[m.id] === true;
-        const icon = moduleIcons[m.id] || 'fa-cube';
-        const color = moduleColors[m.id] || '#6366f1';
-        return `<label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1.5px solid ${checked?color:'#e2e8f0'};background:${checked?color+'0d':'#f8fafc'};cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='${color}'" onmouseout="this.style.borderColor=this.querySelector('input').checked?'${color}':'#e2e8f0'">
-            <input type="checkbox" data-module-id="${m.id}" ${checked?'checked':''} style="accent-color:${color};width:16px;height:16px;cursor:pointer"
-                onchange="this.parentElement.style.borderColor=this.checked?'${color}':'#e2e8f0';this.parentElement.style.background=this.checked?'${color}0d':'#f8fafc'">
-            <i class="fas ${icon}" style="color:${color};font-size:.85rem;width:20px;text-align:center"></i>
-            <span style="font-size:.78rem;font-weight:600;color:#1e293b">${m.name}</span>
-        </label>`;
-    }).join('');
-
-    new bootstrap.Modal(document.getElementById('moduleAssignModal')).show();
-}
-
-function saveModuleAssignment() {
-    if (!currentEditUserId) return;
-
-    const checkboxes = document.querySelectorAll('#moduleCheckboxes input[type="checkbox"]');
-    const modules = {};
-    checkboxes.forEach(cb => {
-        modules[cb.dataset.moduleId] = cb.checked;
-    });
-
-    const errEl = document.getElementById('moduleModalError');
-    errEl.classList.add('d-none');
-
-    fetch('/api/dashboard/users/modules/', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
-        body: JSON.stringify({id_personnel: currentEditUserId, modules: modules})
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            bootstrap.Modal.getInstance(document.getElementById('moduleAssignModal'))?.hide();
-            loadUsersData();
-        } else {
-            errEl.textContent = data.error || 'Erreur inconnue';
-            errEl.classList.remove('d-none');
-        }
-    })
-    .catch(e => {
-        errEl.textContent = 'Erreur réseau: ' + e.message;
-        errEl.classList.remove('d-none');
     });
 }
 
