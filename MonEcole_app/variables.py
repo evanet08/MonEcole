@@ -42,7 +42,7 @@ MODULE_URL_MAPPING = {
     'Scolarite': 'dashboard_scolarite',
     'Evaluation': 'dashboard_evaluations',
     'Enseignement': 'dashboard_enseignements',
-    'Institeur et son Espace': 'dashboard_administration',  # redirect vers admin pour l'instant
+    'Espace_Enseignant': 'dashboard_enseignant',
     'Recouvrement': 'dashboard_administration',
     'Bibliotheque': 'dashboard_administration',
     'Direction': 'dashboard_administration',
@@ -54,7 +54,7 @@ MODULE_ID_TO_PAGE = {
     2: {'page': 'scolarite', 'url': '/dashboard/scolarite/', 'icon': 'fas fa-user-graduate', 'label': 'Scolarité'},
     3: {'page': 'evaluations', 'url': '/dashboard/evaluations/', 'icon': 'fas fa-clipboard-check', 'label': 'Évaluations'},
     4: {'page': 'enseignements', 'url': '/dashboard/enseignements/', 'icon': 'fas fa-chalkboard-teacher', 'label': 'Enseignements'},
-    5: {'page': 'administration', 'url': '/dashboard/administration/', 'icon': 'fas fa-school', 'label': 'Inst. & Espace'},
+    5: {'page': 'espace_enseignant', 'url': '/dashboard/enseignant/', 'icon': 'fas fa-chalkboard', 'label': 'Espace Enseignant'},
     6: {'page': 'administration', 'url': '/dashboard/administration/', 'icon': 'fas fa-money-bill', 'label': 'Recouvrement'},
     7: {'page': 'administration', 'url': '/dashboard/administration/', 'icon': 'fas fa-book', 'label': 'Bibliothèque'},
     8: {'page': 'administration', 'url': '/dashboard/administration/', 'icon': 'fas fa-crown', 'label': 'Direction'},

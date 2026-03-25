@@ -553,7 +553,7 @@ def espace_enseignant_view(request):
     active_section = request.GET.get('section', 'dashboard')
     context['active_section'] = active_section
     context['active_page'] = 'espace_enseignant'
-    _add_module_context(context, request, 'enseignements')
+    _add_module_context(context, request, 'espace_enseignant')
 
     # Identifier le personnel connecté
     etab_id = context['etab']['id_etablissement']
