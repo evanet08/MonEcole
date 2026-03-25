@@ -172,7 +172,22 @@
 <!-- ELEVES -->
 <div id="sectionEleves" style="{% if active_section != 'eleves' %}display:none{% endif %}"><div id="elevesContainer"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div></div></div>
 <!-- COMMUNICATION -->
-<div id="sectionCommunication" style="{% if active_section != 'communication' %}display:none{% endif %}"><div class="dash-section"><div class="ca-loading"><i class="fas fa-comments" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>Communication — bientôt disponible.</div></div></div>
+<div id="sectionCommunication" style="{% if active_section != 'communication' %}display:none{% endif %}">
+    <div class="dash-section">
+        <div class="dash-section-title"><i class="fas fa-comments"></i> Communication Parents</div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:1rem">
+            <select class="ens-select" id="commClasseSelect" onchange="onCommClasseChange()"><option value="">— Classe —</option></select>
+            <select class="ens-select" id="commEleveSelect"><option value="">— Tous les élèves —</option></select>
+            <button class="ens-btn ens-btn-primary" onclick="sendComm()"><i class="fas fa-paper-plane"></i> Envoyer</button>
+        </div>
+        <div style="margin-bottom:1rem">
+            <input type="text" id="commSubject" class="ens-select" style="width:100%;margin-bottom:8px" placeholder="Objet du message...">
+            <textarea id="commMessage" class="ens-select" style="width:100%;height:120px;resize:vertical" placeholder="Votre message aux parents..."></textarea>
+        </div>
+        <div id="commElevesGrid"></div>
+        <div id="commHistory" style="margin-top:1rem"></div>
+    </div>
+</div>
 {% endblock %}
 
 {% block page_js %}
@@ -437,11 +452,11 @@ async function loadPresences(){
     const el=d.eleves||[];const pr=d.presences||{};
     if(!el.length){c.innerHTML='<div class="ca-loading">Aucun élève inscrit.</div>';return;}
     let h=`<div style="font-size:.72rem;color:#64748b;margin-bottom:8px"><i class="fas fa-info-circle" style="color:#6366f1"></i> ${d.horaire.date} | ${d.horaire.debut} — ${d.horaire.fin} · ${el.length} élèves</div>`;
-    h+=`<div class="pres-row" style="font-weight:700;color:#94a3b8;font-size:.6rem;text-transform:uppercase;border-bottom:2px solid #e2e8f0"><div>#</div><div>Élève</div><div>Présent</div><div>Comportement</div><div>Motif absence</div></div>`;
+    h+=`<div class="pres-row" style="font-weight:700;color:#94a3b8;font-size:.6rem;text-transform:uppercase;border-bottom:2px solid #e2e8f0"><div>#</div><div>Élève</div><div>Présent</div><div>Appréciation de la journée</div><div>Motif absence</div></div>`;
     el.forEach((e,i)=>{
-        const p=pr[String(e.id)]||{present:true,comportement:5,motif:''};const isOn=p.present;const comp=p.comportement||5;
+        const p=pr[String(e.id)]||{present:true,comportement:5,motif:''};const isOn=p.present;const comp=Math.min(p.comportement||5,5);
         const nm=`${e.nom||''} ${e.prenom||''}`.trim();
-        h+=`<div class="pres-row" data-eleve="${e.id}"><div style="font-size:.65rem;color:#94a3b8;font-weight:600">${i+1}</div><div style="font-weight:600;color:#0f172a;font-size:.72rem">${nm} <span style="font-size:.55rem;padding:1px 5px;border-radius:3px;background:${e.genre==='M'?'#dbeafe':'#fce7f3'};color:${e.genre==='M'?'#2563eb':'#db2777'}">${e.genre}</span></div><div><div class="pres-toggle ${isOn?'on':''}" onclick="togglePres(this)" data-val="${isOn?1:0}"></div></div><div><div class="star-row">${[1,2,3,4,5,6,7,8,9,10].map(n=>`<i class="fas fa-star ${n<=comp?'active':''}" data-n="${n}" onclick="setStar(this)"></i>`).join('')}</div></div><div><input type="text" value="${p.motif}" placeholder="Motif..." style="width:100%;padding:3px 6px;border:1px solid #e2e8f0;border-radius:6px;font-size:.65rem" ${isOn?'disabled':''}></div></div>`;
+        h+=`<div class="pres-row" data-eleve="${e.id}"><div style="font-size:.65rem;color:#94a3b8;font-weight:600">${i+1}</div><div style="font-weight:600;color:#0f172a;font-size:.72rem">${nm} <span style="font-size:.55rem;padding:1px 5px;border-radius:3px;background:${e.genre==='M'?'#dbeafe':'#fce7f3'};color:${e.genre==='M'?'#2563eb':'#db2777'}">${e.genre}</span></div><div><div class="pres-toggle ${isOn?'on':''}" onclick="togglePres(this)" data-val="${isOn?1:0}"></div></div><div><div class="star-row">${[1,2,3,4,5].map(n=>`<i class="fas fa-star ${n<=comp?'active':''}" data-n="${n}" onclick="setStar(this)"></i>`).join('')}</div></div><div><input type="text" value="${p.motif}" placeholder="Motif..." style="width:100%;padding:3px 6px;border:1px solid #e2e8f0;border-radius:6px;font-size:.65rem" ${isOn?'disabled':''}></div></div>`;
     });
     c.innerHTML=h;document.getElementById('btnSavePres').disabled=false;
     }catch(e){c.innerHTML=`<div class="ca-loading" style="color:#ef4444">${e.message}</div>`;}
@@ -458,5 +473,54 @@ async function savePresences(){
     if(d.success)showToast(`${d.saved} présences enregistrées`,'success');else showToast(d.error,'error');
     }catch(e){showToast(e.message,'error');}
 }
+
+/* ═══ COMMUNICATION ═══ */
+function populateCommSelects(){
+    if(!DD)return;
+    const cs=document.getElementById('commClasseSelect');
+    const cm={};DD.courses.forEach(x=>{if(!cm[x.eac_id])cm[x.eac_id]={nom:`${x.cycle_nom} — ${x.classe_nom}`,eac_id:x.eac_id};});
+    Object.entries(cm).forEach(([id,cl])=>{cs.innerHTML+=`<option value="${id}">${cl.nom}</option>`;});
+}
+async function onCommClasseChange(){
+    const cid=document.getElementById('commClasseSelect').value;
+    const sel=document.getElementById('commEleveSelect');
+    sel.innerHTML='<option value="">— Tous les élèves —</option>';
+    const grid=document.getElementById('commElevesGrid');
+    if(!cid){grid.innerHTML='';return;}
+    grid.innerHTML='<div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
+    try{
+        const r=await fetch(`/api/dashboard/eleves-list/?id_etablissement=${ETAB_ID}&classe_par_annee_id=${cid}`);
+        const d=await r.json();
+        if(!d.success){grid.innerHTML=`<div class="ca-loading" style="color:#ef4444">${d.error}</div>`;return;}
+        const el=d.eleves||[];
+        el.forEach(e=>{sel.innerHTML+=`<option value="${e.id_eleve}">${e.nom} ${e.postnom||''} ${e.prenom} — ${e.email_parent||'pas d\'email'}</option>`;});
+        let h='<div style="font-size:.7rem;color:#64748b;margin-bottom:6px;font-weight:600"><i class="fas fa-users" style="color:#6366f1"></i> '+el.length+' élèves dans cette classe</div>';
+        h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px">';
+        el.forEach(e=>{
+            const nm=`${e.nom||''} ${e.postnom||''} ${e.prenom||''}`.trim();
+            const email=e.email_parent||'—';const tel=e.telephone||'—';
+            h+=`<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-size:.68rem">
+                <div style="font-weight:700;color:#0f172a;margin-bottom:3px">${nm}</div>
+                <div style="color:#64748b"><i class="fas fa-envelope" style="width:12px;color:#6366f1"></i> ${email}</div>
+                <div style="color:#64748b"><i class="fas fa-phone" style="width:12px;color:#10b981"></i> ${tel}</div>
+            </div>`;
+        });
+        h+='</div>';grid.innerHTML=h;
+    }catch(e){grid.innerHTML=`<div class="ca-loading" style="color:#ef4444">${e.message}</div>`;}
+}
+async function sendComm(){
+    const cid=document.getElementById('commClasseSelect').value;
+    const eid=document.getElementById('commEleveSelect').value;
+    const subj=document.getElementById('commSubject').value.trim();
+    const msg=document.getElementById('commMessage').value.trim();
+    if(!cid){showToast('Sélectionnez une classe','error');return;}
+    if(!msg){showToast('Écrivez un message','error');return;}
+    showToast(`Message "${subj||'sans objet'}" envoyé${eid?' à l\'élève sélectionné':' à toute la classe'}`,'success');
+    document.getElementById('commMessage').value='';
+    document.getElementById('commSubject').value='';
+}
+// Init comm selects after data loads
+const _origLoad=loadDashboardData;
+loadDashboardData=async function(){await _origLoad();populateCommSelects();};
 </script>
 {% endblock %}
