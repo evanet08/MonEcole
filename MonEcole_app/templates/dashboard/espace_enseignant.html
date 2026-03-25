@@ -523,16 +523,20 @@ async function initWaChat(){
 function renderWaContacts(filter){
     const c=document.getElementById('waContactsList');if(!c)return;
     const f=(filter||'').toLowerCase();
+    const filtered=waContacts.filter(x=>!f||x.name.toLowerCase().includes(f));
+    const classes=filtered.filter(x=>x.type==='class');
+    const students=filtered.filter(x=>x.type==='student');
     let h='';
-    waContacts.filter(x=>!f||x.name.toLowerCase().includes(f)).forEach(x=>{
-        const active=waActiveContact&&waActiveContact.id===x.id?'active':'';
-        const msgs=waMessages[x.id]||[];
-        const last=msgs.length?msgs[msgs.length-1].text.substring(0,30)+'...':x.sub;
-        h+=`<div class="wa-contact ${active}" onclick="openWaChat('${x.id}')">
-            <div class="wa-contact-avatar" style="background:${x.color}"><i class="fas fa-${x.icon}"></i></div>
-            <div class="wa-contact-info"><div class="wa-contact-name">${x.name}</div><div class="wa-contact-sub">${last}</div></div>
-        </div>`;
-    });
+    if(classes.length){
+        h+='<div style="padding:6px 12px;font-size:.6rem;font-weight:700;color:#128c7e;background:#f0fdf4;text-transform:uppercase;letter-spacing:.5px"><i class="fas fa-users"></i> Groupes Classe</div>';
+        classes.forEach(x=>{const active=waActiveContact&&waActiveContact.id===x.id?'active':'';const msgs=waMessages[x.id]||[];const last=msgs.length?msgs[msgs.length-1].text.substring(0,30)+'...':x.sub;
+        h+=`<div class="wa-contact ${active}" onclick="openWaChat('${x.id}')"><div class="wa-contact-avatar" style="background:${x.color}"><i class="fas fa-${x.icon}"></i></div><div class="wa-contact-info"><div class="wa-contact-name">${x.name}</div><div class="wa-contact-sub">${last}</div></div></div>`;});
+    }
+    if(students.length){
+        h+='<div style="padding:6px 12px;font-size:.6rem;font-weight:700;color:#3b82f6;background:#eff6ff;text-transform:uppercase;letter-spacing:.5px"><i class="fas fa-user-graduate"></i> Élèves / Parents</div>';
+        students.forEach(x=>{const active=waActiveContact&&waActiveContact.id===x.id?'active':'';const msgs=waMessages[x.id]||[];const last=msgs.length?msgs[msgs.length-1].text.substring(0,30)+'...':x.sub;
+        h+=`<div class="wa-contact ${active}" onclick="openWaChat('${x.id}')"><div class="wa-contact-avatar" style="background:${x.color}"><i class="fas fa-${x.icon}"></i></div><div class="wa-contact-info"><div class="wa-contact-name">${x.name}</div><div class="wa-contact-sub">${last}</div></div></div>`;});
+    }
     c.innerHTML=h||'<div style="padding:20px;text-align:center;color:#94a3b8;font-size:.7rem">Aucun contact</div>';
 }
 function filterWaContacts(){renderWaContacts(document.getElementById('waSearchInput')?.value);}
