@@ -10392,14 +10392,16 @@ def dashboard_users_modules(request):
                         'error': 'Les droits du super administrateur ne peuvent pas être modifiés'
                     }, status=403)
 
-                # Récupérer l'année active
-                cur.execute("""
-                    SELECT id_annee FROM annee
-                    WHERE etat_annee IN ('En Cours', 'actif', 'ouverte')
-                    ORDER BY annee DESC LIMIT 1
-                """)
-                annee_row = cur.fetchone()
-                annee_id = annee_row['id_annee'] if annee_row else 1
+                # Récupérer l'année active depuis le Hub (table annees dans countryStructure)
+                from django.db import connections as db_connections
+                with db_connections['countryStructure'].cursor() as hub_cur:
+                    hub_cur.execute("""
+                        SELECT id_annee FROM annees
+                        WHERE etat IN ('En Cours', 'actif', 'ouverte')
+                        ORDER BY annee DESC LIMIT 1
+                    """)
+                    hub_row = hub_cur.fetchone()
+                    annee_id = hub_row[0] if hub_row else 1
 
                 for mod_id_str, is_active in modules_map.items():
                     mod_id = int(mod_id_str)
