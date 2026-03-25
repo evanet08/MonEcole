@@ -321,6 +321,7 @@
         <div class="eleve-tabs" style="display:flex;gap:0;margin-bottom:10px;border-bottom:2px solid #e2e8f0">
             <button class="eleve-tab active" id="tabInscSaisie" onclick="switchInscTab('saisie')"><i class="fas fa-keyboard"></i> Par Saisie</button>
             <button class="eleve-tab" id="tabInscImport" onclick="switchInscTab('import')"><i class="fas fa-file-upload"></i> Par Importation</button>
+            <button class="eleve-tab" id="tabInscModif" onclick="switchInscTab('modif')"><i class="fas fa-exchange-alt"></i> Modifier Une Inscription</button>
         </div>
         <!-- Sub-tab: Par Saisie -->
         <div id="inscPanelSaisie">
@@ -384,6 +385,23 @@
                     <i class="fas fa-cloud-upload-alt" style="font-size:2rem;margin-bottom:8px;display:block;opacity:.6"></i>
                     Glissez un fichier Excel ici ou cliquez pour sélectionner
                 </div>
+            </div>
+        </div>
+        <!-- Sub-tab: Modifier Une Inscription -->
+        <div id="inscPanelModif" style="display:none">
+            <div class="dash-section">
+                <div class="dash-section-title"><i class="fas fa-exchange-alt"></i> Modifier une Inscription</div>
+                <div class="dash-section-sub">Cochez les élèves à transférer, puis choisissez la classe de destination</div>
+                <div style="display:flex;gap:10px;align-items:center;margin:14px 0;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="transferSelectAll" onchange="toggleTransferSelectAll(this.checked)" style="accent-color:#6366f1;width:16px;height:16px"><label for="transferSelectAll" style="font-size:.7rem;font-weight:600;color:#64748b;cursor:pointer">Tout sélectionner</label></div>
+                    <div style="flex:1"></div>
+                    <span id="transferCount" style="font-size:.68rem;font-weight:700;color:#6366f1;background:#eef2ff;padding:4px 12px;border-radius:12px">0 sélectionné(s)</span>
+                    <select id="transferDestClasse" style="padding:6px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;font-weight:600;min-width:180px">
+                        <option value="">— Classe de destination —</option>
+                    </select>
+                    <button class="eleve-btn" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:.7rem;padding:7px 18px" onclick="executeTransfer()" id="btnTransfer" disabled><i class="fas fa-exchange-alt" style="margin-right:4px"></i>Transférer</button>
+                </div>
+                <div id="transferElevesList" style="max-height:450px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px"></div>
             </div>
         </div>
     </div>
@@ -2146,10 +2164,13 @@ function switchScolSection(section){
 
 /* ===== INSCRIPTION SUB-TABS ===== */
 function switchInscTab(tab){
-    document.getElementById('tabInscSaisie').classList.toggle('active',tab==='saisie');
-    document.getElementById('tabInscImport').classList.toggle('active',tab==='import');
-    document.getElementById('inscPanelSaisie').style.display=tab==='saisie'?'block':'none';
-    document.getElementById('inscPanelImport').style.display=tab==='import'?'block':'none';
+    ['saisie','import','modif'].forEach(function(t){
+        var btn=document.getElementById('tabInsc'+t.charAt(0).toUpperCase()+t.slice(1));
+        var panel=document.getElementById('inscPanel'+t.charAt(0).toUpperCase()+t.slice(1));
+        if(btn)btn.classList.toggle('active',t===tab);
+        if(panel)panel.style.display=t===tab?'block':'none';
+    });
+    if(tab==='modif'){renderTransferList();populateTransferDestClasses();}
 }
 
 /* ===== Legacy compatibility ===== */
@@ -2334,6 +2355,92 @@ function deleteEleveDoc(docId){
         if(d.success)loadEleveDossier();
         else alert(d.error||'Erreur');
     });
+}
+
+/* ===== MODIFIER UNE INSCRIPTION — TRANSFER ===== */
+function renderTransferList(){
+    var c=document.getElementById('transferElevesList');
+    if(!c)return;
+    if(!currentElevesList||!currentElevesList.length){
+        c.innerHTML='<div style="text-align:center;padding:30px;color:#94a3b8;font-size:.75rem"><i class="fas fa-users" style="font-size:1.2rem;display:block;margin-bottom:8px;opacity:.4"></i>Sélectionnez une classe puis chargez les élèves via l\'onglet "Par Saisie"</div>';
+        return;
+    }
+    var h='<table style="width:100%;border-collapse:collapse;font-size:.74rem"><thead><tr>';
+    h+='<th style="padding:8px 10px;text-align:center;background:#f8fafc;border-bottom:2px solid #e2e8f0;width:40px"><input type="checkbox" id="transferSelectAllHead" onchange="toggleTransferSelectAll(this.checked)" style="accent-color:#6366f1;width:15px;height:15px"></th>';
+    h+='<th style="padding:8px 10px;text-align:left;background:#f8fafc;border-bottom:2px solid #e2e8f0;font-size:.6rem;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;font-weight:700">Photo</th>';
+    h+='<th style="padding:8px 10px;text-align:left;background:#f8fafc;border-bottom:2px solid #e2e8f0;font-size:.6rem;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;font-weight:700">Nom</th>';
+    h+='<th style="padding:8px 10px;text-align:left;background:#f8fafc;border-bottom:2px solid #e2e8f0;font-size:.6rem;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;font-weight:700">Prénom</th>';
+    h+='<th style="padding:8px 10px;text-align:center;background:#f8fafc;border-bottom:2px solid #e2e8f0;font-size:.6rem;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;font-weight:700">Genre</th>';
+    h+='</tr></thead><tbody>';
+    currentElevesList.forEach(function(e,i){
+        var bg=i%2===0?'#fff':'#fafbfc';
+        var img=e.imageUrl?'<img src="'+e.imageUrl+'" style="width:28px;height:28px;border-radius:50%;object-fit:cover">':'<div style="width:28px;height:28px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center"><i class="fas fa-user" style="font-size:.6rem;color:#94a3b8"></i></div>';
+        var badge=e.genre==='M'?'<span style="background:#dbeafe;color:#2563eb;padding:1px 6px;border-radius:8px;font-size:.6rem;font-weight:600">M</span>':'<span style="background:#fce7f3;color:#db2777;padding:1px 6px;border-radius:8px;font-size:.6rem;font-weight:600">F</span>';
+        h+='<tr style="background:'+bg+'">';
+        h+='<td style="padding:6px 10px;text-align:center;border-bottom:1px solid #f1f5f9"><input type="checkbox" class="transfer-check" data-id="'+e.id_eleve+'" data-insc="'+(e.id_inscription||'')+'" onchange="updateTransferCount()" style="accent-color:#6366f1;width:15px;height:15px"></td>';
+        h+='<td style="padding:6px 10px;border-bottom:1px solid #f1f5f9">'+img+'</td>';
+        h+='<td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#1e293b">'+(e.nom||'')+' '+(e.postnom||'')+'</td>';
+        h+='<td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;color:#475569">'+(e.prenom||'')+'</td>';
+        h+='<td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;text-align:center">'+badge+'</td>';
+        h+='</tr>';
+    });
+    h+='</tbody></table>';
+    c.innerHTML=h;
+    updateTransferCount();
+}
+
+function toggleTransferSelectAll(checked){
+    document.querySelectorAll('.transfer-check').forEach(function(cb){cb.checked=checked;});
+    var ha=document.getElementById('transferSelectAllHead');
+    var sa=document.getElementById('transferSelectAll');
+    if(ha)ha.checked=checked;
+    if(sa)sa.checked=checked;
+    updateTransferCount();
+}
+
+function updateTransferCount(){
+    var checked=document.querySelectorAll('.transfer-check:checked');
+    var span=document.getElementById('transferCount');
+    var btn=document.getElementById('btnTransfer');
+    if(span)span.textContent=checked.length+' sélectionné(s)';
+    if(btn){btn.disabled=checked.length===0;btn.style.opacity=checked.length?'1':'.5';}
+}
+
+function populateTransferDestClasses(){
+    var sel=document.getElementById('transferDestClasse');
+    if(!sel)return;
+    var opts='<option value="">— Classe de destination —</option>';
+    var srcSel=document.getElementById('selectClasseEleve');
+    if(srcSel){
+        Array.from(srcSel.options).forEach(function(o){
+            if(o.value && o.value!==selectedClasseActiveId){
+                opts+='<option value="'+o.value+'">'+o.text+'</option>';
+            }
+        });
+    }
+    sel.innerHTML=opts;
+}
+
+function executeTransfer(){
+    var checked=document.querySelectorAll('.transfer-check:checked');
+    if(!checked.length){alert('Sélectionnez au moins un élève');return;}
+    var dest=document.getElementById('transferDestClasse').value;
+    if(!dest){alert('Choisissez une classe de destination');return;}
+    var destText=document.getElementById('transferDestClasse').selectedOptions[0].text;
+    if(!confirm('Transférer '+checked.length+' élève(s) vers "'+destText+'" ?'))return;
+    var ids=[];
+    checked.forEach(function(cb){ids.push({id_eleve:parseInt(cb.dataset.id),id_inscription:parseInt(cb.dataset.insc)});});
+    fetch('/api/dashboard/transfer-eleves/',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},
+        body:JSON.stringify({eleves:ids,dest_classe_id:parseInt(dest),source_classe_id:parseInt(selectedClasseActiveId)})
+    }).then(function(r){return r.json()}).then(function(d){
+        if(d.success){
+            showToast(d.transferred+' élève(s) transféré(s)','success');
+            loadElevesList();
+            setTimeout(function(){renderTransferList();},500);
+        }else{alert(d.error||'Erreur');}
+    }).catch(function(){alert('Erreur réseau');});
 }
 
 function onClasseFilterChange(){

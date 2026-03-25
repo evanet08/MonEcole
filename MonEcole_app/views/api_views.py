@@ -10012,6 +10012,39 @@ def dashboard_horaire(request):
 
 
 # ============================================================
+# TRANSFER ELEVES BETWEEN CLASSES
+# ============================================================
+@require_http_methods(["POST"])
+def dashboard_transfer_eleves(request):
+    """Transfer students from one class to another by updating their inscription."""
+    try:
+        data = json.loads(request.body)
+        eleves = data.get('eleves', [])
+        dest_classe_id = data.get('dest_classe_id')
+        if not eleves or not dest_classe_id:
+            return JsonResponse({'success': False, 'error': 'Paramètres manquants'}, status=400)
+
+        conn = _get_spoke_connection()
+        try:
+            transferred = 0
+            with conn.cursor() as cur:
+                for e in eleves:
+                    insc_id = e.get('id_inscription')
+                    if insc_id:
+                        cur.execute("UPDATE eleve_inscription SET id_classe_id=%s WHERE id_inscription=%s",
+                                    [dest_classe_id, insc_id])
+                        transferred += cur.rowcount
+                conn.commit()
+            return JsonResponse({'success': True, 'transferred': transferred})
+        finally:
+            conn.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ============================================================
 # DOSSIER ADMINISTRATIF — Document Types CRUD
 # ============================================================
 @require_http_methods(["GET", "POST", "DELETE"])

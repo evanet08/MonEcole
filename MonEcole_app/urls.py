@@ -129,6 +129,7 @@ urlpatterns = [
     path('api/repartition/provision-etab/', api_views.provision_repartitions_for_etab, name='provision_repartitions_for_etab'),
 
     # Dossier Administratif
+    path('api/dashboard/transfer-eleves/', api_views.dashboard_transfer_eleves, name='dashboard_transfer_eleves'),
     path('api/document-types/', api_views.document_types_api, name='document_types_api'),
     path('api/eleve-documents/', api_views.eleve_documents_api, name='eleve_documents_api'),
 ]
