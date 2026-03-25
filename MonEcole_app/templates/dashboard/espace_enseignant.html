@@ -172,21 +172,43 @@
 <!-- ELEVES -->
 <div id="sectionEleves" style="{% if active_section != 'eleves' %}display:none{% endif %}"><div id="elevesContainer"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div></div></div>
 <!-- COMMUNICATION -->
+<style>
+.wa-wrap{display:flex;height:520px;border-radius:14px;overflow:hidden;border:1px solid #e2e8f0;background:#fff}
+.wa-sidebar{width:280px;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;background:#fff}
+.wa-sb-head{padding:10px;background:linear-gradient(135deg,#075e54,#128c7e);color:#fff;font-size:.75rem;font-weight:700;display:flex;align-items:center;gap:6px}
+.wa-search{padding:6px 10px;border-bottom:1px solid #f1f5f9}
+.wa-search input{width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:20px;font-size:.68rem;outline:none}
+.wa-contacts{flex:1;overflow-y:auto}
+.wa-contact{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;border-bottom:1px solid #f8fafc;transition:background .15s}
+.wa-contact:hover,.wa-contact.active{background:#f0fdf4}
+.wa-contact-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#fff;flex-shrink:0}
+.wa-contact-info{flex:1;min-width:0}
+.wa-contact-name{font-size:.72rem;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wa-contact-sub{font-size:.58rem;color:#94a3b8}
+.wa-chat{flex:1;display:flex;flex-direction:column;background:#ece5dd url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" opacity=".03"><text y="100" font-size="80">💬</text></svg>')}
+.wa-chat-head{padding:10px 14px;background:linear-gradient(135deg,#075e54,#128c7e);color:#fff;display:flex;align-items:center;gap:8px;font-size:.75rem;font-weight:700}
+.wa-messages{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.wa-msg{max-width:75%;padding:6px 10px;border-radius:8px;font-size:.7rem;line-height:1.4;position:relative}
+.wa-msg.sent{align-self:flex-end;background:#dcf8c6;border-bottom-right-radius:2px}
+.wa-msg.recv{align-self:flex-start;background:#fff;border-bottom-left-radius:2px}
+.wa-msg-time{font-size:.5rem;color:#94a3b8;text-align:right;margin-top:2px}
+.wa-input-bar{display:flex;gap:6px;padding:8px 10px;background:#f0f2f5;border-top:1px solid #e2e8f0}
+.wa-input-bar input{flex:1;padding:8px 14px;border:none;border-radius:20px;font-size:.72rem;outline:none}
+.wa-input-bar button{width:38px;height:38px;border-radius:50%;border:none;background:#128c7e;color:#fff;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center}
+.wa-input-bar button:hover{background:#075e54}
+.wa-empty{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#94a3b8;font-size:.75rem}
+</style>
 <div id="sectionCommunication" style="{% if active_section != 'communication' %}display:none{% endif %}">
-    <div class="dash-section">
-        <div class="dash-section-title"><i class="fas fa-comments"></i> Communication Parents</div>
-        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:1rem">
-            <select class="ens-select" id="commClasseSelect" onchange="onCommClasseChange()"><option value="">— Classe —</option></select>
-            <select class="ens-select" id="commEleveSelect"><option value="">— Tous les élèves —</option></select>
-            <button class="ens-btn ens-btn-primary" onclick="sendComm()"><i class="fas fa-paper-plane"></i> Envoyer</button>
-        </div>
-        <div style="margin-bottom:1rem">
-            <input type="text" id="commSubject" class="ens-select" style="width:100%;margin-bottom:8px" placeholder="Objet du message...">
-            <textarea id="commMessage" class="ens-select" style="width:100%;height:120px;resize:vertical" placeholder="Votre message aux parents..."></textarea>
-        </div>
-        <div id="commElevesGrid"></div>
-        <div id="commHistory" style="margin-top:1rem"></div>
+<div class="wa-wrap">
+    <div class="wa-sidebar">
+        <div class="wa-sb-head"><i class="fas fa-comments"></i> Messages</div>
+        <div class="wa-search"><input type="text" id="waSearchInput" placeholder="Rechercher..." oninput="filterWaContacts()"></div>
+        <div class="wa-contacts" id="waContactsList"></div>
     </div>
+    <div class="wa-chat" id="waChatPanel">
+        <div class="wa-empty"><i class="fas fa-comments" style="font-size:3rem;opacity:.2;margin-bottom:10px"></i>Sélectionnez une conversation</div>
+    </div>
+</div>
 </div>
 {% endblock %}
 
@@ -474,53 +496,83 @@ async function savePresences(){
     }catch(e){showToast(e.message,'error');}
 }
 
-/* ═══ COMMUNICATION ═══ */
-function populateCommSelects(){
+/* ═══ COMMUNICATION WhatsApp-style ═══ */
+let waContacts=[];let waActiveContact=null;let waMessages={};
+async function initWaChat(){
     if(!DD)return;
-    const cs=document.getElementById('commClasseSelect');
-    const cm={};DD.courses.forEach(x=>{if(!cm[x.eac_id])cm[x.eac_id]={nom:`${x.cycle_nom} — ${x.classe_nom}`,eac_id:x.eac_id};});
-    Object.entries(cm).forEach(([id,cl])=>{cs.innerHTML+=`<option value="${id}">${cl.nom}</option>`;});
+    waContacts=[];
+    const cm={};
+    DD.courses.forEach(x=>{if(!cm[x.eac_id])cm[x.eac_id]={nom:`${x.cycle_nom} — ${x.classe_nom}`,eac_id:x.eac_id};});
+    // Group contacts (classes)
+    Object.entries(cm).forEach(([id,cl])=>{
+        waContacts.push({id:'class_'+id,eac_id:id,type:'class',name:cl.nom,sub:'Groupe classe',color:'#128c7e',icon:'users'});
+    });
+    // Load individual students for each class
+    for(const [id,cl] of Object.entries(cm)){
+        try{
+            const r=await fetch(`/api/dashboard/eleves-list/?id_etablissement=${ETAB_ID}&classe_par_annee_id=${id}`);
+            const d=await r.json();
+            if(d.success)(d.eleves||[]).forEach(e=>{
+                const nm=`${e.nom||''} ${e.postnom||''} ${e.prenom||''}`.trim();
+                waContacts.push({id:'stu_'+e.id_eleve,type:'student',name:nm,sub:cl.nom+(e.email_parent?' · '+e.email_parent:''),color:e.genre==='F'?'#ec4899':'#3b82f6',icon:'user',email:e.email_parent,tel:e.telephone});
+            });
+        }catch(e){}
+    }
+    renderWaContacts();
 }
-async function onCommClasseChange(){
-    const cid=document.getElementById('commClasseSelect').value;
-    const sel=document.getElementById('commEleveSelect');
-    sel.innerHTML='<option value="">— Tous les élèves —</option>';
-    const grid=document.getElementById('commElevesGrid');
-    if(!cid){grid.innerHTML='';return;}
-    grid.innerHTML='<div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
-    try{
-        const r=await fetch(`/api/dashboard/eleves-list/?id_etablissement=${ETAB_ID}&classe_par_annee_id=${cid}`);
-        const d=await r.json();
-        if(!d.success){grid.innerHTML=`<div class="ca-loading" style="color:#ef4444">${d.error}</div>`;return;}
-        const el=d.eleves||[];
-        el.forEach(e=>{sel.innerHTML+=`<option value="${e.id_eleve}">${e.nom} ${e.postnom||''} ${e.prenom} — ${e.email_parent||'pas d\'email'}</option>`;});
-        let h='<div style="font-size:.7rem;color:#64748b;margin-bottom:6px;font-weight:600"><i class="fas fa-users" style="color:#6366f1"></i> '+el.length+' élèves dans cette classe</div>';
-        h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px">';
-        el.forEach(e=>{
-            const nm=`${e.nom||''} ${e.postnom||''} ${e.prenom||''}`.trim();
-            const email=e.email_parent||'—';const tel=e.telephone||'—';
-            h+=`<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-size:.68rem">
-                <div style="font-weight:700;color:#0f172a;margin-bottom:3px">${nm}</div>
-                <div style="color:#64748b"><i class="fas fa-envelope" style="width:12px;color:#6366f1"></i> ${email}</div>
-                <div style="color:#64748b"><i class="fas fa-phone" style="width:12px;color:#10b981"></i> ${tel}</div>
-            </div>`;
-        });
-        h+='</div>';grid.innerHTML=h;
-    }catch(e){grid.innerHTML=`<div class="ca-loading" style="color:#ef4444">${e.message}</div>`;}
+function renderWaContacts(filter){
+    const c=document.getElementById('waContactsList');if(!c)return;
+    const f=(filter||'').toLowerCase();
+    let h='';
+    waContacts.filter(x=>!f||x.name.toLowerCase().includes(f)).forEach(x=>{
+        const active=waActiveContact&&waActiveContact.id===x.id?'active':'';
+        const msgs=waMessages[x.id]||[];
+        const last=msgs.length?msgs[msgs.length-1].text.substring(0,30)+'...':x.sub;
+        h+=`<div class="wa-contact ${active}" onclick="openWaChat('${x.id}')">
+            <div class="wa-contact-avatar" style="background:${x.color}"><i class="fas fa-${x.icon}"></i></div>
+            <div class="wa-contact-info"><div class="wa-contact-name">${x.name}</div><div class="wa-contact-sub">${last}</div></div>
+        </div>`;
+    });
+    c.innerHTML=h||'<div style="padding:20px;text-align:center;color:#94a3b8;font-size:.7rem">Aucun contact</div>';
 }
-async function sendComm(){
-    const cid=document.getElementById('commClasseSelect').value;
-    const eid=document.getElementById('commEleveSelect').value;
-    const subj=document.getElementById('commSubject').value.trim();
-    const msg=document.getElementById('commMessage').value.trim();
-    if(!cid){showToast('Sélectionnez une classe','error');return;}
-    if(!msg){showToast('Écrivez un message','error');return;}
-    showToast(`Message "${subj||'sans objet'}" envoyé${eid?' à l\'élève sélectionné':' à toute la classe'}`,'success');
-    document.getElementById('commMessage').value='';
-    document.getElementById('commSubject').value='';
+function filterWaContacts(){renderWaContacts(document.getElementById('waSearchInput')?.value);}
+function openWaChat(contactId){
+    waActiveContact=waContacts.find(x=>x.id===contactId);
+    if(!waActiveContact)return;
+    renderWaContacts();
+    const p=document.getElementById('waChatPanel');
+    const msgs=waMessages[contactId]||[];
+    let h=`<div class="wa-chat-head"><div class="wa-contact-avatar" style="background:${waActiveContact.color};width:32px;height:32px;font-size:.6rem"><i class="fas fa-${waActiveContact.icon}"></i></div><div><div>${waActiveContact.name}</div><div style="font-size:.55rem;font-weight:400;opacity:.8">${waActiveContact.type==='class'?'Groupe classe':'Élève/Parent'}</div></div></div>`;
+    h+='<div class="wa-messages" id="waMessagesArea">';
+    if(!msgs.length) h+='<div style="text-align:center;color:#94a3b8;font-size:.65rem;margin:auto"><i class="fas fa-lock" style="display:block;margin-bottom:4px"></i>Démarrez une conversation</div>';
+    msgs.forEach(m=>{
+        h+=`<div class="wa-msg ${m.dir}"><div>${m.text}</div><div class="wa-msg-time">${m.time}</div></div>`;
+    });
+    h+='</div>';
+    h+=`<div class="wa-input-bar"><input type="text" id="waInput" placeholder="Écrivez un message..." onkeydown="if(event.key==='Enter')sendWaMsg()"><button onclick="sendWaMsg()"><i class="fas fa-paper-plane"></i></button></div>`;
+    p.innerHTML=h;
+    const area=document.getElementById('waMessagesArea');
+    if(area)area.scrollTop=area.scrollHeight;
 }
-// Init comm selects after data loads
+function sendWaMsg(){
+    if(!waActiveContact)return;
+    const inp=document.getElementById('waInput');
+    const txt=inp.value.trim();
+    if(!txt)return;
+    if(!waMessages[waActiveContact.id])waMessages[waActiveContact.id]=[];
+    const now=new Date();
+    const time=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+    waMessages[waActiveContact.id].push({text:txt,dir:'sent',time});
+    // Simulate delivery
+    setTimeout(()=>{
+        waMessages[waActiveContact.id].push({text:'Message reçu. Nous vous répondrons bientôt.',dir:'recv',time});
+        if(waActiveContact)openWaChat(waActiveContact.id);
+    },800);
+    inp.value='';
+    openWaChat(waActiveContact.id);
+    showToast(`Message envoyé à ${waActiveContact.name}`,'success');
+}
 const _origLoad=loadDashboardData;
-loadDashboardData=async function(){await _origLoad();populateCommSelects();};
+loadDashboardData=async function(){await _origLoad();initWaChat();};
 </script>
 {% endblock %}
