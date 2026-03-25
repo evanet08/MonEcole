@@ -573,20 +573,47 @@ def espace_enseignant_view(request):
             try:
                 with connections['default'].cursor() as cur:
                     cur.execute("""
-                        SELECT id_personnel FROM personnel
+                        SELECT id_personnel, user_id FROM personnel
                         WHERE LOWER(email) = LOWER(%s) AND id_etablissement = %s
                         LIMIT 1
                     """, [request.user.email, etab_id])
                     row = cur.fetchone()
                     if row:
-                        # Auto-relink: mettre à jour le user_id pour les prochaines fois
-                        cur.execute(
-                            "UPDATE personnel SET user_id = %s WHERE id_personnel = %s",
-                            [request.user.id, row[0]]
-                        )
+                        target_pers_id = row[0]
+                        old_user_id = row[1]
+                        # Auto-relink: libérer user_id si un autre personnel l'utilise déjà
+                        try:
+                            # Vérifier si un AUTRE personnel a déjà ce user_id
+                            cur.execute(
+                                "SELECT id_personnel FROM personnel WHERE user_id = %s AND id_personnel != %s",
+                                [request.user.id, target_pers_id]
+                            )
+                            conflict = cur.fetchone()
+                            if conflict:
+                                # Créer un auth_user bidon pour le personnel en conflit
+                                import hashlib, time as _t
+                                dummy_username = f"dummy_{conflict[0]}_{int(_t.time())}"
+                                dummy_hash = hashlib.sha256(dummy_username.encode()).hexdigest()[:30]
+                                cur.execute("""
+                                    INSERT INTO auth_user (username, password, is_superuser, is_staff, is_active, date_joined, first_name, last_name, email)
+                                    VALUES (%s, %s, 0, 0, 1, NOW(), '', '', '')
+                                """, [dummy_username, f'!{dummy_hash}'])
+                                new_dummy_id = cur.lastrowid
+                                cur.execute(
+                                    "UPDATE personnel SET user_id = %s WHERE id_personnel = %s",
+                                    [new_dummy_id, conflict[0]]
+                                )
+                            # Maintenant mettre à jour le user_id du personnel cible
+                            cur.execute(
+                                "UPDATE personnel SET user_id = %s WHERE id_personnel = %s",
+                                [request.user.id, target_pers_id]
+                            )
+                        except Exception:
+                            import traceback
+                            traceback.print_exc()
                         # Refresh via ORM
                         pers = Personnel.objects.select_related('user').filter(
-                            id_personnel=row[0]
+                            id_personnel=target_pers_id
                         ).first()
             except Exception:
                 import traceback
@@ -762,12 +789,38 @@ def api_enseignant_dashboard(request):
                         # Remplir les champs manquants pour compatibilité
                         pers['first_name'] = pers.get('prenom') or ''
                         pers['last_name'] = pers.get('nom') or ''
-                        # Auto-relink user_id pour les prochaines fois
-                        cur.execute(
-                            "UPDATE personnel SET user_id = %s WHERE id_personnel = %s",
-                            [request.user.id, pers['id_personnel']]
-                        )
-                        conn.commit()
+                        # Auto-relink user_id (gérer conflit UNIQUE)
+                        try:
+                            target_pers_id = pers['id_personnel']
+                            # Libérer le user_id si un autre personnel l'utilise
+                            cur.execute(
+                                "SELECT id_personnel FROM personnel WHERE user_id = %s AND id_personnel != %s",
+                                [request.user.id, target_pers_id]
+                            )
+                            conflict = cur.fetchone()
+                            if conflict:
+                                import hashlib, time as _t
+                                dummy_username = f"dummy_{conflict['id_personnel']}_{int(_t.time())}"
+                                dummy_hash = hashlib.sha256(dummy_username.encode()).hexdigest()[:30]
+                                cur.execute("""
+                                    INSERT INTO auth_user (username, password, is_superuser, is_staff, is_active, date_joined, first_name, last_name, email)
+                                    VALUES (%s, %s, 0, 0, 1, NOW(), '', '', '')
+                                """, [dummy_username, f'!{dummy_hash}'])
+                                new_dummy_id = cur.lastrowid
+                                cur.execute(
+                                    "UPDATE personnel SET user_id = %s WHERE id_personnel = %s",
+                                    [new_dummy_id, conflict['id_personnel']]
+                                )
+                            cur.execute(
+                                "UPDATE personnel SET user_id = %s WHERE id_personnel = %s",
+                                [request.user.id, target_pers_id]
+                            )
+                            conn.commit()
+                        except Exception:
+                            import traceback
+                            traceback.print_exc()
+                            # Même en cas d'échec du relink, on utilise le personnel trouvé
+                            pass
 
             if not pers:
                 conn.close()
