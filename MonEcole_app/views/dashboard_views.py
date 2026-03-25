@@ -686,11 +686,21 @@ def espace_enseignant_view(request):
                     cursorclass=pymysql.cursors.DictCursor,
                 )
                 with hconn.cursor() as hcur:
-                    hcur.execute("SELECT id_instance, nom, parent_id FROM repartition_calendrier WHERE annee_id=%s ORDER BY ordre, id_instance", [annee_id])
+                    hcur.execute("""
+                        SELECT ri.id_instance, ri.nom, rt.nom AS type_nom
+                        FROM repartition_instances ri
+                        JOIN repartition_types rt ON rt.id_type = ri.type_id
+                        WHERE ri.annee_id = %s AND ri.is_active = 1
+                        ORDER BY ri.type_id, ri.ordre
+                    """, [annee_id])
                     all_reps = hcur.fetchall()
-                    parent_ids = set(r['id_instance'] for r in all_reps if any(x['parent_id']==r['id_instance'] for x in all_reps))
                     for r in all_reps:
-                        repartitions.append({'id_instance': r['id_instance'], 'nom': r['nom'], 'is_leaf': r['id_instance'] not in parent_ids})
+                        repartitions.append({
+                            'id_instance': r['id_instance'],
+                            'nom': r['nom'],
+                            'type_nom': r['type_nom'],
+                            'is_leaf': True,
+                        })
                 hconn.close()
     except Exception:
         import traceback; traceback.print_exc()
