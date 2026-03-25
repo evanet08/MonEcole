@@ -25,6 +25,8 @@ from MonEcole_app.models.annee import Annee
 def _load_user_modules(request, personnel):
     """
     Charge les modules accessibles pour le Personnel depuis user_module.
+    Auto-injecte le module Espace_Enseignant (id=5) si le personnel
+    a au moins un cours attribué dans attribution_cours.
     Stocke la liste en session.
     """
     try:
@@ -43,11 +45,13 @@ def _load_user_modules(request, personnel):
             ).select_related('module').order_by('module__id_module')
 
         modules = []
+        seen_ids = set()
         for um in user_modules_qs:
             if um.module:
                 mod_id = um.module.id_module
                 mod_info = MODULE_ID_TO_PAGE.get(mod_id)
                 if mod_info:
+                    seen_ids.add(mod_id)
                     modules.append({
                         'id': mod_id,
                         'name': um.module.module,
@@ -56,6 +60,34 @@ def _load_user_modules(request, personnel):
                         'icon': mod_info['icon'],
                         'label': mod_info['label'],
                     })
+
+        # ── Auto-inject Espace Enseignant (module 5) ──
+        # Un enseignant est défini par la présence d'attributions de cours,
+        # pas par une assignation manuelle du module.
+        ESPACE_ENSEIGNANT_ID = 5
+        if ESPACE_ENSEIGNANT_ID not in seen_ids and etab_id:
+            try:
+                from django.db import connections
+                with connections['default'].cursor() as cur:
+                    cur.execute("""
+                        SELECT COUNT(*) FROM attribution_cours
+                        WHERE id_personnel_id = %s AND id_etablissement = %s
+                    """, [personnel.id_personnel, etab_id])
+                    has_courses = cur.fetchone()[0] > 0
+                if has_courses:
+                    mod_info = MODULE_ID_TO_PAGE.get(ESPACE_ENSEIGNANT_ID)
+                    if mod_info:
+                        modules.append({
+                            'id': ESPACE_ENSEIGNANT_ID,
+                            'name': 'Espace_Enseignant',
+                            'page': mod_info['page'],
+                            'url': mod_info['url'],
+                            'icon': mod_info['icon'],
+                            'label': mod_info['label'],
+                        })
+            except Exception:
+                import traceback
+                traceback.print_exc()
 
         # Dédupliquer par page
         seen_pages = set()
