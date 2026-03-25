@@ -912,7 +912,7 @@ def api_enseignant_dashboard(request):
                     try:
                         hub_cur.execute("""
                             SELECT cl.nom AS classe_nom, cy.nom AS cycle_nom
-                            FROM etablissement_annee_classes eac
+                            FROM etablissements_annees_classes eac
                             JOIN classes cl ON cl.id_classe = eac.classe_id
                             LEFT JOIN cycles cy ON cy.id_cycle = cl.cycle_id
                             WHERE eac.id = %s
@@ -1082,13 +1082,22 @@ def api_enseignant_presences(request):
                     ORDER BY e.nom, e.prenom
                 """, [horaire['id_classe_id'], etab_id])
                 eleves = cur.fetchall()
-                cur.execute("SELECT id_horaire_presence, id_eleve_id, present_ou_absent, si_absent_motif, comportement_note FROM horaire_presence WHERE id_horaire_id=%s", [horaire_id])
+                cur.execute("SELECT id_horaire_presence, id_eleve_id, present_ou_absent, si_absent_motif FROM horaire_presence WHERE id_horaire_id=%s", [horaire_id])
                 presences = {}
                 for p in cur.fetchall():
                     presences[str(p['id_eleve_id'])] = {
                         'id': p['id_horaire_presence'], 'present': bool(p['present_ou_absent']),
-                        'motif': p['si_absent_motif'] or '', 'comportement': p.get('comportement_note') or 0,
+                        'motif': p['si_absent_motif'] or '', 'comportement': 0,
                     }
+                # Try to get comportement_note if column exists
+                try:
+                    cur.execute("SELECT id_eleve_id, comportement_note FROM horaire_presence WHERE id_horaire_id=%s AND comportement_note IS NOT NULL", [horaire_id])
+                    for p in cur.fetchall():
+                        k = str(p['id_eleve_id'])
+                        if k in presences:
+                            presences[k]['comportement'] = p['comportement_note'] or 0
+                except Exception:
+                    pass
             conn.close()
             return JsonResponse({
                 'success': True,

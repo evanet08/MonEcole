@@ -214,33 +214,29 @@ function renderCoursesFullList(courses){
     c.innerHTML=h;
 }
 
+function fmtDate(ds){const d=new Date(ds);return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
+
 /* ═══ SCHEDULE DASHBOARD (pretty grid) ═══ */
 function renderScheduleDash(schedule){
     const c=document.getElementById('scheduleContainer');
     if(!schedule.length){c.innerHTML='<div class="ca-loading"><i class="fas fa-calendar-alt"></i> Aucun horaire planifié.</div>';return;}
     c.innerHTML=schedule.slice(0,8).map(s=>{
-        const d=new Date(s.date);const day=d.getDate();const mon=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'][d.getMonth()];
-        return `<div class="sched-card"><div class="sched-date"><span class="sd-day">${day}</span>${mon}</div><div style="flex:1"><div class="sched-time"><i class="fas fa-clock"></i> ${s.debut} — ${s.fin}</div><div class="sched-cours">${s.cours_nom||'—'}</div></div><span class="sched-classe">${s.classe_nom||''}</span></div>`;
+        return `<div class="sched-card"><div class="sched-date"><span class="sd-day">${fmtDate(s.date)}</span></div><div style="flex:1"><div class="sched-time"><i class="fas fa-clock"></i> ${s.debut} — ${s.fin}</div><div class="sched-cours">${s.cours_nom||'—'}</div></div><span class="sched-classe">${s.classe_nom||''}</span></div>`;
     }).join('');
 }
 
-/* ═══ SCHEDULE FULL ═══ */
+/* ═══ SCHEDULE FULL (flat compact grid) ═══ */
 function renderScheduleFull(schedule){
     const c=document.getElementById('scheduleFullContainer');
     if(!schedule.length){c.innerHTML='<div class="dash-section"><div class="ca-loading"><i class="fas fa-calendar-alt"></i> Aucun horaire.</div></div>';return;}
-    // Group by week
-    const weeks={};schedule.forEach(s=>{const d=new Date(s.date);const w=getWeekLabel(d);if(!weeks[w])weeks[w]=[];weeks[w].push(s);});
-    let h='';
-    Object.entries(weeks).forEach(([wk,items])=>{
-        h+=`<div class="dash-section"><div class="dash-section-title"><i class="fas fa-calendar-week"></i> ${wk}</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">`;
-        items.forEach(s=>{const d=new Date(s.date);const day=d.getDate();const mon=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'][d.getMonth()];const jours=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-            h+=`<div class="sched-card" style="flex-direction:column;align-items:stretch;gap:6px"><div style="display:flex;align-items:center;gap:10px"><div class="sched-date" style="min-width:auto;padding:4px 10px"><span class="sd-day" style="font-size:.9rem">${day}</span>${mon}</div><div><div style="font-size:.62rem;color:#94a3b8;font-weight:600">${jours[d.getDay()]}</div><div class="sched-time"><i class="fas fa-clock"></i> ${s.debut} — ${s.fin}</div></div></div><div style="display:flex;justify-content:space-between;align-items:center"><div class="sched-cours" style="font-weight:600">${s.cours_nom||'—'}</div><span class="sched-classe">${s.classe_nom||''}</span></div></div>`;
-        });
-        h+='</div></div>';
+    const jours=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+    let h='<div class="dash-section"><div class="dash-section-title"><i class="fas fa-calendar-alt"></i> Tous les horaires</div><div class="dash-section-sub">'+schedule.length+' séances programmées</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">';
+    schedule.forEach(s=>{
+        const d=new Date(s.date);const jour=jours[d.getDay()];
+        h+=`<div class="sched-card" style="flex-direction:column;align-items:stretch;gap:4px;padding:8px 10px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.68rem;font-weight:700;color:#6366f1">${fmtDate(s.date)}</span><span style="font-size:.58rem;color:#94a3b8;font-weight:600">${jour}</span></div><div class="sched-time"><i class="fas fa-clock"></i> ${s.debut} — ${s.fin}</div><div style="display:flex;justify-content:space-between;align-items:center"><div class="sched-cours" style="font-weight:600">${s.cours_nom||'—'}</div><span class="sched-classe">${s.classe_nom||''}</span></div></div>`;
     });
-    c.innerHTML=h;
+    h+='</div></div>';c.innerHTML=h;
 }
-function getWeekLabel(d){const s=new Date(d);s.setDate(s.getDate()-s.getDay()+1);const e=new Date(s);e.setDate(s.getDate()+6);return `${s.getDate()}/${s.getMonth()+1} — ${e.getDate()}/${e.getMonth()+1}/${e.getFullYear()}`;}
 
 /* ═══ PRESENCES STATS ═══ */
 function renderPresencesStats(s){
@@ -355,7 +351,7 @@ async function saveNotes(){
 /* ═══ PRESENCES ═══ */
 function populatePresHoraire(schedule){
     const sel=document.getElementById('presHoraireSelect');
-    schedule.forEach(s=>{sel.innerHTML+=`<option value="${s.id}">${s.date} ${s.debut}—${s.fin} | ${s.cours_nom||'—'} (${s.classe_nom||''})</option>`;});
+    schedule.forEach(s=>{sel.innerHTML+=`<option value="${s.id}">${fmtDate(s.date)} ${s.debut}—${s.fin} | ${s.cours_nom||'—'} (${s.classe_nom||''})</option>`;});
 }
 async function loadPresences(){
     const hid=document.getElementById('presHoraireSelect').value;const c=document.getElementById('presContainer');
