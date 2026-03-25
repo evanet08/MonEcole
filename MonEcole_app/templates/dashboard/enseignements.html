@@ -3673,47 +3673,33 @@ function renderHoraireWeek(){
     });
     html+='</tr></thead><tbody>';
 
-    // Pre-compute rowspan skip map
-    const skipMap={};
-    timeSlots.forEach((ts,ri)=>{
-        skipMap[ri]={};
-        visibleDates.forEach((d,ci)=>{
-            const nextH=String(parseInt(ts.split(':')[0])+1).padStart(2,'0')+':00';
-            const starting=horaireAllSlots.filter(s=>s.date===d.date && s.debut>=ts && s.debut<nextH);
-            if(starting.length){
-                const s=starting[0];
-                const spanH=Math.max(1, Math.ceil((parseInt(s.fin.split(':')[0])*60+parseInt(s.fin.split(':')[1]||0) - parseInt(s.debut.split(':')[0])*60-parseInt(s.debut.split(':')[1]||0))/60));
-                for(let k=1;k<spanH && (ri+k)<timeSlots.length;k++){
-                    skipMap[ri+k][ci]=true;
-                }
-            }
-        });
-    });
-
     timeSlots.forEach(function(ts,ri){
         var nextH=String(parseInt(ts.split(':')[0])+1).padStart(2,'0')+':00';
         html+='<tr><td style="text-align:center;font-weight:600;background:#fafbfc;color:#475569;font-size:.65rem;vertical-align:top;padding:8px 4px">'+ts+'<br>&darr;<br>'+nextH+'</td>';
         visibleDates.forEach(function(d,ci){
-            if(skipMap[ri] && skipMap[ri][ci]) return;
             var wkBg=d.is_weekend?';background:#fffbeb':'';
-            var stSlots=horaireAllSlots.filter(function(s){return s.date===d.date && s.debut>=ts && s.debut<nextH;});
-            if(stSlots.length){
-                var s=stSlots[0];
+            // Check if a course STARTS in this hour
+            var starts=horaireAllSlots.filter(function(s){return s.date===d.date && s.debut>=ts && s.debut<nextH;});
+            // Check if a course is ONGOING (started before, ends after)
+            var ongoing=horaireAllSlots.filter(function(s){return s.date===d.date && s.debut<ts && s.fin>ts;});
+            if(starts.length){
+                var s=starts[0];
                 var dH=parseInt(s.fin.split(':')[0])-parseInt(s.debut.split(':')[0]);
                 var dM=parseInt(s.fin.split(':')[1]||0)-parseInt(s.debut.split(':')[1]||0);
-                var totalMin=dH*60+dM;
-                var spanH=Math.max(1, Math.ceil(totalMin/60));
                 var durLabel=dH>0?(dH+'h'+(dM>0?dM+'min':'')):(dM+'min');
                 var cNom=s.cours_nom||'Cours';
-                html+='<td rowspan="'+spanH+'" style="vertical-align:top;padding:4px'+wkBg+'">';
-                html+='<div style="background:linear-gradient(135deg,#e0e7ff,#c7d2fe);border-radius:8px;padding:8px 10px;border-left:4px solid #6366f1;cursor:pointer;position:relative;height:100%;display:flex;flex-direction:column;justify-content:center" data-sid="'+s.id+'" data-sdate="'+s.date+'" data-scid="'+s.cours_id+'" data-sdeb="'+s.debut+'" data-sfin="'+s.fin+'" onclick="openHoraireEdit(this.dataset.sid,this.dataset.sdate,this.dataset.scid,this.dataset.sdeb,this.dataset.sfin)" title="Cliquer pour modifier">';
+                html+='<td style="vertical-align:top;padding:4px'+wkBg+'">';
+                html+='<div style="background:linear-gradient(135deg,#e0e7ff,#c7d2fe);border-radius:8px;padding:8px 10px;border-left:4px solid #6366f1;cursor:pointer;position:relative" data-sid="'+s.id+'" data-sdate="'+s.date+'" data-scid="'+s.cours_id+'" data-sdeb="'+s.debut+'" data-sfin="'+s.fin+'" onclick="openHoraireEdit(this.dataset.sid,this.dataset.sdate,this.dataset.scid,this.dataset.sdeb,this.dataset.sfin)" title="Cliquer pour modifier">';
                 html+='<div style="font-weight:700;font-size:.75rem;color:#312e81">'+cNom+'</div>';
                 html+='<div style="font-size:.62rem;color:#6366f1;margin-top:2px"><i class="fas fa-clock" style="margin-right:3px"></i>'+s.debut+' - '+s.fin+' ('+durLabel+')</div>';
                 html+='<button data-delid="'+s.id+'" onclick="event.stopPropagation();deleteHoraireCreneau(this.dataset.delid)" style="position:absolute;top:4px;right:4px;background:rgba(239,68,68,.1);border:none;color:#ef4444;font-size:.6rem;cursor:pointer;padding:3px 5px;border-radius:4px" title="Supprimer"><i class="fas fa-times"></i></button>';
                 html+='</div></td>';
+            } else if(ongoing.length){
+                var o=ongoing[0];
+                html+='<td style="vertical-align:top;padding:0 4px'+wkBg+'"><div style="background:#e0e7ff;border-left:4px solid #6366f1;height:100%;min-height:30px;opacity:.4;border-radius:0"></div></td>';
             } else {
                 html+='<td style="vertical-align:top;padding:4px;cursor:pointer'+wkBg+'" data-mdate="'+d.date+'" data-mstart="'+ts+'" data-mend="'+nextH+'" onclick="openHoraireModal(this.dataset.mdate,this.dataset.mstart,this.dataset.mend)" title="Ajouter">';
-                html+='<div class="horaire-empty-cell" style="height:100%;min-height:30px;border:1px dashed #e2e8f0;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:.7rem;transition:all .2s"><i class="fas fa-plus"></i></div>';
+                html+='<div style="height:100%;min-height:30px;border:1px dashed #e2e8f0;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:.7rem;transition:all .2s"><i class="fas fa-plus"></i></div>';
                 html+='</td>';
             }
         });
