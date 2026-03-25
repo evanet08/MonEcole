@@ -256,7 +256,7 @@ function renderElevesList(courses){
 }
 async function loadClassEleves(eacId,cn){
     const d=document.getElementById('elevesListDetail');d.innerHTML='<div class="dash-section"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div></div>';
-    try{const r=await fetch('/api/dashboard/eleves-list/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({id_etablissement:ETAB_ID,id_classe:eacId})});const data=await r.json();
+    try{const r=await fetch(`/api/dashboard/eleves-list/?id_etablissement=${ETAB_ID}&classe_par_annee_id=${eacId}`);const data=await r.json();
     if(!data.success){d.innerHTML=`<div class="dash-section"><div class="ca-loading" style="color:#ef4444">${data.error}</div></div>`;return;}
     const el=data.eleves||[];if(!el.length){d.innerHTML='<div class="dash-section"><div class="ca-loading">Aucun élève.</div></div>';return;}
     let h=`<div class="dash-section"><div class="dash-section-title"><i class="fas fa-list"></i> ${cn} — ${el.length} élèves</div><div style="overflow-x:auto;max-height:500px;overflow-y:auto"><table class="eval-tbl"><thead><tr><th>#</th><th>Nom</th><th>Prénom</th><th>Genre</th><th>Date naiss.</th></tr></thead><tbody>`;
