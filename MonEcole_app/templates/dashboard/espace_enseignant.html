@@ -233,7 +233,7 @@ async function loadDashboardData(){
         renderStats(d);renderCoursesDash(d.courses);renderCoursesFullList(d.courses);
         renderScheduleDash(d.schedule);renderScheduleFull(d.schedule);
         renderPresencesStats(d.presences_stats);renderElevesList(d.courses);
-        populateEvalSelects(d.courses);populateNotesSelects(d.courses);populatePresHoraire(d.schedule);
+        populateEvalSelects(d.courses);populateNotesSelects(d.courses);populatePresHoraire(d.schedule);initWaChat();
     }catch(e){console.error(e);const eh=`<div class="ca-loading" style="color:#ef4444"><i class="fas fa-exclamation-triangle"></i> Erreur</div>`;['coursesContainer','scheduleContainer','presencesStatsContainer'].forEach(i=>{const el=document.getElementById(i);if(el)el.innerHTML=eh;});}
 }
 
@@ -576,7 +576,6 @@ function sendWaMsg(){
     openWaChat(waActiveContact.id);
     showToast(`Message envoyé à ${waActiveContact.name}`,'success');
 }
-const _origLoad=loadDashboardData;
-loadDashboardData=async function(){await _origLoad();initWaChat();};
+
 </script>
 {% endblock %}
