@@ -5,9 +5,17 @@
 {% block page_indicator %}Scolarité{% endblock %}
 
 {% block sidebar_items %}
-<a href="/dashboard/scolarite/" class="nav-item active" title="Élèves">
-    <i class="fas fa-user-graduate" style="color:#7c3aed"></i>
-    <span class="text-center">Élèves</span>
+<a href="#" class="nav-item active" title="Accueil" onclick="event.preventDefault();switchScolSection('accueil')">
+    <i class="fas fa-chart-pie" style="color:#6366f1"></i>
+    <span class="text-center">Accueil</span>
+</a>
+<a href="#" class="nav-item" title="Inscription" onclick="event.preventDefault();switchScolSection('inscription')">
+    <i class="fas fa-user-plus" style="color:#059669"></i>
+    <span class="text-center">Inscription</span>
+</a>
+<a href="#" class="nav-item" title="Dossier Administratif" onclick="event.preventDefault();switchScolSection('dossier')">
+    <i class="fas fa-folder-open" style="color:#d97706"></i>
+    <span class="text-center">Dossier</span>
 </a>
 {% endblock %}
 
@@ -276,8 +284,8 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="etab-section {% if active_section == 'eleves' %}active-section{% endif %}" id="sec-eleves">
-    <!-- Stat Cards Scolarité -->
+<div class="etab-section active-section" id="sec-eleves">
+    <!-- Stat Cards (shared across all sections) -->
     <div class="stat-grid">
         <div class="stat-card grad-purple"><div class="stat-icon"><i class="fas fa-users"></i></div><div><div class="stat-label">Élèves inscrits</div><div class="stat-value">{{ stats.n_eleves }}</div></div></div>
         <div class="stat-card grad-teal"><div class="stat-icon"><i class="fas fa-chalkboard"></i></div><div><div class="stat-label">Classes</div><div class="stat-value">{{ stats.n_classes }}</div></div></div>
@@ -285,99 +293,150 @@
         <div class="stat-card grad-rose"><div class="stat-icon"><i class="fas fa-venus"></i></div><div><div class="stat-label">Filles</div><div class="stat-value">{{ stats.n_filles }}</div></div></div>
     </div>
 
-    <!-- Classe selector -->
+    <!-- Classe selector (shared) -->
     <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:10px">
         <label style="font-size:.72rem;color:#64748b;margin:0;font-weight:600"><i class="fas fa-chalkboard" style="margin-right:4px;color:#6366f1"></i>Classe:</label>
         <select id="selectClasseEleve" style="padding:4px 10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#1e293b;font-size:.72rem;font-weight:600;cursor:pointer;min-width:140px" onchange="onClasseFilterChange()">
             <option value="">— Choisir une classe —</option>
         </select>
     </div>
-    <!-- Selected class info -->
     <div id="selectedClasseInfo" style="display:none;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:8px 14px;margin-bottom:8px;font-size:.72rem;color:#4338ca;font-weight:600;align-items:center;gap:8px">
         <i class="fas fa-chalkboard"></i> Classe : <span id="selectedClasseLabel">—</span>
     </div>
-    <!-- TABS: Statistiques / Gestion -->
-    <div class="eleve-tabs" style="display:flex;gap:0;margin-bottom:10px;border-bottom:2px solid #e2e8f0">
-        <button class="eleve-tab active" id="tabEleveStat" onclick="switchEleveTab('stat')">
-            <i class="fas fa-chart-pie"></i> Statistiques
-        </button>
-        <button class="eleve-tab" id="tabEleveGestion" onclick="switchEleveTab('gestion')">
-            <i class="fas fa-th-list"></i> Gestion
-        </button>
-    </div>
-    <!-- ======= TAB 1: STATISTIQUES ======= -->
-    <div id="elevePanelStat">
-        <!-- 1. Effectifs par Classe (full width, first) -->
+
+    <!-- ==================== SECTION 1: ACCUEIL (Stats) ==================== -->
+    <div id="scolAccueil">
         <div class="dash-section"><div class="dash-section-title"><i class="fas fa-users"></i> Effectifs par Classe</div><div class="dash-section-sub">Garçons / Filles</div><div id="classeTableEleves"></div></div>
-        <!-- 2. Genre + Âge + Combiné (3 columns to save space) -->
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
             <div class="dash-section" style="margin-bottom:0"><div class="dash-section-title" style="font-size:.7rem"><i class="fas fa-venus-mars"></i> Par Genre</div><div class="gender-donut-wrap" id="genderChartEleves"></div></div>
             <div class="dash-section" style="margin-bottom:0"><div class="dash-section-title" style="font-size:.7rem"><i class="fas fa-birthday-cake"></i> Par Âge</div><div id="ageChart"></div></div>
             <div class="dash-section" style="margin-bottom:0"><div class="dash-section-title" style="font-size:.7rem"><i class="fas fa-chart-bar"></i> Âge × Genre</div><div id="ageGenderChart"></div></div>
         </div>
-        <!-- 3. Par Campus -->
         <div class="dash-section"><div class="dash-section-title"><i class="fas fa-building"></i> Par Campus</div><div id="campusChartEleves"></div></div>
     </div>
-    <!-- ======= TAB 2: GESTION ======= -->
-    <div id="elevePanelGestion" style="display:none">
-        <!-- Actions -->
-        <div class="eleve-actions">
-            <button class="eleve-btn eleve-btn-add" id="btnAddEleve" onclick="toggleAddEleveForm()" disabled style="opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-user-plus"></i> Ajouter</button>
-            <button class="eleve-btn eleve-btn-download" id="btnDownloadTemplate" onclick="downloadTemplate()" disabled style="opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-file-download"></i> Modèle Excel</button>
-            <button class="eleve-btn eleve-btn-import" id="btnImportEleves" onclick="document.getElementById('importEleveFile').click()" disabled style="opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-file-upload"></i> Importer</button>
-            <input type="file" id="importEleveFile" accept=".xlsx,.xls,.csv" onchange="importEleves(this)" style="display:none">
+
+    <!-- ==================== SECTION 2: INSCRIPTION ==================== -->
+    <div id="scolInscription" style="display:none">
+        <!-- Sub-tabs -->
+        <div class="eleve-tabs" style="display:flex;gap:0;margin-bottom:10px;border-bottom:2px solid #e2e8f0">
+            <button class="eleve-tab active" id="tabInscSaisie" onclick="switchInscTab('saisie')"><i class="fas fa-keyboard"></i> Par Saisie</button>
+            <button class="eleve-tab" id="tabInscImport" onclick="switchInscTab('import')"><i class="fas fa-file-upload"></i> Par Importation</button>
         </div>
-        <!-- Add Form (hidden) -->
-        <div id="addEleveForm" class="eleve-form" style="display:none">
-            <div style="font-size:.75rem;font-weight:700;color:#1e293b;margin-bottom:8px"><i class="fas fa-user-plus" style="color:#059669;margin-right:4px"></i> Nouvel Élève — <span id="addEleveClasseLabel" style="color:#4338ca"></span></div>
-            <div class="eleve-form-grid">
-                <div><label>N° Série</label><input id="eleveNumSerie" placeholder="N° série"></div>
-                <div><label>Nom *</label><input id="eleveNom" placeholder="Nom"></div>
-                <div><label>Postnom</label><input id="elevePostnom" placeholder="Postnom"></div>
-                <div><label>Prénom *</label><input id="elevePrenom" placeholder="Prénom"></div>
-                <div><label>Date Naissance *</label><input id="eleveDN" type="text" placeholder="jj/mm/aaaa" maxlength="10"></div>
-                <div><label>Genre *</label><select id="eleveGenre"><option value="">--</option><option value="M">Masculin</option><option value="F">Féminin</option></select></div>
-                <div><label>Nom Père</label><input id="elevePereNom" placeholder="Nom père"></div>
-                <div><label>Prénom Père</label><input id="elevePerePrenom" placeholder="Prénom père"></div>
-                <div><label>Nom Mère</label><input id="eleveMereNom" placeholder="Nom mère"></div>
-                <div><label>Prénom Mère</label><input id="eleveMerePrenom" placeholder="Prénom mère"></div>
-                <div><label>Email Parent</label><input id="eleveParentEmail" type="email" placeholder="email@..."></div>
-                <div><label>Téléphone</label><input id="eleveTelephone" placeholder="+243..."></div>
+        <!-- Sub-tab: Par Saisie -->
+        <div id="inscPanelSaisie">
+            <div class="eleve-actions">
+                <button class="eleve-btn eleve-btn-add" id="btnAddEleve" onclick="toggleAddEleveForm()" disabled style="opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-user-plus"></i> Ajouter</button>
             </div>
-            <div class="eleve-form-actions">
-                <button class="eleve-btn" style="background:#94a3b8;color:#fff" onclick="toggleAddEleveForm()"><i class="fas fa-times"></i> Annuler</button>
-                <button class="eleve-btn eleve-btn-add" onclick="saveEleve()"><i class="fas fa-save"></i> Enregistrer</button>
-            </div>
-        </div>
-        <!-- Student List / Grid with dynamic columns -->
-        <div id="elevesGridSection" class="dash-section" style="margin-bottom:.8rem">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
-                <div class="dash-section-title" style="margin-bottom:0"><i class="fas fa-list"></i> Liste des Élèves <span id="gridClasseLabel" style="color:#4338ca"></span> <span id="gridElevesCount" style="font-weight:400;color:#64748b;font-size:.7rem">(0)</span></div>
-                <div style="display:flex;gap:4px;align-items:center">
-                    <!-- Column Selector -->
-                    <div style="position:relative">
-                        <button class="eleve-btn" style="background:linear-gradient(135deg,#6366f1,#a78bfa);color:#fff;font-size:.65rem" onclick="toggleColumnSelector()" id="btnColSelector">
-                            <i class="fas fa-columns"></i> Colonnes
-                        </button>
-                        <div id="columnSelectorDropdown" style="display:none;position:absolute;right:0;top:100%;z-index:100;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.15);padding:10px;min-width:240px;max-height:400px;overflow-y:auto">
-                            <div style="font-size:.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #f1f5f9">
-                                <i class="fas fa-eye" style="margin-right:3px"></i> Colonnes Visibles
-                            </div>
-                            <div id="columnCheckboxes"></div>
-                            <div style="margin-top:6px;padding-top:6px;border-top:1px solid #f1f5f9;display:flex;gap:4px">
-                                <button style="flex:1;padding:4px;border:none;border-radius:5px;background:#eef2ff;color:#4338ca;font-size:.62rem;font-weight:600;cursor:pointer" onclick="selectAllColumns(true)">Tout cocher</button>
-                                <button style="flex:1;padding:4px;border:none;border-radius:5px;background:#f1f5f9;color:#64748b;font-size:.62rem;font-weight:600;cursor:pointer" onclick="selectAllColumns(false)">Tout décocher</button>
-                            </div>
-                        </div>
-                    </div>
-                    <button class="eleve-btn" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;font-size:.65rem" onclick="loadElevesList()" title="Rafraîchir">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
+            <div id="addEleveForm" class="eleve-form" style="display:none">
+                <div style="font-size:.75rem;font-weight:700;color:#1e293b;margin-bottom:8px"><i class="fas fa-user-plus" style="color:#059669;margin-right:4px"></i> Nouvel Élève — <span id="addEleveClasseLabel" style="color:#4338ca"></span></div>
+                <div class="eleve-form-grid">
+                    <div><label>N° Série</label><input id="eleveNumSerie" placeholder="N° série"></div>
+                    <div><label>Nom *</label><input id="eleveNom" placeholder="Nom"></div>
+                    <div><label>Postnom</label><input id="elevePostnom" placeholder="Postnom"></div>
+                    <div><label>Prénom *</label><input id="elevePrenom" placeholder="Prénom"></div>
+                    <div><label>Date Naissance *</label><input id="eleveDN" type="text" placeholder="jj/mm/aaaa" maxlength="10"></div>
+                    <div><label>Genre *</label><select id="eleveGenre"><option value="">--</option><option value="M">Masculin</option><option value="F">Féminin</option></select></div>
+                    <div><label>Nom Père</label><input id="elevePereNom" placeholder="Nom père"></div>
+                    <div><label>Prénom Père</label><input id="elevePerePrenom" placeholder="Prénom père"></div>
+                    <div><label>Nom Mère</label><input id="eleveMereNom" placeholder="Nom mère"></div>
+                    <div><label>Prénom Mère</label><input id="eleveMerePrenom" placeholder="Prénom mère"></div>
+                    <div><label>Email Parent</label><input id="eleveParentEmail" type="email" placeholder="email@..."></div>
+                    <div><label>Téléphone</label><input id="eleveTelephone" placeholder="+243..."></div>
+                </div>
+                <div class="eleve-form-actions">
+                    <button class="eleve-btn" style="background:#94a3b8;color:#fff" onclick="toggleAddEleveForm()"><i class="fas fa-times"></i> Annuler</button>
+                    <button class="eleve-btn eleve-btn-add" onclick="saveEleve()"><i class="fas fa-save"></i> Enregistrer</button>
                 </div>
             </div>
-            <div id="elevesGridContainer" style="overflow-x:auto;max-height:500px;overflow-y:auto;border-radius:8px;border:1px solid #e2e8f0"></div>
-            <!-- Hidden photo upload input -->
-            <input type="file" id="photoUploadInput" accept="image/*" style="display:none" onchange="uploadStudentPhoto(this)">
+            <div id="elevesGridSection" class="dash-section" style="margin-bottom:.8rem">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+                    <div class="dash-section-title" style="margin-bottom:0"><i class="fas fa-list"></i> Liste des Élèves <span id="gridClasseLabel" style="color:#4338ca"></span> <span id="gridElevesCount" style="font-weight:400;color:#64748b;font-size:.7rem">(0)</span></div>
+                    <div style="display:flex;gap:4px;align-items:center">
+                        <div style="position:relative">
+                            <button class="eleve-btn" style="background:linear-gradient(135deg,#6366f1,#a78bfa);color:#fff;font-size:.65rem" onclick="toggleColumnSelector()" id="btnColSelector"><i class="fas fa-columns"></i> Colonnes</button>
+                            <div id="columnSelectorDropdown" style="display:none;position:absolute;right:0;top:100%;z-index:100;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.15);padding:10px;min-width:240px;max-height:400px;overflow-y:auto">
+                                <div style="font-size:.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #f1f5f9"><i class="fas fa-eye" style="margin-right:3px"></i> Colonnes Visibles</div>
+                                <div id="columnCheckboxes"></div>
+                                <div style="margin-top:6px;padding-top:6px;border-top:1px solid #f1f5f9;display:flex;gap:4px">
+                                    <button style="flex:1;padding:4px;border:none;border-radius:5px;background:#eef2ff;color:#4338ca;font-size:.62rem;font-weight:600;cursor:pointer" onclick="selectAllColumns(true)">Tout cocher</button>
+                                    <button style="flex:1;padding:4px;border:none;border-radius:5px;background:#f1f5f9;color:#64748b;font-size:.62rem;font-weight:600;cursor:pointer" onclick="selectAllColumns(false)">Tout décocher</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="eleve-btn" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;font-size:.65rem" onclick="loadElevesList()" title="Rafraîchir"><i class="fas fa-sync-alt"></i></button>
+                    </div>
+                </div>
+                <div id="elevesGridContainer" style="overflow-x:auto;max-height:500px;overflow-y:auto;border-radius:8px;border:1px solid #e2e8f0"></div>
+                <input type="file" id="photoUploadInput" accept="image/*" style="display:none" onchange="uploadStudentPhoto(this)">
+            </div>
+        </div>
+        <!-- Sub-tab: Par Importation -->
+        <div id="inscPanelImport" style="display:none">
+            <div class="dash-section">
+                <div class="dash-section-title"><i class="fas fa-file-excel"></i> Importation par fichier Excel</div>
+                <div class="dash-section-sub">Téléchargez le modèle, remplissez-le et importez-le</div>
+                <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+                    <button class="eleve-btn eleve-btn-download" id="btnDownloadTemplate" onclick="downloadTemplate()" disabled style="opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-file-download"></i> Télécharger Modèle</button>
+                    <button class="eleve-btn eleve-btn-import" id="btnImportEleves" onclick="document.getElementById('importEleveFile').click()" disabled style="opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-file-upload"></i> Importer Fichier</button>
+                    <input type="file" id="importEleveFile" accept=".xlsx,.xls,.csv" onchange="importEleves(this)" style="display:none">
+                </div>
+                <div class="eleve-import-zone" style="margin-top:16px" onclick="document.getElementById('importEleveFile').click()">
+                    <i class="fas fa-cloud-upload-alt" style="font-size:2rem;margin-bottom:8px;display:block;opacity:.6"></i>
+                    Glissez un fichier Excel ici ou cliquez pour sélectionner
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SECTION 3: DOSSIER ADMINISTRATIF ==================== -->
+    <div id="scolDossier" style="display:none">
+        <!-- Document Types Management -->
+        <div class="dash-section">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <div>
+                    <div class="dash-section-title" style="margin-bottom:2px"><i class="fas fa-clipboard-list"></i> Types de Documents</div>
+                    <div class="dash-section-sub" style="margin-bottom:0">Configurez les documents attendus pour chaque élève</div>
+                </div>
+                <button class="eleve-btn eleve-btn-add" onclick="toggleDocTypeForm()" style="font-size:.7rem"><i class="fas fa-plus"></i> Nouveau Type</button>
+            </div>
+            <!-- Add doc type form (hidden) -->
+            <div id="docTypeForm" style="display:none;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:14px;margin-bottom:12px">
+                <div style="display:grid;grid-template-columns:2fr 3fr auto auto;gap:10px;align-items:end">
+                    <div><label style="font-size:.6rem;color:#64748b;font-weight:600;display:block;margin-bottom:2px">Nom du document *</label><input id="docTypeName" placeholder="Ex: Acte de naissance" style="width:100%;padding:6px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:.72rem"></div>
+                    <div><label style="font-size:.6rem;color:#64748b;font-weight:600;display:block;margin-bottom:2px">Description</label><input id="docTypeDesc" placeholder="Description optionnelle" style="width:100%;padding:6px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:.72rem"></div>
+                    <div style="display:flex;align-items:center;gap:6px;padding-bottom:4px"><input type="checkbox" id="docTypeOblig" checked style="accent-color:#059669;width:16px;height:16px"><label for="docTypeOblig" style="font-size:.68rem;font-weight:600;color:#334155;cursor:pointer">Obligatoire</label></div>
+                    <div style="display:flex;gap:4px">
+                        <button class="eleve-btn eleve-btn-add" onclick="saveDocType()" style="font-size:.65rem;padding:6px 14px"><i class="fas fa-save"></i> Enregistrer</button>
+                        <button class="eleve-btn" style="background:#94a3b8;color:#fff;font-size:.65rem;padding:6px 10px" onclick="toggleDocTypeForm()"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+            </div>
+            <!-- Doc types list -->
+            <div id="docTypesList"></div>
+        </div>
+
+        <!-- Per-student document upload -->
+        <div class="dash-section">
+            <div class="dash-section-title"><i class="fas fa-folder-open"></i> Documents des Élèves</div>
+            <div class="dash-section-sub">Sélectionnez un élève pour gérer ses documents</div>
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+                <select id="dossierEleveSelect" style="flex:1;min-width:220px;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.74rem;font-weight:600;color:#1e293b;background:#fff;cursor:pointer" onchange="loadEleveDossier()">
+                    <option value="">— Sélectionnez un élève —</option>
+                </select>
+                <div id="dossierProgress" style="display:none;font-size:.68rem;font-weight:700;color:#059669;background:#ecfdf5;padding:5px 14px;border-radius:20px;border:1px solid #86efac"><i class="fas fa-check-circle" style="margin-right:4px"></i><span id="dossierProgressText">0/0</span></div>
+            </div>
+            <div id="eleveDossierContent">
+                <div style="text-align:center;padding:40px 20px">
+                    <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#fef3c7,#fde68a);margin:0 auto 12px;display:flex;align-items:center;justify-content:center"><i class="fas fa-folder-open" style="font-size:1.5rem;color:#d97706"></i></div>
+                    <div style="font-weight:700;font-size:.82rem;color:#1e293b;margin-bottom:4px">Sélectionnez un élève</div>
+                    <div style="font-size:.7rem;color:#64748b">pour visualiser et gérer ses documents administratifs</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}udentPhoto(this)">
         </div>
     </div>
 </div>
@@ -2077,24 +2136,209 @@ async function deleteCoursFromCatalog(id, nom) {
 const ELEVE_ETAB_ID='{{ etab.id_etablissement }}';
 let selectedClasseActiveId=null, selectedClasseLabel='';
 
+/* ===== SIDEBAR SECTION NAVIGATION ===== */
+function switchScolSection(section){
+    var sections=['scolAccueil','scolInscription','scolDossier'];
+    var links=document.querySelectorAll('.nav-item');
+    sections.forEach(function(id,i){
+        var el=document.getElementById(id);
+        if(el) el.style.display=(id==='scol'+section.charAt(0).toUpperCase()+section.slice(1))?'block':'none';
+        if(links[i]) links[i].classList.toggle('active',i===['accueil','inscription','dossier'].indexOf(section));
+    });
+    if(section==='dossier'){loadDocTypes();populateDossierEleves();}
+    if(section==='inscription'&&selectedClasseActiveId&&currentElevesList.length===0)loadElevesList();
+}
+
+/* ===== INSCRIPTION SUB-TABS ===== */
+function switchInscTab(tab){
+    document.getElementById('tabInscSaisie').classList.toggle('active',tab==='saisie');
+    document.getElementById('tabInscImport').classList.toggle('active',tab==='import');
+    document.getElementById('inscPanelSaisie').style.display=tab==='saisie'?'block':'none';
+    document.getElementById('inscPanelImport').style.display=tab==='import'?'block':'none';
+}
+
+/* ===== Legacy compatibility ===== */
 function switchEleveTab(tab){
-    const tabStat=document.getElementById('tabEleveStat');
-    const tabGestion=document.getElementById('tabEleveGestion');
-    const panelStat=document.getElementById('elevePanelStat');
-    const panelGestion=document.getElementById('elevePanelGestion');
-    if(tab==='stat'){
-        tabStat.classList.add('active');
-        tabGestion.classList.remove('active');
-        panelStat.style.display='block';
-        panelGestion.style.display='none';
-    }else{
-        tabStat.classList.remove('active');
-        tabGestion.classList.add('active');
-        panelStat.style.display='none';
-        panelGestion.style.display='block';
-        // Load grid if a class is selected
-        if(selectedClasseActiveId && currentElevesList.length===0) loadElevesList();
+    if(tab==='stat')switchScolSection('accueil');
+    else switchScolSection('inscription');
+}
+
+/* ===== DOSSIER ADMINISTRATIF ===== */
+var docTypesList=[];
+
+function toggleDocTypeForm(){
+    var f=document.getElementById('docTypeForm');
+    f.style.display=f.style.display==='none'?'block':'none';
+    if(f.style.display==='block')document.getElementById('docTypeName').focus();
+}
+
+function saveDocType(){
+    var nom=document.getElementById('docTypeName').value.trim();
+    if(!nom){alert('Nom requis');return;}
+    var desc=document.getElementById('docTypeDesc').value.trim();
+    var oblig=document.getElementById('docTypeOblig').checked?1:0;
+    fetch('/api/document-types/',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},
+        body:JSON.stringify({nom:nom,description:desc,isObligatoire:oblig,id_etablissement:ETAB_ID})
+    }).then(function(r){return r.json()}).then(function(d){
+        if(d.success){
+            document.getElementById('docTypeName').value='';
+            document.getElementById('docTypeDesc').value='';
+            toggleDocTypeForm();
+            loadDocTypes();
+        }else{alert(d.error||'Erreur');}
+    }).catch(function(){alert('Erreur réseau');});
+}
+
+function loadDocTypes(){
+    fetch('/api/document-types/?id_etablissement='+ETAB_ID)
+    .then(function(r){return r.json()}).then(function(d){
+        if(d.success){
+            docTypesList=d.types||[];
+            renderDocTypes();
+        }
+    });
+}
+
+function renderDocTypes(){
+    var c=document.getElementById('docTypesList');
+    if(!c)return;
+    if(!docTypesList.length){
+        c.innerHTML='<div style="text-align:center;padding:20px;color:#94a3b8;font-size:.75rem"><i class="fas fa-clipboard-list" style="font-size:1.2rem;display:block;margin-bottom:6px;opacity:.4"></i>Aucun type de document configuré</div>';
+        return;
     }
+    var h='<table style="width:100%;border-collapse:separate;border-spacing:0 4px;font-size:.74rem"><thead><tr>';
+    h+='<th style="text-align:left;padding:6px 10px;font-size:.58rem;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;font-weight:700">Document</th>';
+    h+='<th style="text-align:left;padding:6px 10px;font-size:.58rem;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;font-weight:700">Description</th>';
+    h+='<th style="text-align:center;padding:6px 10px;font-size:.58rem;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;font-weight:700">Obligatoire</th>';
+    h+='<th style="text-align:center;padding:6px 10px;font-size:.58rem;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;font-weight:700">Actions</th>';
+    h+='</tr></thead><tbody>';
+    docTypesList.forEach(function(t){
+        var bg=t.isObligatoire?'#fef2f2':'#f8fafc';
+        var badge=t.isObligatoire?'<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:12px;font-size:.6rem;font-weight:700"><i class="fas fa-asterisk" style="font-size:.45rem;margin-right:2px"></i>Oui</span>':'<span style="background:#f1f5f9;color:#94a3b8;padding:2px 8px;border-radius:12px;font-size:.6rem;font-weight:600">Non</span>';
+        h+='<tr><td style="padding:8px 10px;background:'+bg+';border-radius:8px 0 0 8px;font-weight:600;color:#1e293b">'+t.nom+'</td>';
+        h+='<td style="padding:8px 10px;background:'+bg+';color:#64748b;font-size:.7rem">'+(t.description||'—')+'</td>';
+        h+='<td style="padding:8px 10px;background:'+bg+';text-align:center">'+badge+'</td>';
+        h+='<td style="padding:8px 10px;background:'+bg+';border-radius:0 8px 8px 0;text-align:center">';
+        h+='<button onclick="deleteDocType('+t.id+')" style="background:rgba(239,68,68,.08);border:none;color:#ef4444;padding:4px 8px;border-radius:6px;font-size:.6rem;cursor:pointer;font-weight:600" title="Supprimer"><i class="fas fa-trash"></i></button>';
+        h+='</td></tr>';
+    });
+    h+='</tbody></table>';
+    c.innerHTML=h;
+}
+
+function deleteDocType(id){
+    if(!confirm('Supprimer ce type de document ?'))return;
+    fetch('/api/document-types/',{
+        method:'DELETE',
+        headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},
+        body:JSON.stringify({id:id})
+    }).then(function(r){return r.json()}).then(function(d){
+        if(d.success)loadDocTypes();
+        else alert(d.error||'Erreur');
+    });
+}
+
+function populateDossierEleves(){
+    var sel=document.getElementById('dossierEleveSelect');
+    if(!sel)return;
+    var opts='<option value="">— Sélectionnez un élève —</option>';
+    if(currentElevesList&&currentElevesList.length){
+        currentElevesList.forEach(function(e){
+            opts+='<option value="'+e.id_eleve+'">'+(e.nom||'')+' '+(e.postnom||'')+' '+(e.prenom||'')+'</option>';
+        });
+    }
+    sel.innerHTML=opts;
+}
+
+function loadEleveDossier(){
+    var sel=document.getElementById('dossierEleveSelect');
+    var eleveId=sel?sel.value:'';
+    var container=document.getElementById('eleveDossierContent');
+    if(!eleveId||!container){
+        if(container)container.innerHTML='<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.75rem"><i class="fas fa-folder-open" style="font-size:1.5rem;display:block;margin-bottom:8px;opacity:.4"></i>Sélectionnez un élève</div>';
+        document.getElementById('dossierProgress').style.display='none';
+        return;
+    }
+    fetch('/api/eleve-documents/?id_eleve='+eleveId+'&id_etablissement='+ETAB_ID)
+    .then(function(r){return r.json()}).then(function(d){
+        if(!d.success){container.innerHTML='<div style="color:#ef4444;padding:10px">'+d.error+'</div>';return;}
+        var docs=d.documents||[];
+        var types=docTypesList.length?docTypesList:[];
+        var uploaded={};
+        docs.forEach(function(doc){uploaded[doc.id_document_type]=doc;});
+        var totalReq=types.filter(function(t){return t.isObligatoire;}).length;
+        var doneReq=types.filter(function(t){return t.isObligatoire&&uploaded[t.id];}).length;
+        var prog=document.getElementById('dossierProgress');
+        var progText=document.getElementById('dossierProgressText');
+        prog.style.display='inline-flex';
+        progText.textContent=doneReq+'/'+totalReq+' obligatoires';
+        prog.style.color=doneReq>=totalReq?'#059669':'#d97706';
+        prog.style.background=doneReq>=totalReq?'#ecfdf5':'#fffbeb';
+        prog.style.borderColor=doneReq>=totalReq?'#86efac':'#fde68a';
+        var h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">';
+        types.forEach(function(t){
+            var doc=uploaded[t.id];
+            var borderColor=doc?'#86efac':t.isObligatoire?'#fca5a5':'#e2e8f0';
+            var bgColor=doc?'#f0fdf4':t.isObligatoire?'#fef2f2':'#fafbfc';
+            var icon=doc?'fa-check-circle':'fa-cloud-upload-alt';
+            var iconColor=doc?'#059669':t.isObligatoire?'#ef4444':'#94a3b8';
+            h+='<div style="background:'+bgColor+';border:1.5px solid '+borderColor+';border-radius:12px;padding:14px;transition:all .2s">';
+            h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+            h+='<i class="fas '+icon+'" style="color:'+iconColor+';font-size:1rem"></i>';
+            h+='<div style="flex:1"><div style="font-weight:700;font-size:.75rem;color:#1e293b">'+t.nom+'</div>';
+            if(t.isObligatoire)h+='<span style="font-size:.55rem;color:#ef4444;font-weight:600">OBLIGATOIRE</span>';
+            h+='</div></div>';
+            if(doc){
+                h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">';
+                h+='<a href="'+doc.file_url+'" target="_blank" style="font-size:.68rem;color:#2563eb;text-decoration:none;font-weight:600"><i class="fas fa-eye" style="margin-right:3px"></i>Voir</a>';
+                h+='<button onclick="deleteEleveDoc('+doc.id+')" style="background:rgba(239,68,68,.08);border:none;color:#ef4444;padding:3px 8px;border-radius:5px;font-size:.6rem;cursor:pointer;margin-left:auto"><i class="fas fa-trash"></i></button>';
+                h+='</div>';
+                h+='<div style="font-size:.58rem;color:#64748b">Ajouté le '+(doc.date_upload||'—')+'</div>';
+            }else{
+                h+='<div style="margin-top:6px">';
+                h+='<label style="display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;border:1.5px dashed #cbd5e1;border-radius:8px;cursor:pointer;font-size:.68rem;color:#64748b;transition:all .15s" onmouseover="this.style.borderColor=\'#6366f1\';this.style.color=\'#6366f1\'" onmouseout="this.style.borderColor=\'#cbd5e1\';this.style.color=\'#64748b\'">';
+                h+='<i class="fas fa-upload"></i> Charger';
+                h+='<input type="file" accept="image/*,.pdf,.doc,.docx" style="display:none" onchange="uploadEleveDoc(this,'+eleveId+','+t.id+')">';
+                h+='</label></div>';
+            }
+            h+='</div>';
+        });
+        h+='</div>';
+        if(!types.length)h='<div style="text-align:center;padding:20px;color:#94a3b8;font-size:.75rem">Configurez d\'abord les types de documents ci-dessus</div>';
+        container.innerHTML=h;
+    });
+}
+
+function uploadEleveDoc(input,eleveId,docTypeId){
+    var file=input.files[0];
+    if(!file)return;
+    var fd=new FormData();
+    fd.append('file',file);
+    fd.append('id_eleve',eleveId);
+    fd.append('id_document_type',docTypeId);
+    fd.append('id_etablissement',ETAB_ID);
+    fetch('/api/eleve-documents/',{
+        method:'POST',
+        headers:{'X-CSRFToken':getCsrfToken()},
+        body:fd
+    }).then(function(r){return r.json()}).then(function(d){
+        if(d.success)loadEleveDossier();
+        else alert(d.error||'Erreur');
+    }).catch(function(){alert('Erreur réseau');});
+}
+
+function deleteEleveDoc(docId){
+    if(!confirm('Supprimer ce document ?'))return;
+    fetch('/api/eleve-documents/',{
+        method:'DELETE',
+        headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},
+        body:JSON.stringify({id:docId})
+    }).then(function(r){return r.json()}).then(function(d){
+        if(d.success)loadEleveDossier();
+        else alert(d.error||'Erreur');
+    });
 }
 
 function onClasseFilterChange(){

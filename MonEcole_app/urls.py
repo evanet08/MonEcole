@@ -127,4 +127,8 @@ urlpatterns = [
     path('api/repartition/hierarchies/', api_views.get_repartition_hierarchies, name='get_repartition_hierarchies'),
     path('api/repartition/configs-cycle/', api_views.get_repartition_configs_cycle, name='get_repartition_configs_cycle'),
     path('api/repartition/provision-etab/', api_views.provision_repartitions_for_etab, name='provision_repartitions_for_etab'),
+
+    # Dossier Administratif
+    path('api/document-types/', api_views.document_types_api, name='document_types_api'),
+    path('api/eleve-documents/', api_views.eleve_documents_api, name='eleve_documents_api'),
 ]

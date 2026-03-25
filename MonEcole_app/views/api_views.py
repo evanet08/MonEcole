@@ -10009,3 +10009,151 @@ def dashboard_horaire(request):
         import traceback
         traceback.print_exc()
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ============================================================
+# DOSSIER ADMINISTRATIF — Document Types CRUD
+# ============================================================
+@require_http_methods(["GET", "POST", "DELETE"])
+def document_types_api(request):
+    """CRUD for document types (per establishment)."""
+    try:
+        conn = _get_spoke_connection()
+        try:
+            if request.method == 'GET':
+                id_etablissement = request.GET.get('id_etablissement')
+                with conn.cursor() as cur:
+                    cur.execute("SELECT * FROM document_type WHERE id_etablissement=%s ORDER BY nom", [id_etablissement])
+                    rows = cur.fetchall()
+                return JsonResponse({'success': True, 'types': [
+                    {'id': r['id'], 'nom': r['nom'], 'description': r.get('description') or '',
+                     'isObligatoire': bool(r.get('isObligatoire', 0))}
+                    for r in rows
+                ]})
+
+            elif request.method == 'POST':
+                data = json.loads(request.body)
+                nom = data.get('nom', '').strip()
+                if not nom:
+                    return JsonResponse({'success': False, 'error': 'Nom requis'}, status=400)
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO document_type (nom, description, isObligatoire, id_etablissement) VALUES (%s,%s,%s,%s)",
+                        [nom, data.get('description', ''), int(data.get('isObligatoire', 0)), data.get('id_etablissement')]
+                    )
+                    conn.commit()
+                return JsonResponse({'success': True, 'id': cur.lastrowid})
+
+            elif request.method == 'DELETE':
+                data = json.loads(request.body)
+                doc_id = data.get('id')
+                with conn.cursor() as cur:
+                    # Also delete associated student documents
+                    cur.execute("DELETE FROM document_eleve WHERE id_document_type=%s", [doc_id])
+                    cur.execute("DELETE FROM document_type WHERE id=%s", [doc_id])
+                    conn.commit()
+                return JsonResponse({'success': True})
+        finally:
+            conn.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ============================================================
+# DOSSIER ADMINISTRATIF — Eleve Documents CRUD
+# ============================================================
+@require_http_methods(["GET", "POST", "DELETE"])
+def eleve_documents_api(request):
+    """Upload/list/delete student documents."""
+    try:
+        conn = _get_spoke_connection()
+        try:
+            if request.method == 'GET':
+                id_eleve = request.GET.get('id_eleve')
+                id_etablissement = request.GET.get('id_etablissement')
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT * FROM document_eleve WHERE id_eleve=%s AND id_etablissement=%s",
+                        [id_eleve, id_etablissement]
+                    )
+                    rows = cur.fetchall()
+                return JsonResponse({'success': True, 'documents': [
+                    {'id': r['id'], 'id_eleve': r['id_eleve'], 'id_document_type': r['id_document_type'],
+                     'file_url': r['file_url'], 'date_upload': str(r['date_upload']) if r.get('date_upload') else ''}
+                    for r in rows
+                ]})
+
+            elif request.method == 'POST':
+                file = request.FILES.get('file')
+                id_eleve = request.POST.get('id_eleve')
+                id_document_type = request.POST.get('id_document_type')
+                id_etablissement = request.POST.get('id_etablissement')
+                if not file or not id_eleve or not id_document_type or not id_etablissement:
+                    return JsonResponse({'success': False, 'error': 'Paramètres manquants'}, status=400)
+
+                import os
+                from django.conf import settings
+                import datetime
+
+                # Directory: media/Documents/EtabID_x/Eleve_y/
+                doc_dir = os.path.join(settings.MEDIA_ROOT, 'Documents', f'EtabID_{id_etablissement}', f'Eleve_{id_eleve}')
+                os.makedirs(doc_dir, exist_ok=True)
+
+                ext = os.path.splitext(file.name)[1].lower() or '.pdf'
+                filename = f'Doc_{id_document_type}_{id_eleve}{ext}'
+                filepath = os.path.join(doc_dir, filename)
+
+                # Remove old file if exists with different extension
+                for old_ext in ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx', '.webp']:
+                    old_file = os.path.join(doc_dir, f'Doc_{id_document_type}_{id_eleve}{old_ext}')
+                    if os.path.exists(old_file) and old_file != filepath:
+                        try:
+                            os.remove(old_file)
+                        except Exception:
+                            pass
+
+                with open(filepath, 'wb+') as f:
+                    for chunk in file.chunks():
+                        f.write(chunk)
+
+                file_url = f'/media/Documents/EtabID_{id_etablissement}/Eleve_{id_eleve}/{filename}'
+                today = datetime.date.today().strftime('%Y-%m-%d')
+
+                with conn.cursor() as cur:
+                    # Upsert: delete old then insert
+                    cur.execute("DELETE FROM document_eleve WHERE id_eleve=%s AND id_document_type=%s AND id_etablissement=%s",
+                                [id_eleve, id_document_type, id_etablissement])
+                    cur.execute(
+                        "INSERT INTO document_eleve (id_eleve, id_document_type, file_url, date_upload, id_etablissement) VALUES (%s,%s,%s,%s,%s)",
+                        [id_eleve, id_document_type, file_url, today, id_etablissement]
+                    )
+                    conn.commit()
+                return JsonResponse({'success': True, 'file_url': file_url})
+
+            elif request.method == 'DELETE':
+                data = json.loads(request.body)
+                doc_id = data.get('id')
+                with conn.cursor() as cur:
+                    # Get file path to delete physical file
+                    cur.execute("SELECT file_url FROM document_eleve WHERE id=%s", [doc_id])
+                    row = cur.fetchone()
+                    if row and row.get('file_url'):
+                        import os
+                        from django.conf import settings
+                        filepath = os.path.join(settings.MEDIA_ROOT, row['file_url'].lstrip('/media/'))
+                        if os.path.exists(filepath):
+                            try:
+                                os.remove(filepath)
+                            except Exception:
+                                pass
+                    cur.execute("DELETE FROM document_eleve WHERE id=%s", [doc_id])
+                    conn.commit()
+                return JsonResponse({'success': True})
+        finally:
+            conn.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
