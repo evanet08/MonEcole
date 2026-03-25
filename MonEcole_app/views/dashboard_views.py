@@ -589,86 +589,155 @@ def espace_enseignant_view(request):
 @login_required(login_url='login')
 def api_enseignant_dashboard(request):
     """API : Données dashboard enseignant — cours, horaires, stats."""
+    import pymysql
     etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
     if not etab_id:
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
 
-    # Find current teacher
+    # Find current teacher via spoke DB (pymysql DictCursor)
     try:
-        from MonEcole_app.models.personnel import Personnel
-        pers = Personnel.objects.filter(user=request.user, id_etablissement=etab_id).first()
-        if not pers:
-            return JsonResponse({'success': False, 'error': 'Vous n\'êtes pas enregistré comme personnel'}, status=403)
+        db_settings = connections['default'].settings_dict
+        conn = pymysql.connect(
+            host=db_settings.get('HOST', 'localhost') or 'localhost',
+            user=db_settings['USER'],
+            password=db_settings['PASSWORD'],
+            port=int(db_settings.get('PORT', 3306) or 3306),
+            database=db_settings['NAME'],
+            charset='utf8mb4',
+            cursorclass=pymysql.cursors.DictCursor,
+            connect_timeout=5,
+            read_timeout=10,
+        )
     except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
-
-    personnel_id = pers.id_personnel
+        return JsonResponse({'success': False, 'error': f'DB connection error: {e}'}, status=500)
 
     try:
-        with connections['default'].cursor() as cur:
-            # 1. Mes cours attribués (JOIN Hub via countryStructure)
-            courses = []
-            try:
-                with connections['countryStructure'].cursor() as hub_cur:
-                    cur.execute("""
-                        SELECT ac.id_attribution, ac.id_cours_id, ac.id_classe_id,
-                               ac.id_cycle_id, ac.id_campus_id, ac.date_attribution
-                        FROM attribution_cours ac
-                        WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s
-                        ORDER BY ac.date_attribution DESC
-                    """, [personnel_id, etab_id])
-                    attributions = cur.fetchall()
+        with conn.cursor() as cur:
+            # Find personnel for logged-in user
+            cur.execute("""
+                SELECT p.id_personnel, p.nom, p.postnom, p.prenom, p.matricule,
+                       p.telephone, au.first_name, au.last_name, au.email
+                FROM personnel p
+                JOIN auth_user au ON au.id = p.user_id
+                WHERE au.id = %s AND p.id_etablissement = %s
+                LIMIT 1
+            """, [request.user.id, etab_id])
+            pers = cur.fetchone()
 
-                    for att in attributions:
-                        cours_annee_id = att['id_cours_id']
-                        classe_id = att['id_classe_id']
-                        # Get course name from Hub
+            if not pers:
+                conn.close()
+                return JsonResponse({'success': False, 'error': 'Vous n\'êtes pas enregistré comme personnel'}, status=403)
+
+            personnel_id = pers['id_personnel']
+
+            # 1. Mes cours attribués
+            courses = []
+            cur.execute("""
+                SELECT ac.id_attribution, ac.id_cours_id, ac.id_classe_id,
+                       ac.id_cycle_id, ac.id_campus_id, ac.date_attribution
+                FROM attribution_cours ac
+                WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s
+                ORDER BY ac.date_attribution DESC
+            """, [personnel_id, etab_id])
+            attributions = cur.fetchall()
+
+            # Get Hub data for course & class names
+            try:
+                hub_settings = connections['countryStructure'].settings_dict
+                hub_conn = pymysql.connect(
+                    host=hub_settings.get('HOST', 'localhost') or 'localhost',
+                    user=hub_settings['USER'],
+                    password=hub_settings['PASSWORD'],
+                    port=int(hub_settings.get('PORT', 3306) or 3306),
+                    database=hub_settings['NAME'],
+                    charset='utf8mb4',
+                    cursorclass=pymysql.cursors.DictCursor,
+                    connect_timeout=5,
+                    read_timeout=10,
+                )
+                hub_cur = hub_conn.cursor()
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                hub_cur = None
+                hub_conn = None
+
+            for att in attributions:
+                cours_annee_id = att['id_cours_id']
+                classe_id = att['id_classe_id']
+
+                cours_nom = f"Cours #{cours_annee_id}"
+                code_cours = ''
+                ponderation = 0
+                heure_semaine = 0
+                classe_nom = f"Classe #{classe_id}"
+                cycle_nom = '-'
+
+                # Course info from Hub
+                if hub_cur:
+                    try:
                         hub_cur.execute("""
-                            SELECT ca.id_cours_annee, c.cours, c.code_cours,
-                                   ca.ponderation, ca.heure_semaine
+                            SELECT c.cours, c.code_cours, ca.ponderation, ca.heure_semaine
                             FROM cours_annee ca
                             JOIN cours c ON c.id_cours = ca.cours_id
                             WHERE ca.id_cours_annee = %s
                         """, [cours_annee_id])
                         cr = hub_cur.fetchone()
-                        if not cr:
-                            continue
+                        if cr:
+                            cours_nom = cr['cours']
+                            code_cours = cr['code_cours'] or ''
+                            ponderation = cr['ponderation'] or 0
+                            heure_semaine = cr['heure_semaine'] or 0
+                    except Exception:
+                        pass
 
-                        # Get class and cycle info from Hub
+                    # Class & cycle info from Hub
+                    try:
                         hub_cur.execute("""
-                            SELECT eac.id AS eac_id, cl.nom AS classe_nom,
-                                   cy.nom AS cycle_nom
+                            SELECT cl.nom AS classe_nom, cy.nom AS cycle_nom
                             FROM etablissement_annee_classes eac
                             JOIN classes cl ON cl.id_classe = eac.classe_id
                             LEFT JOIN cycles cy ON cy.id_cycle = cl.cycle_id
                             WHERE eac.id = %s
                         """, [classe_id])
                         cl = hub_cur.fetchone()
+                        if cl:
+                            classe_nom = cl['classe_nom']
+                            cycle_nom = cl['cycle_nom'] or '-'
+                    except Exception:
+                        pass
 
-                        # Count students in this class
-                        cur.execute("""
-                            SELECT COUNT(*) FROM eleve_inscription
-                            WHERE id_classe_id = %s AND status = 1 AND id_etablissement = %s
-                        """, [classe_id, etab_id])
-                        n_eleves = cur.fetchone()[0]
+                # Count students in this class (Spoke)
+                n_eleves = 0
+                try:
+                    cur.execute("""
+                        SELECT COUNT(*) as n FROM eleve_inscription
+                        WHERE id_classe_id = %s AND status = 1 AND id_etablissement = %s
+                    """, [classe_id, etab_id])
+                    r = cur.fetchone()
+                    n_eleves = r['n'] if r else 0
+                except Exception:
+                    pass
 
-                        courses.append({
-                            'id_attribution': att['id_attribution'],
-                            'id_cours_annee': cours_annee_id,
-                            'cours': cr['cours'] if isinstance(cr, dict) else cr[1],
-                            'code_cours': (cr['code_cours'] if isinstance(cr, dict) else cr[2]) or '',
-                            'ponderation': (cr['ponderation'] if isinstance(cr, dict) else cr[3]) or 0,
-                            'heure_semaine': (cr['heure_semaine'] if isinstance(cr, dict) else cr[4]) or 0,
-                            'classe_nom': (cl['classe_nom'] if isinstance(cl, dict) else cl[1]) if cl else '-',
-                            'cycle_nom': (cl['cycle_nom'] if isinstance(cl, dict) else cl[2]) if cl else '-',
-                            'eac_id': classe_id,
-                            'n_eleves': n_eleves,
-                        })
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
+                courses.append({
+                    'id_attribution': att['id_attribution'],
+                    'id_cours_annee': cours_annee_id,
+                    'cours': cours_nom,
+                    'code_cours': code_cours,
+                    'ponderation': ponderation,
+                    'heure_semaine': heure_semaine,
+                    'classe_nom': classe_nom,
+                    'cycle_nom': cycle_nom,
+                    'eac_id': classe_id,
+                    'n_eleves': n_eleves,
+                })
 
-            # 2. Emploi du temps
+            if hub_cur:
+                hub_cur.close()
+            if hub_conn:
+                hub_conn.close()
+
+            # 2. Horaire
             schedule = []
             try:
                 cur.execute("""
@@ -683,10 +752,10 @@ def api_enseignant_dashboard(request):
                 """, [personnel_id, etab_id])
                 for row in cur.fetchall():
                     schedule.append({
-                        'id': row['id_horaire'] if isinstance(row, dict) else row[0],
-                        'date': str(row['date'] if isinstance(row, dict) else row[1]),
-                        'debut': row['debut'] if isinstance(row, dict) else row[2],
-                        'fin': row['fin'] if isinstance(row, dict) else row[3],
+                        'id': row['id_horaire'],
+                        'date': str(row['date']),
+                        'debut': row['debut'],
+                        'fin': row['fin'],
                     })
             except Exception:
                 pass
@@ -707,9 +776,9 @@ def api_enseignant_dashboard(request):
                 row = cur.fetchone()
                 if row:
                     presences_stats = {
-                        'total_seances': int((row['seances'] if isinstance(row, dict) else row[0]) or 0),
-                        'total_presents': int((row['presents'] if isinstance(row, dict) else row[1]) or 0),
-                        'total_absents': int((row['absents'] if isinstance(row, dict) else row[2]) or 0),
+                        'total_seances': int(row['seances'] or 0),
+                        'total_presents': int(row['presents'] or 0),
+                        'total_absents': int(row['absents'] or 0),
                     }
             except Exception:
                 pass
@@ -721,12 +790,15 @@ def api_enseignant_dashboard(request):
                 if attr_cours_ids:
                     placeholders = ','.join(['%s'] * len(attr_cours_ids))
                     cur.execute(f"""
-                        SELECT COUNT(*) FROM evaluation
+                        SELECT COUNT(*) as n FROM evaluation
                         WHERE id_cours_classe_id IN ({placeholders}) AND id_etablissement = %s
                     """, attr_cours_ids + [etab_id])
-                    n_evaluations = cur.fetchone()[0]
+                    r = cur.fetchone()
+                    n_evaluations = r['n'] if r else 0
             except Exception:
                 pass
+
+        conn.close()
 
         return JsonResponse({
             'success': True,
@@ -742,5 +814,6 @@ def api_enseignant_dashboard(request):
     except Exception as e:
         import traceback
         traceback.print_exc()
+        conn.close()
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 

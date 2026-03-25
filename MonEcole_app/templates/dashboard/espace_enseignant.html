@@ -13,9 +13,9 @@
     <i class="fas fa-book-open" style="color:#0ea5e9"></i>
     <span>Mes Cours</span>
 </a>
-<a href="/dashboard/enseignant/?section=horaires" class="nav-item {% if active_section == 'horaires' %}active{% endif %}" title="Emploi du Temps">
+<a href="/dashboard/enseignant/?section=horaires" class="nav-item {% if active_section == 'horaires' %}active{% endif %}" title="Horaire">
     <i class="fas fa-calendar-alt" style="color:#10b981"></i>
-    <span>Emploi du Temps</span>
+    <span>Horaire</span>
 </a>
 <a href="/dashboard/enseignant/?section=evaluations" class="nav-item {% if active_section == 'evaluations' %}active{% endif %}" title="Évaluations">
     <i class="fas fa-clipboard-check" style="color:#f59e0b"></i>
@@ -41,10 +41,8 @@
 
 {% block page_css %}
 <style>
-/* ================= ESPACE ENSEIGNANT — PREMIUM ================= */
-:root{--grad-indigo:linear-gradient(135deg,#4338ca,#6366f1);--grad-purple:linear-gradient(135deg,#7c3aed,#a78bfa);--grad-teal:linear-gradient(135deg,#0d9488,#2dd4bf);--grad-blue:linear-gradient(135deg,#2563eb,#60a5fa);--grad-rose:linear-gradient(135deg,#e11d48,#fb7185);--grad-emerald:linear-gradient(135deg,#059669,#34d399);--grad-amber:linear-gradient(135deg,#d97706,#fbbf24);--glass:rgba(255,255,255,.85);--shadow-sm:0 2px 12px rgba(0,0,0,.04);--shadow-md:0 4px 24px rgba(0,0,0,.07);--shadow-lg:0 8px 40px rgba(0,0,0,.10);--radius:16px;--radius-sm:10px}
+:root{--glass:rgba(255,255,255,.85);--shadow-sm:0 2px 12px rgba(0,0,0,.04);--shadow-md:0 4px 24px rgba(0,0,0,.07);--shadow-lg:0 8px 40px rgba(0,0,0,.10);--radius:16px;--radius-sm:10px}
 
-/* Stat Cards */
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
 .stat-card{background:var(--glass);backdrop-filter:blur(12px);border-radius:var(--radius);padding:1.15rem 1.1rem;overflow:hidden;box-shadow:var(--shadow-md);transition:all .35s cubic-bezier(.22,1,.36,1);border:1px solid rgba(255,255,255,.6);display:flex;align-items:center;gap:14px;position:relative}
 .stat-card::after{content:'';position:absolute;top:0;right:0;width:60px;height:60px;border-radius:0 0 0 60px;opacity:.08}
@@ -52,36 +50,20 @@
 .stat-card .stat-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.15rem;flex-shrink:0;box-shadow:0 4px 14px rgba(0,0,0,.15)}
 .stat-card .stat-label{font-size:.7rem;color:#94a3b8;font-weight:600;letter-spacing:.3px;text-transform:uppercase}
 .stat-card .stat-value{font-size:1.65rem;font-weight:800;color:#0f172a;line-height:1.1}
-.stat-card.grad-blue .stat-icon{background:var(--grad-blue)}.stat-card.grad-blue::after{background:#2563eb}
-.stat-card.grad-purple .stat-icon{background:var(--grad-purple)}.stat-card.grad-purple::after{background:#7c3aed}
-.stat-card.grad-teal .stat-icon{background:var(--grad-teal)}.stat-card.grad-teal::after{background:#0d9488}
-.stat-card.grad-rose .stat-icon{background:var(--grad-rose)}.stat-card.grad-rose::after{background:#e11d48}
-.stat-card.grad-amber .stat-icon{background:var(--grad-amber)}.stat-card.grad-amber::after{background:#d97706}
-.stat-card.grad-emerald .stat-icon{background:var(--grad-emerald)}.stat-card.grad-emerald::after{background:#059669}
+.stat-card.grad-blue .stat-icon{background:linear-gradient(135deg,#2563eb,#60a5fa)}.stat-card.grad-blue::after{background:#2563eb}
+.stat-card.grad-purple .stat-icon{background:linear-gradient(135deg,#7c3aed,#a78bfa)}.stat-card.grad-purple::after{background:#7c3aed}
+.stat-card.grad-teal .stat-icon{background:linear-gradient(135deg,#0d9488,#2dd4bf)}.stat-card.grad-teal::after{background:#0d9488}
+.stat-card.grad-amber .stat-icon{background:linear-gradient(135deg,#d97706,#fbbf24)}.stat-card.grad-amber::after{background:#d97706}
 @keyframes statPop{from{opacity:0;transform:scale(.9) translateY(15px)}to{opacity:1;transform:scale(1) translateY(0)}}
 .stat-card{animation:statPop .5s cubic-bezier(.22,1,.36,1) forwards}
 .stat-card:nth-child(2){animation-delay:.08s}.stat-card:nth-child(3){animation-delay:.16s}.stat-card:nth-child(4){animation-delay:.24s}
 
-/* Section Cards */
 .dash-section{background:var(--glass);backdrop-filter:blur(10px);border-radius:var(--radius);padding:1.35rem;box-shadow:var(--shadow-sm);border:1px solid rgba(0,0,0,.03);margin-bottom:1.25rem;transition:box-shadow .3s ease}
 .dash-section:hover{box-shadow:var(--shadow-md)}
 .dash-section-title{font-size:.9rem;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:8px;margin-bottom:.3rem}
 .dash-section-title i{font-size:.82rem;color:#6366f1}
 .dash-section-sub{font-size:.72rem;color:#94a3b8;margin-bottom:.9rem;font-weight:500}
 
-/* Section header badge */
-.section-header{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 35%,#4338ca 100%);border-radius:var(--radius-sm);padding:.55rem 1rem;color:#fff;margin-bottom:.8rem;display:flex;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(67,56,202,.2)}
-.section-header i{font-size:.9rem;opacity:.8}
-.section-header h2{font-size:.88rem;font-weight:700;margin:0}
-.section-header .section-desc{font-size:.65rem;color:rgba(255,255,255,.55);margin:2px 0 0}
-
-/* Welcome Banner */
-.welcome-banner{background:linear-gradient(135deg,#312e81 0%,#4338ca 40%,#6366f1 100%);border-radius:var(--radius);padding:1.5rem 2rem;color:#fff;margin-bottom:1.25rem;position:relative;overflow:hidden;box-shadow:0 8px 32px rgba(99,102,241,.2)}
-.welcome-banner::before{content:'';position:absolute;top:-30%;right:-5%;width:200px;height:200px;background:radial-gradient(circle,rgba(255,255,255,.1) 0%,transparent 70%);border-radius:50%}
-.welcome-banner h1{font-size:1.3rem;font-weight:800;margin:0 0 4px}
-.welcome-banner p{font-size:.78rem;opacity:.7;margin:0}
-
-/* Course Card */
 .course-card{background:var(--glass);border-radius:var(--radius-sm);padding:1rem;border:1px solid rgba(0,0,0,.04);transition:all .25s ease;cursor:default;position:relative;overflow:hidden}
 .course-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
 .course-card .cc-color{position:absolute;top:0;left:0;width:4px;height:100%;border-radius:4px 0 0 4px}
@@ -92,28 +74,59 @@
 .course-card .cc-stat i{font-size:.55rem}
 .course-card .cc-stat strong{color:#475569}
 
-/* Loading */
 .ca-loading{text-align:center;padding:3rem 1rem;color:#94a3b8;font-size:.82rem}
 .ca-loading i{font-size:1.5rem;display:block;margin-bottom:.8rem;opacity:.4}
 
-@media(max-width:992px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:600px){.stat-grid{grid-template-columns:1fr}.welcome-banner{padding:1rem 1.25rem}.welcome-banner h1{font-size:1.1rem}}
+/* ═══ WhatsApp-style Chat ═══ */
+.chat-layout{display:flex;height:calc(100vh - 160px);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-md);border:1px solid rgba(0,0,0,.05)}
+.chat-sidebar{width:300px;background:#fff;border-right:1px solid #e5e7eb;display:flex;flex-direction:column;flex-shrink:0}
+.chat-sidebar-header{padding:12px 14px;background:linear-gradient(135deg,#075e54,#128c7e);color:#fff;display:flex;align-items:center;gap:10px}
+.chat-sidebar-header h3{font-size:.82rem;font-weight:700;margin:0}
+.chat-sidebar-search{padding:8px;background:#f0f2f5}
+.chat-sidebar-search input{width:100%;padding:6px 12px 6px 32px;border:none;border-radius:20px;background:#fff;font-size:.72rem;outline:none}
+.chat-sidebar-search{position:relative}
+.chat-sidebar-search i{position:absolute;left:18px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:.68rem}
+.chat-list{flex:1;overflow-y:auto}
+.chat-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;transition:background .15s;border-bottom:1px solid #f1f5f9}
+.chat-item:hover{background:#f0f2f5}
+.chat-item.active{background:#e8f5e9}
+.chat-item-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.7rem;flex-shrink:0}
+.chat-item-info{flex:1;min-width:0}
+.chat-item-name{font-size:.76rem;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-item-preview{font-size:.62rem;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-item-meta{text-align:right;flex-shrink:0}
+.chat-item-time{font-size:.55rem;color:#94a3b8}
+.chat-item-badge{background:#25d366;color:#fff;font-size:.5rem;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-left:auto;margin-top:2px}
+
+.chat-main{flex:1;display:flex;flex-direction:column;background:#e5ddd5;background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4cfc4' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
+.chat-header{padding:10px 16px;background:#ededed;border-bottom:1px solid #ddd;display:flex;align-items:center;gap:10px}
+.chat-header-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.65rem;flex-shrink:0}
+.chat-header-name{font-size:.8rem;font-weight:700;color:#0f172a}
+.chat-header-status{font-size:.6rem;color:#94a3b8}
+.chat-messages{flex:1;overflow-y:auto;padding:12px 50px;display:flex;flex-direction:column;gap:4px}
+.chat-msg{max-width:65%;padding:6px 10px;border-radius:8px;font-size:.72rem;line-height:1.5;position:relative;animation:msgIn .2s ease}
+@keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.chat-msg.sent{background:#dcf8c6;align-self:flex-end;border-bottom-right-radius:2px}
+.chat-msg.received{background:#fff;align-self:flex-start;border-bottom-left-radius:2px;box-shadow:0 1px 1px rgba(0,0,0,.05)}
+.chat-msg .msg-time{font-size:.5rem;color:#94a3b8;margin-left:8px;float:right;margin-top:4px}
+.chat-msg .msg-sender{font-size:.58rem;font-weight:700;margin-bottom:2px;display:block}
+.chat-input-area{padding:8px 12px;background:#f0f2f5;display:flex;align-items:center;gap:8px}
+.chat-input-area input{flex:1;padding:8px 14px;border:none;border-radius:20px;background:#fff;font-size:.75rem;outline:none}
+.chat-input-area button{width:36px;height:36px;border-radius:50%;border:none;background:#128c7e;color:#fff;font-size:.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.chat-input-area button:hover{background:#075e54}
+.chat-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#94a3b8;gap:12px}
+.chat-empty i{font-size:3rem;opacity:.25}
+.chat-empty p{font-size:.85rem;font-weight:500}
+
+@media(max-width:992px){.stat-grid{grid-template-columns:repeat(2,1fr)}.chat-sidebar{width:220px}}
+@media(max-width:600px){.stat-grid{grid-template-columns:1fr}.chat-layout{flex-direction:column;height:auto}.chat-sidebar{width:100%;max-height:200px}.chat-messages{padding:12px 16px}}
 </style>
 {% endblock %}
 
 {% block content %}
 
-<!-- ===== ALL SECTIONS ===== -->
-
-<!-- DASHBOARD SECTION -->
+<!-- DASHBOARD -->
 <div id="sectionDashboard" style="{% if active_section != 'dashboard' %}display:none{% endif %}">
-    <!-- Welcome Banner -->
-    <div class="welcome-banner" id="welcomeBanner">
-        <h1 id="welcomeName">Bienvenue, Enseignant</h1>
-        <p id="welcomeSub">Votre espace personnel — <span id="welcomeEtab">{{ etab.nom }}</span></p>
-    </div>
-
-    <!-- Stats -->
     <div class="stat-grid" id="statsGrid">
         <div class="stat-card grad-blue">
             <div class="stat-icon"><i class="fas fa-book-open"></i></div>
@@ -132,10 +145,7 @@
             <div class="stat-info"><div class="stat-label">Évaluations</div><div class="stat-value" id="statEvaluations">—</div></div>
         </div>
     </div>
-
-    <!-- Two columns: Courses + Schedule -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem">
-        <!-- Mes Cours -->
         <div class="dash-section">
             <div class="dash-section-title"><i class="fas fa-book-open"></i> Mes Cours Attribués</div>
             <div class="dash-section-sub">Cours que vous enseignez cette année</div>
@@ -143,101 +153,83 @@
                 <div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>
             </div>
         </div>
-
-        <!-- Prochains horaires -->
         <div class="dash-section">
-            <div class="dash-section-title"><i class="fas fa-calendar-alt"></i> Emploi du Temps Récent</div>
+            <div class="dash-section-title"><i class="fas fa-calendar-alt"></i> Horaire Récent</div>
             <div class="dash-section-sub">Vos séances récentes et à venir</div>
             <div id="scheduleContainer" style="max-height:350px;overflow-y:auto">
                 <div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>
             </div>
         </div>
     </div>
-
-    <!-- Présences stats -->
     <div class="dash-section">
         <div class="dash-section-title"><i class="fas fa-user-check"></i> Statistiques de Présences</div>
         <div class="dash-section-sub">Synthèse des présences de vos élèves</div>
-        <div id="presencesStatsContainer">
-            <div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>
-        </div>
+        <div id="presencesStatsContainer"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div></div>
     </div>
 </div>
 
-<!-- COURS SECTION -->
+<!-- COURS -->
 <div id="sectionCours" style="{% if active_section != 'cours' %}display:none{% endif %}">
-    <div class="section-header">
-        <i class="fas fa-book-open"></i>
-        <div><h2>Mes Cours</h2><div class="section-desc">Tous les cours qui vous sont attribués pour cette année</div></div>
-    </div>
-    <div id="coursesFullContainer">
-        <div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement des cours...</div>
-    </div>
+    <div id="coursesFullContainer"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement des cours...</div></div>
 </div>
 
-<!-- HORAIRES SECTION -->
+<!-- HORAIRES -->
 <div id="sectionHoraires" style="{% if active_section != 'horaires' %}display:none{% endif %}">
-    <div class="section-header">
-        <i class="fas fa-calendar-alt"></i>
-        <div><h2>Mon Emploi du Temps</h2><div class="section-desc">Vos horaires de cours planifiés</div></div>
-    </div>
-    <div id="scheduleFullContainer">
-        <div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement de l'emploi du temps...</div>
-    </div>
+    <div id="scheduleFullContainer"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement de l'horaire...</div></div>
 </div>
 
-<!-- EVALUATIONS SECTION -->
+<!-- EVALUATIONS -->
 <div id="sectionEvaluations" style="{% if active_section != 'evaluations' %}display:none{% endif %}">
-    <div class="section-header">
-        <i class="fas fa-clipboard-check"></i>
-        <div><h2>Mes Évaluations</h2><div class="section-desc">Évaluations créées pour vos cours</div></div>
-    </div>
     <div class="dash-section">
-        <div class="ca-loading" id="evaluationsContainer"><i class="fas fa-clipboard-list" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>Sélectionnez un cours dans la section "Mes Cours" pour gérer les évaluations.<br><small style="color:#6366f1;margin-top:6px;display:block">Les évaluations sont gérées par cours et par classe.</small></div>
+        <div class="ca-loading" id="evaluationsContainer"><i class="fas fa-clipboard-list" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>Sélectionnez un cours dans "Mes Cours" pour gérer les évaluations.</div>
     </div>
 </div>
 
-<!-- NOTES SECTION -->
+<!-- NOTES -->
 <div id="sectionNotes" style="{% if active_section != 'notes' %}display:none{% endif %}">
-    <div class="section-header">
-        <i class="fas fa-chart-bar"></i>
-        <div><h2>Saisie des Notes</h2><div class="section-desc">Saisissez et consultez les notes de vos élèves</div></div>
-    </div>
     <div class="dash-section">
-        <div class="ca-loading" id="notesContainer"><i class="fas fa-chart-line" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>Sélectionnez un cours dans la section "Mes Cours" pour saisir les notes.<br><small style="color:#6366f1;margin-top:6px;display:block">La grille de saisie sera affichée par cours, classe et période.</small></div>
+        <div class="ca-loading" id="notesContainer"><i class="fas fa-chart-line" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>Sélectionnez un cours dans "Mes Cours" pour saisir les notes.</div>
     </div>
 </div>
 
-<!-- PRESENCES SECTION -->
+<!-- PRESENCES -->
 <div id="sectionPresences" style="{% if active_section != 'presences' %}display:none{% endif %}">
-    <div class="section-header">
-        <i class="fas fa-user-check"></i>
-        <div><h2>Gestion des Présences</h2><div class="section-desc">Faites l'appel pour vos séances</div></div>
-    </div>
     <div class="dash-section">
-        <div class="ca-loading" id="presencesContainer"><i class="fas fa-clipboard-list" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>La gestion des présences sera disponible à partir de vos horaires planifiés.<br><small style="color:#6366f1;margin-top:6px;display:block">Chaque séance permet de marquer les élèves présents/absents.</small></div>
+        <div class="ca-loading" id="presencesContainer"><i class="fas fa-clipboard-list" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>La gestion des présences sera disponible à partir de vos horaires planifiés.</div>
     </div>
 </div>
 
-<!-- ELEVES SECTION -->
+<!-- ELEVES -->
 <div id="sectionEleves" style="{% if active_section != 'eleves' %}display:none{% endif %}">
-    <div class="section-header">
-        <i class="fas fa-users"></i>
-        <div><h2>Mes Élèves</h2><div class="section-desc">Élèves des classes où vous enseignez</div></div>
-    </div>
-    <div id="elevesContainer">
-        <div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement des élèves...</div>
-    </div>
+    <div id="elevesContainer"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement des élèves...</div></div>
 </div>
 
-<!-- COMMUNICATION SECTION -->
+<!-- COMMUNICATION — WhatsApp Style -->
 <div id="sectionCommunication" style="{% if active_section != 'communication' %}display:none{% endif %}">
-    <div class="section-header">
-        <i class="fas fa-comments"></i>
-        <div><h2>Communication</h2><div class="section-desc">Échangez avec les parents et la direction</div></div>
-    </div>
-    <div class="dash-section">
-        <div class="ca-loading"><i class="fas fa-envelope-open-text" style="font-size:2rem;opacity:.3;display:block;margin-bottom:.6rem"></i>La messagerie sera bientôt disponible.<br><small style="color:#6366f1;margin-top:6px;display:block">Vous pourrez communiquer avec les parents et la direction depuis cet espace.</small></div>
+    <div class="chat-layout">
+        <!-- Chat Sidebar -->
+        <div class="chat-sidebar">
+            <div class="chat-sidebar-header">
+                <i class="fas fa-comments"></i>
+                <h3>Discussions</h3>
+            </div>
+            <div class="chat-sidebar-search">
+                <i class="fas fa-search"></i>
+                <input type="text" id="chatSearch" placeholder="Rechercher..." oninput="filterChats(this.value)">
+            </div>
+            <div class="chat-list" id="chatList">
+                <!-- Will be populated dynamically -->
+            </div>
+        </div>
+
+        <!-- Chat Main -->
+        <div class="chat-main" id="chatMain">
+            <div class="chat-empty">
+                <i class="fas fa-comments"></i>
+                <p>Sélectionnez une discussion</p>
+                <span style="font-size:.68rem;color:#b0b0b0">Choisissez une classe ou un parent pour commencer</span>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -252,21 +244,15 @@ const ACTIVE_SECTION = '{{ active_section }}';
 const COURSE_COLORS = ['#6366f1','#0ea5e9','#10b981','#f59e0b','#ec4899','#8b5cf6','#ef4444','#14b8a6','#f97316','#06b6d4'];
 
 let dashboardData = null;
+let chatMessages = {};
+let activeChatId = null;
 
-/* ===== INIT ===== */
-document.addEventListener('DOMContentLoaded', () => {
-    if (PERSONNEL_INFO.prenom) {
-        document.getElementById('welcomeName').textContent = `Bienvenue, ${PERSONNEL_INFO.prenom} ${PERSONNEL_INFO.nom}`;
-    }
-    loadDashboardData();
-});
+document.addEventListener('DOMContentLoaded', () => { loadDashboardData(); });
 
-/* ===== LOAD DATA ===== */
+/* ═══ LOAD DATA ═══ */
 async function loadDashboardData() {
     try {
-        const res = await fetch('/api/enseignant/dashboard/', {
-            headers: {'X-CSRFToken': getCsrfToken()}
-        });
+        const res = await fetch('/api/enseignant/dashboard/', {headers:{'X-CSRFToken':getCsrfToken()}});
         const data = await res.json();
         if (!data.success) {
             document.getElementById('coursesContainer').innerHTML = `<div class="ca-loading" style="color:#ef4444"><i class="fas fa-exclamation-triangle"></i> ${data.error}</div>`;
@@ -279,225 +265,228 @@ async function loadDashboardData() {
         renderSchedule(data.schedule);
         renderPresencesStats(data.presences_stats);
         renderElevesList(data.courses);
-    } catch (e) {
-        console.error(e);
-    }
+        renderChatList(data.courses);
+    } catch(e) { console.error(e); }
 }
 
-/* ===== RENDER STATS ===== */
-function renderStats(data) {
-    document.getElementById('statCours').textContent = data.n_courses || 0;
-    document.getElementById('statClasses').textContent = data.n_classes || 0;
-    document.getElementById('statEleves').textContent = data.n_eleves_total || 0;
-    document.getElementById('statEvaluations').textContent = data.n_evaluations || 0;
+/* ═══ STATS ═══ */
+function renderStats(d) {
+    document.getElementById('statCours').textContent = d.n_courses||0;
+    document.getElementById('statClasses').textContent = d.n_classes||0;
+    document.getElementById('statEleves').textContent = d.n_eleves_total||0;
+    document.getElementById('statEvaluations').textContent = d.n_evaluations||0;
 }
 
-/* ===== RENDER COURSES (Dashboard Compact) ===== */
+/* ═══ COURSES (compact) ═══ */
 function renderCourses(courses) {
-    const container = document.getElementById('coursesContainer');
-    if (!courses.length) {
-        container.innerHTML = '<div class="ca-loading"><i class="fas fa-book-open"></i> Aucun cours attribué pour cette année.</div>';
-        return;
-    }
-    container.innerHTML = courses.map((c, i) => {
-        const color = COURSE_COLORS[i % COURSE_COLORS.length];
-        return `<div class="course-card">
-            <div class="cc-color" style="background:${color}"></div>
-            <div style="padding-left:8px">
-                <div class="cc-title">${c.cours}</div>
-                <div class="cc-class">${c.cycle_nom} — ${c.classe_nom}</div>
-                <div class="cc-stats">
-                    <span class="cc-stat"><i class="fas fa-users"></i> <strong>${c.n_eleves}</strong> élèves</span>
-                    <span class="cc-stat"><i class="fas fa-weight-hanging"></i> Pond: <strong>${c.ponderation}%</strong></span>
-                    ${c.heure_semaine ? `<span class="cc-stat"><i class="fas fa-clock"></i> <strong>${c.heure_semaine}h</strong>/sem</span>` : ''}
-                </div>
-            </div>
-        </div>`;
+    const c = document.getElementById('coursesContainer');
+    if(!courses.length){c.innerHTML='<div class="ca-loading"><i class="fas fa-book-open"></i> Aucun cours attribué.</div>';return;}
+    c.innerHTML = courses.map((x,i)=>{
+        const col=COURSE_COLORS[i%COURSE_COLORS.length];
+        return `<div class="course-card"><div class="cc-color" style="background:${col}"></div><div style="padding-left:8px"><div class="cc-title">${x.cours}</div><div class="cc-class">${x.cycle_nom} — ${x.classe_nom}</div><div class="cc-stats"><span class="cc-stat"><i class="fas fa-users"></i> <strong>${x.n_eleves}</strong> élèves</span><span class="cc-stat"><i class="fas fa-weight-hanging"></i> Pond: <strong>${x.ponderation}%</strong></span>${x.heure_semaine?`<span class="cc-stat"><i class="fas fa-clock"></i> <strong>${x.heure_semaine}h</strong>/sem</span>`:''}</div></div></div>`;
     }).join('');
 }
 
-/* ===== RENDER COURSES FULL (Section Cours) ===== */
+/* ═══ COURSES FULL ═══ */
 function renderCoursesFullList(courses) {
-    const container = document.getElementById('coursesFullContainer');
-    if (!courses.length) {
-        container.innerHTML = '<div class="dash-section"><div class="ca-loading"><i class="fas fa-book-open"></i> Aucun cours attribué pour cette année.</div></div>';
-        return;
-    }
-
-    const grouped = {};
-    courses.forEach(c => {
-        const key = `${c.cycle_nom} — ${c.classe_nom}`;
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(c);
-    });
-
-    let html = '';
-    let ci = 0;
-    Object.entries(grouped).forEach(([className, cls]) => {
-        html += `<div class="dash-section">
-            <div class="dash-section-title"><i class="fas fa-chalkboard"></i> ${className}</div>
-            <div class="dash-section-sub">${cls.length} cours · ${cls[0]?.n_eleves || 0} élèves</div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">`;
-        cls.forEach(c => {
-            const color = COURSE_COLORS[ci++ % COURSE_COLORS.length];
-            html += `<div class="course-card" style="cursor:pointer" onclick="selectCourseForAction(${c.id_cours_annee},'${c.cours.replace(/'/g,"\\'")}','${className.replace(/'/g,"\\'")}',${c.eac_id})">
-                <div class="cc-color" style="background:${color}"></div>
-                <div style="padding-left:8px">
-                    <div class="cc-title">${c.cours} ${c.code_cours ? `<span style="font-size:.58rem;color:#94a3b8;font-weight:500">(${c.code_cours})</span>` : ''}</div>
-                    <div class="cc-class">${className}</div>
-                    <div class="cc-stats">
-                        <span class="cc-stat"><i class="fas fa-users"></i> <strong>${c.n_eleves}</strong> élèves</span>
-                        <span class="cc-stat"><i class="fas fa-weight-hanging"></i> Pond: <strong>${c.ponderation}%</strong></span>
-                        ${c.heure_semaine ? `<span class="cc-stat"><i class="fas fa-clock"></i> <strong>${c.heure_semaine}h</strong>/sem</span>` : ''}
-                    </div>
-                    <div style="margin-top:6px;display:flex;gap:4px">
-                        <span style="font-size:.55rem;background:rgba(99,102,241,.08);color:#6366f1;padding:2px 6px;border-radius:4px;font-weight:600"><i class="fas fa-clipboard-check" style="margin-right:2px"></i>Évaluations</span>
-                        <span style="font-size:.55rem;background:rgba(16,185,129,.08);color:#10b981;padding:2px 6px;border-radius:4px;font-weight:600"><i class="fas fa-chart-bar" style="margin-right:2px"></i>Notes</span>
-                    </div>
-                </div>
-            </div>`;
+    const c = document.getElementById('coursesFullContainer');
+    if(!courses.length){c.innerHTML='<div class="dash-section"><div class="ca-loading"><i class="fas fa-book-open"></i> Aucun cours attribué.</div></div>';return;}
+    const grouped={};courses.forEach(x=>{const k=`${x.cycle_nom} — ${x.classe_nom}`;if(!grouped[k])grouped[k]=[];grouped[k].push(x);});
+    let h='',ci=0;
+    Object.entries(grouped).forEach(([cn,cls])=>{
+        h+=`<div class="dash-section"><div class="dash-section-title"><i class="fas fa-chalkboard"></i> ${cn}</div><div class="dash-section-sub">${cls.length} cours · ${cls[0]?.n_eleves||0} élèves</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">`;
+        cls.forEach(x=>{
+            const col=COURSE_COLORS[ci++%COURSE_COLORS.length];
+            h+=`<div class="course-card" style="cursor:pointer" onclick="selectCourseForAction(${x.id_cours_annee},'${x.cours.replace(/'/g,"\\'")}','${cn.replace(/'/g,"\\'")}',${x.eac_id})"><div class="cc-color" style="background:${col}"></div><div style="padding-left:8px"><div class="cc-title">${x.cours} ${x.code_cours?`<span style="font-size:.58rem;color:#94a3b8">(${x.code_cours})</span>`:''}</div><div class="cc-class">${cn}</div><div class="cc-stats"><span class="cc-stat"><i class="fas fa-users"></i> <strong>${x.n_eleves}</strong> élèves</span><span class="cc-stat"><i class="fas fa-weight-hanging"></i> Pond: <strong>${x.ponderation}%</strong></span></div><div style="margin-top:6px;display:flex;gap:4px"><span style="font-size:.55rem;background:rgba(99,102,241,.08);color:#6366f1;padding:2px 6px;border-radius:4px;font-weight:600"><i class="fas fa-clipboard-check" style="margin-right:2px"></i>Évaluations</span><span style="font-size:.55rem;background:rgba(16,185,129,.08);color:#10b981;padding:2px 6px;border-radius:4px;font-weight:600"><i class="fas fa-chart-bar" style="margin-right:2px"></i>Notes</span></div></div></div>`;
         });
-        html += '</div></div>';
+        h+='</div></div>';
     });
-    container.innerHTML = html;
+    c.innerHTML=h;
 }
 
-/* ===== SELECT COURSE FOR ACTION ===== */
-function selectCourseForAction(coursAnneeId, coursNom, className, eacId) {
-    showToast(`Cours "${coursNom}" sélectionné. Fonctionnalité d\'évaluations/notes en cours de développement.`, 'info');
-}
+function selectCourseForAction(id,nom,cn,eac){showToast(`Cours "${nom}" sélectionné.`,'info');}
 
-/* ===== RENDER SCHEDULE ===== */
+/* ═══ SCHEDULE ═══ */
 function renderSchedule(schedule) {
-    const container = document.getElementById('scheduleContainer');
-    const fullContainer = document.getElementById('scheduleFullContainer');
-
-    if (!schedule.length) {
-        const empty = '<div class="ca-loading"><i class="fas fa-calendar-alt"></i> Aucun horaire planifié.</div>';
-        container.innerHTML = empty;
-        fullContainer.innerHTML = `<div class="dash-section">${empty}</div>`;
-        return;
-    }
-
-    const makeRow = (s) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:#f8fafc;margin-bottom:4px;border-left:3px solid #6366f1">
-        <div style="font-size:.7rem;font-weight:700;color:#0f172a;min-width:80px">${s.date}</div>
-        <div style="font-size:.68rem;color:#475569">${s.debut} — ${s.fin}</div>
-    </div>`;
-
-    container.innerHTML = schedule.slice(0, 8).map(makeRow).join('');
-    fullContainer.innerHTML = `<div class="dash-section">${schedule.map(makeRow).join('')}</div>`;
+    const c=document.getElementById('scheduleContainer'),f=document.getElementById('scheduleFullContainer');
+    if(!schedule.length){const e='<div class="ca-loading"><i class="fas fa-calendar-alt"></i> Aucun horaire planifié.</div>';c.innerHTML=e;f.innerHTML=`<div class="dash-section">${e}</div>`;return;}
+    const mk=s=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:#f8fafc;margin-bottom:4px;border-left:3px solid #6366f1"><div style="font-size:.7rem;font-weight:700;color:#0f172a;min-width:80px">${s.date}</div><div style="font-size:.68rem;color:#475569">${s.debut} — ${s.fin}</div></div>`;
+    c.innerHTML=schedule.slice(0,8).map(mk).join('');
+    f.innerHTML=`<div class="dash-section">${schedule.map(mk).join('')}</div>`;
 }
 
-/* ===== RENDER PRESENCES STATS ===== */
-function renderPresencesStats(stats) {
-    const container = document.getElementById('presencesStatsContainer');
-    const total = (stats.total_presents || 0) + (stats.total_absents || 0);
-    const pctPresent = total > 0 ? Math.round(stats.total_presents / total * 100) : 0;
-
-    container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem">
-        <div style="text-align:center;padding:1rem;background:#f0fdf4;border-radius:12px">
-            <div style="font-size:1.8rem;font-weight:800;color:#059669">${stats.total_seances}</div>
-            <div style="font-size:.7rem;color:#64748b;font-weight:600">Séances tenues</div>
-        </div>
-        <div style="text-align:center;padding:1rem;background:#f0f9ff;border-radius:12px">
-            <div style="font-size:1.8rem;font-weight:800;color:#0ea5e9">${pctPresent}%</div>
-            <div style="font-size:.7rem;color:#64748b;font-weight:600">Taux de présence</div>
-        </div>
-        <div style="text-align:center;padding:1rem;background:#fef2f2;border-radius:12px">
-            <div style="font-size:1.8rem;font-weight:800;color:#ef4444">${stats.total_absents || 0}</div>
-            <div style="font-size:.7rem;color:#64748b;font-weight:600">Total absences</div>
-        </div>
-    </div>`;
+/* ═══ PRESENCES STATS ═══ */
+function renderPresencesStats(s) {
+    const c=document.getElementById('presencesStatsContainer');
+    const t=(s.total_presents||0)+(s.total_absents||0);
+    const p=t>0?Math.round(s.total_presents/t*100):0;
+    c.innerHTML=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem"><div style="text-align:center;padding:1rem;background:#f0fdf4;border-radius:12px"><div style="font-size:1.8rem;font-weight:800;color:#059669">${s.total_seances}</div><div style="font-size:.7rem;color:#64748b;font-weight:600">Séances tenues</div></div><div style="text-align:center;padding:1rem;background:#f0f9ff;border-radius:12px"><div style="font-size:1.8rem;font-weight:800;color:#0ea5e9">${p}%</div><div style="font-size:.7rem;color:#64748b;font-weight:600">Taux de présence</div></div><div style="text-align:center;padding:1rem;background:#fef2f2;border-radius:12px"><div style="font-size:1.8rem;font-weight:800;color:#ef4444">${s.total_absents||0}</div><div style="font-size:.7rem;color:#64748b;font-weight:600">Total absences</div></div></div>`;
 }
 
-/* ===== RENDER ELEVES LIST ===== */
+/* ═══ ELEVES ═══ */
 function renderElevesList(courses) {
-    const container = document.getElementById('elevesContainer');
-    if (!courses.length) {
-        container.innerHTML = '<div class="dash-section"><div class="ca-loading"><i class="fas fa-users"></i> Aucune classe attribuée.</div></div>';
-        return;
-    }
+    const c=document.getElementById('elevesContainer');
+    if(!courses.length){c.innerHTML='<div class="dash-section"><div class="ca-loading"><i class="fas fa-users"></i> Aucune classe attribuée.</div></div>';return;}
+    const classMap={};courses.forEach(x=>{if(!classMap[x.eac_id])classMap[x.eac_id]={classe_nom:x.classe_nom,cycle_nom:x.cycle_nom,n_eleves:x.n_eleves,eac_id:x.eac_id};});
+    const cls=Object.values(classMap);
+    let h='<div class="dash-section"><div class="dash-section-title"><i class="fas fa-users"></i> Mes Classes</div><div class="dash-section-sub">Cliquez sur une classe pour voir la liste des élèves</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">';
+    cls.forEach((cl,i)=>{
+        const col=COURSE_COLORS[i%COURSE_COLORS.length];
+        h+=`<div style="background:white;border-radius:12px;padding:1rem;border:1px solid #e2e8f0;cursor:pointer;transition:all .2s;position:relative;overflow:hidden" onclick="loadClassEleves(${cl.eac_id},'${cl.classe_nom.replace(/'/g,"\\'")}')"><div style="position:absolute;top:0;left:0;width:100%;height:3px;background:${col}"></div><div style="font-size:.82rem;font-weight:700;color:#0f172a">${cl.cycle_nom} — ${cl.classe_nom}</div><div style="display:flex;align-items:center;gap:6px;margin-top:6px"><span style="font-size:.68rem;background:rgba(99,102,241,.08);color:#6366f1;padding:2px 8px;border-radius:6px;font-weight:600"><i class="fas fa-users" style="margin-right:3px"></i>${cl.n_eleves} élèves</span></div></div>`;
+    });
+    h+='</div></div><div id="elevesListDetail"></div>';c.innerHTML=h;
+}
 
-    // Get unique classes
+async function loadClassEleves(eacId, className) {
+    const d=document.getElementById('elevesListDetail');
+    d.innerHTML='<div class="dash-section"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div></div>';
+    try {
+        const res=await fetch('/api/dashboard/eleves-list/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({id_etablissement:ETAB_ID,id_classe:eacId})});
+        const data=await res.json();
+        if(!data.success){d.innerHTML=`<div class="dash-section"><div class="ca-loading" style="color:#ef4444">${data.error}</div></div>`;return;}
+        const eleves=data.eleves||[];
+        if(!eleves.length){d.innerHTML='<div class="dash-section"><div class="ca-loading"><i class="fas fa-users"></i> Aucun élève.</div></div>';return;}
+        let h=`<div class="dash-section"><div class="dash-section-title"><i class="fas fa-list"></i> ${className} — ${eleves.length} élèves</div><div style="overflow-x:auto;max-height:500px;overflow-y:auto"><table style="width:100%;border-collapse:collapse;font-size:.72rem"><thead><tr style="border-bottom:2px solid #e2e8f0"><th style="padding:6px 8px;text-align:left;color:#94a3b8;font-size:.6rem;text-transform:uppercase;font-weight:700">#</th><th style="padding:6px 8px;text-align:left;color:#94a3b8;font-size:.6rem;text-transform:uppercase;font-weight:700">Nom complet</th><th style="padding:6px 8px;text-align:left;color:#94a3b8;font-size:.6rem;text-transform:uppercase;font-weight:700">Genre</th><th style="padding:6px 8px;text-align:left;color:#94a3b8;font-size:.6rem;text-transform:uppercase;font-weight:700">Date naiss.</th></tr></thead><tbody>`;
+        eleves.forEach((el,i)=>{
+            const name=`${el.nom||''} ${el.postnom||''} ${el.prenom||''}`.trim();
+            const badge=el.genre==='M'?'<span style="background:#dbeafe;color:#2563eb;padding:1px 6px;border-radius:4px;font-size:.6rem;font-weight:600">M</span>':'<span style="background:#fce7f3;color:#db2777;padding:1px 6px;border-radius:4px;font-size:.6rem;font-weight:600">F</span>';
+            h+=`<tr style="border-bottom:1px solid #f1f5f9" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'"><td style="padding:5px 8px;color:#94a3b8;font-weight:600;font-size:.6rem">${i+1}</td><td style="padding:5px 8px;font-weight:600;color:#0f172a">${name||'—'}</td><td style="padding:5px 8px">${badge}</td><td style="padding:5px 8px;color:#64748b">${el.date_naissance||'—'}</td></tr>`;
+        });
+        h+='</tbody></table></div></div>';d.innerHTML=h;
+    }catch(e){d.innerHTML=`<div class="dash-section"><div class="ca-loading" style="color:#ef4444">${e.message}</div></div>`;}
+}
+
+/* ═══════════════════════════════════════════
+   WHATSAPP-STYLE CHAT - Communication
+   ═══════════════════════════════════════════ */
+function renderChatList(courses) {
+    const list = document.getElementById('chatList');
+    if(!courses.length){list.innerHTML='<div class="ca-loading" style="padding:2rem"><i class="fas fa-comments"></i> Aucun cours attribué. Les discussions sont liées à vos classes.</div>';return;}
+
+    // Create unique class-based chats (group discussions)
     const classMap = {};
-    courses.forEach(c => {
-        if (!classMap[c.eac_id]) {
-            classMap[c.eac_id] = { classe_nom: c.classe_nom, cycle_nom: c.cycle_nom, n_eleves: c.n_eleves, eac_id: c.eac_id };
-        }
+    courses.forEach(c=>{
+        if(!classMap[c.eac_id]) classMap[c.eac_id] = {classe_nom:c.classe_nom, cycle_nom:c.cycle_nom, n_eleves:c.n_eleves, eac_id:c.eac_id, courses:[]};
+        classMap[c.eac_id].courses.push(c.cours);
     });
 
-    const classes = Object.values(classMap);
-    let html = '<div class="dash-section">';
-    html += '<div class="dash-section-title"><i class="fas fa-users"></i> Mes Classes</div>';
-    html += '<div class="dash-section-sub">Cliquez sur une classe pour voir la liste des élèves</div>';
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">';
+    const chatColors = ['#128c7e','#6366f1','#ef4444','#f59e0b','#ec4899','#0ea5e9','#10b981','#8b5cf6'];
+    let html = '';
 
-    classes.forEach((cl, i) => {
-        const color = COURSE_COLORS[i % COURSE_COLORS.length];
-        html += `<div style="background:white;border-radius:12px;padding:1rem;border:1px solid #e2e8f0;cursor:pointer;transition:all .2s;position:relative;overflow:hidden" onclick="loadClassEleves(${cl.eac_id},'${cl.classe_nom.replace(/'/g,"\\'")}')">
-            <div style="position:absolute;top:0;left:0;width:100%;height:3px;background:${color}"></div>
-            <div style="font-size:.82rem;font-weight:700;color:#0f172a">${cl.cycle_nom} — ${cl.classe_nom}</div>
-            <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
-                <span style="font-size:.68rem;background:rgba(99,102,241,.08);color:#6366f1;padding:2px 8px;border-radius:6px;font-weight:600"><i class="fas fa-users" style="margin-right:3px"></i>${cl.n_eleves} élèves</span>
+    // Group chats for each class
+    Object.values(classMap).forEach((cl, i)=>{
+        const chatId = `class_${cl.eac_id}`;
+        const color = chatColors[i % chatColors.length];
+        const initials = cl.classe_nom.substring(0,2).toUpperCase();
+
+        // Initialize demo messages
+        if(!chatMessages[chatId]) {
+            chatMessages[chatId] = {
+                type: 'group',
+                name: `${cl.cycle_nom} — ${cl.classe_nom}`,
+                color: color,
+                initials: initials,
+                members: cl.n_eleves,
+                messages: [
+                    {sender:'Système', text:`Groupe de discussion créé pour la classe ${cl.classe_nom}. ${cl.n_eleves} élèves inscrits.`, time:'09:00', type:'system'},
+                ]
+            };
+        }
+
+        html += `<div class="chat-item" id="chatItem_${chatId}" onclick="openChat('${chatId}')">
+            <div class="chat-item-avatar" style="background:${color}"><i class="fas fa-users" style="font-size:.7rem"></i></div>
+            <div class="chat-item-info">
+                <div class="chat-item-name">${cl.cycle_nom} — ${cl.classe_nom}</div>
+                <div class="chat-item-preview"><i class="fas fa-users" style="font-size:.5rem;margin-right:3px"></i>${cl.n_eleves} participants · Groupe classe</div>
+            </div>
+            <div class="chat-item-meta">
+                <div class="chat-item-time">Auj.</div>
             </div>
         </div>`;
     });
-    html += '</div></div>';
-    html += '<div id="elevesListDetail"></div>';
-    container.innerHTML = html;
+
+    // Add a "Direction" chat
+    const dirChatId = 'direction';
+    if(!chatMessages[dirChatId]) {
+        chatMessages[dirChatId] = {type:'private', name:'Direction', color:'#1e293b', initials:'DR', messages:[
+            {sender:'Direction', text:'Bienvenue dans l\'espace de communication avec la direction. N\'hésitez pas à nous contacter pour toute question.', time:'08:30', type:'received'}
+        ]};
+    }
+    html += `<div class="chat-item" id="chatItem_${dirChatId}" onclick="openChat('${dirChatId}')">
+        <div class="chat-item-avatar" style="background:linear-gradient(135deg,#1e293b,#475569)"><i class="fas fa-crown" style="font-size:.65rem"></i></div>
+        <div class="chat-item-info">
+            <div class="chat-item-name">Direction</div>
+            <div class="chat-item-preview">Canal de communication avec la direction</div>
+        </div>
+        <div class="chat-item-meta"><div class="chat-item-time">Auj.</div></div>
+    </div>`;
+
+    list.innerHTML = html;
 }
 
-/* ===== LOAD CLASS ELEVES ===== */
-async function loadClassEleves(eacId, className) {
-    const detail = document.getElementById('elevesListDetail');
-    detail.innerHTML = '<div class="dash-section"><div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement de la liste...</div></div>';
+function openChat(chatId) {
+    activeChatId = chatId;
+    const chat = chatMessages[chatId];
+    if(!chat) return;
 
-    try {
-        const res = await fetch('/api/dashboard/eleves-list/', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
-            body: JSON.stringify({id_etablissement: ETAB_ID, id_classe: eacId})
-        });
-        const data = await res.json();
-        if (!data.success) {
-            detail.innerHTML = `<div class="dash-section"><div class="ca-loading" style="color:#ef4444"><i class="fas fa-exclamation-triangle"></i> ${data.error}</div></div>`;
-            return;
-        }
+    // Highlight active
+    document.querySelectorAll('.chat-item').forEach(el=>el.classList.remove('active'));
+    document.getElementById(`chatItem_${chatId}`)?.classList.add('active');
 
-        const eleves = data.eleves || [];
-        if (!eleves.length) {
-            detail.innerHTML = `<div class="dash-section"><div class="ca-loading"><i class="fas fa-users"></i> Aucun élève dans cette classe.</div></div>`;
-            return;
-        }
+    const main = document.getElementById('chatMain');
+    const isGroup = chat.type === 'group';
 
-        let html = `<div class="dash-section">
-            <div class="dash-section-title"><i class="fas fa-list"></i> ${className} — ${eleves.length} élèves</div>
-            <div style="overflow-x:auto;max-height:500px;overflow-y:auto">
-            <table style="width:100%;border-collapse:collapse;font-size:.72rem">
-                <thead><tr style="border-bottom:2px solid #e2e8f0">
-                    <th style="padding:6px 8px;text-align:left;color:#94a3b8;font-size:.6rem;text-transform:uppercase;font-weight:700">#</th>
-                    <th style="padding:6px 8px;text-align:left;color:#94a3b8;font-size:.6rem;text-transform:uppercase;font-weight:700">Nom complet</th>
-                    <th style="padding:6px 8px;text-align:left;color:#94a3b8;font-size:.6rem;text-transform:uppercase;font-weight:700">Genre</th>
-                    <th style="padding:6px 8px;text-align:left;color:#94a3b8;font-size:.6rem;text-transform:uppercase;font-weight:700">Date naiss.</th>
-                </tr></thead><tbody>`;
+    main.innerHTML = `
+    <div class="chat-header">
+        <div class="chat-header-avatar" style="background:${chat.color}">${isGroup?'<i class="fas fa-users" style="font-size:.6rem"></i>':chat.initials}</div>
+        <div>
+            <div class="chat-header-name">${chat.name}</div>
+            <div class="chat-header-status">${isGroup?chat.members+' participants':'En ligne'}</div>
+        </div>
+    </div>
+    <div class="chat-messages" id="chatMsgsArea">
+        ${chat.messages.map(m=>{
+            if(m.type==='system') return `<div style="text-align:center;margin:8px 0"><span style="background:rgba(225,218,208,.8);padding:3px 10px;border-radius:6px;font-size:.6rem;color:#54656f">${m.text}</span></div>`;
+            const isSent = m.type === 'sent';
+            const senderHtml = isGroup && !isSent ? `<span class="msg-sender" style="color:${chat.color}">${m.sender}</span>` : '';
+            return `<div class="chat-msg ${isSent?'sent':'received'}">${senderHtml}${m.text}<span class="msg-time">${m.time}${isSent?' <i class="fas fa-check-double" style="color:#53bdeb;font-size:.45rem"></i>':''}</span></div>`;
+        }).join('')}
+    </div>
+    <div class="chat-input-area">
+        <button onclick="return false" style="background:transparent;color:#54656f;font-size:.9rem"><i class="fas fa-smile"></i></button>
+        <input type="text" id="chatMsgInput" placeholder="Tapez un message..." onkeypress="if(event.key==='Enter')sendChatMsg()">
+        <button onclick="sendChatMsg()"><i class="fas fa-paper-plane" style="font-size:.7rem"></i></button>
+    </div>`;
 
-        eleves.forEach((el, i) => {
-            const name = `${el.nom || ''} ${el.postnom || ''} ${el.prenom || ''}`.trim();
-            const genreBadge = el.genre === 'M'
-                ? '<span style="background:#dbeafe;color:#2563eb;padding:1px 6px;border-radius:4px;font-size:.6rem;font-weight:600">M</span>'
-                : '<span style="background:#fce7f3;color:#db2777;padding:1px 6px;border-radius:4px;font-size:.6rem;font-weight:600">F</span>';
-            html += `<tr style="border-bottom:1px solid #f1f5f9;transition:background .15s" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                <td style="padding:5px 8px;color:#94a3b8;font-weight:600;font-size:.6rem">${i+1}</td>
-                <td style="padding:5px 8px;font-weight:600;color:#0f172a">${name || '—'}</td>
-                <td style="padding:5px 8px">${genreBadge}</td>
-                <td style="padding:5px 8px;color:#64748b">${el.date_naissance || '—'}</td>
-            </tr>`;
-        });
-        html += '</tbody></table></div></div>';
-        detail.innerHTML = html;
-    } catch (e) {
-        detail.innerHTML = `<div class="dash-section"><div class="ca-loading" style="color:#ef4444"><i class="fas fa-exclamation-triangle"></i> Erreur: ${e.message}</div></div>`;
-    }
+    // Scroll to bottom
+    setTimeout(()=>{const area=document.getElementById('chatMsgsArea');if(area)area.scrollTop=area.scrollHeight;},50);
+}
+
+function sendChatMsg() {
+    if(!activeChatId) return;
+    const input = document.getElementById('chatMsgInput');
+    const text = input.value.trim();
+    if(!text) return;
+
+    const now = new Date();
+    const time = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+
+    chatMessages[activeChatId].messages.push({
+        sender: PERSONNEL_INFO.prenom ? `${PERSONNEL_INFO.prenom} ${PERSONNEL_INFO.nom}` : 'Moi',
+        text: text,
+        time: time,
+        type: 'sent'
+    });
+
+    input.value = '';
+    openChat(activeChatId);
+}
+
+function filterChats(q) {
+    document.querySelectorAll('.chat-item').forEach(el=>{
+        const name = el.querySelector('.chat-item-name')?.textContent?.toLowerCase()||'';
+        el.style.display = name.includes(q.toLowerCase()) ? '' : 'none';
+    });
 }
 </script>
 {% endblock %}
