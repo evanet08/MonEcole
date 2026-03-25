@@ -583,10 +583,10 @@ def espace_enseignant_view(request):
                         old_user_id = row[1]
                         # Auto-relink: libérer user_id si un autre personnel l'utilise déjà
                         try:
-                            # Vérifier si un AUTRE personnel a déjà ce user_id
+                            # Vérifier si un AUTRE personnel du même établissement a déjà ce user_id
                             cur.execute(
-                                "SELECT id_personnel FROM personnel WHERE user_id = %s AND id_personnel != %s",
-                                [request.user.id, target_pers_id]
+                                "SELECT id_personnel FROM personnel WHERE user_id = %s AND id_personnel != %s AND id_etablissement = %s",
+                                [request.user.id, target_pers_id, etab_id]
                             )
                             conflict = cur.fetchone()
                             if conflict:
@@ -792,10 +792,10 @@ def api_enseignant_dashboard(request):
                         # Auto-relink user_id (gérer conflit UNIQUE)
                         try:
                             target_pers_id = pers['id_personnel']
-                            # Libérer le user_id si un autre personnel l'utilise
+                            # Libérer le user_id si un autre personnel du même établissement l'utilise
                             cur.execute(
-                                "SELECT id_personnel FROM personnel WHERE user_id = %s AND id_personnel != %s",
-                                [request.user.id, target_pers_id]
+                                "SELECT id_personnel FROM personnel WHERE user_id = %s AND id_personnel != %s AND id_etablissement = %s",
+                                [request.user.id, target_pers_id, etab_id]
                             )
                             conflict = cur.fetchone()
                             if conflict:
