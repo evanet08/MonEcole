@@ -7,23 +7,23 @@
 {% block sidebar_items %}
 <a href="/dashboard/enseignements/" class="nav-item {% if active_section == 'enseignants' or active_section == '' %}active{% endif %}" title="Dashboard" onclick="switchEnsSection('enseignants');return false;">
     <i class="fas fa-th-large" style="color:#10b981"></i>
-    <span class="text-center">Dashboard</span>
+    <span>Dashboard</span>
 </a>
 <a href="#" class="nav-item {% if active_section == 'reference' %}active{% endif %}" title="Référence" onclick="switchEnsSection('reference');return false;">
     <i class="fas fa-database" style="color:#8b5cf6"></i>
-    <span class="text-center">Référence</span>
+    <span>Référence</span>
 </a>
 <a href="#" class="nav-item {% if active_section == 'gestion' %}active{% endif %}" title="Personnel" onclick="switchEnsSection('gestion');return false;">
     <i class="fas fa-users-cog" style="color:#f59e0b"></i>
-    <span class="text-center">Personnel</span>
+    <span>Personnel</span>
 </a>
 <a href="#" class="nav-item {% if active_section == 'attribution' %}active{% endif %}" title="Attribution" onclick="switchEnsSection('attribution');return false;">
     <i class="fas fa-user-tag" style="color:#ef4444"></i>
-    <span class="text-center">Attribution</span>
+    <span>Attribution</span>
 </a>
 <a href="#" class="nav-item {% if active_section == 'horaire' %}active{% endif %}" title="Horaire" onclick="switchEnsSection('horaire');return false;">
     <i class="fas fa-calendar-alt" style="color:#d97706"></i>
-    <span class="text-center">Horaire</span>
+    <span>Horaire</span>
 </a>
 {% endblock %}
 

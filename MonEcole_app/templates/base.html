@@ -17,7 +17,7 @@
         /* ================= CSS VARIABLES ================= */
         :root {
             --bg-color: #f3f4f6;
-            --sidebar-width: 120px;
+            --sidebar-width: 150px;
             --nav-bg: #0f172a;
             --sidebar-text: #94a3b8;
             --text-dark: #1e293b;
@@ -55,7 +55,7 @@
             backdrop-filter: blur(20px);
             border-right: 1px solid rgba(200, 210, 230, 0.4);
             display: flex; flex-direction: column;
-            padding: 10px 6px; gap: 0; z-index: 1050;
+            padding: 10px 8px; gap: 0; z-index: 1050;
             flex-shrink: 0; align-items: center;
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             overflow-y: auto; overflow-x: hidden;
@@ -94,43 +94,49 @@
             object-fit: contain !important; display: block;
         }
 
-        /* ===== Nav Items ===== */
+        /* ===== Nav Items — Pill Gradient ===== */
         .nav-item {
-            width: 100%; padding: 0.7rem 0.5rem; color: #8899b4; cursor: pointer;
-            display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+            width: 100%; padding: 10px 14px; color: #7a8ba8; cursor: pointer;
+            display: flex; flex-direction: row; align-items: center; gap: 10px;
             text-decoration: none;
-            background: rgba(15, 23, 42, 0.82); border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 22px; backdrop-filter: blur(8px);
-            transition: all 0.25s ease; position: relative; overflow: hidden;
+            background: rgba(15, 23, 42, 0.78); border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 50px; backdrop-filter: blur(8px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden;
         }
         .nav-item::before {
             content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            border-radius: 22px; opacity: 0;
-            background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(59,130,246,0.15));
-            transition: opacity 0.25s ease; pointer-events: none;
+            border-radius: 50px; opacity: 0;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+            transition: opacity 0.3s ease; pointer-events: none;
         }
         .nav-item i {
-            font-size: 1.1rem; position: relative; z-index: 1;
-            width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
-            border-radius: 50%; background: rgba(255,255,255,0.08);
+            font-size: 1rem; position: relative; z-index: 1;
+            width: auto; height: auto; display: flex; align-items: center; justify-content: center;
+            border-radius: 0; background: none; flex-shrink: 0;
         }
-        .nav-item span { font-size: 0.68rem; font-weight: 500; position: relative; z-index: 1; line-height: 1.2; }
+        .nav-item span {
+            font-size: 0.72rem; font-weight: 600; position: relative; z-index: 1;
+            line-height: 1.2; white-space: nowrap;
+        }
 
         .nav-item:hover {
-            color: #e2e8f0; background: rgba(15,23,42,0.9);
-            border-color: rgba(255,255,255,0.15);
-            transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            color: #cbd5e1; background: rgba(15,23,42,0.92);
+            border-color: rgba(255,255,255,0.12);
+            transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.25);
         }
-        .nav-item:hover::before { opacity: 0.5; }
+        .nav-item:hover::before { opacity: 0.15; }
 
         .nav-item.active {
-            color: #f1f5f9; background: rgba(15,23,42,0.92);
-            border: 1px solid rgba(124,58,237,0.5); border-radius: 22px;
-            box-shadow: 0 0 15px rgba(124,58,237,0.2), 0 4px 12px rgba(0,0,0,0.2),
-                inset 0 0 20px rgba(124,58,237,0.08), 0 0 0 1px rgba(99,102,241,0.3);
+            color: #ffffff;
+            background: transparent;
+            border: none;
+            box-shadow: 0 4px 20px rgba(99,102,241,0.4), 0 2px 8px rgba(0,0,0,0.2);
         }
         .nav-item.active::before { opacity: 1; }
-        .nav-item.active i { filter: drop-shadow(0 0 6px currentColor); }
+        .nav-item.active i {
+            color: #fff !important; filter: drop-shadow(0 0 8px rgba(255,255,255,0.5));
+        }
+        .nav-item.active span { color: #fff; font-weight: 700; }
 
         .nav-item i.text-blue { color: #60a5fa !important; }
         .nav-item i.text-orange { color: #fb923c !important; }
@@ -150,6 +156,7 @@
             border-color: rgba(239,68,68,0.25) !important;
             color: #f87171 !important;
         }
+        .logout-btn.active::before { opacity: 0 !important; }
 
         /* ================= MAIN WRAPPER ================= */
         .main-wrapper { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -216,8 +223,9 @@
 
         /* ================= RESPONSIVE ================= */
         @media (max-width: 992px) {
-            :root { --sidebar-width: 90px; }
+            :root { --sidebar-width: 130px; }
             .nav-item span { font-size: 0.65rem; }
+            .nav-item { padding: 8px 10px; gap: 8px; }
             .content-area { padding: 1rem; }
         }
         @media (max-width: 768px) {
@@ -229,8 +237,7 @@
                 box-shadow: 4px 0 20px rgba(0,0,0,0.3);
             }
             .sidebar.open { transform: translateX(0); }
-            .sidebar .nav-item { flex-direction: row; gap: 0.75rem; padding: 0.85rem 1.2rem; border-radius: 0; }
-            .sidebar .nav-item.active { border-left: 3px solid var(--accent-color); }
+            .sidebar .nav-item { padding: 0.85rem 1.2rem; }
             .sidebar .nav-item span { font-size: 0.82rem; }
             .top-bar .search-bar { display: none; }
             .user-email-text, .user-scope-text, .user-info-column { display: none !important; }
@@ -382,26 +389,26 @@
                 <!-- Default: module links (override in each page template) -->
                 <a href="/dashboard/administration/" class="nav-item {% if active_module == 'administration' %}active{% endif %}" title="Administration">
                     <i class="fas fa-building text-blue"></i>
-                    <span class="text-center">Administration</span>
+                    <span>Administration</span>
                 </a>
                 <a href="/dashboard/enseignements/" class="nav-item {% if active_module == 'enseignements' %}active{% endif %}" title="Enseignements">
                     <i class="fas fa-chalkboard-teacher text-emerald"></i>
-                    <span class="text-center">Enseignements</span>
+                    <span>Enseignements</span>
                 </a>
                 <a href="/dashboard/evaluations/" class="nav-item {% if active_module == 'evaluations' %}active{% endif %}" title="Évaluations">
                     <i class="fas fa-file-alt" style="color:#f59e0b"></i>
-                    <span class="text-center">Évaluations</span>
+                    <span>Évaluations</span>
                 </a>
                 <a href="/dashboard/scolarite/" class="nav-item {% if active_module == 'scolarite' %}active{% endif %}" title="Scolarité">
                     <i class="fas fa-user-graduate text-purple"></i>
-                    <span class="text-center">Scolarité</span>
+                    <span>Scolarité</span>
                 </a>
                 {% endblock %}
 
                 <!-- Logout -->
                 <a href="#" class="nav-item logout-btn" onclick="doLogout(); return false;" title="Déconnexion">
                     <i class="fas fa-sign-out-alt"></i>
-                    <span class="text-center">Quitter</span>
+                    <span>Quitter</span>
                 </a>
             </div>
         </div>
