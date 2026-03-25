@@ -3873,8 +3873,12 @@ function renderUsersTable() {
     /* ─── Row hover ─── */
     .user-row{transition:background .15s}
     .user-row:hover{background:rgba(99,102,241,.03)!important}
+    /* ─── Override dark header for THIS table ─── */
+    #usersRightsTable thead th{background:transparent!important;color:#475569!important;border-bottom:2px solid #e2e8f0;font-size:.6rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:8px 6px}
+    #usersRightsTable thead th.mod-th{border-bottom:2px solid #e2e8f0;height:100px}
+    #usersRightsTable thead tr{background:transparent!important}
     </style>
-    <table class="eleves-table" style="border-collapse:separate;border-spacing:0">
+    <table id="usersRightsTable" class="eleves-table" style="border-collapse:separate;border-spacing:0">
         <thead><tr>
             <th style="width:28px">#</th>
             <th style="min-width:180px">Personnel</th>
