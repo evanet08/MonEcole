@@ -562,22 +562,79 @@ def espace_enseignant_view(request):
 
     try:
         from MonEcole_app.models.personnel import Personnel
+        # 1. Chercher par user_id (lien direct Django)
         pers = Personnel.objects.select_related('user').filter(
             user=request.user, id_etablissement=etab_id
         ).first()
+
+        # 2. Fallback: chercher par email dans la table SQL
+        #    (les personnel ajoutés via dashboard ont un user_id bidon)
+        if not pers and request.user.email:
+            try:
+                with connections['default'].cursor() as cur:
+                    cur.execute("""
+                        SELECT id_personnel FROM personnel
+                        WHERE LOWER(email) = LOWER(%s) AND id_etablissement = %s
+                        LIMIT 1
+                    """, [request.user.email, etab_id])
+                    row = cur.fetchone()
+                    if row:
+                        # Auto-relink: mettre à jour le user_id pour les prochaines fois
+                        cur.execute(
+                            "UPDATE personnel SET user_id = %s WHERE id_personnel = %s",
+                            [request.user.id, row[0]]
+                        )
+                        # Refresh via ORM
+                        pers = Personnel.objects.select_related('user').filter(
+                            id_personnel=row[0]
+                        ).first()
+            except Exception:
+                import traceback
+                traceback.print_exc()
+
         if pers:
             personnel_id = pers.id_personnel
-            personnel_info = {
-                'id': pers.id_personnel,
-                'nom': pers.user.last_name,
-                'prenom': pers.user.first_name,
-                'email': pers.user.email,
-                'matricule': pers.matricule,
-                'telephone': str(pers.telephone) if pers.telephone else '',
-                'imageUrl': pers.imageUrl.url if pers.imageUrl else '',
-            }
+            # Utiliser les champs SQL directs si disponibles (nom, prenom)
+            try:
+                with connections['default'].cursor() as cur:
+                    cur.execute(
+                        "SELECT nom, postnom, prenom, email, telephone, imageUrl FROM personnel WHERE id_personnel = %s",
+                        [pers.id_personnel]
+                    )
+                    sql_row = cur.fetchone()
+                    if sql_row:
+                        personnel_info = {
+                            'id': pers.id_personnel,
+                            'nom': sql_row[0] or pers.user.last_name,
+                            'prenom': sql_row[2] or pers.user.first_name,
+                            'email': sql_row[3] or pers.user.email,
+                            'matricule': pers.matricule,
+                            'telephone': sql_row[4] or '',
+                            'imageUrl': sql_row[5] or '',
+                        }
+                    else:
+                        personnel_info = {
+                            'id': pers.id_personnel,
+                            'nom': pers.user.last_name,
+                            'prenom': pers.user.first_name,
+                            'email': pers.user.email,
+                            'matricule': pers.matricule,
+                            'telephone': str(pers.telephone) if pers.telephone else '',
+                            'imageUrl': pers.imageUrl.url if pers.imageUrl else '',
+                        }
+            except Exception:
+                personnel_info = {
+                    'id': pers.id_personnel,
+                    'nom': pers.user.last_name,
+                    'prenom': pers.user.first_name,
+                    'email': pers.user.email,
+                    'matricule': pers.matricule,
+                    'telephone': str(pers.telephone) if pers.telephone else '',
+                    'imageUrl': pers.imageUrl.url if pers.imageUrl else '',
+                }
     except Exception:
-        pass
+        import traceback
+        traceback.print_exc()
 
     context['personnel_id'] = personnel_id or 0
     context['personnel_info'] = json.dumps(personnel_info, ensure_ascii=False, default=str)
@@ -678,7 +735,7 @@ def api_enseignant_dashboard(request):
 
     try:
         with conn.cursor() as cur:
-            # Find personnel for logged-in user
+            # Find personnel for logged-in user (by user_id)
             cur.execute("""
                 SELECT p.id_personnel, p.nom, p.postnom, p.prenom, p.matricule,
                        p.telephone, au.first_name, au.last_name, au.email
@@ -688,6 +745,29 @@ def api_enseignant_dashboard(request):
                 LIMIT 1
             """, [request.user.id, etab_id])
             pers = cur.fetchone()
+
+            # Fallback: chercher par email (personnel ajouté via dashboard avec user_id bidon)
+            if not pers:
+                user_email = request.user.email
+                if user_email:
+                    cur.execute("""
+                        SELECT p.id_personnel, p.nom, p.postnom, p.prenom, p.matricule,
+                               p.telephone, p.email as email
+                        FROM personnel p
+                        WHERE LOWER(p.email) = LOWER(%s) AND p.id_etablissement = %s
+                        LIMIT 1
+                    """, [user_email, etab_id])
+                    pers = cur.fetchone()
+                    if pers:
+                        # Remplir les champs manquants pour compatibilité
+                        pers['first_name'] = pers.get('prenom') or ''
+                        pers['last_name'] = pers.get('nom') or ''
+                        # Auto-relink user_id pour les prochaines fois
+                        cur.execute(
+                            "UPDATE personnel SET user_id = %s WHERE id_personnel = %s",
+                            [request.user.id, pers['id_personnel']]
+                        )
+                        conn.commit()
 
             if not pers:
                 conn.close()
