@@ -672,18 +672,28 @@ def espace_enseignant_view(request):
         annee_active = context.get('annee_active')
         if annee_active:
             annee_id = annee_active.get('id') or annee_active.get('id_annee')
-            from structure_app.models import RepartitionCalendrier
-            reps = RepartitionCalendrier.objects.filter(
-                annee_id=annee_id
-            ).order_by('ordre', 'id_instance')
-            for r in reps:
-                repartitions.append({
-                    'id_instance': r.id_instance,
-                    'nom': r.nom,
-                    'is_leaf': not RepartitionCalendrier.objects.filter(parent=r).exists(),
-                })
+            from django.conf import settings
+            import pymysql
+            hub_settings = settings.DATABASES.get('countryStructure', {})
+            if hub_settings:
+                hconn = pymysql.connect(
+                    host=hub_settings.get('HOST','localhost'),
+                    user=hub_settings['USER'],
+                    password=hub_settings['PASSWORD'],
+                    port=int(hub_settings.get('PORT',3306) or 3306),
+                    database=hub_settings['NAME'],
+                    charset='utf8mb4',
+                    cursorclass=pymysql.cursors.DictCursor,
+                )
+                with hconn.cursor() as hcur:
+                    hcur.execute("SELECT id_instance, nom, parent_id FROM repartition_calendrier WHERE annee_id=%s ORDER BY ordre, id_instance", [annee_id])
+                    all_reps = hcur.fetchall()
+                    parent_ids = set(r['id_instance'] for r in all_reps if any(x['parent_id']==r['id_instance'] for x in all_reps))
+                    for r in all_reps:
+                        repartitions.append({'id_instance': r['id_instance'], 'nom': r['nom'], 'is_leaf': r['id_instance'] not in parent_ids})
+                hconn.close()
     except Exception:
-        pass
+        import traceback; traceback.print_exc()
     context['repartitions_notes_json'] = json.dumps(repartitions, ensure_ascii=False, default=str)
 
     return render(request, 'dashboard/espace_enseignant.html', context)
@@ -1084,12 +1094,18 @@ def api_enseignant_presences(request):
                     ORDER BY e.nom, e.prenom
                 """, [horaire['id_classe_id'], etab_id])
                 eleves = cur.fetchall()
-                cur.execute("SELECT id_horaire_presence, id_eleve_id, present_ou_absent, si_absent_motif FROM horaire_presence WHERE id_horaire_id=%s", [horaire_id])
+                # Ensure comportement_note column exists
+                try:
+                    cur.execute("ALTER TABLE horaire_presence ADD COLUMN comportement_note TINYINT DEFAULT NULL")
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+                cur.execute("SELECT id_horaire_presence, id_eleve_id, present_ou_absent, si_absent_motif, comportement_note FROM horaire_presence WHERE id_horaire_id=%s", [horaire_id])
                 presences = {}
                 for p in cur.fetchall():
                     presences[str(p['id_eleve_id'])] = {
                         'id': p['id_horaire_presence'], 'present': bool(p['present_ou_absent']),
-                        'motif': p['si_absent_motif'] or '', 'comportement': 5,
+                        'motif': p['si_absent_motif'] or '', 'comportement': p.get('comportement_note') or 5,
                     }
             conn.close()
             return JsonResponse({
