@@ -587,6 +587,71 @@ def espace_enseignant_view(request):
 
 @require_http_methods(["GET"])
 @login_required(login_url='login')
+def api_enseignant_debug(request):
+    """DEBUG TEMPORAIRE — vérifie la chaîne de données enseignant."""
+    import pymysql
+    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    debug = {
+        'user_id': request.user.id,
+        'user_email': request.user.email,
+        'etab_id': etab_id,
+        'steps': {}
+    }
+    try:
+        db_settings = connections['default'].settings_dict
+        conn = pymysql.connect(
+            host=db_settings.get('HOST', 'localhost') or 'localhost',
+            user=db_settings['USER'],
+            password=db_settings['PASSWORD'],
+            port=int(db_settings.get('PORT', 3306) or 3306),
+            database=db_settings['NAME'],
+            charset='utf8mb4',
+            cursorclass=pymysql.cursors.DictCursor,
+        )
+        with conn.cursor() as cur:
+            # Step 1: All personnel for this user
+            cur.execute("SELECT id_personnel, user_id, id_etablissement, matricule, en_fonction FROM personnel WHERE user_id = %s", [request.user.id])
+            debug['steps']['1_personnel_by_user_id'] = cur.fetchall()
+
+            # Step 2: Personnel for this etab
+            cur.execute("SELECT id_personnel, user_id, id_etablissement, matricule FROM personnel WHERE user_id = %s AND id_etablissement = %s", [request.user.id, etab_id])
+            personnel_rows = cur.fetchall()
+            debug['steps']['2_personnel_for_etab'] = personnel_rows
+
+            # Step 3: Table columns
+            cur.execute("SHOW COLUMNS FROM attribution_cours")
+            debug['steps']['3_attribution_cours_columns'] = [r['Field'] for r in cur.fetchall()]
+
+            # Step 4: All attributions
+            if personnel_rows:
+                pid = personnel_rows[0]['id_personnel']
+                cur.execute("SELECT * FROM attribution_cours WHERE id_personnel_id = %s LIMIT 10", [pid])
+                debug['steps']['4_attributions_for_personnel'] = cur.fetchall()
+
+                # Step 5: Try without id_etablissement filter
+                cur.execute("SELECT COUNT(*) as n FROM attribution_cours WHERE id_personnel_id = %s", [pid])
+                debug['steps']['5_total_attributions'] = cur.fetchone()
+            else:
+                debug['steps']['4_note'] = 'No personnel found for this user+etab'
+                # Try all personnel
+                cur.execute("SELECT id_personnel, user_id, id_etablissement, matricule FROM personnel LIMIT 10")
+                debug['steps']['4b_all_personnel_sample'] = cur.fetchall()
+
+            # Step 6: Horaire columns
+            cur.execute("SHOW COLUMNS FROM horaire")
+            debug['steps']['6_horaire_columns'] = [r['Field'] for r in cur.fetchall()]
+
+        conn.close()
+    except Exception as e:
+        import traceback
+        debug['error'] = str(e)
+        debug['traceback'] = traceback.format_exc()
+
+    return JsonResponse(debug, json_encoder=json.JSONEncoder, safe=False, default=str)
+
+
+@require_http_methods(["GET"])
+@login_required(login_url='login')
 def api_enseignant_dashboard(request):
     """API : Données dashboard enseignant — cours, horaires, stats."""
     import pymysql
