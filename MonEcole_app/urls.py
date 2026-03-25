@@ -132,4 +132,9 @@ urlpatterns = [
     path('api/dashboard/transfer-eleves/', api_views.dashboard_transfer_eleves, name='dashboard_transfer_eleves'),
     path('api/document-types/', api_views.document_types_api, name='document_types_api'),
     path('api/eleve-documents/', api_views.eleve_documents_api, name='eleve_documents_api'),
+
+    # Gestion Utilisateurs & Droits
+    path('api/dashboard/users/', api_views.dashboard_users_list, name='dashboard_users_list'),
+    path('api/dashboard/users/toggle/', api_views.dashboard_users_toggle, name='dashboard_users_toggle'),
+    path('api/dashboard/users/modules/', api_views.dashboard_users_modules, name='dashboard_users_modules'),
 ]

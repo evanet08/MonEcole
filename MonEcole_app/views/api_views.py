@@ -10190,3 +10190,257 @@ def eleve_documents_api(request):
         import traceback
         traceback.print_exc()
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ============================================================
+# GESTION DES UTILISATEURS & DROITS
+# ============================================================
+
+def _get_admin_email_for_etab(etab_id):
+    """Récupère l'admin_email depuis le Hub pour l'établissement."""
+    try:
+        with connections['countryStructure'].cursor() as cur:
+            cur.execute("SELECT admin_email FROM etablissements WHERE id_etablissement=%s", [etab_id])
+            row = cur.fetchone()
+            return row[0] if row else None
+    except Exception:
+        return None
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def dashboard_users_list(request):
+    """
+    Liste des utilisateurs (personnel) avec leurs modules assignés.
+    GET /api/dashboard/users/
+    """
+    try:
+        etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+        if not etab_id:
+            return JsonResponse({'success': False, 'error': 'Pas de tenant'}, status=400)
+
+        admin_email = _get_admin_email_for_etab(etab_id)
+
+        conn = _get_spoke_connection()
+        try:
+            with conn.cursor() as cur:
+                # Tous les personnels en fonction pour cet établissement
+                cur.execute("""
+                    SELECT p.id_personnel, au.email, au.first_name, au.last_name,
+                           p.matricule, p.isUser, p.is_verified, p.en_fonction,
+                           p.telephone, au.id as auth_user_id
+                    FROM personnel p
+                    JOIN auth_user au ON au.id = p.user_id
+                    WHERE p.id_etablissement = %s
+                    ORDER BY au.last_name, au.first_name
+                """, [etab_id])
+                personnels = cur.fetchall()
+
+                # Tous les modules
+                cur.execute("SELECT id_module, module FROM module ORDER BY id_module")
+                modules = cur.fetchall()
+
+                # User_module actifs pour cet établissement
+                cur.execute("""
+                    SELECT um.user_id, um.module_id, um.is_active
+                    FROM user_module um
+                    WHERE um.id_etablissement = %s
+                """, [etab_id])
+                user_modules_raw = cur.fetchall()
+
+            # Indexer les modules par personnel
+            um_map = {}  # {personnel_id: {module_id: is_active}}
+            for um in user_modules_raw:
+                pid = um['user_id']
+                mid = um['module_id']
+                if pid not in um_map:
+                    um_map[pid] = {}
+                um_map[pid][mid] = bool(um['is_active'])
+
+            users = []
+            for p in personnels:
+                email = p['email'] or ''
+                is_super = admin_email and email.lower() == admin_email.lower()
+                pid = p['id_personnel']
+                user_mods = um_map.get(pid, {})
+                users.append({
+                    'id_personnel': pid,
+                    'auth_user_id': p['auth_user_id'],
+                    'email': email,
+                    'first_name': p['first_name'] or '',
+                    'last_name': p['last_name'] or '',
+                    'matricule': p['matricule'] or '',
+                    'telephone': str(p['telephone'] or ''),
+                    'isUser': bool(p['isUser']),
+                    'is_verified': bool(p['is_verified']),
+                    'en_fonction': bool(p['en_fonction']),
+                    'is_super_admin': is_super,
+                    'modules': user_mods,
+                })
+
+            modules_list = [{'id': m['id_module'], 'name': m['module']} for m in modules]
+
+            return JsonResponse({
+                'success': True,
+                'users': users,
+                'modules': modules_list,
+                'admin_email': admin_email or '',
+            })
+        finally:
+            conn.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def dashboard_users_toggle(request):
+    """
+    Active/désactive un utilisateur (isUser, is_verified).
+    POST /api/dashboard/users/toggle/
+    Body: {id_personnel, isUser:bool, is_verified:bool}
+    """
+    try:
+        etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+        if not etab_id:
+            return JsonResponse({'success': False, 'error': 'Pas de tenant'}, status=400)
+
+        data = json.loads(request.body)
+        pid = data.get('id_personnel')
+        is_user = data.get('isUser')
+        is_verified = data.get('is_verified')
+
+        if not pid:
+            return JsonResponse({'success': False, 'error': 'id_personnel requis'}, status=400)
+
+        # Vérifier que ce n'est pas le super admin
+        admin_email = _get_admin_email_for_etab(etab_id)
+        conn = _get_spoke_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT au.email FROM personnel p
+                    JOIN auth_user au ON au.id = p.user_id
+                    WHERE p.id_personnel = %s
+                """, [pid])
+                row = cur.fetchone()
+                if row and admin_email and row['email'].lower() == admin_email.lower():
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Impossible de modifier le super administrateur'
+                    }, status=403)
+
+                updates = []
+                params = []
+                if is_user is not None:
+                    updates.append("isUser = %s")
+                    params.append(1 if is_user else 0)
+                if is_verified is not None:
+                    updates.append("is_verified = %s")
+                    params.append(1 if is_verified else 0)
+
+                if updates:
+                    params.append(pid)
+                    cur.execute(f"UPDATE personnel SET {', '.join(updates)} WHERE id_personnel = %s", params)
+                    conn.commit()
+
+            return JsonResponse({'success': True})
+        finally:
+            conn.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def dashboard_users_modules(request):
+    """
+    Assigne les modules à un utilisateur.
+    POST /api/dashboard/users/modules/
+    Body: {id_personnel, modules: {module_id: bool, ...}}
+    """
+    try:
+        etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+        if not etab_id:
+            return JsonResponse({'success': False, 'error': 'Pas de tenant'}, status=400)
+
+        data = json.loads(request.body)
+        pid = data.get('id_personnel')
+        modules_map = data.get('modules', {})
+
+        if not pid:
+            return JsonResponse({'success': False, 'error': 'id_personnel requis'}, status=400)
+
+        # Vérifier que ce n'est pas le super admin
+        admin_email = _get_admin_email_for_etab(etab_id)
+        conn = _get_spoke_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT au.email FROM personnel p
+                    JOIN auth_user au ON au.id = p.user_id
+                    WHERE p.id_personnel = %s
+                """, [pid])
+                row = cur.fetchone()
+                if row and admin_email and row['email'].lower() == admin_email.lower():
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Les droits du super administrateur ne peuvent pas être modifiés'
+                    }, status=403)
+
+                # Récupérer l'année active
+                cur.execute("""
+                    SELECT id_annee FROM annee
+                    WHERE etat_annee IN ('En Cours', 'actif', 'ouverte')
+                    ORDER BY annee DESC LIMIT 1
+                """)
+                annee_row = cur.fetchone()
+                annee_id = annee_row['id_annee'] if annee_row else 1
+
+                for mod_id_str, is_active in modules_map.items():
+                    mod_id = int(mod_id_str)
+                    # Check if user_module exists
+                    cur.execute("""
+                        SELECT id_user_module FROM user_module
+                        WHERE user_id=%s AND module_id=%s AND id_etablissement=%s
+                    """, [pid, mod_id, etab_id])
+                    existing = cur.fetchone()
+
+                    if existing:
+                        cur.execute("""
+                            UPDATE user_module SET is_active=%s
+                            WHERE id_user_module=%s
+                        """, [1 if is_active else 0, existing['id_user_module']])
+                    elif is_active:
+                        cur.execute("""
+                            INSERT INTO user_module (id_annee_id, user_id, module_id, is_active, id_etablissement, date_creation)
+                            VALUES (%s, %s, %s, 1, %s, CURDATE())
+                        """, [annee_id, pid, mod_id, etab_id])
+
+                conn.commit()
+
+                # Activer automatiquement isUser + is_verified si au moins un module actif
+                cur.execute("""
+                    SELECT COUNT(*) as cnt FROM user_module
+                    WHERE user_id=%s AND id_etablissement=%s AND is_active=1
+                """, [pid, etab_id])
+                cnt = cur.fetchone()['cnt']
+                if cnt > 0:
+                    cur.execute("""
+                        UPDATE personnel SET isUser=1, is_verified=1
+                        WHERE id_personnel=%s
+                    """, [pid])
+                    conn.commit()
+
+            return JsonResponse({'success': True})
+        finally:
+            conn.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+

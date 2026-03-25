@@ -21,6 +21,10 @@
     <i class="fas fa-calendar-alt" style="color:#f59e0b"></i>
     <span>Calendrier</span>
 </a>
+<a href="/dashboard/administration/?section=utilisateurs" class="nav-item {% if active_section == 'utilisateurs' %}active{% endif %}" title="Utilisateurs">
+    <i class="fas fa-users-cog" style="color:#ec4899"></i>
+    <span>Utilisateurs</span>
+</a>
 {% endblock %}
 
 {% block page_css %}
@@ -680,6 +684,78 @@
     <div class="dash-section">
         <div class="dash-section-title"><i class="fas fa-stream"></i> Timeline</div>
         <div id="calendarTimeline" style="margin-top:8px"></div>
+    </div>
+</div>
+
+<!-- ============ UTILISATEURS ============ -->
+<div class="etab-section {% if active_section == 'utilisateurs' %}active-section{% endif %}" id="sec-utilisateurs">
+    <!-- Header -->
+    <div class="section-header" style="background:linear-gradient(135deg,#831843,#be185d,#ec4899)">
+        <i class="fas fa-users-cog"></i>
+        <div>
+            <h2>Gestion des Utilisateurs & Droits</h2>
+            <div class="section-desc">Attribuez les accès aux modules pour le personnel de l'établissement</div>
+        </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="stat-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:1rem" id="userStatsGrid">
+        <div class="stat-card grad-purple"><div class="stat-icon"><i class="fas fa-users"></i></div><div class="stat-info"><div class="stat-label">Personnel Total</div><div class="stat-value" id="statTotalPersonnel">—</div></div></div>
+        <div class="stat-card grad-teal"><div class="stat-icon"><i class="fas fa-user-check"></i></div><div class="stat-info"><div class="stat-label">Utilisateurs Actifs</div><div class="stat-value" id="statActiveUsers">—</div></div></div>
+        <div class="stat-card grad-rose"><div class="stat-icon"><i class="fas fa-crown"></i></div><div class="stat-info"><div class="stat-label">Super Admin</div><div class="stat-value" id="statSuperAdmin" style="font-size:1rem">—</div></div></div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="dash-section">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <div class="dash-section-title"><i class="fas fa-shield-alt"></i> Attribution des Droits</div>
+                <div class="dash-section-sub">Sélectionnez un personnel et assignez-lui les modules auxquels il a accès</div>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+                <input type="text" id="userSearchInput" placeholder="🔍 Rechercher..." onkeyup="filterUsersTable()"
+                    style="padding:6px 14px;border-radius:8px;border:1.5px solid #e2e8f0;font-size:.72rem;width:200px;outline:none;transition:border-color .2s"
+                    onfocus="this.style.borderColor='#ec4899'" onblur="this.style.borderColor='#e2e8f0'">
+                <button class="btn-save-config" onclick="loadUsersData()" style="border-radius:8px;padding:6px 14px;font-size:.72rem">
+                    <i class="fas fa-sync-alt" style="margin-right:4px"></i>Actualiser
+                </button>
+            </div>
+        </div>
+        <div style="overflow-x:auto;max-height:600px;overflow-y:auto" id="usersTableContainer">
+            <div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement des utilisateurs...</div>
+        </div>
+    </div>
+
+    <!-- Module Assignment Modal -->
+    <div class="modal fade" id="moduleAssignModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:16px;overflow:hidden;border:none;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+                <div class="modal-header" style="background:linear-gradient(135deg,#831843,#be185d);color:#fff;border:none;padding:12px 20px">
+                    <h5 class="modal-title" style="font-size:.85rem;font-weight:700" id="moduleModalTitle"><i class="fas fa-key me-2"></i>Attribution des Modules</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" style="padding:20px">
+                    <div id="moduleModalUserInfo" style="background:#f8fafc;border-radius:12px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+                        <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:.9rem" id="moduleModalAvatar">?</div>
+                        <div>
+                            <div style="font-weight:700;font-size:.82rem;color:#0f172a" id="moduleModalName">—</div>
+                            <div style="font-size:.68rem;color:#64748b" id="moduleModalEmail">—</div>
+                        </div>
+                    </div>
+                    <div style="font-size:.72rem;font-weight:600;color:#475569;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">
+                        <i class="fas fa-cubes me-1" style="color:#ec4899"></i>Modules Disponibles
+                    </div>
+                    <div id="moduleCheckboxes" style="display:flex;flex-direction:column;gap:6px"></div>
+                    <div class="alert alert-danger d-none mt-3" id="moduleModalError" style="font-size:.72rem;border-radius:8px"></div>
+                </div>
+                <div class="modal-footer" style="padding:10px 20px;border:none">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="border-radius:8px">Annuler</button>
+                    <button type="button" class="btn btn-sm" onclick="saveModuleAssignment()" style="background:linear-gradient(135deg,#be185d,#ec4899);color:#fff;border:none;border-radius:8px;font-weight:600;padding:6px 18px">
+                        <i class="fas fa-save me-1"></i>Enregistrer
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -3686,6 +3762,202 @@ function viewDocAgrement() {
         body.innerHTML = `<div style="text-align:center;padding:40px;color:#475569;font-size:.82rem"><i class="fas fa-file-download" style="font-size:2rem;color:#6366f1;display:block;margin-bottom:12px"></i><p>Ce type de document ne peut pas être prévisualisé.</p><a href="${url}" target="_blank" download style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#6366f1,#818cf8);color:#fff;padding:8px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:.78rem"><i class="fas fa-download"></i> Télécharger le document</a></div>`;
     }
     new bootstrap.Modal(document.getElementById('docAgrementModal')).show();
+}
+
+/* ===== GESTION DES UTILISATEURS & DROITS ===== */
+let usersData = [];
+let modulesData = [];
+let currentEditUserId = null;
+
+function loadUsersData() {
+    const container = document.getElementById('usersTableContainer');
+    if (!container) return;
+    container.innerHTML = '<div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement des utilisateurs...</div>';
+
+    fetch('/api/dashboard/users/', {
+        headers: {'X-CSRFToken': getCsrfToken()}
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            container.innerHTML = `<div class="ca-loading" style="color:#ef4444"><i class="fas fa-exclamation-triangle"></i> ${data.error}</div>`;
+            return;
+        }
+        usersData = data.users || [];
+        modulesData = data.modules || [];
+
+        // Stats
+        document.getElementById('statTotalPersonnel').textContent = usersData.length;
+        document.getElementById('statActiveUsers').textContent = usersData.filter(u => u.isUser && u.is_verified).length;
+        const superAdmin = usersData.find(u => u.is_super_admin);
+        document.getElementById('statSuperAdmin').textContent = superAdmin ? `${superAdmin.first_name} ${superAdmin.last_name}` : '—';
+
+        renderUsersTable();
+    })
+    .catch(e => {
+        container.innerHTML = `<div class="ca-loading" style="color:#ef4444"><i class="fas fa-exclamation-triangle"></i> Erreur: ${e.message}</div>`;
+    });
+}
+
+function renderUsersTable() {
+    const container = document.getElementById('usersTableContainer');
+    if (!usersData.length) {
+        container.innerHTML = '<div class="ca-loading"><i class="fas fa-users"></i> Aucun personnel trouvé.</div>';
+        return;
+    }
+
+    const modHeaders = modulesData.map(m =>
+        `<th style="text-align:center;font-size:.55rem;max-width:80px;word-wrap:break-word;writing-mode:horizontal-tb">${m.name}</th>`
+    ).join('');
+
+    let rows = '';
+    usersData.forEach((u, i) => {
+        const isSA = u.is_super_admin;
+        const fullName = `${u.last_name} ${u.first_name}`.trim() || u.email;
+        const initials = ((u.first_name || '?')[0] + (u.last_name || '?')[0]).toUpperCase();
+
+        // Status badges
+        let statusBadge = '';
+        if (isSA) {
+            statusBadge = '<span style="background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#78350f;padding:2px 8px;border-radius:10px;font-size:.58rem;font-weight:700;display:inline-flex;align-items:center;gap:3px"><i class="fas fa-crown" style="font-size:.5rem"></i>Super Admin</span>';
+        } else if (u.isUser && u.is_verified) {
+            statusBadge = '<span style="background:linear-gradient(135deg,#059669,#34d399);color:#fff;padding:2px 8px;border-radius:10px;font-size:.58rem;font-weight:600">Actif</span>';
+        } else if (u.isUser) {
+            statusBadge = '<span style="background:linear-gradient(135deg,#f59e0b,#fcd34d);color:#78350f;padding:2px 8px;border-radius:10px;font-size:.58rem;font-weight:600">Non vérifié</span>';
+        } else {
+            statusBadge = '<span style="background:#f1f5f9;color:#94a3b8;padding:2px 8px;border-radius:10px;font-size:.58rem;font-weight:600">Inactif</span>';
+        }
+
+        // Module dots
+        const modDots = modulesData.map(m => {
+            const active = u.modules[m.id] === true;
+            const color = active ? '#059669' : '#e2e8f0';
+            const icon = active ? '●' : '○';
+            return `<td style="text-align:center"><span style="color:${color};font-size:.8rem;font-weight:700" title="${m.name}: ${active? 'Actif':'Inactif'}">${icon}</span></td>`;
+        }).join('');
+
+        // Avatar gradient
+        const gradients = ['#6366f1,#8b5cf6','#ec4899,#f472b6','#0ea5e9,#38bdf8','#10b981,#34d399','#f59e0b,#fbbf24','#ef4444,#f87171'];
+        const grad = gradients[i % gradients.length];
+
+        rows += `<tr class="user-row" data-name="${fullName.toLowerCase()}" data-email="${u.email.toLowerCase()}" style="${isSA ? 'background:linear-gradient(90deg,rgba(251,191,36,.06),transparent)':''};transition:background .15s">
+            <td style="text-align:center;color:#94a3b8;font-size:.6rem;font-weight:600">${i+1}</td>
+            <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <div style="width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,${grad});display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.65rem;flex-shrink:0">${initials}</div>
+                    <div>
+                        <div style="font-weight:600;font-size:.72rem;color:#0f172a">${fullName} ${isSA?'<i class="fas fa-crown" style="color:#f59e0b;font-size:.6rem;margin-left:3px"></i>':''}</div>
+                        <div style="font-size:.6rem;color:#94a3b8">${u.email}</div>
+                    </div>
+                </div>
+            </td>
+            <td style="font-size:.68rem;color:#475569">${u.matricule || '—'}</td>
+            <td style="font-size:.68rem;color:#475569">${u.telephone || '—'}</td>
+            <td>${statusBadge}</td>
+            ${modDots}
+            <td style="text-align:center">
+                ${isSA
+                    ? '<span style="font-size:.6rem;color:#94a3b8;font-style:italic">Tous les droits</span>'
+                    : `<button onclick="openModuleModal(${u.id_personnel})" style="background:linear-gradient(135deg,#6366f1,#818cf8);color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:.62rem;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:3px" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='none'"><i class="fas fa-key" style="font-size:.55rem"></i>Droits</button>`
+                }
+            </td>
+        </tr>`;
+    });
+
+    container.innerHTML = `<table class="eleves-table">
+        <thead><tr>
+            <th style="width:30px">#</th>
+            <th>Personnel</th>
+            <th>Matricule</th>
+            <th>Téléphone</th>
+            <th>Statut</th>
+            ${modHeaders}
+            <th style="text-align:center">Actions</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function filterUsersTable() {
+    const q = (document.getElementById('userSearchInput')?.value || '').toLowerCase();
+    document.querySelectorAll('.user-row').forEach(row => {
+        const name = row.dataset.name || '';
+        const email = row.dataset.email || '';
+        row.style.display = (name.includes(q) || email.includes(q)) ? '' : 'none';
+    });
+}
+
+function openModuleModal(personnelId) {
+    const user = usersData.find(u => u.id_personnel === personnelId);
+    if (!user) return;
+    if (user.is_super_admin) {
+        alert('Les droits du super administrateur ne peuvent pas être modifiés.');
+        return;
+    }
+
+    currentEditUserId = personnelId;
+    const initials = ((user.first_name || '?')[0] + (user.last_name || '?')[0]).toUpperCase();
+    document.getElementById('moduleModalAvatar').textContent = initials;
+    document.getElementById('moduleModalName').textContent = `${user.last_name} ${user.first_name}`.trim();
+    document.getElementById('moduleModalEmail').textContent = user.email;
+    document.getElementById('moduleModalError').classList.add('d-none');
+
+    // Render module checkboxes
+    const container = document.getElementById('moduleCheckboxes');
+    const moduleIcons = {1:'fa-cogs',2:'fa-user-graduate',3:'fa-clipboard-check',4:'fa-chalkboard-teacher',5:'fa-school',6:'fa-money-bill',7:'fa-book',8:'fa-crown'};
+    const moduleColors = {1:'#6366f1',2:'#0ea5e9',3:'#10b981',4:'#f59e0b',5:'#ec4899',6:'#8b5cf6',7:'#ef4444',8:'#14b8a6'};
+
+    container.innerHTML = modulesData.map(m => {
+        const checked = user.modules[m.id] === true;
+        const icon = moduleIcons[m.id] || 'fa-cube';
+        const color = moduleColors[m.id] || '#6366f1';
+        return `<label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1.5px solid ${checked?color:'#e2e8f0'};background:${checked?color+'0d':'#f8fafc'};cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='${color}'" onmouseout="this.style.borderColor=this.querySelector('input').checked?'${color}':'#e2e8f0'">
+            <input type="checkbox" data-module-id="${m.id}" ${checked?'checked':''} style="accent-color:${color};width:16px;height:16px;cursor:pointer"
+                onchange="this.parentElement.style.borderColor=this.checked?'${color}':'#e2e8f0';this.parentElement.style.background=this.checked?'${color}0d':'#f8fafc'">
+            <i class="fas ${icon}" style="color:${color};font-size:.85rem;width:20px;text-align:center"></i>
+            <span style="font-size:.78rem;font-weight:600;color:#1e293b">${m.name}</span>
+        </label>`;
+    }).join('');
+
+    new bootstrap.Modal(document.getElementById('moduleAssignModal')).show();
+}
+
+function saveModuleAssignment() {
+    if (!currentEditUserId) return;
+
+    const checkboxes = document.querySelectorAll('#moduleCheckboxes input[type="checkbox"]');
+    const modules = {};
+    checkboxes.forEach(cb => {
+        modules[cb.dataset.moduleId] = cb.checked;
+    });
+
+    const errEl = document.getElementById('moduleModalError');
+    errEl.classList.add('d-none');
+
+    fetch('/api/dashboard/users/modules/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+        body: JSON.stringify({id_personnel: currentEditUserId, modules: modules})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('moduleAssignModal'))?.hide();
+            loadUsersData();
+        } else {
+            errEl.textContent = data.error || 'Erreur inconnue';
+            errEl.classList.remove('d-none');
+        }
+    })
+    .catch(e => {
+        errEl.textContent = 'Erreur réseau: ' + e.message;
+        errEl.classList.remove('d-none');
+    });
+}
+
+// Auto-load users when on utilisateurs section
+if (ACTIVE_SECTION === 'utilisateurs') {
+    document.addEventListener('DOMContentLoaded', () => loadUsersData());
 }
 
 </script>

@@ -17,6 +17,7 @@ from django.db import connections
 from MonEcole_app.variables import MODULE_ID_TO_PAGE
 from MonEcole_app.models.personnel import Personnel
 from MonEcole_app.models.module import Module, UserModule
+from MonEcole_app.models.annee import Annee
 
 
 # ── Helpers ──
@@ -303,6 +304,56 @@ def api_login(request):
         request.session['user_email'] = django_user.email
         request.session['personnel_id'] = personnel.id_personnel
         request.session['_last_activity'] = time.time()
+
+        # ── Auto-provisioning Super Admin ──
+        # Si l'email correspond à admin_email du Hub, garantir tous les modules
+        try:
+            from django.db import connections
+            etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+            if etab_id:
+                with connections['countryStructure'].cursor() as hub_cur:
+                    hub_cur.execute(
+                        "SELECT admin_email FROM etablissements WHERE id_etablissement=%s",
+                        [etab_id]
+                    )
+                    hub_row = hub_cur.fetchone()
+                    admin_email = hub_row[0] if hub_row else None
+
+                if admin_email and email == admin_email.lower():
+                    # Assurer isUser + is_verified
+                    if not personnel.isUser or not personnel.is_verified:
+                        Personnel.objects.filter(id_personnel=personnel.id_personnel).update(
+                            isUser=True, is_verified=True, en_fonction=True
+                        )
+                        personnel.refresh_from_db()
+
+                    # Assurer tous les modules
+                    all_modules = Module.objects.all()
+                    annee = Annee.objects.filter(
+                        pays_id=request.session.get('pays_id')
+                    ).order_by('-annee').first()
+                    if not annee:
+                        annee = Annee.objects.order_by('-annee').first()
+                    annee_id = annee.id_annee if annee else 1
+
+                    for mod in all_modules:
+                        um, created = UserModule.objects.get_or_create(
+                            user=personnel,
+                            module=mod,
+                            id_etablissement=etab_id,
+                            defaults={
+                                'id_annee_id': annee_id,
+                                'is_active': True,
+                            }
+                        )
+                        if not created and not um.is_active:
+                            um.is_active = True
+                            um.save()
+
+                    request.session['is_super_admin'] = True
+        except Exception:
+            import traceback
+            traceback.print_exc()
 
         # Charger les modules
         user_modules = _load_user_modules(request, personnel)
