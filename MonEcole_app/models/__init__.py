@@ -14,3 +14,4 @@ from .module import *
 from .recouvrement import *
 from .country_structure import *
 from .hub_auth import *
+from .communication import *

@@ -6,6 +6,7 @@ from MonEcole_app.views.dashboard_views import (
     evaluations_view, scolarite_view,
     espace_enseignant_view, api_enseignant_dashboard, api_enseignant_debug,
     api_enseignant_presences,
+    api_communication_messages, api_communication_send, api_communication_threads,
 )
 from MonEcole_app.views import api_views
 
@@ -34,6 +35,11 @@ urlpatterns = [
     path('api/enseignant/dashboard/', api_enseignant_dashboard, name='api_enseignant_dashboard'),
     path('api/enseignant/debug/', api_enseignant_debug, name='api_enseignant_debug'),
     path('api/enseignant/presences/', api_enseignant_presences, name='api_enseignant_presences'),
+
+    # API Communication
+    path('api/enseignant/communication/', api_communication_messages, name='api_communication_messages'),
+    path('api/enseignant/communication/send/', api_communication_send, name='api_communication_send'),
+    path('api/enseignant/communication/threads/', api_communication_threads, name='api_communication_threads'),
 
     # ============ API DASHBOARD (copiées depuis eSchool) ============
     # Dashboard — Student Management

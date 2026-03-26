@@ -1238,3 +1238,198 @@ def api_enseignant_presences(request):
         traceback.print_exc()
         conn.close()
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ============================================================
+# COMMUNICATION API
+# ============================================================
+
+@require_http_methods(["GET"])
+@login_required(login_url='login')
+def api_communication_messages(request):
+    """
+    GET /api/enseignant/communication/?thread_id=...
+    Renvoie les messages d'un thread de conversation.
+    """
+    from MonEcole_app.models.communication import Communication
+    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    if not etab_id:
+        return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
+
+    thread_id = request.GET.get('thread_id', '')
+    if not thread_id:
+        return JsonResponse({'success': False, 'error': 'thread_id requis'}, status=400)
+
+    messages = Communication.objects.filter(
+        id_etablissement=etab_id,
+        thread_id=thread_id
+    ).order_by('created_at').values(
+        'id_communication', 'sender_name', 'sender_personnel_id', 'sender_eleve_id',
+        'scope', 'direction', 'message', 'subject',
+        'status', 'is_read', 'created_at'
+    )
+
+    msgs_list = []
+    for m in messages:
+        msgs_list.append({
+            'id': m['id_communication'],
+            'sender_name': m['sender_name'],
+            'sender_personnel_id': m['sender_personnel_id'],
+            'sender_eleve_id': m['sender_eleve_id'],
+            'scope': m['scope'],
+            'direction': m['direction'],
+            'message': m['message'],
+            'subject': m['subject'],
+            'status': m['status'],
+            'is_read': m['is_read'],
+            'created_at': m['created_at'].strftime('%Y-%m-%d %H:%M:%S') if m['created_at'] else '',
+            'time': m['created_at'].strftime('%H:%M') if m['created_at'] else '',
+        })
+
+    # Mark incoming messages as read
+    Communication.objects.filter(
+        id_etablissement=etab_id,
+        thread_id=thread_id,
+        direction='in',
+        is_read=False
+    ).update(is_read=True, read_at=__import__('django.utils.timezone', fromlist=['now']).now())
+
+    return JsonResponse({'success': True, 'messages': msgs_list})
+
+
+@require_http_methods(["POST"])
+@login_required(login_url='login')
+def api_communication_send(request):
+    """
+    POST /api/enseignant/communication/send/
+    Envoie un message depuis l'enseignant.
+    Body JSON: { thread_id, scope, target_eleve_id?, target_classe_id?, message }
+    """
+    from MonEcole_app.models.communication import Communication
+    from MonEcole_app.models.personnel import Personnel
+
+    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    if not etab_id:
+        return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({'success': False, 'error': 'JSON invalide'}, status=400)
+
+    message_text = (data.get('message') or '').strip()
+    if not message_text:
+        return JsonResponse({'success': False, 'error': 'Message vide'}, status=400)
+
+    thread_id = data.get('thread_id', '')
+    scope = data.get('scope', 'individual')
+    target_eleve_id = data.get('target_eleve_id')
+    target_classe_id = data.get('target_classe_id')
+    subject = data.get('subject', '')
+
+    # Identifier l'enseignant
+    pers = Personnel.objects.filter(user=request.user, id_etablissement=etab_id).first()
+    if not pers:
+        # Fallback: chercher par email
+        try:
+            from django.db import connections
+            with connections['default'].cursor() as cur:
+                cur.execute(
+                    "SELECT id_personnel, CONCAT(COALESCE(nom,''), ' ', COALESCE(prenom,'')) as full_name FROM personnel WHERE user_id = %s AND id_etablissement = %s LIMIT 1",
+                    [request.user.id, etab_id]
+                )
+                row = cur.fetchone()
+                sender_id = row[0] if row else None
+                sender_name = (row[1] or '').strip() if row else request.user.get_full_name()
+        except Exception:
+            sender_id = None
+            sender_name = request.user.get_full_name() or request.user.username
+    else:
+        sender_id = pers.id_personnel
+        sender_name = f"{pers.user.last_name} {pers.user.first_name}".strip() or pers.matricule
+
+    # Année active
+    annee_id = None
+    try:
+        from MonEcole_app.models.country_structure import Etablissement as Etab, Pays as PaysModel
+        from MonEcole_app.models.annee import Annee as AnneeModel
+        etab_obj = Etab.objects.select_related('pays').filter(id_etablissement=etab_id).first()
+        if etab_obj:
+            annee_active = AnneeModel.objects.filter(
+                pays_id=etab_obj.pays_id, etat_annee__in=['En Cours', 'actif']
+            ).order_by('-annee').first()
+            annee_id = annee_active.id_annee if annee_active else None
+    except Exception:
+        pass
+
+    comm = Communication.objects.create(
+        id_etablissement=etab_id,
+        id_annee=annee_id,
+        sender_personnel_id=sender_id,
+        sender_name=sender_name,
+        scope=scope,
+        direction='out',
+        target_eleve_id=target_eleve_id if target_eleve_id else None,
+        target_classe_id=target_classe_id if target_classe_id else None,
+        subject=subject,
+        message=message_text,
+        thread_id=thread_id,
+        status='sent',
+    )
+
+    return JsonResponse({
+        'success': True,
+        'message': {
+            'id': comm.id_communication,
+            'sender_name': comm.sender_name,
+            'direction': comm.direction,
+            'message': comm.message,
+            'time': comm.created_at.strftime('%H:%M') if comm.created_at else '',
+            'created_at': comm.created_at.strftime('%Y-%m-%d %H:%M:%S') if comm.created_at else '',
+        }
+    })
+
+
+@require_http_methods(["GET"])
+@login_required(login_url='login')
+def api_communication_threads(request):
+    """
+    GET /api/enseignant/communication/threads/
+    Renvoie la liste des threads avec le dernier message de chacun.
+    """
+    from MonEcole_app.models.communication import Communication
+    from django.db.models import Max, Count, Q
+
+    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    if not etab_id:
+        return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
+
+    # Get distinct threads with their latest message timestamp
+    threads = Communication.objects.filter(
+        id_etablissement=etab_id
+    ).values('thread_id').annotate(
+        last_msg=Max('created_at'),
+        msg_count=Count('id_communication'),
+        unread=Count('id_communication', filter=Q(direction='in', is_read=False))
+    ).order_by('-last_msg')
+
+    thread_list = []
+    for t in threads:
+        # Get the last message for preview
+        last_comm = Communication.objects.filter(
+            id_etablissement=etab_id,
+            thread_id=t['thread_id']
+        ).order_by('-created_at').first()
+
+        thread_list.append({
+            'thread_id': t['thread_id'],
+            'last_message': last_comm.message[:60] if last_comm else '',
+            'last_sender': last_comm.sender_name if last_comm else '',
+            'last_direction': last_comm.direction if last_comm else '',
+            'last_time': last_comm.created_at.strftime('%H:%M') if last_comm and last_comm.created_at else '',
+            'last_date': last_comm.created_at.strftime('%d/%m') if last_comm and last_comm.created_at else '',
+            'msg_count': t['msg_count'],
+            'unread': t['unread'],
+        })
+
+    return JsonResponse({'success': True, 'threads': thread_list})
