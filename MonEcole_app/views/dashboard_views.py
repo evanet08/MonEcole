@@ -837,8 +837,16 @@ def api_enseignant_dashboard(request):
                             pass
 
             if not pers:
+                # Debug: log what we tried
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"[api_enseignant_dashboard] Personnel NOT FOUND for user_id={request.user.id}, email={request.user.email}, etab_id={etab_id}")
+                # List all personnel for this etab
+                cur.execute("SELECT id_personnel, user_id, email, nom, prenom FROM personnel WHERE id_etablissement = %s", [etab_id])
+                all_pers = cur.fetchall()
+                logger.error(f"[api_enseignant_dashboard] All personnel for etab {etab_id}: {all_pers}")
                 conn.close()
-                return JsonResponse({'success': False, 'error': 'Vous n\'êtes pas enregistré comme personnel'}, status=403)
+                return JsonResponse({'success': False, 'error': f'Personnel non trouvé (user_id={request.user.id}, email={request.user.email})'}, status=403)
 
             personnel_id = pers['id_personnel']
 
