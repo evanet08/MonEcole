@@ -13,6 +13,10 @@
     <i class="fas fa-pencil-alt" style="color:#8b5cf6"></i>
     <span>Notes</span>
 </a>
+<a href="/dashboard/evaluations/?section=deliberations" class="nav-item {% if active_section == 'deliberations' %}active{% endif %}" title="Délibérations">
+    <i class="fas fa-gavel" style="color:#f97316"></i>
+    <span>Délibérations</span>
+</a>
 <a href="/dashboard/evaluations/?section=resultats" class="nav-item {% if active_section == 'resultats' %}active{% endif %}" title="Résultats">
     <i class="fas fa-chart-bar" style="color:#ec4899"></i>
     <span>Résultats</span>
@@ -1804,6 +1808,324 @@ function toggleBulletinAccordion(accId) {
         if (icon) icon.style.transform = 'rotate(0deg)';
     }
 }
+</script>
+
+
+
+<div class="etab-section {% if active_section == 'deliberations' %}active-section{% endif %}" id="sec-deliberations">
+
+    <!-- Section Header -->
+    <div class="section-header" style="background:linear-gradient(135deg,#c2410c 0%,#ea580c 35%,#f97316 100%)">
+        <i class="fas fa-gavel"></i>
+        <div>
+            <h2>Délibérations</h2>
+            <div class="section-desc">Lancer et gérer les délibérations par période, trimestre, année et repêchage</div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="eleve-tabs" style="display:flex;gap:0;margin-bottom:10px;border-bottom:2px solid #e2e8f0">
+        <button class="eleve-tab active" id="tabDelibPeriode" onclick="switchDelibTab('periode')"><i class="fas fa-calendar-day"></i> Par Période</button>
+        <button class="eleve-tab" id="tabDelibTrimestre" onclick="switchDelibTab('trimestre')"><i class="fas fa-calendar-week"></i> Par Trimestre</button>
+        <button class="eleve-tab" id="tabDelibAnnee" onclick="switchDelibTab('annee')"><i class="fas fa-calendar-alt"></i> Par Année</button>
+        <button class="eleve-tab" id="tabDelibRepechage" onclick="switchDelibTab('repechage')"><i class="fas fa-redo-alt"></i> Par Repêchage</button>
+    </div>
+
+    <!-- Common Selectors -->
+    <div class="dash-section" style="padding:14px" id="delibSelectorsPanel">
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+            <div style="flex:1;min-width:200px">
+                <label style="font-size:.62rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:3px">Classe</label>
+                <select id="delib-classe-select" class="form-select form-select-sm" onchange="onDelibClasseChange()">
+                    <option value="">— Sélectionner une classe —</option>
+                </select>
+            </div>
+            <div style="flex:1;min-width:180px" id="delib-repartition-wrap">
+                <label style="font-size:.62rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:3px">Répartition</label>
+                <select id="delib-repartition-select" class="form-select form-select-sm" disabled>
+                    <option value="">— Répartition —</option>
+                </select>
+            </div>
+            <div style="flex:1;min-width:150px" id="delib-session-wrap">
+                <label style="font-size:.62rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:3px">Session</label>
+                <select id="delib-session-select" class="form-select form-select-sm" disabled>
+                    <option value="">— Session —</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conditions preview (from Hub) -->
+    <div id="delibConditionsPanel" style="display:none" class="dash-section" style="padding:14px">
+        <div class="dash-section-title"><i class="fas fa-cogs"></i> Conditions de Délibération (Hub)</div>
+        <div class="dash-section-sub">Critères configurés pour cette classe</div>
+        <div id="delibConditionsGrid" style="max-height:200px;overflow-y:auto"></div>
+    </div>
+
+    <!-- Action + Results -->
+    <div class="dash-section" style="padding:14px">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+            <button class="eleve-btn eleve-btn-add" id="btnLaunchDelib" onclick="launchDeliberation()" disabled style="height:34px">
+                <i class="fas fa-play"></i> Lancer la Délibération
+            </button>
+            <button class="eleve-btn" id="btnCancelDelib" onclick="cancelDeliberation()" disabled style="height:34px;background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff">
+                <i class="fas fa-times"></i> Annuler
+            </button>
+            <div id="delibStatusBadge" style="display:none;padding:4px 14px;border-radius:20px;font-size:.68rem;font-weight:700"></div>
+        </div>
+
+        <!-- Results table -->
+        <div id="delibResultsContainer">
+            <div style="text-align:center;padding:50px 20px;color:#94a3b8">
+                <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#fff7ed,#fed7aa);margin:0 auto 16px;display:flex;align-items:center;justify-content:center">
+                    <i class="fas fa-gavel" style="font-size:2rem;color:#f97316;opacity:.5"></i>
+                </div>
+                <div style="font-weight:700;font-size:.88rem;color:#1e293b;margin-bottom:6px">Sélectionnez une classe pour commencer</div>
+                <div style="font-size:.72rem;color:#94a3b8">Les résultats de la délibération apparaîtront ici.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ DELIBERATIONS JS ============ -->
+<script>
+(function(){
+    // Populate delib class selector
+    const delibClasseSelect = document.getElementById('delib-classe-select');
+    if (!delibClasseSelect) return;
+    const classesData = [
+        {% for c in classes_detail %}
+        { eac_id: {{ c.eac_id }}, nom: "{{ c.classe_nom|escapejs }}", cycle: "{{ c.cycle_nom|escapejs }}" },
+        {% endfor %}
+    ];
+    classesData.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.eac_id; opt.textContent = c.nom + ' (' + c.cycle + ')';
+        delibClasseSelect.appendChild(opt);
+    });
+})();
+
+let _currentDelibTab = 'periode';
+let _delibConditions = [];
+
+function switchDelibTab(tab) {
+    _currentDelibTab = tab;
+    ['periode','trimestre','annee','repechage'].forEach(t => {
+        const btn = document.getElementById('tabDelib' + t.charAt(0).toUpperCase() + t.slice(1));
+        if (btn) btn.classList.toggle('active', t === tab);
+    });
+    // Show/hide repartition selector for periode/trimestre types
+    const repWrap = document.getElementById('delib-repartition-wrap');
+    const sesWrap = document.getElementById('delib-session-wrap');
+    if (repWrap) repWrap.style.display = (['periode','trimestre'].includes(tab)) ? '' : 'none';
+    if (sesWrap) sesWrap.style.display = (['annee','repechage'].includes(tab)) ? '' : 'none';
+    // Reset results
+    onDelibClasseChange();
+}
+
+async function onDelibClasseChange() {
+    const classeId = document.getElementById('delib-classe-select').value;
+    const repSelect = document.getElementById('delib-repartition-select');
+    const sesSelect = document.getElementById('delib-session-select');
+    repSelect.innerHTML = '<option value="">— Répartition —</option>';
+    repSelect.disabled = true;
+    sesSelect.innerHTML = '<option value="">— Session —</option>';
+    sesSelect.disabled = true;
+    document.getElementById('btnLaunchDelib').disabled = true;
+    document.getElementById('btnCancelDelib').disabled = true;
+    document.getElementById('delibConditionsPanel').style.display = 'none';
+
+    if (!classeId) return;
+
+    // Load repartitions for the class
+    try {
+        const res = await fetch('/api/evaluations/repartitions/?classe_id=' + classeId);
+        const data = await res.json();
+        if (data.success && data.repartitions) {
+            data.repartitions.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r.id;
+                opt.textContent = r.nom;
+                opt.dataset.type = r.type_code || '';
+                repSelect.appendChild(opt);
+            });
+            repSelect.disabled = false;
+        }
+    } catch(e) { console.error('load repartitions', e); }
+
+    // Load sessions
+    try {
+        const res = await fetch('/api/evaluations/sessions/');
+        const data = await res.json();
+        if (data.success && data.sessions) {
+            data.sessions.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id_session;
+                opt.textContent = s.session;
+                sesSelect.appendChild(opt);
+            });
+            sesSelect.disabled = false;
+        }
+    } catch(e) { console.error('load sessions', e); }
+
+    // Load deliberation conditions from Hub
+    try {
+        const res = await fetch('/api/deliberations/conditions/?classe_id=' + classeId);
+        const data = await res.json();
+        if (data.success && data.conditions) {
+            _delibConditions = data.conditions;
+            renderDelibConditions();
+        }
+    } catch(e) { console.error('load conditions', e); }
+    
+    document.getElementById('btnLaunchDelib').disabled = false;
+    document.getElementById('btnCancelDelib').disabled = false;
+}
+
+function renderDelibConditions() {
+    const panel = document.getElementById('delibConditionsPanel');
+    const grid = document.getElementById('delibConditionsGrid');
+    if (!_delibConditions.length) {
+        panel.style.display = 'none';
+        return;
+    }
+    panel.style.display = '';
+    let html = '<table style="width:100%;font-size:.72rem;border-collapse:collapse">';
+    html += '<thead><tr style="background:#f8fafc"><th style="padding:6px 10px;text-align:left;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0">Mention</th>';
+    html += '<th style="padding:6px 8px;text-align:center;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0">Max Échecs</th>';
+    html += '<th style="padding:6px 8px;text-align:center;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0">Seuil Échec</th>';
+    html += '<th style="padding:6px 8px;text-align:left;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0">Sanction</th>';
+    html += '<th style="padding:6px 8px;text-align:left;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0">Finalité</th></tr></thead><tbody>';
+    _delibConditions.forEach((c, i) => {
+        const bg = i % 2 === 0 ? '#fff' : '#f8fafc';
+        html += `<tr style="background:${bg}">
+            <td style="padding:5px 10px;border-bottom:1px solid #f1f5f9;font-weight:600">${c.mention || '—'}</td>
+            <td style="padding:5px 8px;text-align:center;border-bottom:1px solid #f1f5f9">${c.max_echecs ?? '—'}</td>
+            <td style="padding:5px 8px;text-align:center;border-bottom:1px solid #f1f5f9">${c.seuil_profondeur ?? '—'}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #f1f5f9">${c.sanction || '—'}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #f1f5f9"><span style="background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;padding:1px 8px;border-radius:20px;font-size:.58rem;font-weight:700">${c.finalite || '—'}</span></td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    grid.innerHTML = html;
+}
+
+async function launchDeliberation() {
+    const classeId = document.getElementById('delib-classe-select').value;
+    const repId = document.getElementById('delib-repartition-select').value;
+    const sesId = document.getElementById('delib-session-select').value;
+    
+    if (!classeId) { showToast('Sélectionnez une classe.', 'error'); return; }
+
+    const type = _currentDelibTab;
+    if (['periode','trimestre'].includes(type) && !repId) {
+        showToast('Sélectionnez une répartition.', 'error'); return;
+    }
+    if (['annee','repechage'].includes(type) && !sesId) {
+        showToast('Sélectionnez une session.', 'error'); return;
+    }
+
+    const statusBadge = document.getElementById('delibStatusBadge');
+    statusBadge.style.display = '';
+    statusBadge.style.background = 'linear-gradient(135deg,#f59e0b,#fbbf24)';
+    statusBadge.style.color = '#92400e';
+    statusBadge.textContent = '⏳ Délibération en cours...';
+
+    document.getElementById('btnLaunchDelib').disabled = true;
+
+    try {
+        const payload = { classe_id: classeId, type: type };
+        if (repId) payload.repartition_id = repId;
+        if (sesId) payload.session_id = sesId;
+
+        const res = await fetch('/api/deliberations/execute/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            statusBadge.style.background = 'linear-gradient(135deg,#059669,#10b981)';
+            statusBadge.style.color = '#fff';
+            statusBadge.textContent = '✅ ' + (data.message || 'Délibération réussie');
+            showToast(data.message || 'Délibération effectuée !', 'success');
+            renderDelibResults(data.resultats || []);
+        } else {
+            statusBadge.style.background = 'linear-gradient(135deg,#dc2626,#ef4444)';
+            statusBadge.style.color = '#fff';
+            statusBadge.textContent = '❌ ' + (data.error || data.message || 'Erreur');
+            showToast(data.error || data.message || 'Erreur lors de la délibération.', 'error');
+        }
+    } catch(e) {
+        statusBadge.style.background = '#fee2e2';
+        statusBadge.style.color = '#dc2626';
+        statusBadge.textContent = '❌ Erreur de connexion';
+        showToast('Erreur de connexion.', 'error');
+    }
+    document.getElementById('btnLaunchDelib').disabled = false;
+}
+
+async function cancelDeliberation() {
+    const classeId = document.getElementById('delib-classe-select').value;
+    if (!classeId) { showToast('Sélectionnez une classe.', 'error'); return; }
+    if (!confirm('Êtes-vous sûr de vouloir annuler cette délibération ? Tous les résultats seront supprimés.')) return;
+
+    const repId = document.getElementById('delib-repartition-select').value;
+    try {
+        const payload = { classe_id: classeId, type: _currentDelibTab };
+        if (repId) payload.repartition_id = repId;
+        
+        const res = await fetch('/api/deliberations/cancel/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message || 'Délibération annulée.', 'success');
+            document.getElementById('delibResultsContainer').innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:.78rem"><i class="fas fa-check-circle me-1" style="color:#10b981"></i>Délibération annulée avec succès.</div>';
+            document.getElementById('delibStatusBadge').style.display = 'none';
+        } else {
+            showToast(data.error || 'Erreur.', 'error');
+        }
+    } catch(e) { showToast('Erreur de connexion.', 'error'); }
+}
+
+function renderDelibResults(resultats) {
+    const container = document.getElementById('delibResultsContainer');
+    if (!resultats || !resultats.length) {
+        container.innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:.78rem"><i class="fas fa-info-circle me-1"></i>Aucun résultat à afficher.</div>';
+        return;
+    }
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:.72rem">';
+    html += '<thead><tr style="background:linear-gradient(135deg,#1e293b,#334155)">';
+    html += '<th style="padding:8px 10px;color:#fff;text-align:left;font-size:.62rem;text-transform:uppercase;letter-spacing:.3px;border-radius:6px 0 0 0">#</th>';
+    html += '<th style="padding:8px 10px;color:#fff;text-align:left;font-size:.62rem;text-transform:uppercase;letter-spacing:.3px">Élève</th>';
+    html += '<th style="padding:8px 8px;color:#fff;text-align:center;font-size:.62rem;text-transform:uppercase;letter-spacing:.3px">%</th>';
+    html += '<th style="padding:8px 8px;color:#fff;text-align:center;font-size:.62rem;text-transform:uppercase;letter-spacing:.3px">Place</th>';
+    html += '<th style="padding:8px 8px;color:#fff;text-align:left;font-size:.62rem;text-transform:uppercase;letter-spacing:.3px">Mention</th>';
+    html += '<th style="padding:8px 8px;color:#fff;text-align:left;font-size:.62rem;text-transform:uppercase;letter-spacing:.3px;border-radius:0 6px 0 0">Décision</th>';
+    html += '</tr></thead><tbody>';
+    resultats.forEach((r, i) => {
+        const bg = i % 2 === 0 ? '#fff' : '#f8fafc';
+        const pct = parseFloat(r.pourcentage || 0);
+        const pctColor = pct >= 70 ? '#059669' : pct >= 50 ? '#f59e0b' : '#dc2626';
+        html += `<tr style="background:${bg}">
+            <td style="padding:5px 10px;border-bottom:1px solid #f1f5f9;color:#94a3b8;font-weight:600">${i+1}</td>
+            <td style="padding:5px 10px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#1e293b">${r.nom || ''} ${r.prenom || ''}</td>
+            <td style="padding:5px 8px;text-align:center;border-bottom:1px solid #f1f5f9;font-weight:700;color:${pctColor}">${pct.toFixed(2)}%</td>
+            <td style="padding:5px 8px;text-align:center;border-bottom:1px solid #f1f5f9;font-weight:600">${r.place || '—'}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #f1f5f9">${r.mention || '—'}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #f1f5f9"><span style="background:${pct >= 50 ? 'linear-gradient(135deg,#059669,#10b981)' : 'linear-gradient(135deg,#dc2626,#ef4444)'};color:#fff;padding:1px 10px;border-radius:20px;font-size:.58rem;font-weight:700">${r.decision || '—'}</span></td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+// Init visibility
+switchDelibTab('periode');
 </script>
 
 

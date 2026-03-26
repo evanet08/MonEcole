@@ -10446,3 +10446,347 @@ def dashboard_users_modules(request):
         traceback.print_exc()
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
+
+# =============================================================================
+# DÉLIBÉRATIONS API
+# =============================================================================
+
+@require_http_methods(["GET"])
+def get_evaluations_sessions(request):
+    """Retourne la liste des sessions pour le dropdown délibérations."""
+    try:
+        sessions = list(Session.objects.filter(is_active=True).values('id_session', 'session'))
+        return JsonResponse({'success': True, 'sessions': sessions})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@require_http_methods(["GET"])
+def get_evaluations_repartitions(request):
+    """Retourne les répartitions configurées pour une classe (via EtabAnneeClasse)."""
+    try:
+        classe_id = request.GET.get('classe_id')
+        if not classe_id:
+            return JsonResponse({'success': False, 'error': 'classe_id requis'}, status=400)
+
+        etab, err = _get_tenant_etab(request)
+        if err:
+            return err
+
+        annee = Annee.objects.filter(etat_annee='En Cours').first()
+        if not annee:
+            return JsonResponse({'success': True, 'repartitions': []})
+
+        ea = EtablissementAnnee.objects.filter(
+            etablissement_id=etab.id_etablissement,
+            annee=annee
+        ).first()
+        if not ea:
+            return JsonResponse({'success': True, 'repartitions': []})
+
+        configs = RepartitionConfigEtabAnnee.objects.filter(
+            etablissement_annee=ea
+        ).select_related('repartition', 'repartition__type')
+
+        repartitions = []
+        for cfg in configs:
+            rep = cfg.repartition
+            repartitions.append({
+                'id': cfg.id,
+                'nom': rep.nom,
+                'code': rep.code,
+                'type_code': rep.type.code if rep.type else '',
+                'type_nom': rep.type.nom if rep.type else '',
+                'is_open': cfg.is_open,
+            })
+        return JsonResponse({'success': True, 'repartitions': repartitions})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@require_http_methods(["GET"])
+def get_deliberation_conditions(request):
+    """
+    Retourne les conditions de délibération annuelle depuis le Hub
+    pour une classe donnée (EtablissementAnneeClasse).
+    """
+    try:
+        from MonEcole_app.models.evaluations.note import (
+            Deliberation_annuelle_condition, Deliberation_annuelle_finalite
+        )
+        classe_id = request.GET.get('classe_id')
+        if not classe_id:
+            return JsonResponse({'success': False, 'error': 'classe_id requis'}, status=400)
+
+        etab, err = _get_tenant_etab(request)
+        if err:
+            return err
+
+        annee = Annee.objects.filter(etat_annee='En Cours').first()
+        if not annee:
+            return JsonResponse({'success': True, 'conditions': []})
+
+        # Get the EtablissementAnneeClasse to resolve classe and cycle
+        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).first()
+        if not eac:
+            return JsonResponse({'success': True, 'conditions': []})
+
+        # Query conditions from Hub — using IntegerField for campus, FK for others
+        conditions = Deliberation_annuelle_condition.objects.filter(
+            id_annee=annee,
+            id_etablissement=etab.id_etablissement
+        )
+
+        # Fetch mentions and finalites for display
+        mention_map = {m.id_mention: str(m) for m in Mention.objects.all()}
+        finalite_map = {}
+        try:
+            finalite_map = {f.id_finalite: f.finalite for f in Deliberation_annuelle_finalite.objects.all()}
+        except Exception:
+            pass
+
+        result = []
+        for c in conditions:
+            result.append({
+                'id_decision': c.id_decision,
+                'mention': mention_map.get(c.id_mention_id, f'Mention {c.id_mention_id}') if hasattr(c, 'id_mention') and c.id_mention_id else '—',
+                'max_echecs': c.max_echecs_acceptable,
+                'seuil_profondeur': c.seuil_profondeur_echec,
+                'sanction': c.sanction_disciplinaire or '',
+                'finalite': finalite_map.get(c.id_finalite_id, f'Finalité {c.id_finalite_id}') if hasattr(c, 'id_finalite') and c.id_finalite_id else '—',
+            })
+
+        return JsonResponse({'success': True, 'conditions': result})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def execute_deliberation(request):
+    """
+    Exécute la délibération pour une classe et un type donné.
+    Adapté depuis _ARCHIVE/MonEcole_app/views/evaluation/deliberation_annuelle.py
+    """
+    try:
+        from MonEcole_app.models.evaluations.note import (
+            Deliberation_annuelle_condition,
+            Deliberation_annuelle_resultat,
+            Deliberation_periodique_resultat,
+            Deliberation_trimistrielle_resultat,
+            Deliberation_examen_resultat,
+            Deliberation_repechage_resultat,
+            Deliberation_annuelle_finalite,
+        )
+        from MonEcole_app.models.eleves.eleve import Eleve, Eleve_inscription
+        from MonEcole_app.models.campus import Campus
+
+        data = json.loads(request.body)
+        classe_id = data.get('classe_id')
+        delib_type = data.get('type')  # 'periode', 'trimestre', 'annee', 'repechage'
+        repartition_id = data.get('repartition_id')
+        session_id = data.get('session_id')
+
+        if not classe_id or not delib_type:
+            return JsonResponse({'success': False, 'error': 'classe_id et type requis'}, status=400)
+
+        etab, err = _get_tenant_etab(request)
+        if err:
+            return err
+
+        annee = Annee.objects.filter(etat_annee='En Cours').first()
+        if not annee:
+            return JsonResponse({'success': False, 'error': 'Aucune année en cours.'}, status=400)
+
+        # Resolve EAC
+        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).first()
+        if not eac:
+            return JsonResponse({'success': False, 'error': 'Classe non trouvée.'}, status=404)
+
+        # Get enrolled students
+        from django.db import connection
+        with connection.cursor() as cur:
+            cur.execute("""
+                SELECT DISTINCT e.id_eleve, e.nom, e.prenom, e.sexe
+                FROM eleve_inscription ei
+                JOIN eleve e ON ei.id_eleve_id = e.id_eleve
+                WHERE ei.id_annee_id = %s
+                  AND ei.id_etablissement = %s
+                  AND ei.status = 1
+                ORDER BY e.nom, e.prenom
+            """, [annee.id_annee, etab.id_etablissement])
+            columns = [col[0] for col in cur.description]
+            eleves = [dict(zip(columns, row)) for row in cur.fetchall()]
+
+        if not eleves:
+            return JsonResponse({'success': False, 'error': 'Aucun élève inscrit dans cette classe.'}, status=400)
+
+        # Calculate percentages for each student
+        # Use the notes from eleve_note table
+        resultats = []
+        for eleve in eleves:
+            id_eleve = eleve['id_eleve']
+
+            # Get total notes and maxima
+            with connection.cursor() as cur:
+                cur.execute("""
+                    SELECT COALESCE(SUM(en.note), 0) as total_note,
+                           COALESCE(SUM(en.note_max), 0) as total_max
+                    FROM eleve_note en
+                    WHERE en.id_eleve_id = %s
+                      AND en.id_annee_id = %s
+                      AND en.id_etablissement = %s
+                """, [id_eleve, annee.id_annee, etab.id_etablissement])
+                row = cur.fetchone()
+                total_note = row[0] if row else 0
+                total_max = row[1] if row else 0
+
+            pourcentage = (total_note * 100 / total_max) if total_max > 0 else 0
+
+            resultats.append({
+                'id_eleve': id_eleve,
+                'nom': eleve['nom'],
+                'prenom': eleve['prenom'],
+                'sexe': eleve.get('sexe', 'M'),
+                'pourcentage': round(pourcentage, 2),
+                'total_note': total_note,
+                'total_max': total_max,
+            })
+
+        # Sort by percentage descending for ranking
+        resultats.sort(key=lambda x: x['pourcentage'], reverse=True)
+
+        # Assign places
+        for i, r in enumerate(resultats):
+            rank = i + 1
+            sexe = r.get('sexe', 'M')
+            if rank == 1:
+                r['place'] = '1ère' if sexe == 'F' else '1er'
+            elif rank == 2:
+                r['place'] = '2ème'
+            elif rank == 3:
+                r['place'] = '3ème'
+            else:
+                r['place'] = f'{rank}ème'
+
+        # Determine mention for each student
+        mentions = list(Mention.objects.all())
+        for r in resultats:
+            pct = r['pourcentage']
+            r['mention'] = '—'
+            for m in mentions:
+                if m.min <= pct <= m.max:
+                    r['mention'] = str(m)
+                    r['mention_id'] = m.id_mention
+                    break
+
+        # Determine decision from Hub conditions (for annual deliberation)
+        conditions = list(Deliberation_annuelle_condition.objects.filter(
+            id_annee=annee,
+            id_etablissement=etab.id_etablissement
+        ))
+
+        for r in resultats:
+            r['decision'] = '—'
+            mention_id = r.get('mention_id')
+            if mention_id and conditions:
+                for cond in conditions:
+                    if cond.id_mention_id == mention_id:
+                        try:
+                            finalite = Deliberation_annuelle_finalite.objects.get(
+                                id_finalite=cond.id_finalite_id
+                            )
+                            r['decision'] = finalite.finalite
+                        except Deliberation_annuelle_finalite.DoesNotExist:
+                            r['decision'] = cond.sanction_disciplinaire or '—'
+                        break
+
+        # Save results to Spoke DB (depending on type)
+        saved_count = 0
+        if delib_type == 'annee' and session_id:
+            for r in resultats:
+                try:
+                    Deliberation_annuelle_resultat.objects.update_or_create(
+                        id_eleve_id=r['id_eleve'],
+                        id_annee=annee,
+                        id_etablissement=etab.id_etablissement,
+                        defaults={
+                            'id_campus_id': 1,  # Default campus
+                            'id_cycle_id': eac.classe_id if eac else 1,
+                            'id_classe_id': eac.id if eac else 1,
+                            'id_session_id': session_id,
+                            'id_mention_id': r.get('mention_id', 1),
+                            'id_decision_id': conditions[0].id_decision if conditions else 1,
+                            'pourcentage': r['pourcentage'],
+                            'place': r['place'],
+                        }
+                    )
+                    saved_count += 1
+                except Exception as save_err:
+                    logging.getLogger(__name__).error(f"Save error for eleve {r['id_eleve']}: {save_err}")
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Délibération {delib_type} effectuée pour {len(resultats)} élèves ({saved_count} résultats sauvegardés).',
+            'resultats': resultats,
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def cancel_deliberation(request):
+    """Annule (supprime) les résultats d'une délibération pour une classe."""
+    try:
+        from MonEcole_app.models.evaluations.note import (
+            Deliberation_annuelle_resultat,
+            Deliberation_periodique_resultat,
+            Deliberation_trimistrielle_resultat,
+            Deliberation_examen_resultat,
+        )
+
+        data = json.loads(request.body)
+        classe_id = data.get('classe_id')
+        delib_type = data.get('type')
+
+        etab, err = _get_tenant_etab(request)
+        if err:
+            return err
+
+        annee = Annee.objects.filter(etat_annee='En Cours').first()
+        if not annee:
+            return JsonResponse({'success': False, 'error': 'Aucune année en cours.'}, status=400)
+
+        deleted = 0
+
+        if delib_type == 'annee':
+            deleted, _ = Deliberation_annuelle_resultat.objects.filter(
+                id_annee=annee,
+                id_etablissement=etab.id_etablissement
+            ).delete()
+        elif delib_type == 'trimestre':
+            deleted, _ = Deliberation_trimistrielle_resultat.objects.filter(
+                id_annee=annee,
+                id_etablissement=etab.id_etablissement
+            ).delete()
+        elif delib_type == 'periode':
+            deleted, _ = Deliberation_periodique_resultat.objects.filter(
+                id_annee=annee,
+                id_etablissement=etab.id_etablissement
+            ).delete()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Délibération annulée. {deleted} résultat(s) supprimé(s).'
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

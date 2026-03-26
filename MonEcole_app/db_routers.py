@@ -29,7 +29,6 @@ class CountryStructureRouter:
         'EtablissementAnnee', 'EtablissementAnneeClasse',
 
         # Vues compatibilité → tables Hub
-        'Classe_active', 'Classe_cycle_actif',
         'Annee_trimestre', 'Annee_periode',
         'Cours_par_classe',
 
@@ -46,6 +45,11 @@ class CountryStructureRouter:
 
         # Cours par année
         'CoursAnnee',
+
+        # Délibérations (config Hub)
+        'Deliberation_type',
+        'Deliberation_annuelle_finalite',
+        'Deliberation_annuelle_condition',
     ]
 
     ROUTED_MODELS_LOWER = [m.lower() for m in ROUTED_MODELS]

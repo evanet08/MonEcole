@@ -131,6 +131,13 @@ urlpatterns = [
     path('api/notes/bulletin/calculate/', api_views.calculate_notes_bulletin, name='calculate_notes_bulletin'),
     path('api/notes/bulletin/get/', api_views.get_notes_bulletin, name='get_notes_bulletin'),
 
+    # Délibérations
+    path('api/evaluations/sessions/', api_views.get_evaluations_sessions, name='get_evaluations_sessions'),
+    path('api/evaluations/repartitions/', api_views.get_evaluations_repartitions, name='get_evaluations_repartitions'),
+    path('api/deliberations/conditions/', api_views.get_deliberation_conditions, name='get_deliberation_conditions'),
+    path('api/deliberations/execute/', api_views.execute_deliberation, name='execute_deliberation'),
+    path('api/deliberations/cancel/', api_views.cancel_deliberation, name='cancel_deliberation'),
+
     # Références
     path('api/get-sessions/', api_views.get_sessions_data, name='get_sessions'),
     path('api/save-session/', api_views.save_session, name='save_session'),
