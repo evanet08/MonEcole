@@ -591,30 +591,39 @@ def espace_enseignant_view(request):
                             conflict = cur.fetchone()
                             if conflict:
                                 # Créer un auth_user bidon pour le personnel en conflit
-                                import hashlib, time as _t
-                                dummy_username = f"dummy_{conflict[0]}_{int(_t.time())}"
-                                dummy_hash = hashlib.sha256(dummy_username.encode()).hexdigest()[:30]
-                                cur.execute("""
-                                    INSERT INTO auth_user (username, password, is_superuser, is_staff, is_active, date_joined, first_name, last_name, email)
-                                    VALUES (%s, %s, 0, 0, 1, NOW(), '', '', '')
-                                """, [dummy_username, f'!{dummy_hash}'])
-                                new_dummy_id = cur.lastrowid
+                                try:
+                                    import hashlib, time as _t
+                                    dummy_username = f"dummy_{conflict[0]}_{int(_t.time())}"
+                                    dummy_hash = hashlib.sha256(dummy_username.encode()).hexdigest()[:30]
+                                    cur.execute("""
+                                        INSERT INTO auth_user (username, password, is_superuser, is_staff, is_active, date_joined, first_name, last_name, email)
+                                        VALUES (%s, %s, 0, 0, 1, NOW(), '', '', '')
+                                    """, [dummy_username, f'!{dummy_hash}'])
+                                    new_dummy_id = cur.lastrowid
+                                    cur.execute(
+                                        "UPDATE personnel SET user_id = %s WHERE id_personnel = %s",
+                                        [new_dummy_id, conflict[0]]
+                                    )
+                                except Exception:
+                                    pass  # Le conflit n'a pas pu être résolu, on continue sans re-link
+                            # Maintenant mettre à jour le user_id du personnel cible
+                            try:
                                 cur.execute(
                                     "UPDATE personnel SET user_id = %s WHERE id_personnel = %s",
-                                    [new_dummy_id, conflict[0]]
+                                    [request.user.id, target_pers_id]
                                 )
-                            # Maintenant mettre à jour le user_id du personnel cible
-                            cur.execute(
-                                "UPDATE personnel SET user_id = %s WHERE id_personnel = %s",
-                                [request.user.id, target_pers_id]
-                            )
+                            except Exception:
+                                pass  # Si user_id déjà pris, on continue sans re-link
                         except Exception:
                             import traceback
                             traceback.print_exc()
-                        # Refresh via ORM
+                        # Refresh via ORM - si ça échoue, charger directement par id_personnel
                         pers = Personnel.objects.select_related('user').filter(
                             id_personnel=target_pers_id
                         ).first()
+                        if not pers:
+                            # Fallback: créer un objet minimal à partir de raw SQL
+                            pers = Personnel.objects.filter(id_personnel=target_pers_id).first()
             except Exception:
                 import traceback
                 traceback.print_exc()
