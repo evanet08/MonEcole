@@ -774,8 +774,10 @@ def api_enseignant_debug(request):
 @login_required(login_url='login')
 def api_enseignant_dashboard(request):
     """API : Données dashboard enseignant — cours, horaires, stats."""
-    import pymysql
+    import pymysql, sys
+    print(f"[api_enseignant_dashboard] CALLED by user={request.user} (id={request.user.id}, email={request.user.email})", file=sys.stderr, flush=True)
     etab_id = _get_etab_id(request)
+    print(f"[api_enseignant_dashboard] etab_id={etab_id}", file=sys.stderr, flush=True)
     if not etab_id:
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
 
@@ -839,14 +841,12 @@ def api_enseignant_dashboard(request):
                                 pass
 
             if not pers:
-                # Debug: log what we tried
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"[api_enseignant_dashboard] Personnel NOT FOUND for user_id={request.user.id}, email={request.user.email}, etab_id={etab_id}")
-                # List all personnel for this etab
-                cur.execute("SELECT id_personnel, user_id, email, nom, prenom FROM personnel WHERE id_etablissement = %s", [etab_id])
+                # Debug: print to stderr for journalctl
+                import sys
+                print(f"[api_enseignant_dashboard] Personnel NOT FOUND: user_id={request.user.id}, email={request.user.email}, etab_id={etab_id}", file=sys.stderr, flush=True)
+                cur.execute("SELECT id_personnel, user_id, email, nom, prenom FROM personnel WHERE id_etablissement = %s LIMIT 5", [etab_id])
                 all_pers = cur.fetchall()
-                logger.error(f"[api_enseignant_dashboard] All personnel for etab {etab_id}: {all_pers}")
+                print(f"[api_enseignant_dashboard] First 5 personnel for etab {etab_id}: {all_pers}", file=sys.stderr, flush=True)
                 conn.close()
                 return JsonResponse({'success': False, 'error': f'Personnel non trouvé (user_id={request.user.id}, email={request.user.email})'}, status=403)
 
