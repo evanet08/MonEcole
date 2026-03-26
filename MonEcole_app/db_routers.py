@@ -29,6 +29,7 @@ class CountryStructureRouter:
         'EtablissementAnnee', 'EtablissementAnneeClasse',
 
         # Vues compatibilité → tables Hub
+        'Classe_active', 'Classe_cycle_actif',
         'Annee_trimestre', 'Annee_periode',
         'Cours_par_classe',
 
