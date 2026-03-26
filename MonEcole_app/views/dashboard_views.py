@@ -809,34 +809,12 @@ def api_enseignant_dashboard(request):
                         # Auto-relink user_id (gérer conflit UNIQUE)
                         try:
                             target_pers_id = pers['id_personnel']
-                            # Libérer le user_id si un autre personnel du même établissement l'utilise
                             cur.execute(
-                                "SELECT id_personnel FROM personnel WHERE user_id = %s AND id_personnel != %s AND id_etablissement = %s",
+                                "UPDATE personnel SET user_id = %s WHERE id_personnel = %s AND id_etablissement = %s",
                                 [request.user.id, target_pers_id, etab_id]
-                            )
-                            conflict = cur.fetchone()
-                            if conflict:
-                                import hashlib, time as _t
-                                dummy_username = f"dummy_{conflict['id_personnel']}_{int(_t.time())}"
-                                dummy_hash = hashlib.sha256(dummy_username.encode()).hexdigest()[:30]
-                                cur.execute("""
-                                    INSERT INTO auth_user (username, password, is_superuser, is_staff, is_active, date_joined, first_name, last_name, email)
-                                    VALUES (%s, %s, 0, 0, 1, NOW(), '', '', '')
-                                """, [dummy_username, f'!{dummy_hash}'])
-                                new_dummy_id = cur.lastrowid
-                                cur.execute(
-                                    "UPDATE personnel SET user_id = %s WHERE id_personnel = %s",
-                                    [new_dummy_id, conflict['id_personnel']]
-                                )
-                            cur.execute(
-                                "UPDATE personnel SET user_id = %s WHERE id_personnel = %s",
-                                [request.user.id, target_pers_id]
                             )
                             conn.commit()
                         except Exception:
-                            import traceback
-                            traceback.print_exc()
-                            # Même en cas d'échec du relink, on utilise le personnel trouvé
                             pass
 
             if not pers:
