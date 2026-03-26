@@ -261,7 +261,15 @@ document.addEventListener('DOMContentLoaded', loadDashboardData);
 
 async function loadDashboardData(){
     try{
-        const r=await fetch('/api/enseignant/dashboard/',{headers:{'X-CSRFToken':getCsrfToken()}});
+        const r=await fetch('/api/enseignant/dashboard/',{credentials:'same-origin',headers:{'X-CSRFToken':getCsrfToken()}});
+        if(!r.ok){
+            if(r.status===302||r.status===301||r.redirected){window.location.reload();return;}
+            const txt=await r.text();
+            console.error('API error',r.status,txt.substring(0,200));
+            const eh=`<div class="ca-loading" style="color:#ef4444"><i class="fas fa-exclamation-triangle"></i> Erreur ${r.status}: ${txt.substring(0,100)}</div>`;
+            ['coursesContainer','scheduleContainer','presencesStatsContainer','coursesFullContainer','scheduleFullContainer','elevesContainer'].forEach(i=>{const el=document.getElementById(i);if(el)el.innerHTML=eh;});
+            return;
+        }
         const d=await r.json();
         if(!d.success){const e=`<div class="ca-loading" style="color:#ef4444"><i class="fas fa-exclamation-triangle"></i> ${d.error}</div>`;['coursesContainer','scheduleContainer','presencesStatsContainer','coursesFullContainer','scheduleFullContainer','elevesContainer'].forEach(i=>{const el=document.getElementById(i);if(el)el.innerHTML=e;});return;}
         DD=d;
@@ -269,7 +277,7 @@ async function loadDashboardData(){
         renderScheduleDash(d.schedule);renderScheduleFull(d.schedule);
         renderPresencesStats(d.presences_stats);renderElevesList(d.courses);
         populateEvalSelects(d.courses);populateNotesSelects(d.courses);populatePresHoraire(d.schedule);initWaChat();
-    }catch(e){console.error(e);const eh=`<div class="ca-loading" style="color:#ef4444"><i class="fas fa-exclamation-triangle"></i> Erreur</div>`;['coursesContainer','scheduleContainer','presencesStatsContainer'].forEach(i=>{const el=document.getElementById(i);if(el)el.innerHTML=eh;});}
+    }catch(e){console.error('loadDashboardData error:',e);const eh=`<div class="ca-loading" style="color:#ef4444"><i class="fas fa-exclamation-triangle"></i> ${e.message}</div>`;['coursesContainer','scheduleContainer','presencesStatsContainer'].forEach(i=>{const el=document.getElementById(i);if(el)el.innerHTML=eh;});}
 }
 
 function renderStats(d){
