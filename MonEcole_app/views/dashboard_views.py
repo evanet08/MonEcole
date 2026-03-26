@@ -825,16 +825,18 @@ def api_enseignant_dashboard(request):
                         # Remplir les champs manquants pour compatibilité
                         pers['first_name'] = pers.get('prenom') or ''
                         pers['last_name'] = pers.get('nom') or ''
-                        # Auto-relink user_id (gérer conflit UNIQUE)
+                        # Tenter le re-link silencieusement
                         try:
-                            target_pers_id = pers['id_personnel']
                             cur.execute(
                                 "UPDATE personnel SET user_id = %s WHERE id_personnel = %s AND id_etablissement = %s",
-                                [request.user.id, target_pers_id, etab_id]
+                                [request.user.id, pers['id_personnel'], etab_id]
                             )
                             conn.commit()
                         except Exception:
-                            pass
+                            try:
+                                conn.rollback()
+                            except Exception:
+                                pass
 
             if not pers:
                 # Debug: log what we tried
