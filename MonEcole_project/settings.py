@@ -161,3 +161,9 @@ CSRF_TRUSTED_ORIGINS = [
     'https://*.monecole.pro',
     'http://*.monecole.pro',
 ]
+
+# ── Brevo Email API ──
+BREVO_API_KEY = config('BREVO_API_KEY', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@monecole.pro')
+DEFAULT_FROM_NAME = config('DEFAULT_FROM_NAME', default='MonEcole')
+

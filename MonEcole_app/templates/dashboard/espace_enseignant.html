@@ -723,7 +723,15 @@ async function sendWaMsg(){
                 unread:0,msg_count:(waThreadsCache[threadId]?.msg_count||0)+1
             };
             renderWaContacts();
-            showToast(`Message envoyé`,'success');
+            // Show email delivery feedback
+            const em=d.email||{};
+            if(em.sent>0){
+                showToast(`Message envoyé ✉️ ${em.sent} email${em.sent>1?'s':''} envoyé${em.sent>1?'s':''} aux parents`,'success');
+            }else if(em.total_parents===0){
+                showToast(`Message enregistré (aucun email parent trouvé)`,'info');
+            }else{
+                showToast(`Message enregistré`,'success');
+            }
         }else{
             showToast(d.error||'Erreur d\'envoi','error');
         }

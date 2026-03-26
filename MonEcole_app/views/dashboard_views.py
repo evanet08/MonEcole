@@ -1377,6 +1377,112 @@ def api_communication_send(request):
         status='sent',
     )
 
+    # ── Envoi d'email aux parents via Brevo ──
+    email_result = {'sent': 0, 'failed': 0, 'errors': []}
+    try:
+        from MonEcole_app.email_service import send_brevo_email, build_parent_email_html
+        import pymysql
+
+        # Récupérer le nom de l'école
+        school_name = 'MonEcole'
+        try:
+            etab_obj2 = Etab.objects.filter(id_etablissement=etab_id).first()
+            if etab_obj2:
+                school_name = etab_obj2.nom or school_name
+        except Exception:
+            pass
+
+        # Collecter les emails parents
+        parent_emails = []
+        db_settings = connections['default'].settings_dict
+        conn = pymysql.connect(
+            host=db_settings.get('HOST', 'localhost') or 'localhost',
+            user=db_settings['USER'],
+            password=db_settings['PASSWORD'],
+            port=int(db_settings.get('PORT', 3306) or 3306),
+            database=db_settings['NAME'],
+            charset='utf8mb4',
+            cursorclass=pymysql.cursors.DictCursor,
+            connect_timeout=5,
+        )
+
+        with conn.cursor() as cur:
+            if scope == 'individual' and target_eleve_id:
+                # Email du parent d'un élève spécifique
+                cur.execute(
+                    "SELECT email_parent, nom, prenom FROM eleve WHERE id_eleve = %s AND email_parent IS NOT NULL AND email_parent != ''",
+                    [target_eleve_id]
+                )
+                rows = cur.fetchall()
+                for r in rows:
+                    parent_emails.append({
+                        'email': r['email_parent'],
+                        'name': f"Parent de {r['nom'] or ''} {r['prenom'] or ''}".strip()
+                    })
+
+            elif scope == 'class' and target_classe_id:
+                # Emails de tous les parents d'une classe
+                cur.execute("""
+                    SELECT DISTINCT e.email_parent, e.nom, e.prenom
+                    FROM eleve_inscription ei
+                    JOIN eleve e ON e.id_eleve = ei.id_eleve_id
+                    WHERE ei.id_classe_id = %s
+                      AND ei.status = 1
+                      AND ei.id_etablissement = %s
+                      AND e.email_parent IS NOT NULL
+                      AND e.email_parent != ''
+                """, [target_classe_id, etab_id])
+                rows = cur.fetchall()
+                for r in rows:
+                    parent_emails.append({
+                        'email': r['email_parent'],
+                        'name': f"Parent de {r['nom'] or ''} {r['prenom'] or ''}".strip()
+                    })
+
+            elif scope == 'etab':
+                # Tous les parents de l'établissement
+                cur.execute("""
+                    SELECT DISTINCT e.email_parent, e.nom, e.prenom
+                    FROM eleve_inscription ei
+                    JOIN eleve e ON e.id_eleve = ei.id_eleve_id
+                    WHERE ei.status = 1
+                      AND ei.id_etablissement = %s
+                      AND e.email_parent IS NOT NULL
+                      AND e.email_parent != ''
+                """, [etab_id])
+                rows = cur.fetchall()
+                for r in rows:
+                    parent_emails.append({
+                        'email': r['email_parent'],
+                        'name': f"Parent de {r['nom'] or ''} {r['prenom'] or ''}".strip()
+                    })
+
+        conn.close()
+
+        # Envoyer si des emails trouvés
+        if parent_emails:
+            email_subject = subject or f"Communication de {sender_name}"
+            html_body = build_parent_email_html(sender_name, message_text, school_name)
+            email_result = send_brevo_email(
+                to_emails=parent_emails,
+                subject=email_subject,
+                html_content=html_body,
+                text_content=message_text,
+                from_name=school_name,
+                fail_silently=True,
+            )
+            # Mettre à jour le statut du message
+            if email_result.get('sent', 0) > 0:
+                comm.status = 'delivered'
+                comm.save(update_fields=['status'])
+        else:
+            email_result['errors'].append('Aucun email parent trouvé')
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        email_result['errors'].append(str(e))
+
     return JsonResponse({
         'success': True,
         'message': {
@@ -1386,6 +1492,12 @@ def api_communication_send(request):
             'message': comm.message,
             'time': comm.created_at.strftime('%H:%M') if comm.created_at else '',
             'created_at': comm.created_at.strftime('%Y-%m-%d %H:%M:%S') if comm.created_at else '',
+        },
+        'email': {
+            'sent': email_result.get('sent', 0),
+            'failed': email_result.get('failed', 0),
+            'total_parents': len(parent_emails) if 'parent_emails' in dir() else 0,
+            'errors': email_result.get('errors', []),
         }
     })
 
