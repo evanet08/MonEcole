@@ -1325,6 +1325,7 @@ def api_communication_send(request):
     scope = data.get('scope', 'individual')
     target_eleve_id = data.get('target_eleve_id')
     target_classe_id = data.get('target_classe_id')
+    target_personnel_id = data.get('target_personnel_id')
     subject = data.get('subject', '')
 
     # Identifier l'enseignant
@@ -1371,6 +1372,7 @@ def api_communication_send(request):
         direction='out',
         target_eleve_id=target_eleve_id if target_eleve_id else None,
         target_classe_id=target_classe_id if target_classe_id else None,
+        target_personnel_id=target_personnel_id if target_personnel_id else None,
         subject=subject,
         message=message_text,
         thread_id=thread_id,
@@ -1545,3 +1547,44 @@ def api_communication_threads(request):
         })
 
     return JsonResponse({'success': True, 'threads': thread_list})
+
+
+@require_http_methods(["GET"])
+@login_required(login_url='login')
+def api_communication_teachers(request):
+    """
+    GET /api/enseignant/communication/teachers/
+    Renvoie la liste des enseignants collègues du même établissement.
+    """
+    from django.db import connections
+
+    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    if not etab_id:
+        return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
+
+    teachers = []
+    try:
+        with connections['default'].cursor() as cur:
+            cur.execute("""
+                SELECT p.id_personnel,
+                       CONCAT(COALESCE(p.nom,''), ' ', COALESCE(p.prenom,'')) as nom_complet,
+                       u.email
+                FROM personnel p
+                LEFT JOIN auth_user u ON u.id = p.user_id
+                WHERE p.id_etablissement = %s
+                  AND p.user_id != %s
+                ORDER BY p.nom, p.prenom
+            """, [etab_id, request.user.id])
+            for row in cur.fetchall():
+                nm = (row[1] or '').strip()
+                if nm:
+                    teachers.append({
+                        'id_personnel': row[0],
+                        'nom_complet': nm,
+                        'email': row[2] or '',
+                    })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+    return JsonResponse({'success': True, 'teachers': teachers})
+
