@@ -27,12 +27,31 @@ from MonEcole_app.models.country_structure import (
 )
 
 
+def _get_etab_id(request):
+    """Résout l'id_etablissement de manière robuste : request attr → session → host SQL."""
+    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    if etab_id:
+        return etab_id
+    try:
+        host = request.get_host().split(':')[0].lower().strip()
+        with connections['countryStructure'].cursor() as cursor:
+            cursor.execute("SELECT id_etablissement FROM etablissements WHERE url = %s LIMIT 1", [host])
+            row = cursor.fetchone()
+            if row:
+                etab_id = row[0]
+                request.session['id_etablissement'] = etab_id
+                return etab_id
+    except Exception:
+        pass
+    return None
+
+
 def _get_dashboard_context(request):
     """
     Construit le contexte complet pour le dashboard, identique à eSchool.
     Utilise le tenant middleware (request.id_etablissement) au lieu de la session user_id.
     """
-    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    etab_id = _get_etab_id(request)
     if not etab_id:
         return None
 
@@ -691,7 +710,7 @@ def espace_enseignant_view(request):
 def api_enseignant_debug(request):
     """DEBUG TEMPORAIRE — vérifie la chaîne de données enseignant."""
     import pymysql
-    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    etab_id = _get_etab_id(request)
     debug = {
         'user_id': request.user.id,
         'user_email': request.user.email,
@@ -756,7 +775,7 @@ def api_enseignant_debug(request):
 def api_enseignant_dashboard(request):
     """API : Données dashboard enseignant — cours, horaires, stats."""
     import pymysql
-    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    etab_id = _get_etab_id(request)
     if not etab_id:
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
 
@@ -1029,7 +1048,7 @@ def api_enseignant_dashboard(request):
 def api_enseignant_presences(request):
     """API Présences enseignant: GET = charger élèves+présences, POST = sauvegarder."""
     import pymysql
-    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    etab_id = _get_etab_id(request)
     if not etab_id:
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
     db_settings = connections['default'].settings_dict
@@ -1117,7 +1136,7 @@ def api_enseignant_presences(request):
 def api_enseignant_presences(request):
     """API Presences enseignant: GET = charger eleves+presences, POST = sauvegarder."""
     import pymysql
-    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    etab_id = _get_etab_id(request)
     if not etab_id:
         return JsonResponse({'success': False, 'error': 'Etablissement non trouve'}, status=400)
     db_settings = connections['default'].settings_dict
@@ -1207,7 +1226,7 @@ def api_communication_messages(request):
     Renvoie les messages d'un thread de conversation.
     """
     from MonEcole_app.models.communication import Communication
-    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    etab_id = _get_etab_id(request)
     if not etab_id:
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
 
@@ -1263,7 +1282,7 @@ def api_communication_send(request):
     from MonEcole_app.models.communication import Communication
     from MonEcole_app.models.personnel import Personnel
 
-    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    etab_id = _get_etab_id(request)
     if not etab_id:
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
 
@@ -1469,7 +1488,7 @@ def api_communication_threads(request):
     from MonEcole_app.models.communication import Communication
     from django.db.models import Max, Count, Q
 
-    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    etab_id = _get_etab_id(request)
     if not etab_id:
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
 
@@ -1513,7 +1532,7 @@ def api_communication_teachers(request):
     """
     from django.db import connections
 
-    etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    etab_id = _get_etab_id(request)
     if not etab_id:
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
 
