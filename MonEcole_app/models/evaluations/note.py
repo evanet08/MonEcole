@@ -2,7 +2,7 @@ from django.db import models
 from MonEcole_app.models.annee import Annee
 from MonEcole_app.models.campus import Campus
 from MonEcole_app.models.mention import Mention
-from MonEcole_app.models.country_structure import Session
+from MonEcole_app.models.country_structure import Session, EtablissementAnneeClasse, Cycle
 import os
 from django.core.exceptions import ValidationError
 from MonEcole_app.variables import type_deliberations
@@ -38,8 +38,8 @@ class Deliberation_annuelle_condition(models.Model):
     id_decision = models.AutoField(primary_key=True)  
     id_annee = models.ForeignKey("Annee", on_delete=models.DO_NOTHING, null=False, db_constraint=False)
     id_campus_id = models.IntegerField(null=False, db_column='id_campus_id')  # Spoke → IntegerField
-    id_cycle = models.ForeignKey("Classe_cycle_actif", on_delete=models.DO_NOTHING, null=False, db_constraint=False)
-    id_classe = models.ForeignKey("Classe_active", on_delete=models.DO_NOTHING, null=False, db_constraint=False)
+    id_cycle = models.ForeignKey(Cycle, on_delete=models.DO_NOTHING, null=False, db_constraint=False)
+    id_classe = models.ForeignKey(EtablissementAnneeClasse, on_delete=models.DO_NOTHING, null=False, db_constraint=False)
     id_mention = models.ForeignKey(Mention, on_delete=models.DO_NOTHING, null=False, db_constraint=False)
     max_echecs_acceptable = models.IntegerField(null=True, blank=True) 
     seuil_profondeur_echec = models.IntegerField(null=True, blank=True) 
@@ -61,8 +61,8 @@ class Deliberation_annuelle_resultat(models.Model):
     id_eleve = models.ForeignKey("Eleve",on_delete=models.PROTECT,null=False)  
     id_annee = models.ForeignKey(Annee,on_delete=models.PROTECT,null=False, db_constraint=False) 
     id_campus = models.ForeignKey(Campus,on_delete=models.PROTECT,null=False) 
-    id_cycle = models.ForeignKey("Classe_cycle_actif",on_delete=models.PROTECT,null=False, db_constraint=False) 
-    id_classe = models.ForeignKey("Classe_active",on_delete=models.PROTECT,null=False, db_constraint=False)
+    id_cycle = models.ForeignKey(Cycle,on_delete=models.PROTECT,null=False, db_constraint=False) 
+    id_classe = models.ForeignKey(EtablissementAnneeClasse,on_delete=models.PROTECT,null=False, db_constraint=False)
     id_session = models.ForeignKey(Session,on_delete=models.PROTECT,null=False, db_constraint=False)   
     id_mention = models.ForeignKey(Mention,on_delete=models.PROTECT,null=False, db_constraint=False) 
     id_decision = models.ForeignKey(Deliberation_annuelle_condition,on_delete=models.PROTECT,null=False, db_constraint=False) 
@@ -83,8 +83,8 @@ class Deliberation_periodique_resultat(models.Model):
     id_eleve = models.ForeignKey("Eleve",on_delete=models.PROTECT,null=False)  
     id_campus = models.ForeignKey(Campus,on_delete=models.PROTECT,null=False)
     id_annee = models.ForeignKey(Annee,on_delete=models.PROTECT,null=False, db_constraint=False) 
-    id_cycle = models.ForeignKey("Classe_cycle_actif",on_delete=models.PROTECT,null=False, db_constraint=False) 
-    id_classe = models.ForeignKey("Classe_active",on_delete=models.PROTECT,null=False, db_constraint=False)   
+    id_cycle = models.ForeignKey(Cycle,on_delete=models.PROTECT,null=False, db_constraint=False) 
+    id_classe = models.ForeignKey(EtablissementAnneeClasse,on_delete=models.PROTECT,null=False, db_constraint=False)   
     id_trimestre = models.ForeignKey("Annee_trimestre",on_delete=models.PROTECT,null=False, db_constraint=False) 
     id_periode = models.ForeignKey("Annee_periode",on_delete=models.PROTECT,null=False, db_constraint=False) 
     pourcentage = models.FloatField() 
@@ -104,8 +104,8 @@ class Deliberation_examen_resultat(models.Model):
     id_eleve = models.ForeignKey("Eleve",on_delete=models.PROTECT,null=False)  
     id_campus = models.ForeignKey(Campus,on_delete=models.PROTECT,null=False)
     id_annee = models.ForeignKey(Annee,on_delete=models.PROTECT,null=False, db_constraint=False) 
-    id_cycle = models.ForeignKey("Classe_cycle_actif",on_delete=models.PROTECT,null=False, db_constraint=False) 
-    id_classe = models.ForeignKey("Classe_active",on_delete=models.PROTECT,null=False, db_constraint=False)   
+    id_cycle = models.ForeignKey(Cycle,on_delete=models.PROTECT,null=False, db_constraint=False) 
+    id_classe = models.ForeignKey(EtablissementAnneeClasse,on_delete=models.PROTECT,null=False, db_constraint=False)   
     id_trimestre = models.ForeignKey("Annee_trimestre",on_delete=models.PROTECT,null=False, db_constraint=False) 
     pourcentage = models.FloatField() 
     place = models.CharField(max_length=200,null=False) 
@@ -128,8 +128,8 @@ class Deliberation_trimistrielle_resultat(models.Model):
     id_eleve = models.ForeignKey("Eleve",on_delete=models.PROTECT,null=False)  
     id_annee = models.ForeignKey(Annee,on_delete=models.PROTECT,null=False, db_constraint=False)  
     id_campus = models.ForeignKey(Campus,on_delete=models.PROTECT,null=False)
-    id_cycle = models.ForeignKey("Classe_cycle_actif",on_delete=models.PROTECT,null=False, db_constraint=False) 
-    id_classe = models.ForeignKey("Classe_active",on_delete=models.PROTECT,null=False, db_constraint=False)   
+    id_cycle = models.ForeignKey(Cycle,on_delete=models.PROTECT,null=False, db_constraint=False) 
+    id_classe = models.ForeignKey(EtablissementAnneeClasse,on_delete=models.PROTECT,null=False, db_constraint=False)   
     id_trimestre = models.ForeignKey("Annee_trimestre",on_delete=models.PROTECT,null=False, db_constraint=False)  
     pourcentage = models.FloatField() 
     place = models.CharField(max_length=200,null=False) 
@@ -152,8 +152,8 @@ class Evaluation(models.Model):
     date_soumission = models.DateField(null=True,blank=True)
     id_campus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)
     id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null=False)
-    id_cycle_actif = models.ForeignKey("Classe_cycle_actif",on_delete=models.PROTECT,null=False, db_constraint=False)
-    id_classe_active = models.ForeignKey("Classe_active",on_delete=models.PROTECT,null=False, db_constraint=False)   
+    id_cycle_actif = models.ForeignKey(Cycle,on_delete=models.PROTECT,null=False, db_constraint=False)
+    id_classe_active = models.ForeignKey(EtablissementAnneeClasse,on_delete=models.PROTECT,null=False, db_constraint=False)   
     id_type_note = models.ForeignKey("Eleve_note_type",on_delete=models.PROTECT,null=False)
     id_cours_classe = models.ForeignKey("Cours_par_classe", on_delete=models.PROTECT,null=False)  
     id_session = models.ForeignKey("Session",on_delete=models.PROTECT,null=False)
@@ -173,8 +173,8 @@ class Deliberation_repechage_resultat(models.Model):
     id_eleve = models.ForeignKey("Eleve",on_delete=models.PROTECT,null=False)  
     id_annee = models.ForeignKey(Annee,on_delete=models.PROTECT,null=False, db_constraint=False) 
     id_campus = models.ForeignKey(Campus,on_delete=models.PROTECT,null=False) 
-    id_cycle = models.ForeignKey("Classe_cycle_actif",on_delete=models.PROTECT,null=False, db_constraint=False) 
-    id_classe = models.ForeignKey("Classe_active",on_delete=models.PROTECT,null=False, db_constraint=False)
+    id_cycle = models.ForeignKey(Cycle,on_delete=models.PROTECT,null=False, db_constraint=False) 
+    id_classe = models.ForeignKey(EtablissementAnneeClasse,on_delete=models.PROTECT,null=False, db_constraint=False)
     id_session = models.ForeignKey(Session,on_delete=models.PROTECT,null=False, db_constraint=False)   
     id_finalite = models.ForeignKey(Deliberation_annuelle_finalite,on_delete=models.PROTECT,null=False, db_constraint=False) 
     id_cours_classe = models.ForeignKey("Cours_par_classe",on_delete=models.PROTECT,null=False, db_constraint=False)
