@@ -574,56 +574,24 @@ def espace_enseignant_view(request):
                 with connections['default'].cursor() as cur:
                     cur.execute("""
                         SELECT id_personnel, user_id FROM personnel
-                        WHERE LOWER(email) = LOWER(%s) AND id_etablissement = %s
+                        WHERE (LOWER(email) = LOWER(%s) OR user_id = %s) AND id_etablissement = %s
                         LIMIT 1
-                    """, [request.user.email, etab_id])
+                    """, [request.user.email, request.user.id, etab_id])
                     row = cur.fetchone()
                     if row:
                         target_pers_id = row[0]
-                        old_user_id = row[1]
-                        # Auto-relink: libérer user_id si un autre personnel l'utilise déjà
+                        # Tenter le re-link silencieusement (sans crasher)
                         try:
-                            # Vérifier si un AUTRE personnel du même établissement a déjà ce user_id
                             cur.execute(
-                                "SELECT id_personnel FROM personnel WHERE user_id = %s AND id_personnel != %s AND id_etablissement = %s",
+                                "UPDATE personnel SET user_id = %s WHERE id_personnel = %s AND id_etablissement = %s",
                                 [request.user.id, target_pers_id, etab_id]
                             )
-                            conflict = cur.fetchone()
-                            if conflict:
-                                # Créer un auth_user bidon pour le personnel en conflit
-                                try:
-                                    import hashlib, time as _t
-                                    dummy_username = f"dummy_{conflict[0]}_{int(_t.time())}"
-                                    dummy_hash = hashlib.sha256(dummy_username.encode()).hexdigest()[:30]
-                                    cur.execute("""
-                                        INSERT INTO auth_user (username, password, is_superuser, is_staff, is_active, date_joined, first_name, last_name, email)
-                                        VALUES (%s, %s, 0, 0, 1, NOW(), '', '', '')
-                                    """, [dummy_username, f'!{dummy_hash}'])
-                                    new_dummy_id = cur.lastrowid
-                                    cur.execute(
-                                        "UPDATE personnel SET user_id = %s WHERE id_personnel = %s",
-                                        [new_dummy_id, conflict[0]]
-                                    )
-                                except Exception:
-                                    pass  # Le conflit n'a pas pu être résolu, on continue sans re-link
-                            # Maintenant mettre à jour le user_id du personnel cible
-                            try:
-                                cur.execute(
-                                    "UPDATE personnel SET user_id = %s WHERE id_personnel = %s",
-                                    [request.user.id, target_pers_id]
-                                )
-                            except Exception:
-                                pass  # Si user_id déjà pris, on continue sans re-link
                         except Exception:
-                            import traceback
-                            traceback.print_exc()
-                        # Refresh via ORM - si ça échoue, charger directement par id_personnel
-                        pers = Personnel.objects.select_related('user').filter(
+                            pass
+                        # Charger via ORM
+                        pers = Personnel.objects.filter(
                             id_personnel=target_pers_id
                         ).first()
-                        if not pers:
-                            # Fallback: créer un objet minimal à partir de raw SQL
-                            pers = Personnel.objects.filter(id_personnel=target_pers_id).first()
             except Exception:
                 import traceback
                 traceback.print_exc()
