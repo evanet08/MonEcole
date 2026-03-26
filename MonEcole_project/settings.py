@@ -30,6 +30,9 @@ DEBUG = config('DEBUG', default='True', cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost').split(',')
 if '.monecole.pro' not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append('.monecole.pro')
+# Ensure wildcard covers all subdomains in production
+if '*' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('*')
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
