@@ -1,12 +1,14 @@
 """
 Service d'email Brevo pour MonEcole.
-Utilise l'API HTTP Brevo (ex-Sendinblue) via curl.
-Copié depuis le Hub eSchoolStructure, adapté pour MonEcole.
+Utilise l'API HTTP Brevo (ex-Sendinblue) via urllib (stdlib Python).
+Aucune dépendance externe — fonctionne partout.
 Plan gratuit: 300 emails/jour.
 """
 import json
 import logging
-import subprocess
+import urllib.request
+import urllib.error
+import ssl
 
 from django.conf import settings
 
@@ -55,12 +57,14 @@ def send_brevo_email(to_emails, subject, html_content=None, text_content=None,
     if not recipients:
         return {'success': False, 'sent': 0, 'failed': 0, 'errors': ['Aucun destinataire']}
 
-    # Brevo a une limite de 50 destinataires par appel
-    # On batche si nécessaire
+    # Brevo limite à 50 destinataires par appel — on batche
     BATCH_SIZE = 50
     total_sent = 0
     total_failed = 0
     errors = []
+
+    # SSL context (permissif pour éviter les problèmes de certificats serveur)
+    ctx = ssl.create_default_context()
 
     for i in range(0, len(recipients), BATCH_SIZE):
         batch = recipients[i:i + BATCH_SIZE]
@@ -80,35 +84,23 @@ def send_brevo_email(to_emails, subject, html_content=None, text_content=None,
         else:
             payload['textContent'] = subject  # fallback
 
-        json_data = json.dumps(payload)
+        json_data = json.dumps(payload).encode('utf-8')
+
+        req = urllib.request.Request(
+            BREVO_API_URL,
+            data=json_data,
+            method='POST',
+            headers={
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'api-key': api_key,
+            },
+        )
 
         try:
-            result = subprocess.run(
-                [
-                    'curl', '-s', '-m', '30',
-                    '-X', 'POST',
-                    BREVO_API_URL,
-                    '-H', 'accept: application/json',
-                    '-H', f'api-key: {api_key}',
-                    '-H', 'content-type: application/json',
-                    '-d', json_data,
-                    '-w', '\n%{http_code}',
-                ],
-                capture_output=True,
-                text=True,
-                timeout=35,
-            )
-
-            output = result.stdout.strip()
-            lines = output.rsplit('\n', 1)
-
-            if len(lines) == 2:
-                body, status_code = lines
-            else:
-                body = output
-                status_code = '0'
-
-            status_code = int(status_code)
+            with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
+                status_code = resp.getcode()
+                body = resp.read().decode('utf-8', errors='replace')
 
             if 200 <= status_code < 300:
                 logger.info(f"Brevo email envoyé à {len(batch)} destinataires: {body}")
@@ -118,12 +110,17 @@ def send_brevo_email(to_emails, subject, html_content=None, text_content=None,
                 total_failed += len(batch)
                 errors.append(f"HTTP {status_code}: {body[:200]}")
 
-        except subprocess.TimeoutExpired:
-            logger.error("Timeout Brevo API")
+        except urllib.error.HTTPError as e:
+            body = e.read().decode('utf-8', errors='replace') if e.fp else str(e)
+            logger.error(f"Erreur HTTP Brevo ({e.code}): {body}")
             total_failed += len(batch)
-            errors.append("Timeout API Brevo")
+            errors.append(f"HTTP {e.code}: {body[:200]}")
+        except urllib.error.URLError as e:
+            logger.error(f"Erreur URL Brevo: {e.reason}")
+            total_failed += len(batch)
+            errors.append(f"URL Error: {e.reason}")
         except Exception as e:
-            logger.error(f"Erreur curl Brevo: {e}")
+            logger.error(f"Erreur Brevo: {e}")
             total_failed += len(batch)
             errors.append(str(e))
 
@@ -161,7 +158,7 @@ def build_parent_email_html(sender_name, message_text, school_name='MonEcole'):
     </td></tr>
     <!-- Footer -->
     <tr><td style="background:#f8f9fa;padding:16px 30px;text-align:center">
-        <p style="color:#aaa;font-size:11px;margin:0">© {school_name} — Plateforme de gestion scolaire</p>
+        <p style="color:#aaa;font-size:11px;margin:0">&copy; {school_name} &mdash; Plateforme de gestion scolaire</p>
     </td></tr>
 </table>
 </td></tr>
