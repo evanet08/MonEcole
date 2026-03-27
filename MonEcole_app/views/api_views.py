@@ -10570,7 +10570,15 @@ def get_deliberation_conditions(request):
 def execute_deliberation(request):
     """
     Exécute la délibération pour une classe et un type donné.
-    Adapté depuis _ARCHIVE/MonEcole_app/views/evaluation/deliberation_annuelle.py
+    Types: 'periode', 'trimestre', 'annee', 'repechage'
+    
+    Algorithme:
+      1. Récupère les élèves inscrits dans la CLASSE.
+      2. Pour chaque élève, calcule total obtenu / total maxima
+         sur la période/trimestre/année sélectionnée.
+      3. Calcule le pourcentage, détermine la mention.
+      4. Classe les élèves par pourcentage décroissant.
+      5. Sauvegarde les résultats dans la table appropriée.
     """
     try:
         from MonEcole_app.models.evaluations.note import (
@@ -10607,43 +10615,60 @@ def execute_deliberation(request):
         if not eac:
             return JsonResponse({'success': False, 'error': 'Classe non trouvée.'}, status=404)
 
-        # Get enrolled students
+        # Get enrolled students for THIS CLASS
         from django.db import connection
         with connection.cursor() as cur:
             cur.execute("""
-                SELECT DISTINCT e.id_eleve, e.nom, e.prenom, e.sexe
+                SELECT DISTINCT e.id_eleve, e.nom, e.prenom, e.genre
                 FROM eleve_inscription ei
                 JOIN eleve e ON ei.id_eleve_id = e.id_eleve
                 WHERE ei.id_annee_id = %s
+                  AND ei.id_classe_id = %s
                   AND ei.id_etablissement = %s
                   AND ei.status = 1
                 ORDER BY e.nom, e.prenom
-            """, [annee.id_annee, etab.id_etablissement])
+            """, [annee.id_annee, int(classe_id), etab.id_etablissement])
             columns = [col[0] for col in cur.description]
             eleves = [dict(zip(columns, row)) for row in cur.fetchall()]
 
         if not eleves:
             return JsonResponse({'success': False, 'error': 'Aucun élève inscrit dans cette classe.'}, status=400)
 
+        # Build repartition filter based on delib_type
+        #   - 'periode': filter by exact repartition_id (P1, P2, P3, P4...)
+        #   - 'trimestre': filter by the trimestre/semestre repartition_id (S1, S2, T1, T2, T3)
+        #   - 'annee': ALL repartitions 
+        #   - 'repechage': session repêchage
+        rep_filter = ""
+        rep_params = []
+        if delib_type in ('periode', 'trimestre') and repartition_id:
+            rep_filter = "AND en.id_repartition_instance = %s"
+            rep_params = [int(repartition_id)]
+
         # Calculate percentages for each student
-        # Use the notes from eleve_note table
         resultats = []
         for eleve in eleves:
             id_eleve = eleve['id_eleve']
 
-            # Get total notes and maxima
+            # Get total notes and maxima by joining with evaluation for ponderer_eval
             with connection.cursor() as cur:
-                cur.execute("""
-                    SELECT COALESCE(SUM(en.note), 0) as total_note,
-                           COALESCE(SUM(en.note_max), 0) as total_max
+                query = f"""
+                    SELECT 
+                        COALESCE(SUM(en.note), 0) as total_note,
+                        COALESCE(SUM(ev.ponderer_eval), 0) as total_max
                     FROM eleve_note en
+                    JOIN evaluation ev ON ev.id_evaluation = en.id_evaluation_id
                     WHERE en.id_eleve_id = %s
                       AND en.id_annee_id = %s
+                      AND en.id_classe_id = %s
                       AND en.id_etablissement = %s
-                """, [id_eleve, annee.id_annee, etab.id_etablissement])
+                      {rep_filter}
+                """
+                params = [id_eleve, annee.id_annee, int(classe_id), etab.id_etablissement] + rep_params
+                cur.execute(query, params)
                 row = cur.fetchone()
-                total_note = row[0] if row else 0
-                total_max = row[1] if row else 0
+                total_note = float(row[0]) if row and row[0] else 0
+                total_max = float(row[1]) if row and row[1] else 0
 
             pourcentage = (total_note * 100 / total_max) if total_max > 0 else 0
 
@@ -10651,10 +10676,10 @@ def execute_deliberation(request):
                 'id_eleve': id_eleve,
                 'nom': eleve['nom'],
                 'prenom': eleve['prenom'],
-                'sexe': eleve.get('sexe', 'M'),
+                'genre': eleve.get('genre', 'M'),
                 'pourcentage': round(pourcentage, 2),
-                'total_note': total_note,
-                'total_max': total_max,
+                'total_note': round(total_note, 1),
+                'total_max': round(total_max, 1),
             })
 
         # Sort by percentage descending for ranking
@@ -10663,13 +10688,9 @@ def execute_deliberation(request):
         # Assign places
         for i, r in enumerate(resultats):
             rank = i + 1
-            sexe = r.get('sexe', 'M')
+            genre = r.get('genre', 'M')
             if rank == 1:
-                r['place'] = '1ère' if sexe == 'F' else '1er'
-            elif rank == 2:
-                r['place'] = '2ème'
-            elif rank == 3:
-                r['place'] = '3ème'
+                r['place'] = '1ère' if genre == 'F' else '1er'
             else:
                 r['place'] = f'{rank}ème'
 
@@ -10684,7 +10705,7 @@ def execute_deliberation(request):
                     r['mention_id'] = m.id_mention
                     break
 
-        # Determine decision from Hub conditions (for annual deliberation)
+        # Determine decision from Hub conditions (for annual/all deliberations)
         conditions = list(Deliberation_annuelle_condition.objects.filter(
             id_annee=annee,
             id_etablissement=etab.id_etablissement
@@ -10701,13 +10722,62 @@ def execute_deliberation(request):
                                 id_finalite=cond.id_finalite_id
                             )
                             r['decision'] = finalite.finalite
+                            r['finalite_id'] = finalite.id_finalite
                         except Deliberation_annuelle_finalite.DoesNotExist:
                             r['decision'] = cond.sanction_disciplinaire or '—'
                         break
 
+        # Get campus for the establishment
+        campus = Campus.objects.filter(id_etablissement=etab.id_etablissement).first()
+        campus_id = campus.id_campus if campus else 1
+
+        # Resolve cycle from EAC
+        cycle_id = eac.cycle_id if hasattr(eac, 'cycle_id') and eac.cycle_id else 3
+
         # Save results to Spoke DB (depending on type)
         saved_count = 0
-        if delib_type == 'annee' and session_id:
+
+        if delib_type == 'periode' and repartition_id:
+            # Save to deliberation_periodique_resultats
+            # We need both id_trimestre and id_periode
+            # For now, use repartition_id as both (they map to same repartition_configs)
+            for r in resultats:
+                try:
+                    with connection.cursor() as cur:
+                        cur.execute("""
+                            INSERT INTO deliberation_periodique_resultats
+                            (id_eleve_id, id_campus_id, id_annee_id, id_cycle_id, id_classe_id,
+                             id_trimestre_id, id_periode_id, pourcentage, place, date_creation, id_etablissement)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURDATE(), %s)
+                            ON DUPLICATE KEY UPDATE
+                                pourcentage=VALUES(pourcentage), place=VALUES(place)
+                        """, [r['id_eleve'], campus_id, annee.id_annee, cycle_id,
+                              int(classe_id), int(repartition_id), int(repartition_id),
+                              r['pourcentage'], r['place'], etab.id_etablissement])
+                    saved_count += 1
+                except Exception as save_err:
+                    logging.getLogger(__name__).error(f"Save error periode eleve {r['id_eleve']}: {save_err}")
+
+        elif delib_type == 'trimestre' and repartition_id:
+            # Save to deliberation_trimistrielle_resultats
+            for r in resultats:
+                try:
+                    with connection.cursor() as cur:
+                        cur.execute("""
+                            INSERT INTO deliberation_trimistrielle_resultats
+                            (id_eleve_id, id_campus_id, id_annee_id, id_cycle_id, id_classe_id,
+                             id_trimestre_id, pourcentage, place, date_creation, id_etablissement)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CURDATE(), %s)
+                            ON DUPLICATE KEY UPDATE
+                                pourcentage=VALUES(pourcentage), place=VALUES(place)
+                        """, [r['id_eleve'], campus_id, annee.id_annee, cycle_id,
+                              int(classe_id), int(repartition_id),
+                              r['pourcentage'], r['place'], etab.id_etablissement])
+                    saved_count += 1
+                except Exception as save_err:
+                    logging.getLogger(__name__).error(f"Save error trimestre eleve {r['id_eleve']}: {save_err}")
+
+        elif delib_type == 'annee' and session_id:
             for r in resultats:
                 try:
                     Deliberation_annuelle_resultat.objects.update_or_create(
@@ -10715,19 +10785,19 @@ def execute_deliberation(request):
                         id_annee=annee,
                         id_etablissement=etab.id_etablissement,
                         defaults={
-                            'id_campus_id': 1,  # Default campus
-                            'id_cycle_id': eac.classe_id if eac else 1,
-                            'id_classe_id': eac.id if eac else 1,
-                            'id_session_id': session_id,
+                            'id_campus_id': campus_id,
+                            'id_cycle_id': cycle_id,
+                            'id_classe_id': int(classe_id),
+                            'id_session_id': int(session_id),
                             'id_mention_id': r.get('mention_id', 1),
-                            'id_decision_id': conditions[0].id_decision if conditions else 1,
+                            'id_decision_id': r.get('finalite_id', 1),
                             'pourcentage': r['pourcentage'],
                             'place': r['place'],
                         }
                     )
                     saved_count += 1
                 except Exception as save_err:
-                    logging.getLogger(__name__).error(f"Save error for eleve {r['id_eleve']}: {save_err}")
+                    logging.getLogger(__name__).error(f"Save error annee eleve {r['id_eleve']}: {save_err}")
 
         return JsonResponse({
             'success': True,
