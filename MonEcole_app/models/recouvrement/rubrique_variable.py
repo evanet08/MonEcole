@@ -30,9 +30,11 @@ class VariableDatebutoire(models.Model):
     id_datebutoire = models.AutoField(primary_key=True)
     id_variable = models.ForeignKey("Variable",on_delete=models.PROTECT,null=False) 
     id_campus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)  
-    id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null=False)
-    id_cycle_actif = models.ForeignKey("Classe_cycle_actif",on_delete=models.PROTECT,null=False) 
-    id_classe_active= models.ForeignKey("Classe_active",on_delete=models.PROTECT,null=False) 
+    id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null=False, db_constraint=False)
+    id_cycle = models.ForeignKey("MonEcole_app.Cycle",on_delete=models.PROTECT,null=False,
+                                 db_column='id_cycle_id', db_constraint=False) 
+    id_classe = models.ForeignKey("MonEcole_app.EtablissementAnneeClasse",on_delete=models.PROTECT,null=False,
+                                  db_column='id_classe_id', db_constraint=False) 
     date_butoire = models.DateField()
     
 
@@ -47,9 +49,11 @@ class VariableDerogation(models.Model):
     id_derogation = models.AutoField(primary_key=True)
     id_eleve = models.ForeignKey("Eleve",on_delete=models.PROTECT,null=False) 
     id_campus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)  
-    id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null=False)
-    id_cycle_actif = models.ForeignKey("Classe_cycle_actif",on_delete=models.PROTECT,null=False) 
-    id_classe_active = models.ForeignKey("Classe_active",on_delete=models.PROTECT,null=False) 
+    id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null=False, db_constraint=False)
+    id_cycle = models.ForeignKey("MonEcole_app.Cycle",on_delete=models.PROTECT,null=False,
+                                 db_column='id_cycle_id', db_constraint=False) 
+    id_classe = models.ForeignKey("MonEcole_app.EtablissementAnneeClasse",on_delete=models.PROTECT,null=False,
+                                  db_column='id_classe_id', db_constraint=False) 
     id_variable = models.ForeignKey(Variable,on_delete=models.PROTECT,null=False)
     date_derogation = models.DateField()
     
@@ -65,10 +69,12 @@ class VariablePrix(models.Model):
     id_prix = models.AutoField(primary_key=True)
     id_variable = models.ForeignKey("Variable",on_delete=models.PROTECT,null=False) 
     prix = models.PositiveIntegerField()
-    id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null=False)
+    id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null=False, db_constraint=False)
     id_campus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)  
-    id_cycle_actif = models.ForeignKey("Classe_cycle_actif",on_delete=models.PROTECT,null=False) 
-    id_classe_active = models.ForeignKey("Classe_active",on_delete=models.PROTECT,null=False) 
+    id_cycle = models.ForeignKey("MonEcole_app.Cycle",on_delete=models.PROTECT,null=False,
+                                 db_column='id_cycle_id', db_constraint=False) 
+    id_classe = models.ForeignKey("MonEcole_app.EtablissementAnneeClasse",on_delete=models.PROTECT,null=False,
+                                  db_column='id_classe_id', db_constraint=False) 
   
     class Meta:
         db_table = "recouvrment_variable_prix"

@@ -147,23 +147,30 @@ class Deliberation_trimistrielle_resultat(models.Model):
 class Evaluation(models.Model):
     id_evaluation = models.AutoField(primary_key=True)
     title = models.CharField(max_length=200,null=False)
+    id_type_eval = models.IntegerField(null=True, blank=True)
     ponderer_eval = models.PositiveIntegerField(default=0)
     date_eval  = models.DateField()
     date_soumission = models.DateField(null=True,blank=True)
     id_campus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)
-    id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null=False)
-    id_cycle_actif = models.ForeignKey(Cycle,on_delete=models.PROTECT,null=False, db_constraint=False)
-    id_classe_active = models.ForeignKey(EtablissementAnneeClasse,on_delete=models.PROTECT,null=False, db_constraint=False)   
-    id_type_note = models.ForeignKey("Eleve_note_type",on_delete=models.PROTECT,null=False)
-    id_cours_classe = models.ForeignKey("Cours_par_classe", on_delete=models.PROTECT,null=False)  
-    id_session = models.ForeignKey("Session",on_delete=models.PROTECT,null=False)
-    id_trimestre = models.ForeignKey("Annee_trimestre",on_delete=models.PROTECT,null=False)
-    id_periode = models.ForeignKey("Annee_periode",on_delete=models.PROTECT,null=False)
+    id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null=False, db_constraint=False)
+    id_cycle = models.ForeignKey(Cycle,on_delete=models.PROTECT,null=True, blank=True,
+                                 db_column='id_cycle_id', db_constraint=False)
+    id_classe = models.ForeignKey(EtablissementAnneeClasse,on_delete=models.PROTECT,null=False,
+                                  db_column='id_classe_id', db_constraint=False)
+    id_type_note = models.ForeignKey("Eleve_note_type",on_delete=models.PROTECT,null=True, blank=True,
+                                     db_constraint=False)
+    id_cours_classe = models.ForeignKey("Cours_par_classe", on_delete=models.PROTECT,null=False)
+    id_session = models.ForeignKey("Session",on_delete=models.PROTECT,null=True, blank=True,
+                                   db_constraint=False)
+    id_repartition_instance = models.ForeignKey(
+        'RepartitionInstance', on_delete=models.PROTECT, null=True, blank=True,
+        db_column='id_repartition_instance', db_constraint=False)
     contenu_evaluation = models.FileField(upload_to='evaluations/')
+    document_url = models.CharField(max_length=500, null=True, blank=True)
     date_creation = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
     def __str__(self):
-        return self.id_type_note.type
+        return self.title
 
     class Meta:
         db_table = 'evaluation'

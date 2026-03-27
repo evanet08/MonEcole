@@ -5,7 +5,7 @@ from .annee import Annee
 from .classe import Classe
 from .campus import Campus
 from .salle import Salle
-from MonEcole_app.models.models_import import Classe_cycle_actif,Classe_active
+from MonEcole_app.models.country_structure import Cycle, EtablissementAnneeClasse
 from MonEcole_app.models.eleves import Eleve
 
 
@@ -22,9 +22,11 @@ class Horaire(models.Model):
     id_horaire = models.AutoField(primary_key=True)
     id_horaire_type = models.ForeignKey(Horaire_type,on_delete=models.PROTECT,null=False)
     id_campus = models.ForeignKey("Campus",on_delete=models.PROTECT,null= False)
-    id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null= False)
-    id_cycle = models.ForeignKey("Classe_cycle_actif",on_delete=models.PROTECT,null= False)
-    id_classe = models.ForeignKey("Classe_active",on_delete=models.PROTECT,null=False)
+    id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null= False, db_constraint=False)
+    id_cycle = models.ForeignKey(Cycle,on_delete=models.PROTECT,null= False,
+                                 db_column='id_cycle_id', db_constraint=False)
+    id_classe = models.ForeignKey(EtablissementAnneeClasse,on_delete=models.PROTECT,null=False,
+                                  db_column='id_classe_id', db_constraint=False)
     id_cours = models.ForeignKey("Cours_par_classe",on_delete=models.PROTECT,null=False)
     date = models.DateField(null=False)
     debut = models.CharField(max_length=100,null=False)

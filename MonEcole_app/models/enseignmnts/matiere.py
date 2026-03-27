@@ -106,9 +106,11 @@ class Attribution_type(models.Model):
 class Attribution_cours(models.Model):
     id_attribution = models.AutoField(primary_key=True)
     id_campus = models.ForeignKey("Campus", on_delete=models.PROTECT, null=False)
-    id_annee = models.ForeignKey("Annee", on_delete=models.PROTECT, null=False)
-    id_cycle = models.ForeignKey("Classe_cycle_actif", on_delete=models.PROTECT, null=False)
-    id_classe = models.ForeignKey("Classe_active", on_delete=models.PROTECT, null=False)
+    id_annee = models.ForeignKey("Annee", on_delete=models.PROTECT, null=False, db_constraint=False)
+    id_cycle = models.ForeignKey("MonEcole_app.Cycle", on_delete=models.PROTECT, null=False,
+                                 db_column='id_cycle_id', db_constraint=False)
+    id_classe = models.ForeignKey("MonEcole_app.EtablissementAnneeClasse", on_delete=models.PROTECT, null=False,
+                                  db_column='id_classe_id', db_constraint=False)
     attribution_type = models.ForeignKey("Attribution_type", on_delete=models.PROTECT, null=False)
     id_cours = models.ForeignKey("Cours_par_classe", on_delete=models.PROTECT, null=False)
     id_personnel = models.ForeignKey("Personnel", on_delete=models.PROTECT, null=False)
@@ -120,3 +122,4 @@ class Attribution_cours(models.Model):
 
     def __str__(self):
         return f"{self.id_attribution} -{self.id_cours}"
+
