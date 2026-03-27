@@ -173,29 +173,55 @@ def _get_dashboard_context(request):
             except Exception:
                 pass  # Cours table may have schema differences
 
-            # Répartitions temporelles
+            # Répartitions temporelles — filtrer selon les cycles de l'établissement
             active_cycle_ids = set(
                 cc.classe.cycle_id for cc in classes_config
                 if cc.classe and cc.classe.cycle_id
             )
-            allowed_type_ids = set(
+
+            # Récupérer les configs cycle pour cet établissement
+            etab_cycle_configs = list(
                 RepartitionConfigCycle.objects.filter(
                     cycle_id__in=active_cycle_ids, is_active=True
-                ).values_list('type_racine_id', flat=True)
-            ) if active_cycle_ids else set()
+                ).select_related('type_racine')
+            ) if active_cycle_ids else []
 
-            if allowed_type_ids:
-                periode_type = RepartitionType.objects.filter(
-                    code='P'
-                ).values_list('id_type', flat=True).first()
-                if periode_type:
-                    allowed_type_ids.add(periode_type)
+            # Calculer le nombre max d'instances par type racine
+            # Ex: si Ecole de Base = 2 Semestres et Humanités = 2 Semestres → max 2
+            type_max_count = {}  # type_id → max nombre d'instances racine
+            for cc in etab_cycle_configs:
+                tid = cc.type_racine_id
+                if tid not in type_max_count or cc.nombre_au_niveau_racine > type_max_count[tid]:
+                    type_max_count[tid] = cc.nombre_au_niveau_racine
 
-            parent_type_ids = set(
-                RepartitionHierarchie.objects.filter(
-                    is_active=True
-                ).values_list('type_parent_id', flat=True)
-            )
+            allowed_type_ids = set(type_max_count.keys())
+
+            # Charger les hiérarchies pour déterminer les types enfants et leur nombre
+            hierarchies_for_types = {}  # parent_type_id → {child_type_id, nb_enfants}
+            for h in RepartitionHierarchie.objects.filter(is_active=True).select_related('type_parent', 'type_enfant'):
+                hierarchies_for_types[h.type_parent_id] = {
+                    'child_type_id': h.type_enfant_id,
+                    'nb_enfants': h.nombre_enfants,
+                }
+
+            # Calculer le nombre max d'instances enfants par type
+            child_type_max_count = {}  # child_type_id → max nombre d'instances enfants
+            for root_type_id, max_root in type_max_count.items():
+                hier = hierarchies_for_types.get(root_type_id)
+                if hier:
+                    child_tid = hier['child_type_id']
+                    total_children = max_root * hier['nb_enfants']
+                    if child_tid not in child_type_max_count or total_children > child_type_max_count[child_tid]:
+                        child_type_max_count[child_tid] = total_children
+                    allowed_type_ids.add(child_tid)
+
+            # Fusionner pour avoir les limites par type
+            # type_id → max instances à afficher
+            type_instance_limits = {}
+            type_instance_limits.update(type_max_count)
+            type_instance_limits.update(child_type_max_count)
+
+            parent_type_ids = set(hierarchies_for_types.keys())
 
             if etab.is_calendar_synched:
                 ri_qs = RepartitionInstance.objects.filter(
@@ -203,7 +229,17 @@ def _get_dashboard_context(request):
                 ).select_related('type').order_by('type__nom', 'ordre')
                 if allowed_type_ids:
                     ri_qs = ri_qs.filter(type_id__in=allowed_type_ids)
+
+                # Grouper par type et limiter par le nombre calculé
+                type_count_tracker = {}  # type_id → nombre ajouté
                 for ri in ri_qs:
+                    tid = ri.type_id
+                    current_count = type_count_tracker.get(tid, 0)
+                    max_allowed = type_instance_limits.get(tid)
+                    # Si pas de limite (type non configuré), skip
+                    if max_allowed is not None and current_count >= max_allowed:
+                        continue
+                    type_count_tracker[tid] = current_count + 1
                     repartitions_notes.append({
                         'id': ri.id_instance, 'id_instance': ri.id_instance,
                         'nom': ri.nom, 'code': ri.code,
@@ -663,11 +699,13 @@ def espace_enseignant_view(request):
     context['personnel_info'] = json.dumps(personnel_info, ensure_ascii=False, default=str)
 
     # Charger les répartitions (périodes) pour la section Notes
+    # Filtrer selon les cycles actifs de l'établissement
     repartitions = []
     try:
         annee_active = context.get('annee_active')
         if annee_active:
             annee_id = annee_active.get('id') or annee_active.get('id_annee')
+            etab_id = context['etab']['id_etablissement']
             from django.conf import settings
             import pymysql
             hub_settings = settings.DATABASES.get('countryStructure', {})
@@ -682,21 +720,68 @@ def espace_enseignant_view(request):
                     cursorclass=pymysql.cursors.DictCursor,
                 )
                 with hconn.cursor() as hcur:
+                    # 1. Trouver les cycles actifs de l'établissement
                     hcur.execute("""
-                        SELECT ri.id_instance, ri.nom, rt.nom AS type_nom
-                        FROM repartition_instances ri
-                        JOIN repartition_types rt ON rt.id_type = ri.type_id
-                        WHERE ri.annee_id = %s AND ri.is_active = 1
-                        ORDER BY ri.type_id, ri.ordre
-                    """, [annee_id])
-                    all_reps = hcur.fetchall()
-                    for r in all_reps:
-                        repartitions.append({
-                            'id_instance': r['id_instance'],
-                            'nom': r['nom'],
-                            'type_nom': r['type_nom'],
-                            'is_leaf': True,
-                        })
+                        SELECT DISTINCT cl.cycle_id
+                        FROM etablissements_annees_classes eac
+                        JOIN etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+                        JOIN classes cl ON cl.id_classe = eac.classe_id
+                        WHERE ea.etablissement_id = %s AND ea.annee_id = %s
+                    """, [etab_id, annee_id])
+                    active_cycle_ids = [r['cycle_id'] for r in hcur.fetchall()]
+
+                    # 2. Configs cycle → type racine + max count
+                    type_limits = {}  # type_id → max instances
+                    if active_cycle_ids:
+                        fmt = ','.join(['%s'] * len(active_cycle_ids))
+                        hcur.execute(f"""
+                            SELECT type_racine_id, MAX(nombre_au_niveau_racine) as max_nb
+                            FROM repartition_configs_cycle
+                            WHERE cycle_id IN ({fmt}) AND is_active = 1
+                            GROUP BY type_racine_id
+                        """, active_cycle_ids)
+                        for r in hcur.fetchall():
+                            type_limits[r['type_racine_id']] = r['max_nb']
+
+                    # 3. Hiérarchies → types enfants + limites
+                    hcur.execute("""
+                        SELECT type_parent_id, type_enfant_id, nombre_enfants
+                        FROM repartition_hierarchies WHERE is_active = 1
+                    """)
+                    for h in hcur.fetchall():
+                        parent_tid = h['type_parent_id']
+                        if parent_tid in type_limits:
+                            child_tid = h['type_enfant_id']
+                            total = type_limits[parent_tid] * h['nombre_enfants']
+                            if child_tid not in type_limits or total > type_limits[child_tid]:
+                                type_limits[child_tid] = total
+
+                    # 4. Charger les instances filtrées
+                    if type_limits:
+                        all_type_ids = list(type_limits.keys())
+                        fmt = ','.join(['%s'] * len(all_type_ids))
+                        hcur.execute(f"""
+                            SELECT ri.id_instance, ri.nom, rt.nom AS type_nom, ri.type_id, ri.ordre
+                            FROM repartition_instances ri
+                            JOIN repartition_types rt ON rt.id_type = ri.type_id
+                            WHERE ri.annee_id = %s AND ri.is_active = 1
+                              AND ri.type_id IN ({fmt})
+                            ORDER BY ri.type_id, ri.ordre
+                        """, [annee_id] + all_type_ids)
+                        all_reps = hcur.fetchall()
+                        type_count = {}
+                        for r in all_reps:
+                            tid = r['type_id']
+                            cnt = type_count.get(tid, 0)
+                            if cnt >= type_limits.get(tid, 999):
+                                continue
+                            type_count[tid] = cnt + 1
+                            repartitions.append({
+                                'id_instance': r['id_instance'],
+                                'nom': r['nom'],
+                                'type_nom': r['type_nom'],
+                                'is_leaf': True,
+                            })
                 hconn.close()
     except Exception:
         import traceback; traceback.print_exc()
