@@ -806,24 +806,26 @@ def calculer_pourcentages(table_data, style_center):
 
  
 def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe):
+    """
+    Retourne les notes TJ par cours, indexées par code de période (P1, P2, P3, P4).
+    """
+    import logging
+    logger = logging.getLogger(__name__)
 
- 
     try:
         eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
     except EtablissementAnneeClasse.DoesNotExist:
         return defaultdict(dict)
 
+    # Codes de période valides selon le type de classe
     nom_classe = eac.classe.classe.strip()
-
-    # Mapping période (P1, P2, etc.) vers sigle utilisé par les templates (1e P, 2e P, etc.)
     if nom_classe in ['1ère Année', '1er Langue', '1er SC', '1er Eco', '1ère Primaire', '2ème Primaire', '3ème Primaire', '4ème Primaire', '5ème Primaire', '6ème Primaire']:
-        periode_to_sigle = {"P1": "1e P", "P2": "2e P", "P3": "3e P", "P4": "4e P", "P5": "5e P", "P6": "6e P"}
+        valid_codes = {"P1", "P2", "P3", "P4", "P5", "P6"}
     elif nom_classe in ['7ème A E.B', '8ème A E.B', '7ème', '8ème', '4ème construction', '2ème Niveau Eléctricité Industrielle', '2sc MTP', '2ème LANGUE', '2ème Eco', '2ème BCT', '3ème MPT', '3ème BCT', '3ème ECO']:
-        periode_to_sigle = {"P1": "1e P", "P2": "2e P", "P3": "3e P", "P4": "4e P"}
+        valid_codes = {"P1", "P2", "P3", "P4"}
     else:
         return defaultdict(dict)
 
-    # Filtrer par type "TJ" (Travail Journalier) et récupérer la période
     notes_qs = Eleve_note.objects.filter(
         id_eleve_id=id_eleve,
         id_annee_id=id_annee,
@@ -833,7 +835,7 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
         id_type_note__sigle="TJ"
     )
 
-    # Prefetch RepartitionInstance names (Hub) to avoid cross-DB JOIN
+    # Prefetch RepartitionInstance codes (Hub) to avoid cross-DB JOIN
     from MonEcole_app.models.country_structure import RepartitionInstance
     rep_ids = set(notes_qs.values_list('id_repartition_instance', flat=True))
     rep_ids.discard(None)
@@ -841,24 +843,22 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
     if rep_ids:
         rep_map = dict(RepartitionInstance.objects.filter(id_instance__in=rep_ids).values_list('id_instance', 'code'))
 
+    logger.warning(f"[get_student_period_notes] classe={nom_classe}, notes_count={notes_qs.count()}, rep_ids={rep_ids}, rep_map={rep_map}")
+
     notes_par_cours = defaultdict(dict)
 
     for note in notes_qs:
         cours_id = note.id_cours_id
-        try:
-            periode_nom = rep_map.get(note.id_repartition_instance_id, None)
-            if not periode_nom:
-                continue
-        except (AttributeError, Exception):
-            continue
-        
-        sigle = periode_to_sigle.get(periode_nom)
-        if sigle is None:
+        code = rep_map.get(note.id_repartition_instance_id)
+        if not code or code not in valid_codes:
             continue
             
         valeur = note.note if note.note is not None else "-"
-        notes_par_cours[cours_id][sigle] = valeur
+        notes_par_cours[cours_id][code] = valeur
+
+    logger.warning(f"[get_student_period_notes] Found notes for {len(notes_par_cours)} cours")
     return notes_par_cours
+
 
 
 
