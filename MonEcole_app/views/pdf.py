@@ -33,7 +33,9 @@ def generer_bulletin_pdf(request):
         id_campus = request.GET.get('id_campus')
         id_cycle  = request.GET.get('id_cycle')
         id_classe = request.GET.get('id_classe')
-        id_eleves = [request.GET.get('id_eleve')]
+        # Support comma-separated IDs: ?id_eleve=2,3,5
+        raw_eleves = request.GET.get('id_eleve', '')
+        id_eleves = [e.strip() for e in raw_eleves.split(',') if e.strip()]
 
     # Auto-résolution des paramètres manquants via EAC
     if id_classe and (not id_annee or not id_campus or not id_cycle):
