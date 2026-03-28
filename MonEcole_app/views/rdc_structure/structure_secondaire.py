@@ -31,24 +31,39 @@ style_normal.alignment = 0
 
 def get_semestres(id_annee, id_campus, id_cycle, id_classe):
     """
-    Récupère les 2 semestres/trimestres racine pour une classe.
-    id_classe = EAC id (EtablissementAnneeClasse)
-    
-    Table Hub : repartition_configs_etab_annee
-    Filtre : etablissement_annee_id + classe_id (ou sans classe si non-spécifique) + has_parent=False
+    Récupère les 2 semestres racine pour une classe secondaire.
+    Utilise repartition_configs_cycle pour déterminer le type de répartition (Semestre/Trimestre)
+    puis filtre les configs etab_annee par ce type.
     """
+    from MonEcole_app.models.country_structure import RepartitionConfigCycle
+    
     try:
         eac = EtablissementAnneeClasse.objects.select_related('etablissement_annee', 'classe').get(id=id_classe)
         etab_annee_id = eac.etablissement_annee_id
-        hub_classe_id = eac.classe_id
     except EtablissementAnneeClasse.DoesNotExist:
         return None
     
-    # Trimestres racine (has_parent=False) pour cet établissement/année
-    trimestres_qs = Annee_trimestre.objects.filter(
+    # Déterminer le type de répartition racine pour ce cycle
+    try:
+        config_cycle = RepartitionConfigCycle.objects.filter(
+            cycle_id=id_cycle, is_active=True
+        ).first()
+        if config_cycle:
+            type_racine_id = config_cycle.type_racine_id
+        else:
+            type_racine_id = None
+    except Exception:
+        type_racine_id = None
+    
+    # Filtrer les configs par le type racine du cycle
+    qs = Annee_trimestre.objects.filter(
         etablissement_annee_id=etab_annee_id,
-        has_parent=False
-    ).select_related('repartition').order_by('id_trimestre')[:2]
+    ).select_related('repartition')
+    
+    if type_racine_id:
+        qs = qs.filter(repartition__type_id=type_racine_id)
+    
+    trimestres_qs = qs.order_by('repartition__ordre')[:2]
 
     if len(trimestres_qs) != 2:
         return None
@@ -59,6 +74,7 @@ def get_semestres(id_annee, id_campus, id_cycle, id_classe):
         result.append((trimestre.id_trimestre, nom_original))
 
     return result
+
 
 
 def create_line2_right__secondaire_rdc(elements, eleve,id_classe, style_normal):
@@ -313,10 +329,10 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
         nom_trim2 = trimestres_data[1][1]
     
         
-        if nom_trim1 =="Semestre 1" or nom_trim1 == "Trimestre 1":
+        if nom_trim1 in ("Semestre 1", "1er Semestre", "Trimestre 1", "1er Trimestre"):
             nom_trim1 = "PREMIER SEMESTRE"
             
-        if nom_trim2 == "Semestre 2" or nom_trim2 == "Trimestre 2":
+        if nom_trim2 in ("Semestre 2", "2ème Semestre", "Trimestre 2", "2ème Trimestre"):
            nom_trim2 = "SECOND SEMESTRE"
     else:
         nom_trim1 = "PREMIER SEMESTRE"
@@ -412,12 +428,18 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
 
             for col in range(1, 20):
                 if col in [2, 3, 9, 10]:
-                    col_to_sigle = {
-                        2: "1e P", 3: "2e P",
-                        9: "3e P", 10: "4e P"
+                    col_to_code = {
+                        2: "P1", 3: "P2",
+                        9: "P3", 10: "P4"
                     }
-                    sigle = col_to_sigle[col]
-                    note_val = notes_cours_periodes.get(sigle, "-")
+                    code = col_to_code[col]
+                    note_data = notes_cours_periodes.get(code, None)
+                    if note_data and isinstance(note_data, dict):
+                        note_val = note_data.get('valeur', '-')
+                    elif note_data is not None:
+                        note_val = note_data
+                    else:
+                        note_val = "-"
                     row.append(Paragraph(str(note_val), style_center))
 
                 elif col in [1, 8]:

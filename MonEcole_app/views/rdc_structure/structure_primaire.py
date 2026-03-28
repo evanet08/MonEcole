@@ -539,7 +539,7 @@ def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
     rep_ids.discard(None)
     rep_map = {}
     if rep_ids:
-        rep_map = dict(RepartitionInstance.objects.filter(id_instance__in=rep_ids).values_list('id_instance', 'nom'))
+        rep_map = dict(RepartitionInstance.objects.filter(id_instance__in=rep_ids).values_list('id_instance', 'code'))
 
     regroupement = defaultdict(lambda: defaultdict(list)) 
 
@@ -607,7 +607,7 @@ def get_student_exam_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe):
     rep_ids.discard(None)
     rep_map = {}
     if rep_ids:
-        rep_map = dict(RepartitionInstance.objects.filter(id_instance__in=rep_ids).values_list('id_instance', 'nom'))
+        rep_map = dict(RepartitionInstance.objects.filter(id_instance__in=rep_ids).values_list('id_instance', 'code'))
 
     # Map trimestre IDs from get_trimestres data
     # trimestres_data is [(id_trim, nom_original, nom_affiche), ...]
@@ -839,7 +839,7 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
     rep_ids.discard(None)
     rep_map = {}
     if rep_ids:
-        rep_map = dict(RepartitionInstance.objects.filter(id_instance__in=rep_ids).values_list('id_instance', 'nom'))
+        rep_map = dict(RepartitionInstance.objects.filter(id_instance__in=rep_ids).values_list('id_instance', 'code'))
 
     notes_par_cours = defaultdict(dict)
 
