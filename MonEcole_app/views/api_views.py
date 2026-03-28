@@ -10473,7 +10473,7 @@ def get_evaluations_repartitions(request):
         if err:
             return err
 
-        annee = Annee.objects.filter(etat_annee='En Cours').first()
+        annee = Annee.objects.filter(etat_annee__in=['En Cours', 'actif', 'ouverte']).first()
         if not annee:
             return JsonResponse({'success': True, 'repartitions': []})
 
@@ -10524,7 +10524,7 @@ def get_deliberation_conditions(request):
         if err:
             return err
 
-        annee = Annee.objects.filter(etat_annee='En Cours').first()
+        annee = Annee.objects.filter(etat_annee__in=['En Cours', 'actif', 'ouverte']).first()
         if not annee:
             return JsonResponse({'success': True, 'conditions': []})
 
@@ -10605,7 +10605,7 @@ def execute_deliberation(request):
         if err:
             return err
 
-        annee = Annee.objects.filter(etat_annee='En Cours').first()
+        annee = Annee.objects.filter(etat_annee__in=['En Cours', 'actif', 'ouverte']).first()
         if not annee:
             return JsonResponse({'success': False, 'error': 'Aucune année en cours.'}, status=400)
 
@@ -10828,7 +10828,7 @@ def cancel_deliberation(request):
         if err:
             return err
 
-        annee = Annee.objects.filter(etat_annee='En Cours').first()
+        annee = Annee.objects.filter(etat_annee__in=['En Cours', 'actif', 'ouverte']).first()
         if not annee:
             return JsonResponse({'success': False, 'error': 'Aucune année en cours.'}, status=400)
 
