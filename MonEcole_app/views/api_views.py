@@ -10933,3 +10933,164 @@ def cancel_deliberation(request):
         import traceback
         traceback.print_exc()
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# =============================================================================
+# BULLETINS API
+# =============================================================================
+
+@require_http_methods(["GET"])
+def get_deliberated_classes(request):
+    """
+    Retourne les classes qui ont été délibérées (au moins un résultat de délibération),
+    avec le modèle de bulletin associé (depuis le Hub).
+    GET /api/bulletins/classes/?session_id=X
+    """
+    try:
+        etab, err = _get_tenant_etab(request)
+        if err:
+            return err
+
+        annee = Annee.objects.filter(etat_annee__in=['En Cours', 'actif', 'ouverte']).first()
+        if not annee:
+            return JsonResponse({'success': True, 'classes': []})
+
+        ea = EtablissementAnnee.objects.filter(
+            etablissement_id=etab.id_etablissement,
+            annee=annee
+        ).first()
+        if not ea:
+            return JsonResponse({'success': True, 'classes': []})
+
+        # Récupérer toutes les EAC pour cet établissement/année
+        eacs = EtablissementAnneeClasse.objects.filter(
+            etablissement_annee=ea
+        ).select_related('classe', 'classe__cycle', 'section')
+
+        # Lire les modèles de bulletin depuis le Hub
+        from MonEcole_app.models.evaluations.bulletin_model import BulletinClasseModel, BulletinModel
+        bcm_map = {}  # {classe_id_hub: model_name}
+        for bcm in BulletinClasseModel.objects.select_related('id_model').all():
+            bcm_map[bcm.id_classe_id] = {
+                'model_id': bcm.id_model_id,
+                'model_name': bcm.id_model.model_name,
+            }
+
+        # Checker quelles classes ont des résultats de délibération
+        from MonEcole_app.models.evaluations.note import (
+            Deliberation_trimistrielle_resultat,
+            Deliberation_annuelle_resultat,
+            Deliberation_periodique_resultat,
+        )
+
+        # Classes avec résultats (n'importe quel type de délibération)
+        delib_classes = set()
+
+        # Trimestrielle
+        for r in Deliberation_trimistrielle_resultat.objects.filter(
+            id_annee=annee, id_etablissement=etab.id_etablissement
+        ).values_list('id_classe_id', flat=True).distinct():
+            delib_classes.add(r)
+
+        # Annuelle
+        for r in Deliberation_annuelle_resultat.objects.filter(
+            id_annee=annee, id_etablissement=etab.id_etablissement
+        ).values_list('id_classe_id', flat=True).distinct():
+            delib_classes.add(r)
+
+        # Périodique
+        for r in Deliberation_periodique_resultat.objects.filter(
+            id_annee=annee, id_etablissement=etab.id_etablissement
+        ).values_list('id_classe_id', flat=True).distinct():
+            delib_classes.add(r)
+
+        classes = []
+        for eac in eacs:
+            hub_classe_id = eac.classe_id
+            model_info = bcm_map.get(hub_classe_id, None)
+            is_deliberated = eac.id in delib_classes
+
+            # Compter les élèves inscrits
+            from django.db import connection
+            with connection.cursor() as cur:
+                cur.execute("""
+                    SELECT COUNT(DISTINCT id_eleve_id) FROM eleve_inscription
+                    WHERE id_annee_id=%s AND id_classe_id=%s AND id_etablissement=%s AND status=1
+                """, [annee.id_annee, eac.id, etab.id_etablissement])
+                nb_eleves = cur.fetchone()[0]
+
+            cycle_name = eac.classe.cycle.cycle if eac.classe and hasattr(eac.classe, 'cycle') and eac.classe.cycle else '—'
+            section_name = eac.section.nom if eac.section else None
+
+            classes.append({
+                'eac_id': eac.id,
+                'classe_name': eac.classe.classe if eac.classe else '—',
+                'groupe': eac.groupe or '',
+                'cycle_name': cycle_name,
+                'section_name': section_name,
+                'nb_eleves': nb_eleves,
+                'is_deliberated': is_deliberated,
+                'model_name': model_info['model_name'] if model_info else None,
+                'model_id': model_info['model_id'] if model_info else None,
+            })
+
+        # Trier : délibérées en premier, puis par cycle/classe
+        classes.sort(key=lambda c: (not c['is_deliberated'], c['cycle_name'], c['classe_name']))
+
+        return JsonResponse({'success': True, 'classes': classes})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@require_http_methods(["GET"])
+def get_bulletin_eleves(request):
+    """
+    Retourne les élèves d'une classe pour la génération de bulletin.
+    GET /api/bulletins/eleves/?classe_id=X
+    """
+    try:
+        classe_id = request.GET.get('classe_id')
+        if not classe_id:
+            return JsonResponse({'success': False, 'error': 'classe_id requis'}, status=400)
+
+        etab, err = _get_tenant_etab(request)
+        if err:
+            return err
+
+        annee = Annee.objects.filter(etat_annee__in=['En Cours', 'actif', 'ouverte']).first()
+        if not annee:
+            return JsonResponse({'success': True, 'eleves': []})
+
+        from django.db import connection
+        with connection.cursor() as cur:
+            cur.execute("""
+                SELECT DISTINCT e.id_eleve, e.nom, e.prenom, e.genre, e.date_naissance
+                FROM eleve_inscription ei
+                JOIN eleve e ON ei.id_eleve_id = e.id_eleve
+                WHERE ei.id_annee_id = %s
+                  AND ei.id_classe_id = %s
+                  AND ei.id_etablissement = %s
+                  AND ei.status = 1
+                ORDER BY e.nom, e.prenom
+            """, [annee.id_annee, int(classe_id), etab.id_etablissement])
+            columns = [col[0] for col in cur.description]
+            rows = cur.fetchall()
+
+        eleves = []
+        for row in rows:
+            d = dict(zip(columns, row))
+            eleves.append({
+                'id_eleve': d['id_eleve'],
+                'nom': d['nom'] or '',
+                'prenom': d['prenom'] or '',
+                'genre': d.get('genre', 'M'),
+                'date_naissance': str(d['date_naissance']) if d.get('date_naissance') else '',
+            })
+
+        return JsonResponse({'success': True, 'eleves': eleves})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

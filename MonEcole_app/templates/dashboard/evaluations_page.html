@@ -17,9 +17,9 @@
     <i class="fas fa-gavel" style="color:#f97316"></i>
     <span>Délibérations</span>
 </a>
-<a href="/dashboard/evaluations/?section=resultats" class="nav-item {% if active_section == 'resultats' %}active{% endif %}" title="Résultats">
-    <i class="fas fa-chart-bar" style="color:#ec4899"></i>
-    <span>Résultats</span>
+<a href="/dashboard/evaluations/?section=bulletins" class="nav-item {% if active_section == 'bulletins' %}active{% endif %}" title="Bulletins">
+    <i class="fas fa-file-pdf" style="color:#ec4899"></i>
+    <span>Bulletins</span>
 </a>
 {% endblock %}
 
@@ -2107,9 +2107,92 @@ function renderDelibResults(resultats) {
 switchDelibTab('periode');
 </script>
 
-<div class="etab-section {% if active_section == 'resultats' %}active-section{% endif %}" id="sec-resultats">
+<div class="etab-section {% if active_section == 'bulletins' %}active-section{% endif %}" id="sec-bulletins">
 
-    <div class="dash-section"><div class="dash-section-title"><i class="fas fa-chart-bar"></i> Cours par Domaine</div><div id="domaineChartContainer"></div></div>
+<style>
+.bull-hero{background:linear-gradient(135deg,#6366f1 0%,#a855f7 50%,#ec4899 100%);border-radius:16px;padding:28px 32px;color:#fff;margin-bottom:24px;position:relative;overflow:hidden}
+.bull-hero::after{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:rgba(255,255,255,.08);border-radius:50%}
+.bull-hero h2{font-size:1.3rem;font-weight:700;margin:0 0 4px}
+.bull-hero p{font-size:.82rem;opacity:.85;margin:0}
+.bull-classes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:24px}
+.bull-class-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:18px 20px;backdrop-filter:blur(12px);transition:all .3s;cursor:pointer;position:relative;overflow:hidden}
+.bull-class-card:hover{transform:translateY(-3px);box-shadow:0 8px 30px rgba(99,102,241,.15);border-color:rgba(99,102,241,.3)}
+.bull-class-card.deliberated{border-left:4px solid #10b981}
+.bull-class-card.not-deliberated{border-left:4px solid #64748b;opacity:.55;cursor:not-allowed}
+.bull-class-card .card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.bull-class-card .class-name{font-size:1rem;font-weight:700;color:#e2e8f0}
+.bull-class-card .class-cycle{font-size:.72rem;color:#94a3b8;padding:2px 8px;background:rgba(99,102,241,.15);border-radius:20px}
+.bull-class-card .card-meta{display:flex;gap:12px;font-size:.75rem;color:#94a3b8}
+.bull-class-card .card-meta span{display:flex;align-items:center;gap:4px}
+.bull-class-card .model-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:linear-gradient(135deg,rgba(236,72,153,.2),rgba(168,85,247,.2));border:1px solid rgba(236,72,153,.25);border-radius:8px;font-size:.7rem;color:#f9a8d4;margin-top:8px}
+.bull-class-card .model-badge.no-model{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.25);color:#fca5a5}
+.bull-class-card .delib-status{display:flex;align-items:center;gap:4px;font-size:.7rem;font-weight:600}
+.bull-class-card .delib-status.yes{color:#10b981}
+.bull-class-card .delib-status.no{color:#64748b}
+.bull-eleves-panel{background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px;margin-bottom:24px;display:none;backdrop-filter:blur(12px)}
+.bull-eleves-panel.active{display:block;animation:slideDown .3s ease}
+@keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+.bull-eleves-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px}
+.bull-eleves-header h3{font-size:1rem;font-weight:700;color:#e2e8f0;margin:0}
+.bull-eleves-actions{display:flex;gap:8px;align-items:center}
+.btn-select-all{padding:6px 14px;border-radius:8px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);color:#a5b4fc;font-size:.75rem;cursor:pointer;transition:all .2s}
+.btn-select-all:hover{background:rgba(99,102,241,.25)}
+.btn-generate{padding:8px 20px;border-radius:10px;background:linear-gradient(135deg,#ec4899,#a855f7);border:none;color:#fff;font-weight:600;font-size:.8rem;cursor:pointer;transition:all .3s;display:flex;align-items:center;gap:6px}
+.btn-generate:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(236,72,153,.4)}
+.btn-generate:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.bull-eleves-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px}
+.bull-eleve-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid transparent;transition:all .2s;cursor:pointer}
+.bull-eleve-row:hover{background:rgba(99,102,241,.08);border-color:rgba(99,102,241,.15)}
+.bull-eleve-row.selected{background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.3)}
+.bull-eleve-row input[type=checkbox]{accent-color:#8b5cf6;width:16px;height:16px}
+.bull-eleve-row .eleve-name{font-size:.82rem;color:#e2e8f0;font-weight:500}
+.bull-eleve-row .eleve-genre{font-size:.68rem;color:#64748b;margin-left:auto}
+.bull-empty{text-align:center;padding:60px 20px;color:#64748b}
+.bull-empty i{font-size:2.5rem;margin-bottom:12px;display:block;opacity:.4}
+.bull-empty p{font-size:.82rem}
+.bull-loading{text-align:center;padding:40px;color:#94a3b8;font-size:.8rem}
+.bull-filter-bar{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+.bull-filter-bar select,.bull-filter-bar input{padding:8px 14px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#e2e8f0;font-size:.8rem;outline:none;transition:border-color .2s}
+.bull-filter-bar select:focus,.bull-filter-bar input:focus{border-color:rgba(99,102,241,.5)}
+.bull-stats{display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+.bull-stat{padding:10px 16px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);font-size:.78rem;color:#94a3b8;display:flex;align-items:center;gap:6px}
+.bull-stat strong{color:#e2e8f0;font-size:1.1rem}
+</style>
+
+<div class="bull-hero">
+    <h2><i class="fas fa-file-pdf" style="margin-right:8px"></i> Génération des Bulletins</h2>
+    <p>Sélectionnez une classe délibérée pour générer les bulletins PDF selon le modèle assigné</p>
+</div>
+
+<div class="bull-stats" id="bullStats"></div>
+
+<div class="bull-filter-bar">
+    <input type="text" id="bullSearch" placeholder="🔍 Rechercher une classe..." style="flex:1;min-width:200px">
+    <select id="bullFilterCycle"><option value="">Tous les cycles</option></select>
+    <select id="bullFilterStatus">
+        <option value="">Toutes</option>
+        <option value="deliberated">Délibérées uniquement</option>
+        <option value="not">Non délibérées</option>
+    </select>
+</div>
+
+<div class="bull-classes-grid" id="bullClassesGrid">
+    <div class="bull-loading"><i class="fas fa-spinner fa-spin"></i> Chargement des classes...</div>
+</div>
+
+<div class="bull-eleves-panel" id="bullElevesPanel">
+    <div class="bull-eleves-header">
+        <h3 id="bullElevesPanelTitle">Élèves</h3>
+        <div class="bull-eleves-actions">
+            <button class="btn-select-all" onclick="toggleSelectAllBull()"><i class="fas fa-check-double"></i> Tout sélectionner</button>
+            <button class="btn-generate" id="btnGeneratePdf" disabled onclick="generateBulletinPdf()">
+                <i class="fas fa-file-pdf"></i> Générer PDF
+            </button>
+        </div>
+    </div>
+    <div class="bull-eleves-list" id="bullElevesList"></div>
+</div>
+
 </div>
 {% endblock %}
 
@@ -4966,7 +5049,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(ACTIVE_SECTION==='dashboard'){renderGantt('ganttTimeline');renderGender('genderChart')}
     if(ACTIVE_SECTION==='enseignants'){renderCampus('campusChart');loadPersonnelList()}
     if(ACTIVE_SECTION==='eleves'){renderGender('genderChartEleves');renderAge();loadInitialAgeGender();renderClasse('classeTableEleves');renderCampus('campusChartEleves');loadClassesForEleve()}
-    if(ACTIVE_SECTION==='resultats')renderDomaine();
+    if(ACTIVE_SECTION==='bulletins')initBulletinsSection();
     if(ACTIVE_SECTION==='structure')initAdminCascade();
     if(ACTIVE_SECTION==='configuration')loadCampusList();
     if(ACTIVE_SECTION==='calendrier')initCalendarSection();
@@ -5114,6 +5197,171 @@ function viewDocAgrement() {
         body.innerHTML = `<div style="text-align:center;padding:40px;color:#475569;font-size:.82rem"><i class="fas fa-file-download" style="font-size:2rem;color:#6366f1;display:block;margin-bottom:12px"></i><p>Ce type de document ne peut pas être prévisualisé.</p><a href="${url}" target="_blank" download style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#6366f1,#818cf8);color:#fff;padding:8px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:.78rem"><i class="fas fa-download"></i> Télécharger le document</a></div>`;
     }
     new bootstrap.Modal(document.getElementById('docAgrementModal')).show();
+}
+
+/* ===== BULLETINS SECTION ===== */
+let _bullClasses = [];
+let _bullSelectedClasse = null;
+let _bullEleves = [];
+
+async function initBulletinsSection(){
+    try{
+        const res = await fetch('/api/bulletins/classes/');
+        const data = await res.json();
+        if(!data.success){showToast(data.error||'Erreur','error');return}
+        _bullClasses = data.classes || [];
+        renderBullStats();
+        renderBullCycleFilter();
+        renderBullClassesGrid(_bullClasses);
+        document.getElementById('bullSearch').addEventListener('input', filterBullClasses);
+        document.getElementById('bullFilterCycle').addEventListener('change', filterBullClasses);
+        document.getElementById('bullFilterStatus').addEventListener('change', filterBullClasses);
+    }catch(e){
+        document.getElementById('bullClassesGrid').innerHTML = '<div class="bull-empty"><i class="fas fa-exclamation-triangle"></i><p>Erreur de chargement</p></div>';
+    }
+}
+
+function renderBullStats(){
+    const total = _bullClasses.length;
+    const delib = _bullClasses.filter(c=>c.is_deliberated).length;
+    const withModel = _bullClasses.filter(c=>c.model_name).length;
+    const totalEleves = _bullClasses.reduce((s,c)=>s+c.nb_eleves,0);
+    document.getElementById('bullStats').innerHTML = `
+        <div class="bull-stat"><i class="fas fa-school" style="color:#6366f1"></i> <strong>${total}</strong> Classes</div>
+        <div class="bull-stat"><i class="fas fa-check-circle" style="color:#10b981"></i> <strong>${delib}</strong> Délibérées</div>
+        <div class="bull-stat"><i class="fas fa-file-alt" style="color:#a855f7"></i> <strong>${withModel}</strong> Avec modèle</div>
+        <div class="bull-stat"><i class="fas fa-users" style="color:#f59e0b"></i> <strong>${totalEleves}</strong> Élèves</div>
+    `;
+}
+
+function renderBullCycleFilter(){
+    const cycles = [...new Set(_bullClasses.map(c=>c.cycle_name))].sort();
+    const sel = document.getElementById('bullFilterCycle');
+    sel.innerHTML = '<option value="">Tous les cycles</option>';
+    cycles.forEach(c=>{
+        sel.innerHTML += `<option value="${c}">${c}</option>`;
+    });
+}
+
+function filterBullClasses(){
+    const search = (document.getElementById('bullSearch').value||'').toLowerCase();
+    const cycle = document.getElementById('bullFilterCycle').value;
+    const status = document.getElementById('bullFilterStatus').value;
+    let filtered = _bullClasses;
+    if(search) filtered = filtered.filter(c=>
+        c.classe_name.toLowerCase().includes(search)||
+        (c.cycle_name||'').toLowerCase().includes(search)||
+        (c.section_name||'').toLowerCase().includes(search)
+    );
+    if(cycle) filtered = filtered.filter(c=>c.cycle_name===cycle);
+    if(status==='deliberated') filtered = filtered.filter(c=>c.is_deliberated);
+    if(status==='not') filtered = filtered.filter(c=>!c.is_deliberated);
+    renderBullClassesGrid(filtered);
+}
+
+function renderBullClassesGrid(classes){
+    const grid = document.getElementById('bullClassesGrid');
+    if(!classes.length){
+        grid.innerHTML = '<div class="bull-empty"><i class="fas fa-inbox"></i><p>Aucune classe trouvée</p></div>';
+        return;
+    }
+    grid.innerHTML = classes.map(c=>{
+        const cardClass = c.is_deliberated ? 'deliberated' : 'not-deliberated';
+        const nameDisplay = c.groupe ? `${c.classe_name} (${c.groupe})` : c.classe_name;
+        const modelBadge = c.model_name
+            ? `<div class="model-badge"><i class="fas fa-file-pdf"></i> ${c.model_name}</div>`
+            : `<div class="model-badge no-model"><i class="fas fa-exclamation-circle"></i> Pas de modèle</div>`;
+        const statusHtml = c.is_deliberated
+            ? `<span class="delib-status yes"><i class="fas fa-check-circle"></i> Délibérée</span>`
+            : `<span class="delib-status no"><i class="fas fa-clock"></i> Non délibérée</span>`;
+        const clickHandler = c.is_deliberated && c.model_name ? `onclick="selectBullClasse(${c.eac_id},'${nameDisplay.replace(/'/g,"\\'")}','${(c.model_name||'').replace(/'/g,"\\'")}')"` : '';
+        return `<div class="bull-class-card ${cardClass}" ${clickHandler}>
+            <div class="card-top">
+                <span class="class-name">${nameDisplay}</span>
+                <span class="class-cycle">${c.cycle_name}</span>
+            </div>
+            <div class="card-meta">
+                <span><i class="fas fa-users"></i> ${c.nb_eleves} élèves</span>
+                ${c.section_name ? `<span><i class="fas fa-layer-group"></i> ${c.section_name}</span>` : ''}
+                ${statusHtml}
+            </div>
+            ${modelBadge}
+        </div>`;
+    }).join('');
+}
+
+async function selectBullClasse(eacId, className, modelName){
+    _bullSelectedClasse = eacId;
+    const panel = document.getElementById('bullElevesPanel');
+    const title = document.getElementById('bullElevesPanelTitle');
+    title.innerHTML = `<i class="fas fa-users" style="margin-right:6px;color:#8b5cf6"></i> ${className} <span style="font-size:.72rem;color:#94a3b8;margin-left:8px">${modelName}</span>`;
+    panel.classList.add('active');
+
+    const list = document.getElementById('bullElevesList');
+    list.innerHTML = '<div class="bull-loading"><i class="fas fa-spinner fa-spin"></i> Chargement des élèves...</div>';
+
+    try{
+        const res = await fetch(`/api/bulletins/eleves/?classe_id=${eacId}`);
+        const data = await res.json();
+        if(!data.success){showToast(data.error,'error');return}
+        _bullEleves = data.eleves || [];
+        if(!_bullEleves.length){
+            list.innerHTML = '<div class="bull-empty"><i class="fas fa-user-slash"></i><p>Aucun élève inscrit</p></div>';
+            return;
+        }
+        list.innerHTML = _bullEleves.map(e=>`
+            <div class="bull-eleve-row" onclick="toggleBullEleve(this)">
+                <input type="checkbox" data-id="${e.id_eleve}" onchange="updateBullGenBtn()">
+                <span class="eleve-name">${e.nom} ${e.prenom}</span>
+                <span class="eleve-genre">${e.genre||'—'}</span>
+            </div>
+        `).join('');
+        updateBullGenBtn();
+    }catch(e){
+        list.innerHTML = '<div class="bull-empty"><i class="fas fa-exclamation-triangle"></i><p>Erreur</p></div>';
+    }
+
+    panel.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function toggleBullEleve(row){
+    const cb = row.querySelector('input[type=checkbox]');
+    cb.checked = !cb.checked;
+    row.classList.toggle('selected', cb.checked);
+    updateBullGenBtn();
+}
+
+function toggleSelectAllBull(){
+    const checkboxes = document.querySelectorAll('#bullElevesList input[type=checkbox]');
+    const allChecked = [...checkboxes].every(cb=>cb.checked);
+    checkboxes.forEach(cb=>{
+        cb.checked = !allChecked;
+        cb.closest('.bull-eleve-row').classList.toggle('selected', cb.checked);
+    });
+    updateBullGenBtn();
+}
+
+function updateBullGenBtn(){
+    const checked = document.querySelectorAll('#bullElevesList input[type=checkbox]:checked');
+    const btn = document.getElementById('btnGeneratePdf');
+    btn.disabled = !checked.length;
+    btn.innerHTML = checked.length
+        ? `<i class="fas fa-file-pdf"></i> Générer PDF (${checked.length})`
+        : `<i class="fas fa-file-pdf"></i> Générer PDF`;
+}
+
+function generateBulletinPdf(){
+    const checked = document.querySelectorAll('#bullElevesList input[type=checkbox]:checked');
+    if(!checked.length||!_bullSelectedClasse)return;
+
+    const eleveIds = [...checked].map(cb=>cb.dataset.id);
+
+    eleveIds.forEach(id=>{
+        const url = `/generer_bulletin_pdf/?id_classe=${_bullSelectedClasse}&id_eleve=${id}`;
+        window.open(url, '_blank');
+    });
+
+    showToast(`Génération lancée pour ${eleveIds.length} élève(s)`, 'success');
 }
 
 </script>

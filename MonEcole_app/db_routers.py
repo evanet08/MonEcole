@@ -50,6 +50,10 @@ class CountryStructureRouter:
         'Deliberation_type',
         'Deliberation_annuelle_finalite',
         'Deliberation_annuelle_condition',
+
+        # Bulletins (modèles Hub)
+        'BulletinModel',
+        'BulletinClasseModel',
     ]
 
     ROUTED_MODELS_LOWER = [m.lower() for m in ROUTED_MODELS]

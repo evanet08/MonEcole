@@ -10,6 +10,7 @@ from MonEcole_app.views.dashboard_views import (
     api_communication_teachers,
 )
 from MonEcole_app.views import api_views
+from MonEcole_app.views.pdf import generer_bulletin_pdf
 
 urlpatterns = [
     # Page login
@@ -160,4 +161,9 @@ urlpatterns = [
     path('api/dashboard/users/', api_views.dashboard_users_list, name='dashboard_users_list'),
     path('api/dashboard/users/toggle/', api_views.dashboard_users_toggle, name='dashboard_users_toggle'),
     path('api/dashboard/users/modules/', api_views.dashboard_users_modules, name='dashboard_users_modules'),
+
+    # Bulletins
+    path('api/bulletins/classes/', api_views.get_deliberated_classes, name='get_deliberated_classes'),
+    path('api/bulletins/eleves/', api_views.get_bulletin_eleves, name='get_bulletin_eleves'),
+    path('generer_bulletin_pdf/', generer_bulletin_pdf, name='generer_bulletin_pdf'),
 ]
