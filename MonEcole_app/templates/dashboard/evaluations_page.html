@@ -1907,6 +1907,25 @@ function toggleBulletinAccordion(accId) {
 
 let _currentDelibTab = 'periode';
 let _delibConditions = [];
+window._allDelibRepartitions = [];
+
+function _filterDelibRepartitions() {
+    const repSelect = document.getElementById('delib-repartition-select');
+    repSelect.innerHTML = '<option value="">— Répartition —</option>';
+    const reps = window._allDelibRepartitions || [];
+    // Par Période → type P, Par Trimestre → type T ou S
+    const showTypes = _currentDelibTab === 'periode' ? ['P'] : ['T', 'S'];
+    reps.filter(r => showTypes.includes(r.type_code))
+        .forEach(r => {
+            const opt = document.createElement('option');
+            opt.value = r.repartition_id;  // instance ID = matches eleve_note.id_repartition_instance
+            opt.textContent = r.nom;
+            opt.dataset.type = r.type_code || '';
+            opt.dataset.ordre = r.ordre || 0;
+            repSelect.appendChild(opt);
+        });
+    repSelect.disabled = repSelect.options.length <= 1;
+}
 
 function switchDelibTab(tab) {
     _currentDelibTab = tab;
@@ -1919,8 +1938,8 @@ function switchDelibTab(tab) {
     const sesWrap = document.getElementById('delib-session-wrap');
     if (repWrap) repWrap.style.display = (['periode','trimestre'].includes(tab)) ? '' : 'none';
     if (sesWrap) sesWrap.style.display = (['annee','repechage'].includes(tab)) ? '' : 'none';
-    // Reset results
-    onDelibClasseChange();
+    // Re-filter repartitions for this tab
+    _filterDelibRepartitions();
 }
 
 async function onDelibClasseChange() {
@@ -1942,14 +1961,8 @@ async function onDelibClasseChange() {
         const res = await fetch('/api/evaluations/repartitions/?classe_id=' + classeId);
         const data = await res.json();
         if (data.success && data.repartitions) {
-            data.repartitions.forEach(r => {
-                const opt = document.createElement('option');
-                opt.value = r.id;
-                opt.textContent = r.nom;
-                opt.dataset.type = r.type_code || '';
-                repSelect.appendChild(opt);
-            });
-            repSelect.disabled = false;
+            window._allDelibRepartitions = data.repartitions;
+            _filterDelibRepartitions();
         }
     } catch(e) { console.error('load repartitions', e); }
 
