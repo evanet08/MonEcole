@@ -5356,10 +5356,39 @@ function generateBulletinPdf(){
 
     const eleveIds = [...checked].map(cb=>cb.dataset.id);
 
-    eleveIds.forEach(id=>{
-        const url = `/generer_bulletin_pdf/?id_classe=${_bullSelectedClasse}&id_eleve=${id}`;
-        window.open(url, '_blank');
+    // Créer un formulaire POST invisible pour envoyer tous les élèves en une seule requête
+    // Cela évite le blocage de pop-ups et génère un seul PDF multi-pages
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/generer_bulletin_pdf/';
+    form.target = '_blank';
+
+    // CSRF token
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrfmiddlewaretoken';
+    csrfInput.value = getCsrfToken();
+    form.appendChild(csrfInput);
+
+    // id_classe
+    const classeInput = document.createElement('input');
+    classeInput.type = 'hidden';
+    classeInput.name = 'id_classe';
+    classeInput.value = _bullSelectedClasse;
+    form.appendChild(classeInput);
+
+    // Chaque élève comme un input séparé (Django getlist)
+    eleveIds.forEach(id => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = 'id_eleve';
+        inp.value = id;
+        form.appendChild(inp);
     });
+
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
 
     showToast(`Génération lancée pour ${eleveIds.length} élève(s)`, 'success');
 }
