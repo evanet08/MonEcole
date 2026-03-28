@@ -587,6 +587,13 @@ def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
 
 
 def get_student_exam_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe):
+    """
+    Retourne les notes d'examen par cours, indexées par config_id (repartition_configs_etab_annee.id).
+    Le template accède aux notes via trimestres_data[i][0] qui est le config_id.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
         eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
     except EtablissementAnneeClasse.DoesNotExist:
@@ -601,35 +608,19 @@ def get_student_exam_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe):
         id_type_note__sigle="EX"
     )
 
-    # Prefetch RepartitionInstance names (Hub) to avoid cross-DB JOIN
-    from MonEcole_app.models.country_structure import RepartitionInstance
-    rep_ids = set(notes_qs.values_list('id_repartition_instance', flat=True))
-    rep_ids.discard(None)
-    rep_map = {}
-    if rep_ids:
-        rep_map = dict(RepartitionInstance.objects.filter(id_instance__in=rep_ids).values_list('id_instance', 'code'))
-
-    # Map trimestre IDs from get_trimestres data
-    # trimestres_data is [(id_trim, nom_original, nom_affiche), ...]
-    # Exam notes need to be mapped to trimestre_id for the bulletin columns
-    # We group by the repartition instance and map to the parent trimestre
+    # Build mapping: repartition_instance_id -> config_id
+    # repartition_configs_etab_annee maps repartition_id to its config ID
+    from MonEcole_app.models.annee import Annee_trimestre
+    etab_annee_id = eac.etablissement_annee_id
     
-    # Build a mapping: repartition_instance_id -> parent trimestre id
-    # The parent config (trimestre) has child configs (periodes/exams)
-    rep_to_trimestre = {}
-    try:
-        from MonEcole_app.models.annee import Annee_periode
-        etab_annee_id = eac.etablissement_annee_id
-        # Get all child configs for this etab_annee
-        child_configs = Annee_periode.objects.filter(
-            etablissement_annee_id=etab_annee_id,
-            has_parent=True
-        ).values_list('repartition_id', 'id_trimestre_annee_id')
-        
-        for rep_id, parent_id in child_configs:
-            rep_to_trimestre[rep_id] = parent_id
-    except Exception:
-        pass
+    # Get all configs for this etab_annee: {repartition_id: config_id}
+    rep_to_config = dict(
+        Annee_trimestre.objects.filter(
+            etablissement_annee_id=etab_annee_id
+        ).values_list('repartition_id', 'id_trimestre')
+    )
+
+    logger.warning(f"[get_student_exam_notes] rep_to_config={rep_to_config}, notes_count={notes_qs.count()}")
 
     notes_par_cours = defaultdict(dict)
 
@@ -637,15 +628,17 @@ def get_student_exam_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe):
         cours_id = note.id_cours_id
         rep_instance_id = note.id_repartition_instance_id
         
-        # Try to find which trimestre this exam belongs to
-        parent_trimestre_id = rep_to_trimestre.get(rep_instance_id)
+        # Map the repartition instance to the config ID
+        config_id = rep_to_config.get(rep_instance_id)
         
-        if parent_trimestre_id is not None:
-            notes_par_cours[cours_id][parent_trimestre_id] = (
+        if config_id is not None:
+            notes_par_cours[cours_id][config_id] = (
                 note.note if note.note is not None else "-"
             )
 
+    logger.warning(f"[get_student_exam_notes] Found exam notes for {len(notes_par_cours)} cours")
     return notes_par_cours
+
 
 
 
