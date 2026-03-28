@@ -10714,6 +10714,9 @@ def execute_deliberation(request):
             rep_filter = "AND en.id_repartition_instance = %s"
             rep_params = [int(repartition_id)]
 
+        import sys
+        print(f"[DELIB DEBUG] type={delib_type}, repartition_id={repartition_id}, rep_filter={rep_filter}, rep_params={rep_params}", file=sys.stderr)
+
         # Calculate percentages for each student
         resultats = []
         for eleve in eleves:
@@ -10871,6 +10874,8 @@ def execute_deliberation(request):
             'success': True,
             'message': f'Délibération {delib_type} effectuée pour {len(resultats)} élèves ({saved_count} résultats sauvegardés).',
             'resultats': resultats,
+            'debug_repartition_id': repartition_id,
+            'debug_type': delib_type,
         })
     except Exception as e:
         import traceback
