@@ -2185,9 +2185,9 @@ switchDelibTab('periode');
         <h3 id="bullElevesPanelTitle">Élèves</h3>
         <div class="bull-eleves-actions">
             <button class="btn-select-all" onclick="toggleSelectAllBull()"><i class="fas fa-check-double"></i> Tout sélectionner</button>
-            <button class="btn-generate" id="btnGeneratePdf" disabled onclick="generateBulletinPdf()">
+            <a href="#" class="btn-generate disabled" id="btnGeneratePdf" style="pointer-events:none;opacity:.5;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
                 <i class="fas fa-file-pdf"></i> Générer PDF
-            </button>
+            </a>
         </div>
     </div>
     <div class="bull-eleves-list" id="bullElevesList"></div>
@@ -5344,27 +5344,29 @@ function toggleSelectAllBull(){
 function updateBullGenBtn(){
     const checked = document.querySelectorAll('#bullElevesList input[type=checkbox]:checked');
     const btn = document.getElementById('btnGeneratePdf');
-    btn.disabled = !checked.length;
-    btn.innerHTML = checked.length
-        ? `<i class="fas fa-file-pdf"></i> Générer PDF (${checked.length})`
-        : `<i class="fas fa-file-pdf"></i> Générer PDF`;
-}
+    const count = checked.length;
 
-function generateBulletinPdf(){
-    const checked = document.querySelectorAll('#bullElevesList input[type=checkbox]:checked');
-    if(!checked.length||!_bullSelectedClasse){
-        showToast('Veuillez sélectionner au moins un élève','warning');
-        return;
+    // Mettre à jour le texte
+    btn.innerHTML = count
+        ? '<i class="fas fa-file-pdf"></i> Générer PDF (' + count + ')'
+        : '<i class="fas fa-file-pdf"></i> Générer PDF';
+
+    if(count && _bullSelectedClasse){
+        // Construire l'URL et activer le lien
+        var ids = [];
+        for(var i=0; i<checked.length; i++) ids.push(checked[i].getAttribute('data-id'));
+        btn.href = '/generer_bulletin_pdf/?id_classe=' + _bullSelectedClasse + String.fromCharCode(38) + 'id_eleve=' + ids.join(',');
+        btn.style.pointerEvents = 'auto';
+        btn.style.opacity = '1';
+        btn.target = '_blank';
+        btn.classList.remove('disabled');
+    } else {
+        btn.href = '#';
+        btn.style.pointerEvents = 'none';
+        btn.style.opacity = '.5';
+        btn.removeAttribute('target');
+        btn.classList.add('disabled');
     }
-
-    const eleveIds = [...checked].map(cb=>cb.dataset.id);
-    const url = '/generer_bulletin_pdf/?id_classe=' + _bullSelectedClasse + '&id_eleve=' + eleveIds.join(',');
-
-    // Naviguer directement — le PDF s'affichera dans le navigateur (ou se téléchargera)
-    // Pas de popup, pas de blocage
-    window.location.href = url;
-
-    showToast(`Génération lancée pour ${eleveIds.length} élève(s)`, 'success');
 }
 
 </script>
