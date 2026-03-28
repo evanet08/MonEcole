@@ -5351,18 +5351,30 @@ function updateBullGenBtn(){
 }
 
 function generateBulletinPdf(){
+    console.log('[BULLETIN] generateBulletinPdf called');
     const checked = document.querySelectorAll('#bullElevesList input[type=checkbox]:checked');
+    console.log('[BULLETIN] checked count:', checked.length, '_bullSelectedClasse:', _bullSelectedClasse);
     if(!checked.length||!_bullSelectedClasse){
         showToast('Veuillez sélectionner au moins un élève','warning');
         return;
     }
 
     const eleveIds = [...checked].map(cb=>cb.dataset.id);
+    console.log('[BULLETIN] eleveIds:', eleveIds);
 
-    // Construire une URL GET avec les IDs séparés par des virgules
-    // Un seul window.open = pas bloqué par le navigateur (action utilisateur directe)
+    // Construire l'URL GET avec les IDs séparés par des virgules
     const url = '/generer_bulletin_pdf/?id_classe=' + _bullSelectedClasse + '&id_eleve=' + eleveIds.join(',');
-    window.open(url, '_blank');
+    console.log('[BULLETIN] Opening URL:', url);
+
+    // Méthode la plus fiable : créer un lien <a> et cliquer dessus
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 
     showToast(`Génération lancée pour ${eleveIds.length} élève(s)`, 'success');
 }
