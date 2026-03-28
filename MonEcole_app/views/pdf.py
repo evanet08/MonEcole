@@ -83,6 +83,26 @@ def generer_bulletin_pdf(request):
         messages.error(request, "Aucun élève sélectionné.")
         return HttpResponse('<script>history.back();</script>', status=400)
 
+    # Trier les élèves par classement annuel (1er → dernier)
+    try:
+        from MonEcole_app.models.evaluations.note import Deliberation_annuelle_resultat
+        import re
+        rank_map = {}
+        delib_qs = Deliberation_annuelle_resultat.objects.filter(
+            id_classe_id=id_classe,
+            id_eleve_id__in=id_eleves
+        ).values_list('id_eleve_id', 'place')
+        for eleve_id, place in delib_qs:
+            # Extract numeric rank from "25ème", "1er", etc.
+            match = re.search(r'(\d+)', place or '')
+            if match:
+                rank_map[eleve_id] = int(match.group(1))
+        # Sort: ranked students first (by rank), then unranked
+        id_eleves.sort(key=lambda eid: rank_map.get(eid, 99999))
+        logger.warning(f"[BULLETIN PDF] Sorted by rank: {[(eid, rank_map.get(eid, '?')) for eid in id_eleves[:5]]}...")
+    except Exception as e:
+        logger.warning(f"[BULLETIN PDF] Could not sort by rank: {e}")
+
     logger.warning(f"[BULLETIN PDF] Resolved params OK: annee={id_annee}, campus={id_campus}, cycle={id_cycle}, classe={id_classe}, eleves_count={len(id_eleves)}")
 
     # ───────────────────────────────────────────────
