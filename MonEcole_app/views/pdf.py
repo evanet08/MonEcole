@@ -1,6 +1,22 @@
 
-from MonEcole_app.views.evaluation import *
+from django.http import HttpResponse
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_protect
+from reportlab.lib.units import mm
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, PageBreak
+from io import BytesIO
 from MonEcole_app.views.rdc_structure import *
+
+# module_required decorator
+try:
+    from MonEcole_app.views.decorators.decorators import module_required
+except ImportError:
+    def module_required(module_name):
+        def decorator(view_func):
+            return view_func
+        return decorator
 
 @csrf_protect
 @login_required
