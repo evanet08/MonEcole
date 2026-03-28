@@ -45,9 +45,7 @@ def generer_bulletin_pdf(request):
     # Auto-résolution des paramètres manquants via EAC
     if id_classe and (not id_annee or not id_campus or not id_cycle):
         try:
-            from MonEcole_app.models.country_structure import (
-                EtablissementAnneeClasse, EtablissementAnnee, Annee
-            )
+            from MonEcole_app.models.country_structure import EtablissementAnneeClasse
             from MonEcole_app.models.campus import Campus
             eac = EtablissementAnneeClasse.objects.select_related(
                 'etablissement_annee', 'etablissement_annee__annee', 'classe', 'classe__cycle'
