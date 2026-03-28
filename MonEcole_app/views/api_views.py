@@ -10463,7 +10463,16 @@ def get_evaluations_sessions(request):
 
 @require_http_methods(["GET"])
 def get_evaluations_repartitions(request):
-    """Retourne les répartitions configurées pour une classe (via EtabAnneeClasse)."""
+    """Retourne les répartitions configurées pour une classe, filtrées par cycle.
+    
+    Logique de filtrage:
+      1. Trouve le cycle de la classe sélectionnée (via EAC → classe → cycle)
+      2. Trouve le type racine du cycle (Trimestre ou Semestre) via RepartitionConfigCycle
+      3. Trouve les types enfants via RepartitionHierarchie (généralement Période)
+      4. Filtre les configs pour ne garder que les répartitions dont le type
+         correspond au type racine ou ses enfants
+      5. Limite le nombre de répartitions au nombre prévu par la config cycle × hiérarchie
+    """
     try:
         classe_id = request.GET.get('classe_id')
         if not classe_id:
@@ -10484,21 +10493,82 @@ def get_evaluations_repartitions(request):
         if not ea:
             return JsonResponse({'success': True, 'repartitions': []})
 
+        # Résoudre le cycle de la classe sélectionnée
+        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).select_related('classe').first()
+        cycle_id = None
+        if eac and hasattr(eac.classe, 'cycle_id'):
+            cycle_id = eac.classe.cycle_id
+        elif eac and hasattr(eac, 'cycle_id'):
+            cycle_id = eac.cycle_id
+
+        # Déterminer les types de répartition autorisés pour ce cycle
+        allowed_type_ids = set()
+        root_count = 0  # nombre de racines (ex: 3 trimestres, 2 semestres)
+        child_count_per_root = 0  # nombre d'enfants par racine (ex: 2 périodes/trimestre)
+
+        if cycle_id:
+            # Config cycle → type racine (ex: Cycle "Ecole de Base" → Semestre, nombre=2)
+            cycle_config = RepartitionConfigCycle.objects.filter(
+                cycle_id=cycle_id, is_active=True
+            ).select_related('type_racine').first()
+
+            if cycle_config:
+                root_type_id = cycle_config.type_racine_id
+                root_count = cycle_config.nombre_au_niveau_racine
+                allowed_type_ids.add(root_type_id)
+
+                # Hiérarchie → types enfants (ex: Semestre → Période, nombre=2)
+                hierarchies = RepartitionHierarchie.objects.filter(
+                    type_parent_id=root_type_id, is_active=True
+                )
+                for h in hierarchies:
+                    allowed_type_ids.add(h.type_enfant_id)
+                    child_count_per_root = h.nombre_enfants
+
+        # Charger toutes les configs pour cet établissement/année
         configs = RepartitionConfigEtabAnnee.objects.filter(
             etablissement_annee=ea
         ).select_related('repartition', 'repartition__type')
 
+        # Filtrer par types autorisés et limiter le nombre
         repartitions = []
+        count_by_type = {}  # {type_id: count} pour limiter
+
         for cfg in configs:
             rep = cfg.repartition
+            type_id = rep.type_id if rep.type else None
+
+            # Si on a un cycle défini, filtrer par types autorisés
+            if allowed_type_ids and type_id not in allowed_type_ids:
+                continue
+
+            # Limiter le nombre par type
+            if type_id not in count_by_type:
+                count_by_type[type_id] = 0
+
+            # Calculer la limite pour ce type
+            if cycle_id and allowed_type_ids:
+                is_root_type = (type_id == cycle_config.type_racine_id) if cycle_config else False
+                max_count = root_count if is_root_type else (root_count * child_count_per_root)
+                if count_by_type[type_id] >= max_count:
+                    continue
+
+            count_by_type[type_id] = count_by_type.get(type_id, 0) + 1
+
             repartitions.append({
                 'id': cfg.id,
+                'repartition_id': rep.id_instance,
                 'nom': rep.nom,
                 'code': rep.code,
                 'type_code': rep.type.code if rep.type else '',
                 'type_nom': rep.type.nom if rep.type else '',
                 'is_open': cfg.is_open,
+                'ordre': rep.ordre,
             })
+
+        # Trier par type puis par ordre
+        repartitions.sort(key=lambda r: (r['type_code'], r['ordre']))
+
         return JsonResponse({'success': True, 'repartitions': repartitions})
     except Exception as e:
         import traceback
