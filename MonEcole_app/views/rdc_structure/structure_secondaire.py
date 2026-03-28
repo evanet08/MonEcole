@@ -322,6 +322,11 @@ def calculer_pourcentages_secondaire(table_data, style_center):
     pourcentage_row[12] = Paragraph(f"{calcul_pourcentage(note_exam_sem2, max_exam_sem2)}%", style_center)
     pourcentage_row[14] = Paragraph(f"{calcul_pourcentage(tot_sem2, max_tot_sem2)}%", style_center)
 
+    # TOTAL GENERAL percentage
+    max_total_gen = get_val(max_gen_idx, 15)
+    total_gen_obtenu = get_val(max_gen_idx, 16)
+    pourcentage_row[16] = Paragraph(f"{calcul_pourcentage(total_gen_obtenu, max_total_gen)}%", style_center)
+
 
 def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_annee, id_campus, id_cycle, id_classe,id_eleve):
     table_data = []
