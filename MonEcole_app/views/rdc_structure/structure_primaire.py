@@ -531,15 +531,24 @@ def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
         id_cycle_id=id_cycle,
         id_classe_id=id_classe,
         id_type_note__sigle="T.J",
-    ).select_related('id_repartition_instance')
+    )
 
-   
+    # Prefetch RepartitionInstance names (Hub) to avoid cross-DB JOIN
+    from MonEcole_app.models.country_structure import RepartitionInstance
+    rep_ids = set(notes_qs.values_list('id_repartition_instance', flat=True))
+    rep_ids.discard(None)
+    rep_map = {}
+    if rep_ids:
+        rep_map = dict(RepartitionInstance.objects.filter(id_instance__in=rep_ids).values_list('id_instance', 'nom'))
+
     regroupement = defaultdict(lambda: defaultdict(list)) 
 
     for note in notes_qs:
         cours_id  = note.id_cours_id
         try:
-            periode_nom = note.id_repartition_instance.nom  # RepartitionInstance.nom = P1, P2, etc.
+            periode_nom = rep_map.get(note.id_repartition_instance_id, None)
+            if not periode_nom:
+                continue
         except (AttributeError, Exception):
             continue
 
@@ -799,15 +808,24 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
         id_cycle_id=id_cycle,
         id_classe_id=id_classe,
         id_type_note__sigle="T.J"
-    ).select_related('id_repartition_instance')
+    )
+
+    # Prefetch RepartitionInstance names (Hub) to avoid cross-DB JOIN
+    from MonEcole_app.models.country_structure import RepartitionInstance
+    rep_ids = set(notes_qs.values_list('id_repartition_instance', flat=True))
+    rep_ids.discard(None)
+    rep_map = {}
+    if rep_ids:
+        rep_map = dict(RepartitionInstance.objects.filter(id_instance__in=rep_ids).values_list('id_instance', 'nom'))
 
     notes_par_cours = defaultdict(dict)
 
     for note in notes_qs:
         cours_id = note.id_cours_id
-        # Récupérer le nom de la période (P1, P2, etc.) via la FK
         try:
-            periode_nom = note.id_repartition_instance.nom  # RepartitionInstance.nom = P1, P2, etc.
+            periode_nom = rep_map.get(note.id_repartition_instance_id, None)
+            if not periode_nom:
+                continue
         except (AttributeError, Exception):
             continue
         
