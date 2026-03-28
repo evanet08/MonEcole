@@ -22,6 +22,9 @@ except ImportError:
 @login_required
 @module_required("Evaluation")
 def generer_bulletin_pdf(request):
+    import logging
+    logger = logging.getLogger(__name__)
+    
     if request.method == 'POST':
         id_annee  = request.POST.get('id_annee')
         id_campus = request.POST.get('id_campus')
@@ -37,6 +40,8 @@ def generer_bulletin_pdf(request):
         raw_eleves = request.GET.get('id_eleve', '')
         id_eleves = [e.strip() for e in raw_eleves.split(',') if e.strip()]
 
+    logger.warning(f"[BULLETIN PDF] Initial params: annee={id_annee}, campus={id_campus}, cycle={id_cycle}, classe={id_classe}, eleves={id_eleves[:3]}...")
+
     # Auto-résolution des paramètres manquants via EAC
     if id_classe and (not id_annee or not id_campus or not id_cycle):
         try:
@@ -47,6 +52,7 @@ def generer_bulletin_pdf(request):
             eac = EtablissementAnneeClasse.objects.select_related(
                 'etablissement_annee', 'etablissement_annee__annee', 'classe', 'classe__cycle'
             ).get(id=int(id_classe))
+            logger.warning(f"[BULLETIN PDF] EAC found: {eac}, etab_annee={eac.etablissement_annee}, classe={eac.classe}")
             if not id_annee:
                 id_annee = str(eac.etablissement_annee.annee_id)
             if not id_cycle and eac.classe and eac.classe.cycle:
@@ -55,10 +61,12 @@ def generer_bulletin_pdf(request):
                 etab_id = eac.etablissement_annee.etablissement_id
                 campus = Campus.objects.filter(id_etablissement=etab_id).first()
                 id_campus = str(campus.id_campus) if campus else '1'
-        except Exception:
-            pass
+            logger.warning(f"[BULLETIN PDF] After auto-resolve: annee={id_annee}, campus={id_campus}, cycle={id_cycle}")
+        except Exception as e:
+            logger.error(f"[BULLETIN PDF] Auto-resolve FAILED: {e}")
 
     if not all([id_annee, id_campus, id_cycle, id_classe]) or not id_eleves or not id_eleves[0]:
+        logger.error(f"[BULLETIN PDF] MISSING PARAMS: annee={id_annee}, campus={id_campus}, cycle={id_cycle}, classe={id_classe}, eleves={id_eleves}")
         messages.error(request, "Paramètres manquants ou invalides.")
         return HttpResponse('<script>window.location.href="/dashboard/evaluations/?section=bulletins";</script>')
 
@@ -76,6 +84,7 @@ def generer_bulletin_pdf(request):
         messages.error(request, "Aucun élève sélectionné.")
         return HttpResponse('<script>history.back();</script>', status=400)
 
+    logger.warning(f"[BULLETIN PDF] Resolved params OK: annee={id_annee}, campus={id_campus}, cycle={id_cycle}, classe={id_classe}, eleves_count={len(id_eleves)}")
 
     # ───────────────────────────────────────────────
     # Déterminer la localisation
@@ -84,6 +93,7 @@ def generer_bulletin_pdf(request):
         campus = Campus.objects.get(id_campus=id_campus)
         localisation = campus.localisation.strip().upper()
     except Campus.DoesNotExist:
+        logger.error(f"[BULLETIN PDF] Campus NOT FOUND: id_campus={id_campus}")
         messages.error(request, "Campus introuvable.")
         return HttpResponse('<script>history.back();</script>', status=404)
 
