@@ -486,15 +486,20 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                     row.append(Paragraph(str(round(tot_s2, 2)), style_center))
 
                 elif col == 15:
-                    # TOTAL GENERAL = TOT.SEM S1 (col 7) + TOT.SEM S2 (col 14)
+                    # TOTAL GENERAL col 15 = Max Total (TOT.SEM Max S1 + TOT.SEM Max S2)
+                    try:
+                        tot_max = float(row[6].text or 0) + float(row[13].text or 0)
+                    except:
+                        tot_max = 0.0
+                    row.append(Paragraph(str(round(tot_max, 2)), style_center))
+
+                elif col == 16:
+                    # TOTAL GENERAL col 16 = Total Obtenu (TOT S1 + TOT S2)
                     try:
                         tot_gen = float(row[7].text or 0) + float(row[14].text or 0)
                     except:
                         tot_gen = 0.0
                     row.append(Paragraph(str(round(tot_gen, 2)), style_center))
-
-                elif col == 16:
-                    row.append(Paragraph("", style_center))
 
                 elif col in [17, 18, 19]:
                     row.append(None)
@@ -588,7 +593,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
             break
 
     if maxima_idx is not None:
-        colonnes_a_hachurer_1 = [1, 4, 6, 8, 11, 13, 15]
+        colonnes_a_hachurer_1 = [1, 4, 6, 8, 11, 13]
         for row_idx in range(maxima_idx, min(maxima_idx + 4, num_rows)):
             for col_idx in colonnes_a_hachurer_1:
                 if col_idx < len(table_data[row_idx]):

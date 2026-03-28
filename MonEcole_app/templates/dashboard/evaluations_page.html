@@ -2110,53 +2110,55 @@ switchDelibTab('periode');
 <div class="etab-section {% if active_section == 'bulletins' %}active-section{% endif %}" id="sec-bulletins">
 
 <style>
-.bull-hero{background:linear-gradient(135deg,#6366f1 0%,#a855f7 50%,#ec4899 100%);border-radius:16px;padding:28px 32px;color:#fff;margin-bottom:24px;position:relative;overflow:hidden}
-.bull-hero::after{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:rgba(255,255,255,.08);border-radius:50%}
-.bull-hero h2{font-size:1.3rem;font-weight:700;margin:0 0 4px}
-.bull-hero p{font-size:.82rem;opacity:.85;margin:0}
-.bull-classes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:24px}
-.bull-class-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:18px 20px;backdrop-filter:blur(12px);transition:all .3s;cursor:pointer;position:relative;overflow:hidden}
-.bull-class-card:hover{transform:translateY(-3px);box-shadow:0 8px 30px rgba(99,102,241,.15);border-color:rgba(99,102,241,.3)}
-.bull-class-card.deliberated{border-left:4px solid #10b981}
-.bull-class-card.not-deliberated{border-left:4px solid #64748b;opacity:.55;cursor:not-allowed}
-.bull-class-card .card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.bull-class-card .class-name{font-size:1rem;font-weight:700;color:#e2e8f0}
-.bull-class-card .class-cycle{font-size:.72rem;color:#94a3b8;padding:2px 8px;background:rgba(99,102,241,.15);border-radius:20px}
-.bull-class-card .card-meta{display:flex;gap:12px;font-size:.75rem;color:#94a3b8}
-.bull-class-card .card-meta span{display:flex;align-items:center;gap:4px}
-.bull-class-card .model-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:linear-gradient(135deg,rgba(236,72,153,.2),rgba(168,85,247,.2));border:1px solid rgba(236,72,153,.25);border-radius:8px;font-size:.7rem;color:#f9a8d4;margin-top:8px}
-.bull-class-card .model-badge.no-model{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.25);color:#fca5a5}
-.bull-class-card .delib-status{display:flex;align-items:center;gap:4px;font-size:.7rem;font-weight:600}
-.bull-class-card .delib-status.yes{color:#10b981}
-.bull-class-card .delib-status.no{color:#64748b}
-.bull-eleves-panel{background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px;margin-bottom:24px;display:none;backdrop-filter:blur(12px)}
-.bull-eleves-panel.active{display:block;animation:slideDown .3s ease}
-@keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
-.bull-eleves-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px}
-.bull-eleves-header h3{font-size:1rem;font-weight:700;color:#e2e8f0;margin:0}
+.bull-hero{background:linear-gradient(135deg,#1e3a5f 0%,#2d5a87 100%);border-radius:14px;padding:24px 28px;color:#fff;margin-bottom:20px;position:relative;overflow:hidden}
+.bull-hero::after{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:rgba(255,255,255,.06);border-radius:50%}
+.bull-hero h2{font-size:1.15rem;font-weight:700;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+.bull-hero p{font-size:.78rem;opacity:.8;margin:0}
+.bull-filter-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.bull-filter-bar select,.bull-filter-bar input{padding:7px 12px;border-radius:8px;background:#fff;border:1.5px solid #e2e8f0;color:#334155;font-size:.78rem;outline:none;transition:border-color .2s}
+.bull-filter-bar select:focus,.bull-filter-bar input:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.bull-stats{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.bull-stat{padding:8px 14px;border-radius:10px;background:#fff;border:1.5px solid #e2e8f0;font-size:.75rem;color:#64748b;display:flex;align-items:center;gap:6px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.bull-stat strong{color:#1e293b;font-size:1rem}
+.bull-table-wrap{background:#fff;border-radius:12px;border:1.5px solid #e2e8f0;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.04);margin-bottom:20px}
+.bull-table{width:100%;border-collapse:collapse;font-size:.78rem}
+.bull-table thead{background:#f8fafc}
+.bull-table th{padding:10px 14px;text-align:left;font-weight:600;color:#475569;border-bottom:2px solid #e2e8f0;font-size:.72rem;text-transform:uppercase;letter-spacing:.5px}
+.bull-table td{padding:10px 14px;border-bottom:1px solid #f1f5f9;color:#334155;vertical-align:middle}
+.bull-table tbody tr{transition:background .15s;cursor:pointer}
+.bull-table tbody tr:hover{background:#f0f4ff}
+.bull-table tbody tr.disabled-row{opacity:.5;cursor:not-allowed;background:#fafafa}
+.bull-table tbody tr.disabled-row:hover{background:#fafafa}
+.bull-table tbody tr.active-row{background:#eef2ff;border-left:3px solid #6366f1}
+.bull-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:.68rem;font-weight:600}
+.bull-badge.delib{background:#ecfdf5;color:#059669;border:1px solid #a7f3d0}
+.bull-badge.not-delib{background:#fff7ed;color:#c2410c;border:1px solid #fed7aa}
+.bull-badge.model{background:#eef2ff;color:#4f46e5;border:1px solid #c7d2fe}
+.bull-badge.no-model{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+.bull-classes-grid{margin-bottom:24px}
+.bull-class-card{display:none}
+.bull-eleves-panel{background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:20px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.bull-eleves-panel.active{display:block;animation:bullSlide .3s ease}
+@keyframes bullSlide{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.bull-eleves-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;padding-bottom:12px;border-bottom:1.5px solid #f1f5f9}
+.bull-eleves-header h3{font-size:.92rem;font-weight:700;color:#1e293b;margin:0;display:flex;align-items:center;gap:6px}
 .bull-eleves-actions{display:flex;gap:8px;align-items:center}
-.btn-select-all{padding:6px 14px;border-radius:8px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);color:#a5b4fc;font-size:.75rem;cursor:pointer;transition:all .2s}
-.btn-select-all:hover{background:rgba(99,102,241,.25)}
-.btn-generate{padding:8px 20px;border-radius:10px;background:linear-gradient(135deg,#ec4899,#a855f7);border:none;color:#fff;font-weight:600;font-size:.8rem;cursor:pointer;transition:all .3s;display:flex;align-items:center;gap:6px}
-.btn-generate:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(236,72,153,.4)}
-.btn-generate:disabled{opacity:.4;cursor:not-allowed;transform:none}
-.bull-eleves-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px}
-.bull-eleve-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid transparent;transition:all .2s;cursor:pointer}
-.bull-eleve-row:hover{background:rgba(99,102,241,.08);border-color:rgba(99,102,241,.15)}
-.bull-eleve-row.selected{background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.3)}
-.bull-eleve-row input[type=checkbox]{accent-color:#8b5cf6;width:16px;height:16px}
-.bull-eleve-row .eleve-name{font-size:.82rem;color:#e2e8f0;font-weight:500}
-.bull-eleve-row .eleve-genre{font-size:.68rem;color:#64748b;margin-left:auto}
-.bull-empty{text-align:center;padding:60px 20px;color:#64748b}
-.bull-empty i{font-size:2.5rem;margin-bottom:12px;display:block;opacity:.4}
-.bull-empty p{font-size:.82rem}
-.bull-loading{text-align:center;padding:40px;color:#94a3b8;font-size:.8rem}
-.bull-filter-bar{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
-.bull-filter-bar select,.bull-filter-bar input{padding:8px 14px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#e2e8f0;font-size:.8rem;outline:none;transition:border-color .2s}
-.bull-filter-bar select:focus,.bull-filter-bar input:focus{border-color:rgba(99,102,241,.5)}
-.bull-stats{display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap}
-.bull-stat{padding:10px 16px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);font-size:.78rem;color:#94a3b8;display:flex;align-items:center;gap:6px}
-.bull-stat strong{color:#e2e8f0;font-size:1.1rem}
+.btn-select-all{padding:6px 12px;border-radius:8px;background:#f8fafc;border:1.5px solid #e2e8f0;color:#475569;font-size:.72rem;cursor:pointer;transition:all .2s;font-weight:500}
+.btn-select-all:hover{background:#eef2ff;border-color:#c7d2fe;color:#4f46e5}
+.btn-generate{padding:8px 18px;border-radius:8px;background:#4f46e5;border:none;color:#fff;font-weight:600;font-size:.78rem;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(79,70,229,.25)}
+.btn-generate:hover{background:#4338ca;box-shadow:0 4px 12px rgba(79,70,229,.35)}
+.btn-generate:disabled{opacity:.4;cursor:not-allowed}
+.bull-eleves-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px}
+.bull-eleve-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:#fafbfc;border:1.5px solid transparent;transition:all .15s;cursor:pointer}
+.bull-eleve-row:hover{background:#eef2ff;border-color:#c7d2fe}
+.bull-eleve-row.selected{background:#eef2ff;border-color:#818cf8}
+.bull-eleve-row input[type=checkbox]{accent-color:#6366f1;width:15px;height:15px}
+.bull-eleve-row .eleve-name{font-size:.78rem;color:#1e293b;font-weight:500}
+.bull-eleve-row .eleve-genre{font-size:.65rem;color:#94a3b8;margin-left:auto;background:#f1f5f9;padding:2px 8px;border-radius:10px}
+.bull-empty{text-align:center;padding:50px 20px;color:#94a3b8}
+.bull-empty i{font-size:2rem;margin-bottom:10px;display:block;opacity:.4}
+.bull-empty p{font-size:.78rem}
+.bull-loading{text-align:center;padding:30px;color:#94a3b8;font-size:.78rem}
 </style>
 
 <div class="bull-hero">
@@ -5265,29 +5267,31 @@ function renderBullClassesGrid(classes){
         grid.innerHTML = '<div class="bull-empty"><i class="fas fa-inbox"></i><p>Aucune classe trouvée</p></div>';
         return;
     }
-    grid.innerHTML = classes.map(c=>{
-        const cardClass = c.is_deliberated ? 'deliberated' : 'not-deliberated';
+    let html = '<table class="bull-table"><thead><tr>';
+    html += '<th>Classe</th><th>Cycle</th><th>Élèves</th><th>Statut</th><th>Modèle</th><th></th>';
+    html += '</tr></thead><tbody>';
+    classes.forEach(c=>{
         const nameDisplay = c.groupe ? `${c.classe_name} (${c.groupe})` : c.classe_name;
+        const canClick = c.is_deliberated && c.model_name;
+        const rowClass = canClick ? '' : 'disabled-row';
+        const clickHandler = canClick ? `onclick="selectBullClasse(${c.eac_id},'${nameDisplay.replace(/'/g,"\\'")}','${(c.model_name||'').replace(/'/g,"\\'")}')"` : '';
+        const statusBadge = c.is_deliberated
+            ? '<span class="bull-badge delib"><i class="fas fa-check-circle"></i> Délibérée</span>'
+            : '<span class="bull-badge not-delib"><i class="fas fa-hourglass-half"></i> En attente</span>';
         const modelBadge = c.model_name
-            ? `<div class="model-badge"><i class="fas fa-file-pdf"></i> ${c.model_name}</div>`
-            : `<div class="model-badge no-model"><i class="fas fa-exclamation-circle"></i> Pas de modèle</div>`;
-        const statusHtml = c.is_deliberated
-            ? `<span class="delib-status yes"><i class="fas fa-check-circle"></i> Délibérée</span>`
-            : `<span class="delib-status no"><i class="fas fa-clock"></i> Non délibérée</span>`;
-        const clickHandler = c.is_deliberated && c.model_name ? `onclick="selectBullClasse(${c.eac_id},'${nameDisplay.replace(/'/g,"\\'")}','${(c.model_name||'').replace(/'/g,"\\'")}')"` : '';
-        return `<div class="bull-class-card ${cardClass}" ${clickHandler}>
-            <div class="card-top">
-                <span class="class-name">${nameDisplay}</span>
-                <span class="class-cycle">${c.cycle_name}</span>
-            </div>
-            <div class="card-meta">
-                <span><i class="fas fa-users"></i> ${c.nb_eleves} élèves</span>
-                ${c.section_name ? `<span><i class="fas fa-layer-group"></i> ${c.section_name}</span>` : ''}
-                ${statusHtml}
-            </div>
-            ${modelBadge}
-        </div>`;
-    }).join('');
+            ? `<span class="bull-badge model"><i class="fas fa-file-pdf"></i> ${c.model_name}</span>`
+            : '<span class="bull-badge no-model"><i class="fas fa-times-circle"></i> Non assigné</span>';
+        html += `<tr class="${rowClass}" ${clickHandler} id="bull-row-${c.eac_id}">
+            <td><strong>${nameDisplay}</strong></td>
+            <td>${c.cycle_name}</td>
+            <td><i class="fas fa-users" style="color:#94a3b8;margin-right:4px"></i>${c.nb_eleves}</td>
+            <td>${statusBadge}</td>
+            <td>${modelBadge}</td>
+            <td>${canClick ? '<i class="fas fa-chevron-right" style="color:#c7d2fe"></i>' : ''}</td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    grid.innerHTML = '<div class="bull-table-wrap">' + html + '</div>';
 }
 
 async function selectBullClasse(eacId, className, modelName){
