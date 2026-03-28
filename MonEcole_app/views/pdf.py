@@ -1,6 +1,7 @@
 
 from django.http import HttpResponse
 from django.contrib import messages
+from django.utils.text import slugify
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from reportlab.lib.units import mm
@@ -422,8 +423,8 @@ def generer_bulletin_pdf(request):
         nom_fichier = slugify(filename_parts[0])
     else:
         try:
-            classe = Classe.objects.get(id_classe=id_classe)
-            nom_classe = slugify(classe.nom or "classe")
+            eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
+            nom_classe = slugify(eac.classe.classe or "classe")
         except:
             nom_classe = "classe"
         nom_fichier = f"Bulletins_{localisation}_{nom_classe}_{id_annee}"
