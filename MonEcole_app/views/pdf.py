@@ -2,7 +2,7 @@
 from django.http import HttpResponse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import csrf_exempt
 from reportlab.lib.units import mm
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, PageBreak
@@ -18,6 +18,7 @@ except ImportError:
             return view_func
         return decorator
 
+@csrf_exempt
 @login_required
 @module_required("Evaluation")
 def generer_bulletin_pdf(request):
