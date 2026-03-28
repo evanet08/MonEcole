@@ -18,7 +18,6 @@ except ImportError:
             return view_func
         return decorator
 
-@csrf_protect
 @login_required
 @module_required("Evaluation")
 def generer_bulletin_pdf(request):
@@ -35,16 +34,37 @@ def generer_bulletin_pdf(request):
         id_classe = request.GET.get('id_classe')
         id_eleves = [request.GET.get('id_eleve')]
 
+    # Auto-résolution des paramètres manquants via EAC
+    if id_classe and (not id_annee or not id_campus or not id_cycle):
+        try:
+            from MonEcole_app.models.country_structure import (
+                EtablissementAnneeClasse, EtablissementAnnee, Annee
+            )
+            from MonEcole_app.models.campus import Campus
+            eac = EtablissementAnneeClasse.objects.select_related(
+                'etablissement_annee', 'etablissement_annee__annee', 'classe', 'classe__cycle'
+            ).get(id=int(id_classe))
+            if not id_annee:
+                id_annee = str(eac.etablissement_annee.annee_id)
+            if not id_cycle and eac.classe and eac.classe.cycle:
+                id_cycle = str(eac.classe.cycle_id)
+            if not id_campus:
+                etab_id = eac.etablissement_annee.etablissement_id
+                campus = Campus.objects.filter(id_etablissement=etab_id).first()
+                id_campus = str(campus.id_campus) if campus else '1'
+        except Exception:
+            pass
+
     if not all([id_annee, id_campus, id_cycle, id_classe]) or not id_eleves or not id_eleves[0]:
         messages.error(request, "Paramètres manquants ou invalides.")
-        return HttpResponse('<script>sessionStorage.clear(); window.location.href="/home_evaluation";</script>')
+        return HttpResponse('<script>window.location.href="/dashboard/evaluations/?section=bulletins";</script>')
 
     try:
         id_annee  = int(id_annee)
         id_campus = int(id_campus)
         id_cycle  = int(id_cycle)
         id_classe = int(id_classe)
-        id_eleves = [int(e) for e in id_eleves if e and e.isdigit()]
+        id_eleves = [int(e) for e in id_eleves if e and str(e).isdigit()]
     except ValueError:
         messages.error(request, "Paramètres numériques invalides.")
         return HttpResponse('<script>history.back();</script>', status=400)
@@ -52,6 +72,7 @@ def generer_bulletin_pdf(request):
     if not id_eleves:
         messages.error(request, "Aucun élève sélectionné.")
         return HttpResponse('<script>history.back();</script>', status=400)
+
 
     # ───────────────────────────────────────────────
     # Déterminer la localisation
