@@ -10533,10 +10533,9 @@ def get_deliberation_conditions(request):
         if not eac:
             return JsonResponse({'success': True, 'conditions': []})
 
-        # Query conditions from Hub — using IntegerField for campus, FK for others
+        # Query conditions from Hub — nationales (pas de filtre par établissement)
         conditions = Deliberation_annuelle_condition.objects.filter(
-            id_annee=annee,
-            id_etablissement=etab.id_etablissement
+            id_annee=annee
         )
 
         # Fetch mentions and finalites for display
@@ -10705,10 +10704,9 @@ def execute_deliberation(request):
                     r['mention_id'] = m.id_mention
                     break
 
-        # Determine decision from Hub conditions (for annual/all deliberations)
+        # Determine decision from Hub conditions (nationales)
         conditions = list(Deliberation_annuelle_condition.objects.filter(
-            id_annee=annee,
-            id_etablissement=etab.id_etablissement
+            id_annee=annee
         ))
 
         for r in resultats:
