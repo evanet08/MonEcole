@@ -484,8 +484,12 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                     row.append(Paragraph(str(round(tot_s2, 2)), style_center))
 
                 elif col == 15:
-                    val_total_gen = val_tot_sem_t2 * 2
-                    row.append(Paragraph(str(val_total_gen), style_center))
+                    # TOTAL GENERAL = TOT.SEM S1 (col 7) + TOT.SEM S2 (col 14)
+                    try:
+                        tot_gen = float(row[7].text or 0) + float(row[14].text or 0)
+                    except:
+                        tot_gen = 0.0
+                    row.append(Paragraph(str(round(tot_gen, 2)), style_center))
 
                 elif col == 16:
                     row.append(Paragraph("", style_center))
@@ -745,21 +749,25 @@ def draw_border__secondaire_rdc(canvas, doc, eleve, margin):
 
 
 def injecter_places_secondaire(table_data, id_annee, id_campus, id_cycle, id_classe, id_eleve, id_semestre):
-  
-    LIGNE_CIBLE_INDEX = 39 
+    # Trouver dynamiquement la ligne PLACE/NBRE D'ELEVES
+    place_idx = None
+    for idx, row in enumerate(table_data):
+        if len(row) > 0 and isinstance(row[0], Paragraph):
+            texte = row[0].text or ""
+            if "PLACE" in texte:
+                place_idx = idx
+                break
 
-    if len(table_data) <= LIGNE_CIBLE_INDEX:
-        logger.warning(f"Ligne 41 (index {LIGNE_CIBLE_INDEX}) absente")
+    if place_idx is None:
+        logger.warning("[injecter_places_secondaire] Ligne PLACE non trouvée")
         return False
 
-    ligne_41 = table_data[LIGNE_CIBLE_INDEX]
-    while len(ligne_41) < 20:
-        ligne_41.append(None)
+    ligne_place = table_data[place_idx]
+    while len(ligne_place) < 20:
+        ligne_place.append(None)
 
-    
     colonnes_avec_places = [2, 3, 5, 7, 9, 10, 12, 14]
 
-    
     place_style = ParagraphStyle(
         name='PlaceStyleSecondaire',
         parent=style_normal,         
@@ -779,9 +787,8 @@ def injecter_places_secondaire(table_data, id_annee, id_campus, id_cycle, id_cla
             id_annee, id_campus, id_cycle, id_classe,
             id_eleve, id_semestre, col
         )
-    
 
-        ligne_41[col] = Paragraph(place, place_style)
+        ligne_place[col] = Paragraph(place, place_style)
 
         if place != "-":
             places_injectees += 1
@@ -789,11 +796,12 @@ def injecter_places_secondaire(table_data, id_annee, id_campus, id_cycle, id_cla
     return places_injectees > 0
 
 def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_semestre, col):
-   
+    """
+    Récupère le classement d'un élève pour une colonne donnée du bulletin secondaire.
+    Utilise les config_ids des semestres pour filtrer les résultats de délibération.
+    """
     semestres_data = get_semestres(id_annee, id_campus, id_cycle, id_classe)
     
-   
-   
     if not semestres_data:
         return "-"
     
@@ -803,33 +811,28 @@ def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_
         "id_cycle_id": id_cycle,
         "id_classe_id": id_classe,
         "id_eleve_id": id_eleve,
-        "id_trimestre_id": id_semestre,
     }
 
+    # Colonnes périodes (TJ) : on cherche dans Deliberation_periodique_resultat
     if col in [2, 3, 9, 10]:
-        sigles = {2: "1e P", 3: "2e P", 9: "3e P", 10: "4e P"}
-        filtre = {**filtre_base, "id_periode__repartition__nom": sigles.get(col, "")}
-        if not filtre["id_periode__repartition__nom"]:
-            return "-"
+        filtre = {**filtre_base, "id_trimestre_id": id_semestre}
         res = Deliberation_periodique_resultat.objects.filter(**filtre).first()
         return res.place.strip() if res and res.place and res.place.strip() else "-"
 
-
+    # Colonnes examen
     if col in [5, 12]:
-    
-        if col == 5 and id_semestre != semestres_data[0][0]:
-            return "-"
-        if col == 12 and id_semestre != semestres_data[1][0]:
-            return "-"
-        res = Deliberation_examen_resultat.objects.filter(**filtre_base).first()
+        sem_id = semestres_data[0][0] if col == 5 else semestres_data[1][0]
+        filtre = {**filtre_base, "id_trimestre_id": sem_id}
+        res = Deliberation_examen_resultat.objects.filter(**filtre).first()
         return res.place.strip() if res and res.place and res.place.strip() else "-"
+
+    # Colonnes total semestre
     if col in [7, 14]:
-        if col == 7 and id_semestre != semestres_data[0][0]:
-            return "-"
-        if col == 14 and id_semestre != semestres_data[1][0]:
-            return "-"
-        res = Deliberation_trimistrielle_resultat.objects.filter(**filtre_base).first()
+        sem_id = semestres_data[0][0] if col == 7 else semestres_data[1][0]
+        filtre = {**filtre_base, "id_trimestre_id": sem_id}
+        res = Deliberation_trimistrielle_resultat.objects.filter(**filtre).first()
         return res.place.strip() if res and res.place and res.place.strip() else "-"
 
     return "-"
+
 
