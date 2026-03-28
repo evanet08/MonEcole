@@ -70,8 +70,9 @@ def get_semestres(id_annee, id_campus, id_cycle, id_classe):
 
     result = []
     for trimestre in trimestres_qs:
-        nom_original = trimestre.repartition.nom   
-        result.append((trimestre.id_trimestre, nom_original))
+        nom_original = trimestre.repartition.nom
+        rep_id = trimestre.repartition_id  # repartition_instance id
+        result.append((trimestre.id_trimestre, nom_original, rep_id))
 
     return result
 
@@ -381,18 +382,19 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
     domaine_index = 0 
     ligne_courante = 3  
   
-    id_semestre_actif = None
+    # Use repartition_id (index 2) for places since deliberation tables store repartition_instance_id
+    id_semestre_actif_rep = None
     for s in trimestres_data:
         try:
             sem_obj = Annee_trimestre.objects.get(id=s[0]) 
             if not sem_obj.isOpen:       
-                id_semestre_actif = s[0]
+                id_semestre_actif_rep = s[2]  # repartition_id
                 break
         except:
             pass
 
-    if not id_semestre_actif and trimestres_data:
-        id_semestre_actif = trimestres_data[0][0]  
+    if not id_semestre_actif_rep and trimestres_data:
+        id_semestre_actif_rep = trimestres_data[0][2]  # repartition_id
           
     for groupe in domaines_cours:
         domaine_nom = groupe['domaine']
@@ -529,7 +531,8 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
         id_cycle=id_cycle,
         id_classe=id_classe,
         id_eleve=id_eleve,
-        id_semestre=id_semestre_actif 
+        id_semestre=id_semestre_actif_rep,
+        semestres_data=trimestres_data 
     )
     col_widths = [30*mm] + [8.22*mm] * 17 + [10*mm] + [20*mm]
     table = Table(table_data, colWidths=col_widths, rowHeights=[4*mm] * len(table_data))
@@ -748,7 +751,7 @@ def draw_border__secondaire_rdc(canvas, doc, eleve, margin):
 
 
 
-def injecter_places_secondaire(table_data, id_annee, id_campus, id_cycle, id_classe, id_eleve, id_semestre):
+def injecter_places_secondaire(table_data, id_annee, id_campus, id_cycle, id_classe, id_eleve, id_semestre, semestres_data=None):
     # Trouver dynamiquement la ligne PLACE/NBRE D'ELEVES
     place_idx = None
     for idx, row in enumerate(table_data):
@@ -785,7 +788,7 @@ def injecter_places_secondaire(table_data, id_annee, id_campus, id_cycle, id_cla
     for col in colonnes_avec_places:
         place = get_place_secondaire(
             id_annee, id_campus, id_cycle, id_classe,
-            id_eleve, id_semestre, col
+            id_eleve, id_semestre, col, semestres_data=semestres_data
         )
 
         ligne_place[col] = Paragraph(place, place_style)
@@ -795,15 +798,20 @@ def injecter_places_secondaire(table_data, id_annee, id_campus, id_cycle, id_cla
 
     return places_injectees > 0
 
-def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_semestre, col):
+def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_semestre, col, semestres_data=None):
     """
-    Récupère le classement d'un élève pour une colonne donnée du bulletin secondaire.
-    Utilise les config_ids des semestres pour filtrer les résultats de délibération.
+    Récupère le classement. id_semestre est le repartition_instance_id.
+    semestres_data contient (config_id, nom, repartition_id) par semestre.
     """
-    semestres_data = get_semestres(id_annee, id_campus, id_cycle, id_classe)
+    if not semestres_data:
+        semestres_data = get_semestres(id_annee, id_campus, id_cycle, id_classe)
     
     if not semestres_data:
         return "-"
+    
+    # repartition_ids des deux semestres
+    sem1_rep_id = semestres_data[0][2] if len(semestres_data[0]) > 2 else semestres_data[0][0]
+    sem2_rep_id = semestres_data[1][2] if len(semestres_data[1]) > 2 else semestres_data[1][0]
     
     filtre_base = {
         "id_annee_id": id_annee,
@@ -813,7 +821,7 @@ def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_
         "id_eleve_id": id_eleve,
     }
 
-    # Colonnes périodes (TJ) : on cherche dans Deliberation_periodique_resultat
+    # Colonnes périodes (TJ)
     if col in [2, 3, 9, 10]:
         filtre = {**filtre_base, "id_trimestre_id": id_semestre}
         res = Deliberation_periodique_resultat.objects.filter(**filtre).first()
@@ -821,15 +829,15 @@ def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_
 
     # Colonnes examen
     if col in [5, 12]:
-        sem_id = semestres_data[0][0] if col == 5 else semestres_data[1][0]
-        filtre = {**filtre_base, "id_trimestre_id": sem_id}
+        sem_rep = sem1_rep_id if col == 5 else sem2_rep_id
+        filtre = {**filtre_base, "id_trimestre_id": sem_rep}
         res = Deliberation_examen_resultat.objects.filter(**filtre).first()
         return res.place.strip() if res and res.place and res.place.strip() else "-"
 
     # Colonnes total semestre
     if col in [7, 14]:
-        sem_id = semestres_data[0][0] if col == 7 else semestres_data[1][0]
-        filtre = {**filtre_base, "id_trimestre_id": sem_id}
+        sem_rep = sem1_rep_id if col == 7 else sem2_rep_id
+        filtre = {**filtre_base, "id_trimestre_id": sem_rep}
         res = Deliberation_trimistrielle_resultat.objects.filter(**filtre).first()
         return res.place.strip() if res and res.place and res.place.strip() else "-"
 
