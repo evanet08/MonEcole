@@ -530,7 +530,7 @@ def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
         id_campus_id=id_campus,
         id_cycle_id=id_cycle,
         id_classe_id=id_classe,
-        id_type_note__sigle="TJ",
+        id_type_note__sigle="T.J",
     )
 
     # Prefetch RepartitionInstance names (Hub) to avoid cross-DB JOIN
@@ -832,7 +832,7 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
         id_campus_id=id_campus,
         id_cycle_id=id_cycle,
         id_classe_id=id_classe,
-        id_type_note__sigle="TJ"
+        id_type_note__sigle="T.J"
     )
 
     # Prefetch RepartitionInstance codes (Hub) to avoid cross-DB JOIN
