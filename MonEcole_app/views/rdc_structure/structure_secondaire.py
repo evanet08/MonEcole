@@ -800,8 +800,9 @@ def injecter_places_secondaire(table_data, id_annee, id_campus, id_cycle, id_cla
 
 def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_semestre, col, semestres_data=None):
     """
-    Récupère le classement. id_semestre est le repartition_instance_id.
-    semestres_data contient (config_id, nom, repartition_id) par semestre.
+    Récupère le classement. 
+    - Périodes: id_trimestre_id = repartition_instance_id de la période (P1=1, P2=6, etc.)
+    - Examen/Trimestre: id_trimestre_id = repartition_instance_id du semestre (S1=11, S2=12)
     """
     if not semestres_data:
         semestres_data = get_semestres(id_annee, id_campus, id_cycle, id_classe)
@@ -809,7 +810,6 @@ def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_
     if not semestres_data:
         return "-"
     
-    # repartition_ids des deux semestres
     sem1_rep_id = semestres_data[0][2] if len(semestres_data[0]) > 2 else semestres_data[0][0]
     sem2_rep_id = semestres_data[1][2] if len(semestres_data[1]) > 2 else semestres_data[1][0]
     
@@ -821,11 +821,23 @@ def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_
         "id_eleve_id": id_eleve,
     }
 
-    # Colonnes périodes (TJ)
+    # Colonnes périodes (TJ) - lookup by period repartition_instance_id
     if col in [2, 3, 9, 10]:
-        filtre = {**filtre_base, "id_trimestre_id": id_semestre}
-        res = Deliberation_periodique_resultat.objects.filter(**filtre).first()
-        return res.place.strip() if res and res.place and res.place.strip() else "-"
+        from MonEcole_app.models.country_structure import RepartitionInstance
+        col_to_code = {2: "P1", 3: "P2", 9: "P3", 10: "P4"}
+        code = col_to_code.get(col)
+        if not code:
+            return "-"
+        # Get the repartition_instance_id for this period code
+        try:
+            rep_inst = RepartitionInstance.objects.filter(code=code).first()
+            if rep_inst:
+                filtre = {**filtre_base, "id_trimestre_id": rep_inst.id_instance}
+                res = Deliberation_periodique_resultat.objects.filter(**filtre).first()
+                return res.place.strip() if res and res.place and res.place.strip() else "-"
+        except Exception:
+            pass
+        return "-"
 
     # Colonnes examen
     if col in [5, 12]:
