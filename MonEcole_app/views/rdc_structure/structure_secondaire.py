@@ -17,7 +17,8 @@ from .structure_primaire import (get_styles,check_image_paths,
                                  get_student_notes_rdc,get_student_period_notes,
                                  get_student_exam_notes,Deliberation_examen_resultat,
                                  Deliberation_periodique_resultat,
-                                 Deliberation_trimistrielle_resultat,Eleve)
+                                 Deliberation_trimistrielle_resultat,
+                                 Deliberation_annuelle_resultat,Eleve)
 
 
 logger = logging.getLogger(__name__)
@@ -774,7 +775,7 @@ def injecter_places_secondaire(table_data, id_annee, id_campus, id_cycle, id_cla
     while len(ligne_place) < 20:
         ligne_place.append(None)
 
-    colonnes_avec_places = [2, 3, 5, 7, 9, 10, 12, 14]
+    colonnes_avec_places = [2, 3, 5, 7, 9, 10, 12, 14, 16]
 
     place_style = ParagraphStyle(
         name='PlaceStyleSecondaire',
@@ -856,6 +857,11 @@ def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_
         sem_rep = sem1_rep_id if col == 7 else sem2_rep_id
         filtre = {**filtre_base, "id_trimestre_id": sem_rep}
         res = Deliberation_trimistrielle_resultat.objects.filter(**filtre).first()
+        return res.place.strip() if res and res.place and res.place.strip() else "-"
+
+    # Col 16 = TOTAL GENERAL place (deliberation annuelle)
+    if col == 16:
+        res = Deliberation_annuelle_resultat.objects.filter(**filtre_base).first()
         return res.place.strip() if res and res.place and res.place.strip() else "-"
 
     return "-"
