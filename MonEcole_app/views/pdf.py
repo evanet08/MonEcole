@@ -119,7 +119,7 @@ def generer_bulletin_pdf(request):
                     id_eleve=id_eleve,
                     id_annee=id_annee,
                     id_campus=id_campus,
-                    id_classe_cycle=id_cycle,
+                    id_cycle=id_cycle,
                     id_classe=id_classe,
                     status=1
                 ).first()

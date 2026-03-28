@@ -29,18 +29,26 @@ style_normal = styles['Normal']
 style_normal.alignment = 0  
 
 
-def get_semestres(id_annee,id_campus,id_cycle,id_classe):
+def get_semestres(id_annee, id_campus, id_cycle, id_classe):
+    """
+    Récupère les 2 semestres/trimestres racine pour une classe.
+    id_classe = EAC id (EtablissementAnneeClasse)
+    
+    Table Hub : repartition_configs_etab_annee
+    Filtre : etablissement_annee_id + classe_id (ou sans classe si non-spécifique) + has_parent=False
+    """
     try:
-        campus = Campus.objects.get(id_campus=id_campus)
-        localisation = campus.localisation.upper() 
-    except Campus.DoesNotExist:
+        eac = EtablissementAnneeClasse.objects.select_related('etablissement_annee', 'classe').get(id=id_classe)
+        etab_annee_id = eac.etablissement_annee_id
+        hub_classe_id = eac.classe_id
+    except EtablissementAnneeClasse.DoesNotExist:
         return None
+    
+    # Trimestres racine (has_parent=False) pour cet établissement/année
     trimestres_qs = Annee_trimestre.objects.filter(
-        id_annee=id_annee,
-        id_campus=id_campus,
-        id_cycle=id_cycle,
-        id_classe=id_classe
-    ).order_by('id_trimestre')[:2]
+        etablissement_annee_id=etab_annee_id,
+        has_parent=False
+    ).select_related('repartition').order_by('id_trimestre')[:2]
 
     if len(trimestres_qs) != 2:
         return None
