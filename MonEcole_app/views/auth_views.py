@@ -642,7 +642,39 @@ def api_login(request):
         # Charger les modules
         user_modules = _load_user_modules(request, personnel)
 
-        return JsonResponse({
+        # Vérifier email_verified / phone_verified depuis la base
+        email_verified = True
+        phone_verified = True
+        try:
+            with connections['default'].cursor() as cur:
+                # Ensure columns exist (defensive — first login after migration)
+                for col_name in ('email_verified', 'phone_verified'):
+                    try:
+                        cur.execute(f"ALTER TABLE personnel ADD COLUMN {col_name} TINYINT(1) NOT NULL DEFAULT 0")
+                    except Exception:
+                        pass  # Column already exists
+
+                cur.execute(
+                    "SELECT email_verified, phone_verified, email, telephone FROM personnel WHERE id_personnel=%s",
+                    [personnel.id_personnel]
+                )
+                row = cur.fetchone()
+                if row:
+                    email_verified = bool(row[0])
+                    phone_verified = bool(row[1])
+                    pers_email = row[2] or ''
+                    pers_phone = row[3] or ''
+        except Exception:
+            import traceback
+            traceback.print_exc()
+
+        needs_verification = not email_verified or not phone_verified
+
+        # Stocker le statut de vérification en session
+        request.session['email_verified'] = email_verified
+        request.session['phone_verified'] = phone_verified
+
+        response_data = {
             'success': True,
             'redirect_url': get_redirect_url_for_user(user_modules),
             'modules': user_modules,
@@ -650,8 +682,13 @@ def api_login(request):
                 'email': django_user.email,
                 'last_name': django_user.last_name,
                 'first_name': django_user.first_name,
-            }
-        })
+            },
+            'needs_contact_verification': needs_verification,
+            'email_verified': email_verified,
+            'phone_verified': phone_verified,
+        }
+
+        return JsonResponse(response_data)
 
     except Exception as e:
         import traceback
@@ -701,3 +738,59 @@ def require_auth(view_func):
             return JsonResponse({'error': 'Compte non configuré'}, status=401)
         return view_func(request, *args, **kwargs)
     return wrapper
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def verify_contact(request):
+    """
+    API pour vérifier/confirmer les contacts (email + téléphone) lors de la première connexion.
+    Le personnel peut confirmer ou mettre à jour ses informations de contact.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({'success': False, 'error': 'Non authentifié'}, status=401)
+
+    try:
+        data = json.loads(request.body)
+        email = data.get('email', '').strip()
+        telephone = data.get('telephone', '').strip()
+        personnel_id = request.session.get('personnel_id')
+
+        if not personnel_id:
+            return JsonResponse({'success': False, 'error': 'Session invalide'}, status=400)
+
+        if not email:
+            return JsonResponse({'success': False, 'error': 'Email requis'}, status=400)
+
+        with connections['default'].cursor() as cur:
+            # Mettre à jour email et téléphone, et marquer comme vérifié
+            cur.execute("""
+                UPDATE personnel
+                SET email = %s,
+                    telephone = %s,
+                    email_verified = 1,
+                    phone_verified = CASE WHEN %s != '' THEN 1 ELSE 0 END
+                WHERE id_personnel = %s
+            """, [email, telephone or None, telephone, personnel_id])
+
+            # Aussi mettre à jour auth_user email
+            cur.execute("""
+                UPDATE auth_user SET email = %s WHERE id = %s
+            """, [email, request.user.id])
+
+        # Mettre à jour la session
+        request.session['email_verified'] = True
+        request.session['phone_verified'] = bool(telephone)
+        request.session['user_email'] = email
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Contacts vérifiés avec succès.',
+            'email_verified': True,
+            'phone_verified': bool(telephone),
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

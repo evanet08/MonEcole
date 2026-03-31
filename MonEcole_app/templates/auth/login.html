@@ -359,6 +359,39 @@
                 </form>
             </div>
 
+            <!-- Step 6: Contact Verification (first login) -->
+            <div class="form-step" id="step-verify-contact">
+                <div class="alert-custom alert-info-custom mb-3">
+                    <i class="fas fa-shield-alt"></i>
+                    <div>
+                        <strong>Vérification requise</strong><br>
+                        <small>Veuillez confirmer vos informations de contact pour sécuriser votre compte.</small>
+                    </div>
+                </div>
+
+                <div class="alert-custom alert-error-custom d-none" id="verifyContactError">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span></span>
+                </div>
+
+                <form id="verifyContactForm">
+                    <div class="form-floating mb-3">
+                        <input type="email" class="form-control" id="verifyEmailInput" placeholder="email@example.com" required>
+                        <label for="verifyEmailInput"><i class="fas fa-envelope me-2"></i>Adresse email</label>
+                        <div id="verifyEmailStatus" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:0.75rem"></div>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="tel" class="form-control" id="verifyPhoneInput" placeholder="+243...">
+                        <label for="verifyPhoneInput"><i class="fas fa-phone me-2"></i>Téléphone</label>
+                        <div id="verifyPhoneStatus" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:0.75rem"></div>
+                    </div>
+                    <button type="submit" class="btn btn-primary-gradient" id="btnVerifyContact">
+                        <span>Confirmer et continuer</span>
+                        <i class="fas fa-check-circle"></i>
+                    </button>
+                </form>
+            </div>
+
             <!-- Footer -->
             <div class="login-footer">
                 © 2026 Nexora Tech (Next Aura Technologies)
@@ -375,6 +408,7 @@
         let currentUser = null;
         let selectedOtpMethod = null;
         let otpToken = null;
+        let pendingRedirectUrl = '/dashboard/';
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -446,7 +480,29 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    window.location.href = data.redirect_url || '/dashboard/';
+                    // Vérifier si les contacts doivent être vérifiés (première connexion)
+                    if (data.needs_contact_verification) {
+                        pendingRedirectUrl = data.redirect_url || '/dashboard/';
+                        // Pré-remplir les champs avec les valeurs actuelles
+                        document.getElementById('verifyEmailInput').value = currentEmail || '';
+                        document.getElementById('verifyPhoneInput').value = currentUser?.telephone || '';
+                        // Afficher les statuts
+                        const emailStatus = document.getElementById('verifyEmailStatus');
+                        const phoneStatus = document.getElementById('verifyPhoneStatus');
+                        if (data.email_verified) {
+                            emailStatus.innerHTML = '<i class="fas fa-check-circle" style="color:#22c55e"></i>';
+                        } else {
+                            emailStatus.innerHTML = '<i class="fas fa-exclamation-circle" style="color:#f59e0b"></i>';
+                        }
+                        if (data.phone_verified) {
+                            phoneStatus.innerHTML = '<i class="fas fa-check-circle" style="color:#22c55e"></i>';
+                        } else {
+                            phoneStatus.innerHTML = '<i class="fas fa-exclamation-circle" style="color:#f59e0b"></i>';
+                        }
+                        goToStep('verify-contact');
+                    } else {
+                        window.location.href = data.redirect_url || '/dashboard/';
+                    }
                 } else if (data.email_not_verified) {
                     showAlert('passwordError', data.error || 'Email non vérifié.');
                     setTimeout(() => {
@@ -463,6 +519,44 @@
 
             btn.disabled = false;
             btn.innerHTML = '<span>Se connecter</span><i class="fas fa-sign-in-alt"></i>';
+        });
+
+        // Step 6: Verify Contact Form
+        document.getElementById('verifyContactForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('verifyEmailInput').value.trim();
+            const telephone = document.getElementById('verifyPhoneInput').value.trim();
+            const btn = document.getElementById('btnVerifyContact');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Vérification...';
+            hideAlert('verifyContactError');
+
+            if (!email) {
+                showAlert('verifyContactError', 'L\'adresse email est requise.');
+                btn.disabled = false;
+                btn.innerHTML = '<span>Confirmer et continuer</span><i class="fas fa-check-circle"></i>';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/verify-contact/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, telephone })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    window.location.href = pendingRedirectUrl;
+                } else {
+                    showAlert('verifyContactError', data.error || 'Erreur lors de la vérification.');
+                }
+            } catch (error) {
+                showAlert('verifyContactError', 'Erreur de connexion au serveur.');
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '<span>Confirmer et continuer</span><i class="fas fa-check-circle"></i>';
         });
 
         // OTP Method Selection

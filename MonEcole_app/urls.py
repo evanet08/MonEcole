@@ -22,6 +22,7 @@ urlpatterns = [
     path('api/auth/request-otp/', auth_views.request_otp, name='auth_request_otp'),
     path('api/auth/verify-otp/', auth_views.verify_otp, name='auth_verify_otp'),
     path('api/auth/set-password/', auth_views.set_password, name='auth_set_password'),
+    path('api/auth/verify-contact/', auth_views.verify_contact, name='auth_verify_contact'),
     path('api/auth/login/', auth_views.api_login, name='auth_login'),
     path('api/auth/logout/', auth_views.api_logout, name='auth_logout'),
 

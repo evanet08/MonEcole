@@ -9,6 +9,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, PageBreak
 from io import BytesIO
 from MonEcole_app.views.rdc_structure import *
+from MonEcole_app.models.campus import Campus
 
 # module_required decorator
 try:
@@ -47,7 +48,6 @@ def generer_bulletin_pdf(request):
     if id_classe and (not id_annee or not id_campus or not id_cycle):
         try:
             from MonEcole_app.models.country_structure import EtablissementAnneeClasse
-            from MonEcole_app.models.campus import Campus
             eac = EtablissementAnneeClasse.objects.select_related(
                 'etablissement_annee', 'etablissement_annee__annee', 'classe', 'classe__cycle'
             ).get(id=int(id_classe))

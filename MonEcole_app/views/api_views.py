@@ -5098,6 +5098,8 @@ def dashboard_personnel_list(request):
                         'en_fonction': r.get('en_fonction', 0),
                         'isUser': r.get('isUser', 0),
                         'is_verified': r.get('is_verified', 0),
+                        'email_verified': r.get('email_verified', 0),
+                        'phone_verified': r.get('phone_verified', 0),
                         'date_creation': safe_date(dc),
                         'codeAnnee': r.get('codeAnnee') or '',
                     })
@@ -5139,7 +5141,10 @@ def dashboard_personnel_list(request):
 
 @require_http_methods(["POST"])
 def dashboard_add_personnel(request):
-    """Add a new personnel member. Matricule auto-generated as M_x_y."""
+    """Add a new personnel member. Matricule auto-generated as M_x_y.
+    Creates a unique auth_user per personnel to avoid OneToOneField violations.
+    Sets email_verified=0 and phone_verified=0 for new personnel.
+    """
     try:
         data = json.loads(request.body)
         id_etablissement = data.get('id_etablissement')
@@ -5153,23 +5158,40 @@ def dashboard_add_personnel(request):
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
-                # Get default user_id
-                cur.execute("SELECT id FROM auth_user ORDER BY id LIMIT 1")
-                default_user = cur.fetchone()
-                user_id = default_user['id'] if default_user else 1
+                # Ensure email_verified and phone_verified columns exist
+                for col_name in ('email_verified', 'phone_verified'):
+                    try:
+                        cur.execute(f"ALTER TABLE personnel ADD COLUMN {col_name} TINYINT(1) NOT NULL DEFAULT 0")
+                        conn.commit()
+                    except Exception:
+                        conn.rollback()  # Column already exists
+
+                # CREATE a unique auth_user for this personnel
+                # (user_id is UNIQUE + NOT NULL in personnel table via OneToOneField)
+                import hashlib
+                ts = datetime.datetime.now().timestamp()
+                username = f"pers_{id_etablissement}_{int(ts)}"
+                hashed_pw = hashlib.sha256(username.encode()).hexdigest()[:30]
+                email_val = data.get('email') or ''
+
+                cur.execute("""
+                    INSERT INTO auth_user (username, password, is_superuser, is_staff, is_active, date_joined, first_name, last_name, email)
+                    VALUES (%s, %s, 0, 0, 1, NOW(), %s, %s, %s)
+                """, [username, f'!{hashed_pw}', prenom or '', nom, email_val])
+                new_user_id = cur.lastrowid
 
                 fields = {
                     'nom': nom,
                     'postnom': postnom,
                     'prenom': prenom,
-                    'matricule': f'TEMP_{id_etablissement}_{datetime.datetime.now().timestamp()}',  # temp, auto-replaced after INSERT
+                    'matricule': f'TEMP_{id_etablissement}_{ts}',  # temp, auto-replaced after INSERT
                     'genre': genre,
                     'date_naissance': data.get('date_naissance') or None,
                     'etat_civil': data.get('etat_civil', ''),
                     'type_identite': data.get('type_identite', ''),
                     'numero_identite': data.get('numero_identite') or None,
                     'telephone': data.get('telephone') or None,
-                    'email': data.get('email') or None,
+                    'email': email_val or None,
                     'password': data.get('password') or None,
                     'addresse': data.get('addresse', ''),
                     'zone': data.get('zone', ''),
@@ -5191,7 +5213,9 @@ def dashboard_add_personnel(request):
                     'isUser': 0,
                     'en_fonction': int(data.get('en_fonction', 1)),
                     'is_verified': 0,
-                    'user_id': user_id,
+                    'email_verified': 0,
+                    'phone_verified': 0,
+                    'user_id': new_user_id,
                     'id_etablissement': int(id_etablissement),
                     'imageUrl': '',
                     'identiteUrl': '',
@@ -5213,7 +5237,7 @@ def dashboard_add_personnel(request):
                 cur.execute("SELECT COUNT(*) as c FROM personnel WHERE id_etablissement=%s", [id_etablissement])
                 total = cur.fetchone()['c']
 
-                return JsonResponse({'success': True, 'id_personnel': new_id, 'total': total})
+                return JsonResponse({'success': True, 'id_personnel': new_id, 'matricule': matricule, 'total': total})
         finally:
             conn.close()
     except Exception as e:
@@ -5476,10 +5500,13 @@ def dashboard_import_personnel(request):
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
-                # Get default user_id
-                cur.execute("SELECT id FROM auth_user ORDER BY id LIMIT 1")
-                default_user = cur.fetchone()
-                user_id = default_user['id'] if default_user else 1
+                # Ensure email_verified and phone_verified columns exist
+                for col_name in ('email_verified', 'phone_verified'):
+                    try:
+                        cur.execute(f"ALTER TABLE personnel ADD COLUMN {col_name} TINYINT(1) NOT NULL DEFAULT 0")
+                        conn.commit()
+                    except Exception:
+                        conn.rollback()  # Column already exists
 
                 for row_idx, row in enumerate(ws.iter_rows(min_row=data_start, values_only=True), data_start):
                     if not row or all(v is None for v in row):
@@ -5606,6 +5633,8 @@ def dashboard_import_personnel(request):
                                 'isUser': 0,
                                 'en_fonction': 1,
                                 'is_verified': 0,
+                                'email_verified': 0,
+                                'phone_verified': 0,
                                 'user_id': new_user_id,
                                 'id_etablissement': id_etablissement,
                                 'imageUrl': '',

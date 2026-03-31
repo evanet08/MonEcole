@@ -2744,6 +2744,60 @@ function toggleAddPersForm(){
     f.style.display=f.style.display==='none'?'block':'none';
 }
 
+async function saveNewPersonnel(){
+    const nom=document.getElementById('addPersNom')?.value.trim();
+    const prenom=document.getElementById('addPersPrenom')?.value.trim();
+    const postnom=document.getElementById('addPersPostnom')?.value.trim();
+    const genre=document.getElementById('addPersGenre')?.value;
+    const telephone=document.getElementById('addPersTel')?.value.trim();
+    const email=document.getElementById('addPersEmail')?.value.trim();
+
+    if(!nom){
+        showToast('Le nom est requis.','error');
+        document.getElementById('addPersNom')?.focus();
+        return;
+    }
+    if(!genre){
+        showToast('Le genre est requis.','error');
+        document.getElementById('addPersGenre')?.focus();
+        return;
+    }
+
+    // Disable the button to prevent double-click
+    const btn=event?.target?.closest('button');
+    if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Enregistrement...';}
+
+    try{
+        const res=await fetch('/api/dashboard/add-personnel/',{
+            method:'POST',
+            headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},
+            body:JSON.stringify({
+                id_etablissement:ETAB_ID,
+                nom,prenom,postnom,genre,telephone,email,
+                en_fonction:1,
+            })
+        });
+        const data=await res.json();
+        if(data.success){
+            showToast(`Personnel enregistré avec succès ! Matricule: ${data.matricule||''}`, 'success');
+            // Clear form fields
+            ['addPersNom','addPersPrenom','addPersPostnom','addPersTel','addPersEmail'].forEach(id=>{
+                const el=document.getElementById(id);if(el)el.value='';
+            });
+            const genreSel=document.getElementById('addPersGenre');if(genreSel)genreSel.value='';
+            // Hide form & reload list
+            document.getElementById('addPersForm').style.display='none';
+            loadPersonnelList();
+        }else{
+            showToast(data.error||'Erreur lors de l\'enregistrement.','error');
+        }
+    }catch(e){
+        showToast('Erreur réseau: '+e.message,'error');
+    }finally{
+        if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-save"></i> Enregistrer';}
+    }
+}
+
 function initPersColSelector(){
     const container=document.getElementById('persColumnCheckboxes');
     if(!container)return;
