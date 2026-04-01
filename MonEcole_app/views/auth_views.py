@@ -564,7 +564,7 @@ def request_otp(request):
                 print(f"[OTP] Email send error: {mail_err}", file=sys.stderr, flush=True)
 
         elif method == 'SMS':
-            # Stratégie : WhatsApp d'abord (moins cher), fallback SMS si échec
+            # Envoi par WhatsApp via Twilio
             phone = str(personnel.telephone).strip() if personnel.telephone else ''
             if not phone:
                 return JsonResponse({'success': False, 'error': 'Aucun numéro de téléphone enregistré.'}, status=400)
@@ -581,7 +581,6 @@ def request_otp(request):
                 import urllib.parse
                 import urllib.error
                 import base64
-                import json as _json
                 import sys
 
                 from django.conf import settings as _settings
@@ -590,61 +589,41 @@ def request_otp(request):
                 from_number = getattr(_settings, 'TWILIO_PHONE_NUMBER', '')
 
                 if not sid or not token or not from_number:
-                    return JsonResponse({'success': False, 'error': 'Service non configuré.'}, status=500)
+                    return JsonResponse({'success': False, 'error': 'Service WhatsApp non configuré.'}, status=500)
 
                 url = f'https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json'
                 msg_body = f'MonEcole - Votre code de vérification est : {code} (expire dans 10 min)'
+                post_data = urllib.parse.urlencode({
+                    'From': f'whatsapp:{from_number}',
+                    'To': f'whatsapp:{phone}',
+                    'Body': msg_body,
+                }).encode('utf-8')
+
                 credentials = base64.b64encode(f'{sid}:{token}'.encode()).decode()
+                req = urllib.request.Request(url, data=post_data, method='POST')
+                req.add_header('Authorization', f'Basic {credentials}')
+                req.add_header('Content-Type', 'application/x-www-form-urlencoded')
 
-                def _twilio_send(from_addr, to_addr):
-                    """Envoie un message via Twilio. Retourne (success, channel)."""
-                    pd = urllib.parse.urlencode({
-                        'From': from_addr,
-                        'To': to_addr,
-                        'Body': msg_body,
-                    }).encode('utf-8')
-                    rq = urllib.request.Request(url, data=pd, method='POST')
-                    rq.add_header('Authorization', f'Basic {credentials}')
-                    rq.add_header('Content-Type', 'application/x-www-form-urlencoded')
-                    try:
-                        with urllib.request.urlopen(rq, timeout=15) as resp:
-                            rb = resp.read().decode('utf-8', errors='replace')
-                            rd = _json.loads(rb)
-                            status = rd.get('status', '')
-                            err_code = rd.get('error_code')
-                            print(f"[OTP] Twilio OK: status={status}, err={err_code}, to={to_addr[:10]}", file=sys.stderr, flush=True)
-                            # 'queued', 'sent', 'delivered' = OK; 'failed', 'undelivered' = KO
-                            if status in ('failed', 'undelivered') or err_code:
-                                return False
-                            return True
-                    except urllib.error.HTTPError as he:
-                        eb = he.read().decode('utf-8', errors='replace')
-                        print(f"[OTP] Twilio HTTP {he.code}: {eb[:300]}", file=sys.stderr, flush=True)
-                        return False
-                    except Exception as e:
-                        print(f"[OTP] Twilio error: {e}", file=sys.stderr, flush=True)
-                        return False
+                try:
+                    with urllib.request.urlopen(req, timeout=15) as resp:
+                        resp_body = resp.read().decode('utf-8', errors='replace')
+                        print(f"[OTP-WA] Twilio OK ({resp.getcode()}): {resp_body[:300]}", file=sys.stderr, flush=True)
+                except urllib.error.HTTPError as http_err:
+                    err_body = http_err.read().decode('utf-8', errors='replace')
+                    print(f"[OTP-WA] Twilio HTTP Error {http_err.code}: {err_body[:500]}", file=sys.stderr, flush=True)
+                except urllib.error.URLError as url_err:
+                    print(f"[OTP-WA] Twilio URL Error: {url_err.reason}", file=sys.stderr, flush=True)
 
-                # 1) Essayer WhatsApp d'abord (moins cher)
-                channel_used = 'WhatsApp'
-                wa_ok = _twilio_send(f'whatsapp:{from_number}', f'whatsapp:{phone}')
-
-                # 2) Si WhatsApp échoue → fallback SMS
-                if not wa_ok:
-                    print(f"[OTP] WhatsApp failed, fallback SMS for {phone[:6]}...", file=sys.stderr, flush=True)
-                    channel_used = 'SMS'
-                    _twilio_send(from_number, phone)
-
-            except Exception as send_err:
+            except Exception as wa_err:
                 import traceback, sys
                 traceback.print_exc()
-                print(f"[OTP] Send error: {send_err}", file=sys.stderr, flush=True)
+                print(f"[OTP-WA] Send error: {wa_err}", file=sys.stderr, flush=True)
 
             return JsonResponse({
                 'success': True,
                 'token': 'session',
                 'phone': masked_phone,
-                'message': f'Un code de vérification a été envoyé au {masked_phone}.',
+                'message': f'Un code de vérification a été envoyé sur votre WhatsApp au {masked_phone}.',
             })
 
         return JsonResponse({
