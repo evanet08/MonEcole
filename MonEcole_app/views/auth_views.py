@@ -504,31 +504,192 @@ def check_email(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def request_otp(request):
-    """OTP non utilisé dans cette version."""
-    return JsonResponse({
-        'success': False,
-        'error': "Contactez l'administrateur pour activer votre compte."
-    }, status=400)
+    """Envoie un code OTP par email ou SMS au personnel."""
+    try:
+        data = json.loads(request.body)
+        email = data.get('email', '').strip().lower()
+        method = data.get('method', 'EMAIL').upper()
+
+        if not email:
+            return JsonResponse({'success': False, 'error': 'Email requis'}, status=400)
+
+        etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+
+        # Vérifier que le personnel existe
+        personnel = None
+        if etab_id:
+            personnel = Personnel.objects.filter(email__iexact=email, id_etablissement=etab_id).first()
+        if not personnel:
+            personnel = Personnel.objects.filter(email__iexact=email).first()
+        if not personnel:
+            return JsonResponse({'success': False, 'error': 'Aucun compte trouvé avec cet email.'}, status=404)
+
+        # Générer le code OTP (6 chiffres)
+        import random
+        code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+
+        # Stocker en session
+        import time as _time
+        request.session['_otp_code'] = code
+        request.session['_otp_type'] = method
+        request.session['_otp_expires'] = _time.time() + 600  # 10 min
+        request.session['_otp_attempts'] = 0
+        request.session['_otp_email'] = email
+
+        # Envoyer le code
+        if method == 'EMAIL':
+            try:
+                from MonEcole_app.email_service import send_brevo_email
+                result = send_brevo_email(
+                    to_emails=[email],
+                    subject='MonEcole - Code de vérification',
+                    html_content=f'''
+                        <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px">
+                            <h2 style="color:#667eea;text-align:center">MonEcole</h2>
+                            <p>Votre code de vérification est :</p>
+                            <div style="text-align:center;margin:20px 0">
+                                <span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#667eea;background:#f0f0ff;padding:12px 24px;border-radius:8px">{code}</span>
+                            </div>
+                            <p style="color:#666;font-size:14px">Ce code expire dans 10 minutes. Si vous n'avez pas demandé ce code, ignorez cet email.</p>
+                        </div>
+                    ''',
+                    text_content=f'Votre code de vérification MonEcole est : {code}\n\nCe code expire dans 10 minutes.',
+                )
+                if not result.get('success'):
+                    import sys
+                    print(f"[OTP] Brevo send failed: {result}", file=sys.stderr, flush=True)
+            except Exception as mail_err:
+                import traceback, sys
+                traceback.print_exc()
+                print(f"[OTP] Email send error: {mail_err}", file=sys.stderr, flush=True)
+
+        return JsonResponse({
+            'success': True,
+            'token': 'session',
+            'message': f'Un code de vérification a été envoyé à votre {"email" if method == "EMAIL" else "téléphone"}.',
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 @csrf_exempt
 @require_http_methods(["POST"])
 def verify_otp(request):
-    """OTP non utilisé dans cette version."""
-    return JsonResponse({
-        'success': False,
-        'error': "Contactez l'administrateur pour activer votre compte."
-    }, status=400)
+    """Vérifie le code OTP saisi par l'utilisateur."""
+    try:
+        data = json.loads(request.body)
+        email = data.get('email', '').strip().lower()
+        code = data.get('code', '').strip()
+
+        if not code or len(code) != 6:
+            return JsonResponse({'success': False, 'error': 'Code à 6 chiffres requis.'}, status=400)
+
+        # Vérifier le code en session
+        stored_code = request.session.get('_otp_code')
+        otp_expires = request.session.get('_otp_expires', 0)
+
+        if not stored_code:
+            return JsonResponse({'success': False, 'error': 'Aucun code en attente. Demandez un nouveau code.'}, status=400)
+
+        import time as _time
+        if _time.time() > otp_expires:
+            for k in ('_otp_code', '_otp_type', '_otp_expires', '_otp_attempts'):
+                request.session.pop(k, None)
+            return JsonResponse({'success': False, 'error': 'Code expiré. Demandez un nouveau code.'}, status=400)
+
+        if code != stored_code:
+            attempts = request.session.get('_otp_attempts', 0) + 1
+            request.session['_otp_attempts'] = attempts
+            if attempts >= 3:
+                for k in ('_otp_code', '_otp_type', '_otp_expires', '_otp_attempts'):
+                    request.session.pop(k, None)
+                return JsonResponse({'success': False, 'error': 'Trop de tentatives. Demandez un nouveau code.'}, status=400)
+            return JsonResponse({'success': False, 'error': f'Code incorrect. {3 - attempts} tentative(s) restante(s).'}, status=400)
+
+        # Code correct — marquer comme vérifié
+        request.session['_otp_verified'] = True
+        request.session['_otp_verified_email'] = email
+
+        return JsonResponse({
+            'success': True,
+            'token': 'session',
+            'message': 'Code vérifié avec succès. Définissez votre mot de passe.',
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 @csrf_exempt
 @require_http_methods(["POST"])
 def set_password(request):
-    """OTP non utilisé dans cette version."""
-    return JsonResponse({
-        'success': False,
-        'error': "Contactez l'administrateur pour configurer votre mot de passe."
-    }, status=400)
+    """Définit le mot de passe après vérification OTP réussie."""
+    try:
+        data = json.loads(request.body)
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '')
+
+        if not password or len(password) < 6:
+            return JsonResponse({'success': False, 'error': 'Mot de passe minimum 6 caractères.'}, status=400)
+
+        # Vérifier que l'OTP a été validé
+        if not request.session.get('_otp_verified'):
+            return JsonResponse({'success': False, 'error': 'Veuillez d\'abord vérifier votre code OTP.'}, status=403)
+
+        etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+
+        # Trouver le personnel
+        personnel = None
+        if etab_id:
+            personnel = Personnel.objects.filter(email__iexact=email, id_etablissement=etab_id).first()
+        if not personnel:
+            personnel = Personnel.objects.filter(email__iexact=email).first()
+        if not personnel:
+            return JsonResponse({'success': False, 'error': 'Personnel introuvable.'}, status=404)
+
+        # Définir le mot de passe + marquer comme vérifié
+        personnel.set_password(password)
+        with connections['default'].cursor() as cur:
+            cur.execute(
+                "UPDATE personnel SET password_hash=%s, is_verified=1, email_verified=1, isUser=1 WHERE id_personnel=%s",
+                [personnel.password_hash, personnel.id_personnel]
+            )
+
+        # Nettoyer la session OTP
+        for k in ('_otp_code', '_otp_type', '_otp_expires', '_otp_attempts', '_otp_verified', '_otp_verified_email'):
+            request.session.pop(k, None)
+
+        # Créer la session de login
+        request.session['personnel_id'] = personnel.id_personnel
+        request.session['user_id'] = personnel.id_personnel
+        request.session['user_email'] = personnel.email or ''
+        request.session['_last_activity'] = time.time()
+        request.session['_personnel_cached'] = True
+        request.session['_personnel_email'] = personnel.email or ''
+        request.session['_personnel_nom'] = personnel.nom or ''
+        request.session['_personnel_prenom'] = personnel.prenom or ''
+        request.session['_personnel_matricule'] = personnel.matricule or ''
+        request.session['needs_verification'] = False
+        request.session['email_verified'] = True
+
+        # Charger les modules
+        user_modules = _load_user_modules(request, personnel)
+
+        return JsonResponse({
+            'success': True,
+            'redirect_url': get_redirect_url_for_user(user_modules) if user_modules else '/dashboard/',
+            'message': 'Mot de passe défini avec succès.',
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 @csrf_exempt
@@ -580,10 +741,12 @@ def api_login(request):
             return JsonResponse({'success': False, 'error': 'Compte non autorisé.'}, status=403)
 
         if not personnel.is_verified:
+            masked = email[:2] + '***' + email[email.index('@')-1:] if '@' in email else email
             return JsonResponse({
                 'success': False,
-                'error': "Compte non vérifié. Contactez l'administrateur.",
+                'error': f"Votre email ({masked}) n'est pas encore vérifié. Veuillez vérifier votre boîte de réception pour récupérer le code de vérification.",
                 'email_not_verified': True,
+                'needs_otp': True,
             }, status=403)
 
         # Vérifier le mot de passe
