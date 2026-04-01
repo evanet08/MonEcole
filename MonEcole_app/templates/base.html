@@ -383,24 +383,24 @@
     <div class="body-row">
         <!-- SIDEBAR -->
         <div class="sidebar">
-            <!-- Widget WhatsApp verification (sidebar top) -->
+            <!-- Widget SMS verification (sidebar top) -->
             {% if email_verified and not phone_verified %}
             <div id="phoneVerifyWidget" onclick="document.getElementById('phoneVerifyModal').style.display='flex'" style="
                 width:100%;padding:8px 10px;margin-bottom:6px;border-radius:12px;cursor:pointer;
-                background:linear-gradient(135deg,rgba(37,211,102,0.12),rgba(18,140,126,0.08));
-                border:1px solid rgba(37,211,102,0.25);
+                background:linear-gradient(135deg,rgba(37,99,235,0.1),rgba(99,102,241,0.06));
+                border:1px solid rgba(37,99,235,0.25);
                 display:flex;align-items:center;gap:8px;
                 transition:all 0.2s;flex-shrink:0;
             ">
-                <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#25D366,#128C7E);display:flex;align-items:center;justify-content:center;flex-shrink:0;animation:waPulse 2s infinite">
-                    <i class="fab fa-whatsapp" style="color:#fff;font-size:0.85rem"></i>
+                <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#2563eb,#6366f1);display:flex;align-items:center;justify-content:center;flex-shrink:0;animation:smsPulse 2s infinite">
+                    <i class="fas fa-sms" style="color:#fff;font-size:0.85rem"></i>
                 </div>
                 <div style="flex:1;min-width:0">
-                    <div style="font-size:0.62rem;font-weight:700;color:#166534;line-height:1.2">WhatsApp</div>
-                    <div style="font-size:0.55rem;color:#15803d;line-height:1.2">Vérifier mon n°</div>
+                    <div style="font-size:0.62rem;font-weight:700;color:#1e40af;line-height:1.2">SMS</div>
+                    <div style="font-size:0.55rem;color:#3b82f6;line-height:1.2">Vérifier mon n°</div>
                 </div>
             </div>
-            <style>@keyframes waPulse{0%,100%{box-shadow:0 0 0 0 rgba(37,211,102,0.3)}50%{box-shadow:0 0 0 6px rgba(37,211,102,0)}}</style>
+            <style>@keyframes smsPulse{0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,0.3)}50%{box-shadow:0 0 0 6px rgba(37,99,235,0)}}</style>
             {% endif %}
 
             <div class="sidebar-nav-center">
@@ -510,11 +510,11 @@
 
             <!-- Header -->
             <div style="text-align:center;margin-bottom:20px">
-                <div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#25D366,#128C7E);display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px">
-                    <i class="fab fa-whatsapp" style="color:#fff;font-size:1.6rem"></i>
+                <div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#2563eb,#6366f1);display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px">
+                    <i class="fas fa-sms" style="color:#fff;font-size:1.6rem"></i>
                 </div>
-                <h3 style="font-size:1.1rem;font-weight:700;color:#1e293b;margin:0">Vérifier votre WhatsApp</h3>
-                <p style="font-size:0.78rem;color:#64748b;margin:4px 0 0">Un code sera envoyé au numéro :</p>
+                <h3 style="font-size:1.1rem;font-weight:700;color:#1e293b;margin:0">Vérifier votre numéro</h3>
+                <p style="font-size:0.78rem;color:#64748b;margin:4px 0 0">Un code SMS sera envoyé au :</p>
                 <p id="waPhoneDisplay" style="font-size:1rem;font-weight:700;color:#1e293b;margin:6px 0 0;letter-spacing:1px">{{ user_phone|default:'—' }}</p>
             </div>
 
@@ -523,10 +523,10 @@
                 <button onclick="wasSendOtp()" id="btnWaSend" style="
                     width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;
                     font-size:0.9rem;font-weight:600;color:white;
-                    background:linear-gradient(135deg,#25D366,#128C7E);
+                    background:linear-gradient(135deg,#2563eb,#6366f1);
                     display:flex;align-items:center;justify-content:center;gap:8px;
                     transition:all 0.2s;
-                "><i class="fab fa-whatsapp"></i> Envoyer le code</button>
+                "><i class="fas fa-paper-plane"></i> Envoyer le code par SMS</button>
             </div>
 
             <!-- Step 2: Verify -->
@@ -538,11 +538,11 @@
                     width:100%;padding:14px;border:2px solid #e5e7eb;border-radius:12px;
                     font-size:1.4rem;font-weight:700;text-align:center;letter-spacing:8px;
                     outline:none;transition:all 0.2s;margin-bottom:12px;
-                " onfocus="this.style.borderColor='#25D366'" onblur="this.style.borderColor='#e5e7eb'">
+                " onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#e5e7eb'">
                 <button onclick="wasVerifyOtp()" id="btnWaVerify" style="
                     width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;
                     font-size:0.9rem;font-weight:600;color:white;
-                    background:linear-gradient(135deg,#25D366,#128C7E);
+                    background:linear-gradient(135deg,#2563eb,#6366f1);
                     display:flex;align-items:center;justify-content:center;gap:8px;
                     transition:all 0.2s;margin-bottom:8px;
                 "><i class="fas fa-check"></i> Valider le code</button>
