@@ -413,6 +413,117 @@
         <div class="main-wrapper">
             {% block content_tabs %}{% endblock %}
             <div class="content-area">
+                <!-- Bandeau vérification téléphone (optionnel) -->
+                {% if email_verified and not phone_verified %}
+                <div id="phoneVerifyBanner" style="
+                    background: linear-gradient(135deg, rgba(37,99,235,0.08) 0%, rgba(99,102,241,0.08) 100%);
+                    border: 1px solid rgba(99,102,241,0.2);
+                    border-radius: 14px; padding: 14px 20px; margin-bottom: 16px;
+                    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+                    position: relative; overflow: hidden;
+                ">
+                    <div style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#25D366,#128C7E);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                        <i class="fab fa-whatsapp" style="color:white;font-size:1.1rem"></i>
+                    </div>
+                    <div style="flex:1;min-width:200px">
+                        <div style="font-size:0.82rem;font-weight:600;color:#1e293b">Vérifiez votre numéro WhatsApp</div>
+                        <div style="font-size:0.72rem;color:#64748b">Recevez les notifications et codes de vérification par WhatsApp</div>
+                    </div>
+                    <!-- Phase 1: Bouton d'envoi -->
+                    <div id="phoneVerifyActions" style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                        <button onclick="sendPhoneOtp()" id="btnSendPhoneOtp" style="
+                            padding:8px 16px;border-radius:10px;border:none;cursor:pointer;font-size:0.78rem;font-weight:600;
+                            background:linear-gradient(135deg,#25D366,#128C7E);color:white;
+                            display:flex;align-items:center;gap:6px;transition:all 0.2s;
+                        ">
+                            <i class="fab fa-whatsapp"></i> Vérifier maintenant
+                        </button>
+                        <button onclick="document.getElementById('phoneVerifyBanner').style.display='none'" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1rem;padding:4px">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <!-- Phase 2: Saisie du code (hidden par défaut) -->
+                    <div id="phoneOtpInput" style="display:none;align-items:center;gap:8px;flex-shrink:0">
+                        <input type="text" id="phoneOtpCode" maxlength="6" placeholder="Code à 6 chiffres" style="
+                            width:140px;padding:8px 12px;border:2px solid #e5e7eb;border-radius:10px;
+                            font-size:0.85rem;font-weight:600;text-align:center;letter-spacing:4px;
+                            transition:all 0.2s;outline:none;
+                        " onfocus="this.style.borderColor='#25D366'" onblur="this.style.borderColor='#e5e7eb'">
+                        <button onclick="verifyPhoneOtp()" id="btnVerifyPhoneOtp" style="
+                            padding:8px 14px;border-radius:10px;border:none;cursor:pointer;font-size:0.78rem;font-weight:600;
+                            background:linear-gradient(135deg,#25D366,#128C7E);color:white;transition:all 0.2s;
+                        ">Valider</button>
+                        <button onclick="sendPhoneOtp()" style="background:none;border:none;color:#6366f1;cursor:pointer;font-size:0.72rem;text-decoration:underline">Renvoyer</button>
+                    </div>
+                    <!-- Message de résultat -->
+                    <div id="phoneVerifyMsg" style="display:none;font-size:0.78rem;font-weight:500;flex-basis:100%;margin-top:4px"></div>
+                </div>
+                <script>
+                async function sendPhoneOtp() {
+                    const btn = document.getElementById('btnSendPhoneOtp');
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Envoi...';
+                    try {
+                        const r = await fetch('/api/auth/request-otp/', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({email: '{{ user_email }}', method: 'SMS'})
+                        });
+                        const d = await r.json();
+                        if (d.success) {
+                            document.getElementById('phoneVerifyActions').style.display = 'none';
+                            document.getElementById('phoneOtpInput').style.display = 'flex';
+                            showPhoneMsg('Code envoyé sur votre WhatsApp. Vérifiez vos messages.', '#22c55e');
+                        } else {
+                            showPhoneMsg(d.error || 'Erreur lors de l\'envoi', '#ef4444');
+                            btn.disabled = false;
+                            btn.innerHTML = '<i class="fab fa-whatsapp"></i> Réessayer';
+                        }
+                    } catch(e) {
+                        showPhoneMsg('Erreur de connexion', '#ef4444');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fab fa-whatsapp"></i> Réessayer';
+                    }
+                }
+                async function verifyPhoneOtp() {
+                    const code = document.getElementById('phoneOtpCode').value.trim();
+                    if (code.length !== 6) { showPhoneMsg('Entrez les 6 chiffres', '#f59e0b'); return; }
+                    const btn = document.getElementById('btnVerifyPhoneOtp');
+                    btn.disabled = true;
+                    btn.textContent = '...';
+                    try {
+                        const r = await fetch('/api/auth/verify-contact/', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({type: 'phone', code: code})
+                        });
+                        const d = await r.json();
+                        if (d.success) {
+                            const banner = document.getElementById('phoneVerifyBanner');
+                            banner.style.background = 'linear-gradient(135deg, rgba(34,197,94,0.1), rgba(16,185,129,0.1))';
+                            banner.style.borderColor = 'rgba(34,197,94,0.3)';
+                            banner.innerHTML = '<div style="display:flex;align-items:center;gap:10px;width:100%"><i class="fas fa-check-circle" style="color:#22c55e;font-size:1.2rem"></i><span style="font-size:0.82rem;font-weight:600;color:#166534">Numéro WhatsApp vérifié avec succès !</span></div>';
+                            setTimeout(() => banner.style.display = 'none', 5000);
+                        } else {
+                            showPhoneMsg(d.error || 'Code incorrect', '#ef4444');
+                            btn.disabled = false;
+                            btn.textContent = 'Valider';
+                        }
+                    } catch(e) {
+                        showPhoneMsg('Erreur de connexion', '#ef4444');
+                        btn.disabled = false;
+                        btn.textContent = 'Valider';
+                    }
+                }
+                function showPhoneMsg(msg, color) {
+                    const el = document.getElementById('phoneVerifyMsg');
+                    el.style.display = 'block';
+                    el.style.color = color;
+                    el.textContent = msg;
+                }
+                </script>
+                {% endif %}
+
                 {% block content %}{% endblock %}
             </div>
         </div>
