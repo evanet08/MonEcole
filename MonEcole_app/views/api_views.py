@@ -5216,7 +5216,6 @@ def dashboard_add_personnel(request):
                     'phone_verified': 0,
                     'username': username,
                     'password_hash': '',
-                    'user_id': None,
                     'id_etablissement': int(id_etablissement),
                     'imageUrl': '',
                     'identiteUrl': '',
@@ -5631,13 +5630,12 @@ def dashboard_import_personnel(request):
                                 'phone_verified': 0,
                                 'username': username,
                                 'password_hash': '',
-                                'user_id': None,
                                 'id_etablissement': id_etablissement,
                                 'imageUrl': '',
                                 'identiteUrl': '',
                                 'code_secret': None,
                                 'codeAnnee': None,
-                                'date_creation': datetime.today().strftime('%Y-%m-%d'),
+                                'date_creation': __import__('datetime').date.today().strftime('%Y-%m-%d'),
                             }
                             cols = ', '.join(fields.keys())
                             placeholders = ', '.join(['%s'] * len(fields))
