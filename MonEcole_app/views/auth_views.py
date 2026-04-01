@@ -573,10 +573,15 @@ def request_otp(request):
             if not phone.startswith('+'):
                 phone = '+' + phone
 
+            # Masquer pour affichage
+            masked_phone = phone[:4] + '****' + phone[-2:] if len(phone) > 6 else phone
+
             try:
                 import urllib.request
                 import urllib.parse
+                import urllib.error
                 import base64
+                import sys
 
                 from django.conf import settings as _settings
                 sid = getattr(_settings, 'TWILIO_ACCOUNT_SID', '')
@@ -600,20 +605,33 @@ def request_otp(request):
                 req.add_header('Authorization', f'Basic {credentials}')
                 req.add_header('Content-Type', 'application/x-www-form-urlencoded')
 
-                with urllib.request.urlopen(req, timeout=15) as resp:
-                    status_code = resp.getcode()
-                    if status_code >= 300:
-                        import sys
-                        print(f"[OTP] Twilio WhatsApp error: HTTP {status_code}", file=sys.stderr, flush=True)
+                try:
+                    with urllib.request.urlopen(req, timeout=15) as resp:
+                        resp_body = resp.read().decode('utf-8', errors='replace')
+                        print(f"[OTP] Twilio OK ({resp.getcode()}): {resp_body[:300]}", file=sys.stderr, flush=True)
+                except urllib.error.HTTPError as http_err:
+                    err_body = http_err.read().decode('utf-8', errors='replace')
+                    print(f"[OTP] Twilio HTTP Error {http_err.code}: {err_body[:500]}", file=sys.stderr, flush=True)
+                    # Ne pas bloquer — le code est en session, on continue
+                except urllib.error.URLError as url_err:
+                    print(f"[OTP] Twilio URL Error: {url_err.reason}", file=sys.stderr, flush=True)
+
             except Exception as wa_err:
                 import traceback, sys
                 traceback.print_exc()
                 print(f"[OTP] WhatsApp send error: {wa_err}", file=sys.stderr, flush=True)
 
+            return JsonResponse({
+                'success': True,
+                'token': 'session',
+                'phone': masked_phone,
+                'message': f'Un code de vérification a été envoyé sur WhatsApp au {masked_phone}.',
+            })
+
         return JsonResponse({
             'success': True,
             'token': 'session',
-            'message': f'Un code de vérification a été envoyé à votre {"email" if method == "EMAIL" else "WhatsApp"}.',
+            'message': f'Un code de vérification a été envoyé à votre email.',
         })
 
     except Exception as e:

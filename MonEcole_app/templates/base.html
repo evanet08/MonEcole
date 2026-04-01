@@ -514,7 +514,8 @@
                     <i class="fab fa-whatsapp" style="color:#fff;font-size:1.6rem"></i>
                 </div>
                 <h3 style="font-size:1.1rem;font-weight:700;color:#1e293b;margin:0">Vérifier votre WhatsApp</h3>
-                <p style="font-size:0.78rem;color:#64748b;margin:4px 0 0">Recevez un code sur votre numéro pour le valider</p>
+                <p style="font-size:0.78rem;color:#64748b;margin:4px 0 0">Un code sera envoyé au numéro :</p>
+                <p id="waPhoneDisplay" style="font-size:1rem;font-weight:700;color:#1e293b;margin:6px 0 0;letter-spacing:1px">{{ user_phone|default:'—' }}</p>
             </div>
 
             <!-- Step 1: Send -->
@@ -569,6 +570,10 @@
             if (d.success) {
                 document.getElementById('waStep1').style.display = 'none';
                 document.getElementById('waStep2').style.display = 'block';
+                if (d.phone) {
+                    document.getElementById('waPhoneDisplay').textContent = d.phone;
+                    document.getElementById('waSentMsg').innerHTML = '<i class="fas fa-check-circle"></i> Code envoyé au ' + d.phone + ' !';
+                }
             } else {
                 showWaMsg(d.error || 'Erreur', '#ef4444');
                 if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fab fa-whatsapp"></i> Réessayer'; }
