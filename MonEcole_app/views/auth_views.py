@@ -586,15 +586,15 @@ def request_otp(request):
                 from django.conf import settings as _settings
                 sid = getattr(_settings, 'TWILIO_ACCOUNT_SID', '')
                 token = getattr(_settings, 'TWILIO_AUTH_TOKEN', '')
-                messaging_sid = getattr(_settings, 'TWILIO_MESSAGING_SERVICE_SID', '')
+                from_number = getattr(_settings, 'TWILIO_PHONE_NUMBER', '')
 
-                if not sid or not token:
+                if not sid or not token or not from_number:
                     return JsonResponse({'success': False, 'error': 'Service SMS non configuré.'}, status=500)
 
                 url = f'https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json'
                 msg_body = f'MonEcole - Votre code de vérification est : {code} (expire dans 10 min)'
                 post_data = urllib.parse.urlencode({
-                    'MessagingServiceSid': messaging_sid,
+                    'From': from_number,
                     'To': phone,
                     'Body': msg_body,
                 }).encode('utf-8')
