@@ -2,7 +2,7 @@
 from django.http import HttpResponse
 from django.contrib import messages
 from django.utils.text import slugify
-from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect
 from django.views.decorators.csrf import csrf_exempt
 from reportlab.lib.units import mm
 from reportlab.lib.pagesizes import A4
@@ -10,6 +10,7 @@ from reportlab.platypus import SimpleDocTemplate, PageBreak
 from io import BytesIO
 from MonEcole_app.views.rdc_structure import *
 from MonEcole_app.models.campus import Campus
+from functools import wraps
 
 # module_required decorator
 try:
@@ -19,6 +20,16 @@ except ImportError:
         def decorator(view_func):
             return view_func
         return decorator
+
+
+def login_required(view_func):
+    """Session-based login check (non-parameterized for @login_required usage)."""
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.session.get('personnel_id'):
+            return redirect('/login/')
+        return view_func(request, *args, **kwargs)
+    return wrapper
 
 @csrf_exempt
 @login_required

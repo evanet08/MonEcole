@@ -5142,7 +5142,7 @@ def dashboard_personnel_list(request):
 @require_http_methods(["POST"])
 def dashboard_add_personnel(request):
     """Add a new personnel member. Matricule auto-generated as M_x_y.
-    Creates a unique auth_user per personnel to avoid OneToOneField violations.
+    Plus de création dans auth_user — tout passe par personnel directement.
     Sets email_verified=0 and phone_verified=0 for new personnel.
     """
     try:
@@ -5158,33 +5158,32 @@ def dashboard_add_personnel(request):
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
-                # Ensure email_verified and phone_verified columns exist
-                for col_name in ('email_verified', 'phone_verified'):
+                # Ensure new columns exist
+                for col_name in ('email_verified', 'phone_verified', 'username', 'password_hash', 'last_login'):
                     try:
-                        cur.execute(f"ALTER TABLE personnel ADD COLUMN {col_name} TINYINT(1) NOT NULL DEFAULT 0")
+                        if col_name == 'password_hash':
+                            cur.execute(f"ALTER TABLE personnel ADD COLUMN {col_name} VARCHAR(255) DEFAULT ''")
+                        elif col_name == 'username':
+                            cur.execute(f"ALTER TABLE personnel ADD COLUMN {col_name} VARCHAR(150) DEFAULT NULL")
+                        elif col_name == 'last_login':
+                            cur.execute(f"ALTER TABLE personnel ADD COLUMN {col_name} DATETIME DEFAULT NULL")
+                        else:
+                            cur.execute(f"ALTER TABLE personnel ADD COLUMN {col_name} TINYINT(1) NOT NULL DEFAULT 0")
                         conn.commit()
                     except Exception:
                         conn.rollback()  # Column already exists
 
-                # CREATE a unique auth_user for this personnel
-                # (user_id is UNIQUE + NOT NULL in personnel table via OneToOneField)
-                import hashlib
-                ts = datetime.datetime.now().timestamp()
+                # Générer un username unique
+                import time as _time
+                ts = _time.time()
                 username = f"pers_{id_etablissement}_{int(ts)}"
-                hashed_pw = hashlib.sha256(username.encode()).hexdigest()[:30]
                 email_val = data.get('email') or ''
-
-                cur.execute("""
-                    INSERT INTO auth_user (username, password, is_superuser, is_staff, is_active, date_joined, first_name, last_name, email)
-                    VALUES (%s, %s, 0, 0, 1, NOW(), %s, %s, %s)
-                """, [username, f'!{hashed_pw}', prenom or '', nom, email_val])
-                new_user_id = cur.lastrowid
 
                 fields = {
                     'nom': nom,
                     'postnom': postnom,
                     'prenom': prenom,
-                    'matricule': f'TEMP_{id_etablissement}_{ts}',  # temp, auto-replaced after INSERT
+                    'matricule': f'TEMP_{id_etablissement}_{int(ts)}',
                     'genre': genre,
                     'date_naissance': data.get('date_naissance') or None,
                     'etat_civil': data.get('etat_civil', ''),
@@ -5215,7 +5214,9 @@ def dashboard_add_personnel(request):
                     'is_verified': 0,
                     'email_verified': 0,
                     'phone_verified': 0,
-                    'user_id': new_user_id,
+                    'username': username,
+                    'password_hash': '',
+                    'user_id': None,
                     'id_etablissement': int(id_etablissement),
                     'imageUrl': '',
                     'identiteUrl': '',
@@ -5587,24 +5588,17 @@ def dashboard_import_personnel(request):
                                 cur.execute(f"UPDATE personnel SET {', '.join(set_parts)} WHERE id_personnel = %s", set_vals)
                             updated += 1
                         else:
-                            # CREATE a unique auth_user for this personnel
-                            # (user_id is UNIQUE + NOT NULL in personnel table)
-                            import hashlib
-                            ts = datetime.now().timestamp()
+                            # INSERT new personnel directly (no auth_user)
+                            import time as _time
+                            ts = _time.time()
                             username = f"pers_{id_etablissement}_{row_idx}_{int(ts)}"
-                            hashed_pw = hashlib.sha256(username.encode()).hexdigest()[:30]
-                            cur.execute("""
-                                INSERT INTO auth_user (username, password, is_superuser, is_staff, is_active, date_joined, first_name, last_name, email)
-                                VALUES (%s, %s, 0, 0, 1, NOW(), %s, %s, %s)
-                            """, [username, f'!{hashed_pw}', prenom or '', nom, email or ''])
-                            new_user_id = cur.lastrowid
 
                             # INSERT new personnel
                             fields = {
                                 'nom': nom,
                                 'postnom': postnom,
                                 'prenom': prenom,
-                                'matricule': f'TEMP_{id_etablissement}_{row_idx}_{ts}',
+                                'matricule': f'TEMP_{id_etablissement}_{row_idx}_{int(ts)}',
                                 'genre': genre or 'M',
                                 'date_naissance': date_naissance,
                                 'etat_civil': etat_civil,
@@ -5635,7 +5629,9 @@ def dashboard_import_personnel(request):
                                 'is_verified': 0,
                                 'email_verified': 0,
                                 'phone_verified': 0,
-                                'user_id': new_user_id,
+                                'username': username,
+                                'password_hash': '',
+                                'user_id': None,
                                 'id_etablissement': id_etablissement,
                                 'imageUrl': '',
                                 'identiteUrl': '',
@@ -9887,12 +9883,12 @@ def dashboard_horaire(request):
                     except:
                         cours_map[ca.id_cours_classe] = str(ca.id_cours_classe)
 
-            # Charger les noms depuis le Spoke (personnel → user)
+            # Charger les noms depuis le Spoke (personnel)
             pers_map = {}
             if personnel_ids:
-                for p in Personnel.objects.filter(id_personnel__in=personnel_ids).select_related('user'):
+                for p in Personnel.objects.filter(id_personnel__in=personnel_ids):
                     try:
-                        pers_map[p.id_personnel] = f"{p.user.first_name} {p.user.last_name} ({p.matricule})"
+                        pers_map[p.id_personnel] = f"{p.prenom or ''} {p.nom or ''} ({p.matricule})"
                     except:
                         pers_map[p.id_personnel] = f"Personnel #{p.id_personnel}"
 
@@ -10255,13 +10251,12 @@ def dashboard_users_list(request):
             with conn.cursor() as cur:
                 # Tous les personnels en fonction pour cet établissement
                 cur.execute("""
-                    SELECT p.id_personnel, au.email, au.first_name, au.last_name,
+                    SELECT p.id_personnel, p.email, p.prenom as first_name, p.nom as last_name,
                            p.matricule, p.isUser, p.is_verified, p.en_fonction,
-                           p.telephone, au.id as auth_user_id
+                           p.telephone, p.id_personnel as personnel_id
                     FROM personnel p
-                    JOIN auth_user au ON au.id = p.user_id
                     WHERE p.id_etablissement = %s
-                    ORDER BY au.last_name, au.first_name
+                    ORDER BY p.nom, p.prenom
                 """, [etab_id])
                 personnels = cur.fetchall()
 
@@ -10294,7 +10289,7 @@ def dashboard_users_list(request):
                 user_mods = um_map.get(pid, {})
                 users.append({
                     'id_personnel': pid,
-                    'auth_user_id': p['auth_user_id'],
+                    'personnel_id': pid,
                     'email': email,
                     'first_name': p['first_name'] or '',
                     'last_name': p['last_name'] or '',
@@ -10350,8 +10345,7 @@ def dashboard_users_toggle(request):
         try:
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT au.email FROM personnel p
-                    JOIN auth_user au ON au.id = p.user_id
+                    SELECT p.email FROM personnel p
                     WHERE p.id_personnel = %s
                 """, [pid])
                 row = cur.fetchone()
@@ -10410,8 +10404,7 @@ def dashboard_users_modules(request):
         try:
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT au.email FROM personnel p
-                    JOIN auth_user au ON au.id = p.user_id
+                    SELECT p.email FROM personnel p
                     WHERE p.id_personnel = %s
                 """, [pid])
                 row = cur.fetchone()

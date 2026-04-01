@@ -3,8 +3,20 @@ Vue Dashboard principal MonEcole.
 Point d'entrée après login — affiche les stats de l'établissement.
 """
 from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
 from django.db import connections
+from functools import wraps
+
+
+def login_required(login_url='login'):
+    """Session-based login check."""
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            if not request.session.get('personnel_id'):
+                return redirect(login_url)
+            return view_func(request, *args, **kwargs)
+        return wrapper
+    return decorator
 
 
 @login_required(login_url='login')

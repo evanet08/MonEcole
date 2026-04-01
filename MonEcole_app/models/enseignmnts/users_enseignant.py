@@ -7,7 +7,8 @@ from MonEcole_app.models.country_structure import Session, Cycle, EtablissementA
 
 class User_enseignement(models.Model):
     id_user_enseignant = models.AutoField(primary_key=True)
-    user = models.ForeignKey("Personnel",on_delete=models.PROTECT,null=False)
+    user = models.ForeignKey("Personnel", on_delete=models.PROTECT, null=False,
+                              db_column='user_id', db_constraint=False)
     id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null=False, db_constraint=False)
     id_campus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)
     classe_id = models.ForeignKey(EtablissementAnneeClasse,on_delete=models.PROTECT,null=False,
@@ -24,7 +25,7 @@ class User_enseignement(models.Model):
         db_table = 'user_enseignement'
         
     def __str__(self):
-        return self.user.user.first_name
+        return self.user.prenom or self.user.nom or str(self.user.matricule)
         
 class Users_other_module(models.Model):
     id_user_per_module = models.AutoField(primary_key=True)

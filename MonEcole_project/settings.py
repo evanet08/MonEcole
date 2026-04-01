@@ -34,9 +34,7 @@ if '.monecole.pro' not in ALLOWED_HOSTS:
 if '*' not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append('*')
 
-AUTHENTICATION_BACKENDS = [
-    'django.contrib.auth.backends.ModelBackend',
-]
+# Auth is handled by PersonnelAuthMiddleware + session — no Django auth backends needed
 
 INSTALLED_APPS = [
     'jazzmin',
@@ -56,7 +54,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'MonEcole_app.middleware.auth.PersonnelAuthMiddleware',
     'MonEcole_app.middleware.tenant.TenantMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',

@@ -1,17 +1,17 @@
 """
 Views d'authentification pour MonEcole.
-Utilise Django auth_user + Personnel + UserModule + Module (tout dans db_monecole).
+Utilise Personnel directement (sans auth_user).
 Flow : Email → Password → Dashboard (avec chargement des modules).
 """
 import json
 import time
+import hashlib
+import secrets
 
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.models import User
 from django.db import connections
 
 from MonEcole_app.variables import MODULE_ID_TO_PAGE
@@ -62,12 +62,9 @@ def _load_user_modules(request, personnel):
                     })
 
         # ── Auto-inject Espace Enseignant (module 5) ──
-        # Un enseignant est défini par la présence d'attributions de cours,
-        # pas par une assignation manuelle du module.
         ESPACE_ENSEIGNANT_ID = 5
         if ESPACE_ENSEIGNANT_ID not in seen_ids and etab_id:
             try:
-                from django.db import connections
                 with connections['default'].cursor() as cur:
                     cur.execute("""
                         SELECT COUNT(*) FROM attribution_cours
@@ -118,9 +115,11 @@ def get_redirect_url_for_user(modules=None):
 
 def login_view(request):
     """Vue de la page de connexion."""
-    if request.user.is_authenticated:
+    # Vérifier si déjà connecté via la session
+    personnel_id = request.session.get('personnel_id')
+    if personnel_id:
         try:
-            personnel = Personnel.objects.get(user=request.user)
+            personnel = Personnel.objects.get(id_personnel=personnel_id)
             if personnel.isUser and personnel.en_fonction:
                 return redirect('/dashboard/')
         except Personnel.DoesNotExist:
@@ -153,7 +152,6 @@ def login_view(request):
 
 def logout_view(request):
     """Déconnexion."""
-    logout(request)
     request.session.flush()
     return redirect('login')
 
@@ -167,7 +165,6 @@ def _verify_hub_password(stored_hash, password):
     Vérifie un mot de passe contre le hash du Hub (PBKDF2-SHA256, format: salt$hex).
     Même algorithme que dans eSchoolStructure/structure_app/auth_views.py.
     """
-    import hashlib
     if not stored_hash or '$' not in stored_hash:
         return False
     try:
@@ -186,7 +183,6 @@ def _check_hub_user(email, etab_id):
       2) admin_users — tout utilisateur Hub assigné à cet établissement
 
     Retourne (found, is_super_admin, hub_info_dict) ou (False, False, None).
-    hub_info_dict contient: password_hash, email_verified, telephone, nom_etab
     """
     if not etab_id or not email:
         return False, False, None
@@ -247,7 +243,7 @@ def _check_hub_user(email, etab_id):
 
 # Rétro-compatibilité
 def _check_hub_admin(email, etab_id):
-    """Wrapper rétro-compatible. Retourne (is_admin, admin_email, info)."""
+    """Wrapper rétro-compatible."""
     found, is_super, info = _check_hub_user(email, etab_id)
     if found:
         return True, email, info
@@ -256,60 +252,29 @@ def _check_hub_admin(email, etab_id):
 
 def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, password=None):
     """
-    Auto-crée auth_user + personnel + user_module pour un utilisateur Hub
+    Auto-crée un personnel + user_module pour un utilisateur Hub
     s'ils n'existent pas encore dans le spoke.
-    
+
     - is_super=True  → provisionne TOUS les modules
     - is_super=False → provisionne le module Administration par défaut
-    - hub_info dict peut contenir: password_hash, email_verified, telephone
-    
-    Retourne (django_user, personnel).
-    """
-    from django.contrib.auth.hashers import make_password
-    import hashlib
 
+    Retourne personnel.
+    """
     hub_password_hash = (hub_info or {}).get('password_hash', '') if hub_info else ''
     hub_telephone = (hub_info or {}).get('telephone', '') if hub_info else ''
 
-    # 1. Chercher ou créer auth_user
+    # 1. Chercher le personnel existant par email
     try:
-        django_user = User.objects.get(email__iexact=email)
-    except User.DoesNotExist:
-        username = email.split('@')[0].lower().replace('.', '_')
-        # Garantir unicité du username
-        base_username = username
-        counter = 1
-        while User.objects.filter(username=username).exists():
-            username = f"{base_username}_{counter}"
-            counter += 1
-        django_user = User.objects.create(
-            username=username,
-            email=email.lower(),
-            first_name='Admin' if is_super else '',
-            last_name='',
-            is_active=True,
-        )
-        if password:
-            django_user.set_password(password)
-            django_user.save()
-
-    # Si le user n'a pas de mot de passe utilisable ET qu'on a un mot de passe fourni
-    if password and not django_user.has_usable_password():
-        django_user.set_password(password)
-        django_user.save()
-
-    # 2. Chercher ou créer personnel
-    try:
-        personnel = Personnel.objects.get(user=django_user)
+        personnel = Personnel.objects.get(email__iexact=email, id_etablissement=etab_id)
     except Personnel.DoesNotExist:
-        # Générer un matricule unique
-        last_pers = Personnel.objects.filter(
-            id_etablissement=etab_id
-        ).order_by('-id_personnel').first()
-        next_num = (last_pers.id_personnel + 1) if last_pers else 1
-        matricule = f"M_{etab_id}_{next_num}"
+        # Chercher sans filtre etab
+        try:
+            personnel = Personnel.objects.get(email__iexact=email)
+        except (Personnel.DoesNotExist, Personnel.MultipleObjectsReturned):
+            personnel = None
 
-        # Valeurs par défaut pour les FK obligatoires
+    if personnel is None:
+        # Créer le personnel directement
         from MonEcole_app.models.personnel import (
             Diplome, Specialite, Personnel_categorie, Vacation, PersonnelType
         )
@@ -329,34 +294,73 @@ def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, pass
             type='Administrateur', defaults={'sigle': 'Admin'}
         )
 
-        personnel = Personnel.objects.create(
-            user=django_user,
-            matricule=matricule,
-            id_etablissement=etab_id,
-            id_diplome=def_diplome,
-            id_specialite=def_spec,
-            id_categorie=def_cat,
-            id_vacation=def_vac,
-            id_personnel_type=def_type,
-            isUser=True,
-            is_verified=True,
-            en_fonction=True,
-            telephone=hub_telephone or '',
-        )
+        # Générer un username unique
+        username = email.split('@')[0].lower().replace('.', '_')
+        base_username = username
+        counter = 1
+        while Personnel.objects.filter(username=username).exists():
+            username = f"{base_username}_{counter}"
+            counter += 1
+
+        # Créer via SQL direct (managed=False)
+        with connections['default'].cursor() as cur:
+            ts = int(time.time())
+            matricule = f"M_{etab_id}_{ts}"
+
+            cur.execute("""
+                INSERT INTO personnel (
+                    username, email, password_hash, nom, prenom, matricule,
+                    genre, id_etablissement, id_diplome_id, id_specialite_id,
+                    id_categorie_id, id_vacation_id, id_personnel_type_id,
+                    isUser, is_verified, en_fonction, email_verified, phone_verified,
+                    telephone, date_creation
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s,
+                    %s, %s, %s,
+                    1, 1, 1, 0, 0,
+                    %s, CURDATE()
+                )
+            """, [
+                username, email.lower(), '', 'Admin' if is_super else '', '',
+                matricule, 'M', etab_id,
+                def_diplome.id_diplome, def_spec.id_specialite,
+                def_cat.id_personnel_category, def_vac.id_vacation,
+                def_type.id_type_personnel,
+                hub_telephone or '',
+            ])
+            new_id = cur.lastrowid
+            # Fix matricule
+            final_matricule = f"M_{etab_id}_{new_id}"
+            cur.execute("UPDATE personnel SET matricule=%s WHERE id_personnel=%s", [final_matricule, new_id])
+
+        personnel = Personnel.objects.get(id_personnel=new_id)
+
+    # 2. Set password if provided
+    if password and not personnel.has_usable_password():
+        personnel.set_password(password)
+        with connections['default'].cursor() as cur:
+            cur.execute(
+                "UPDATE personnel SET password_hash=%s WHERE id_personnel=%s",
+                [personnel.password_hash, personnel.id_personnel]
+            )
 
     # 3. Garantir isUser, is_verified, en_fonction
     if not personnel.isUser or not personnel.is_verified or not personnel.en_fonction:
-        Personnel.objects.filter(id_personnel=personnel.id_personnel).update(
-            isUser=True, is_verified=True, en_fonction=True
-        )
-        personnel.refresh_from_db()
+        with connections['default'].cursor() as cur:
+            cur.execute(
+                "UPDATE personnel SET isUser=1, is_verified=1, en_fonction=1 WHERE id_personnel=%s",
+                [personnel.id_personnel]
+            )
+        personnel.isUser = True
+        personnel.is_verified = True
+        personnel.en_fonction = True
 
     # 4. Créer user_module
     annee = Annee.objects.order_by('-annee').first()
     annee_id = annee.id_annee if annee else 1
 
     if is_super:
-        # Super admin → TOUS les modules
         all_modules = Module.objects.all()
         for mod in all_modules:
             um, created = UserModule.objects.get_or_create(
@@ -372,7 +376,6 @@ def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, pass
                 um.is_active = True
                 um.save()
     else:
-        # Utilisateur Hub normal → au moins le module Administration (id=1)
         admin_mod = Module.objects.filter(id_module=1).first()
         if admin_mod:
             um, created = UserModule.objects.get_or_create(
@@ -388,7 +391,7 @@ def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, pass
                 um.is_active = True
                 um.save()
 
-    return django_user, personnel
+    return personnel
 
 
 # Rétro-compatibilité
@@ -401,7 +404,7 @@ def _auto_provision_super_admin(email, etab_id, password=None):
 @require_http_methods(["POST"])
 def check_email(request):
     """
-    Étape 1: Vérifie si un email existe dans auth_user + personnel.
+    Étape 1: Vérifie si un email existe dans personnel.
     Si introuvable → cherche dans le Hub (admin_users + admin_email) et auto-crée si match.
     """
     try:
@@ -413,31 +416,30 @@ def check_email(request):
 
         etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
 
-        # Chercher dans le spoke
-        user = None
+        # Chercher dans le spoke (personnel)
         personnel = None
         try:
-            user = User.objects.get(email__iexact=email)
-            try:
-                personnel = Personnel.objects.get(user=user)
-            except Personnel.DoesNotExist:
-                pass
-        except User.DoesNotExist:
+            personnel = Personnel.objects.get(email__iexact=email)
+        except Personnel.DoesNotExist:
             pass
+        except Personnel.MultipleObjectsReturned:
+            # Prendre celui de l'établissement courant
+            if etab_id:
+                personnel = Personnel.objects.filter(email__iexact=email, id_etablissement=etab_id).first()
+            if not personnel:
+                personnel = Personnel.objects.filter(email__iexact=email).first()
 
         # Si introuvable dans le spoke → chercher dans le Hub
         is_hub_user = False
         is_super = False
-        if user is None or personnel is None:
+        if personnel is None:
             found, is_super, hub_info = _check_hub_user(email, etab_id)
             if found:
                 is_hub_user = True
-                # Auto-créer dans le spoke
-                user, personnel = _auto_provision_hub_user(
+                personnel = _auto_provision_hub_user(
                     email, etab_id, hub_info=hub_info, is_super=is_super
                 )
             else:
-                # Ni dans le spoke, ni dans le Hub → n'existe pas
                 return JsonResponse({
                     'success': True,
                     'exists': False,
@@ -449,7 +451,6 @@ def check_email(request):
             found, is_super, hub_info = _check_hub_user(email, etab_id)
             if found:
                 is_hub_user = True
-                # Auto-provisionner (activer flags + modules)
                 _auto_provision_hub_user(
                     email, etab_id, hub_info=hub_info, is_super=is_super
                 )
@@ -475,7 +476,7 @@ def check_email(request):
                         'error': "Vous n'avez pas accès à cet établissement."
                     }, status=403)
 
-        has_password = user.has_usable_password()
+        has_password = personnel.has_usable_password()
 
         return JsonResponse({
             'success': True,
@@ -485,8 +486,8 @@ def check_email(request):
             'multiple_accounts': False,
             'accounts': [],
             'user': {
-                'id': user.id,
-                'email': user.email,
+                'id': personnel.id_personnel,
+                'email': personnel.email or '',
                 'telephone': str(personnel.telephone) if personnel.telephone else '',
                 'niveau_nom': '',
                 'niveau_ordre': 0,
@@ -503,7 +504,7 @@ def check_email(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def request_otp(request):
-    """OTP non utilisé dans cette version. Retourne un message indicatif."""
+    """OTP non utilisé dans cette version."""
     return JsonResponse({
         'success': False,
         'error': "Contactez l'administrateur pour activer votre compte."
@@ -533,7 +534,7 @@ def set_password(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_login(request):
-    """Connexion email + mot de passe via Django auth.
+    """Connexion email + mot de passe via Personnel.
     Vérifie d'abord le Spoke, puis le Hub si nécessaire."""
     try:
         data = json.loads(request.body)
@@ -542,33 +543,30 @@ def api_login(request):
 
         etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
 
-        # Chercher dans le spoke
-        django_user = None
+        # Chercher dans le spoke (personnel)
         personnel = None
         try:
-            django_user = User.objects.get(email__iexact=email)
-            try:
-                personnel = Personnel.objects.get(user=django_user)
-            except Personnel.DoesNotExist:
-                pass
-        except User.DoesNotExist:
+            if etab_id:
+                personnel = Personnel.objects.filter(email__iexact=email, id_etablissement=etab_id).first()
+            if not personnel:
+                personnel = Personnel.objects.filter(email__iexact=email).first()
+        except Exception:
             pass
 
         # Si introuvable → chercher dans le Hub
         is_hub_user = False
         is_super = False
         hub_info = None
-        if django_user is None or personnel is None:
+        if personnel is None:
             found, is_super, hub_info = _check_hub_user(email, etab_id)
             if found:
                 is_hub_user = True
-                django_user, personnel = _auto_provision_hub_user(
+                personnel = _auto_provision_hub_user(
                     email, etab_id, hub_info=hub_info, is_super=is_super, password=password
                 )
             else:
                 return JsonResponse({'success': False, 'error': 'Identifiants incorrects'}, status=401)
         else:
-            # L'utilisateur existe — vérifier s'il est aussi dans le Hub
             found, is_super, hub_info = _check_hub_user(email, etab_id)
             if found:
                 is_hub_user = True
@@ -577,7 +575,7 @@ def api_login(request):
                 )
                 personnel.refresh_from_db()
 
-        # Checks normaux (utilisateur Hub déjà auto-provisionné, donc passe)
+        # Checks normaux
         if not personnel.isUser or not personnel.en_fonction:
             return JsonResponse({'success': False, 'error': 'Compte non autorisé.'}, status=403)
 
@@ -588,25 +586,57 @@ def api_login(request):
                 'email_not_verified': True,
             }, status=403)
 
-        # Authentifier via Django
-        authenticated_user = authenticate(request, username=django_user.username, password=password)
+        # Vérifier le mot de passe
+        authenticated = personnel.check_password(password)
 
-        # Si Django auth échoue, essayer le mot de passe Hub
-        if authenticated_user is None and is_hub_user:
+        # Si échec, essayer le mot de passe Hub
+        if not authenticated and is_hub_user:
             hub_pw_hash = (hub_info or {}).get('password_hash', '')
             if hub_pw_hash and _verify_hub_password(hub_pw_hash, password):
-                # Le mot de passe Hub est correct → sync dans Django
-                django_user.set_password(password)
-                django_user.save()
-                authenticated_user = authenticate(request, username=django_user.username, password=password)
-            elif not django_user.has_usable_password():
+                # Le mot de passe Hub est correct → sync dans personnel
+                personnel.set_password(password)
+                with connections['default'].cursor() as cur:
+                    cur.execute(
+                        "UPDATE personnel SET password_hash=%s WHERE id_personnel=%s",
+                        [personnel.password_hash, personnel.id_personnel]
+                    )
+                authenticated = True
+            elif not personnel.has_usable_password():
                 # Premier login — définir le mot de passe
-                django_user.set_password(password)
-                django_user.save()
-                authenticated_user = authenticate(request, username=django_user.username, password=password)
+                personnel.set_password(password)
+                with connections['default'].cursor() as cur:
+                    cur.execute(
+                        "UPDATE personnel SET password_hash=%s WHERE id_personnel=%s",
+                        [personnel.password_hash, personnel.id_personnel]
+                    )
+                authenticated = True
 
-        if authenticated_user is None:
+        if not authenticated:
             return JsonResponse({'success': False, 'error': 'Identifiants incorrects'}, status=401)
+
+        # Vérifier email_verified / phone_verified AVANT la session complète
+        email_verified = bool(getattr(personnel, 'email_verified', 0))
+        phone_verified = bool(getattr(personnel, 'phone_verified', 0))
+        needs_verification = not email_verified and not phone_verified
+
+        if needs_verification:
+            # Créer une session limitée — accès uniquement à la page de vérification
+            request.session.flush()
+            request.session['personnel_id'] = personnel.id_personnel
+            request.session['user_email'] = personnel.email or ''
+            request.session['_personnel_phone'] = str(personnel.telephone) if personnel.telephone else ''
+            request.session['needs_verification'] = True
+            request.session['_last_activity'] = time.time()
+
+            return JsonResponse({
+                'success': True,
+                'needs_contact_verification': True,
+                'redirect_url': '/login/?step=verify',
+                'email': personnel.email or '',
+                'phone': str(personnel.telephone)[:4] + '****' if personnel.telephone else '',
+                'email_verified': False,
+                'phone_verified': False,
+            })
 
         # Vérifier les modules pour l'établissement
         if etab_id:
@@ -628,49 +658,27 @@ def api_login(request):
                 'error': "Aucun module assigné à votre compte."
             }, status=403)
 
-        # Login Django
-        login(request, authenticated_user)
-
-        # Session
-        request.session['user_id'] = django_user.id
-        request.session['user_email'] = django_user.email
+        # ── Créer la session COMPLÈTE (compte vérifié) ──
+        request.session.flush()  # Clean start
         request.session['personnel_id'] = personnel.id_personnel
+        request.session['user_id'] = personnel.id_personnel  # Rétro-compat
+        request.session['user_email'] = personnel.email or ''
         request.session['_last_activity'] = time.time()
+        request.session['_personnel_cached'] = True
+        request.session['_personnel_email'] = personnel.email or ''
+        request.session['_personnel_nom'] = personnel.nom or ''
+        request.session['_personnel_prenom'] = personnel.prenom or ''
+        request.session['_personnel_matricule'] = personnel.matricule or ''
+        request.session['needs_verification'] = False
         if is_super:
             request.session['is_super_admin'] = True
+
+        # Mettre à jour last_login
+        personnel.update_last_login()
 
         # Charger les modules
         user_modules = _load_user_modules(request, personnel)
 
-        # Vérifier email_verified / phone_verified depuis la base
-        email_verified = True
-        phone_verified = True
-        try:
-            with connections['default'].cursor() as cur:
-                # Ensure columns exist (defensive — first login after migration)
-                for col_name in ('email_verified', 'phone_verified'):
-                    try:
-                        cur.execute(f"ALTER TABLE personnel ADD COLUMN {col_name} TINYINT(1) NOT NULL DEFAULT 0")
-                    except Exception:
-                        pass  # Column already exists
-
-                cur.execute(
-                    "SELECT email_verified, phone_verified, email, telephone FROM personnel WHERE id_personnel=%s",
-                    [personnel.id_personnel]
-                )
-                row = cur.fetchone()
-                if row:
-                    email_verified = bool(row[0])
-                    phone_verified = bool(row[1])
-                    pers_email = row[2] or ''
-                    pers_phone = row[3] or ''
-        except Exception:
-            import traceback
-            traceback.print_exc()
-
-        needs_verification = not email_verified or not phone_verified
-
-        # Stocker le statut de vérification en session
         request.session['email_verified'] = email_verified
         request.session['phone_verified'] = phone_verified
 
@@ -679,11 +687,11 @@ def api_login(request):
             'redirect_url': get_redirect_url_for_user(user_modules),
             'modules': user_modules,
             'user': {
-                'email': django_user.email,
-                'last_name': django_user.last_name,
-                'first_name': django_user.first_name,
+                'email': personnel.email or '',
+                'last_name': personnel.nom or '',
+                'first_name': personnel.prenom or '',
             },
-            'needs_contact_verification': needs_verification,
+            'needs_contact_verification': False,
             'email_verified': email_verified,
             'phone_verified': phone_verified,
         }
@@ -700,7 +708,6 @@ def api_login(request):
 @require_http_methods(["POST"])
 def api_logout(request):
     """API Déconnexion."""
-    logout(request)
     request.session.flush()
     return JsonResponse({'success': True, 'redirect_url': '/login/'})
 
@@ -708,18 +715,19 @@ def api_logout(request):
 @require_http_methods(["GET"])
 def get_current_user(request):
     """Retourne les informations de l'utilisateur connecté."""
-    if not request.user.is_authenticated:
+    personnel_id = request.session.get('personnel_id')
+    if not personnel_id:
         return JsonResponse({'authenticated': False}, status=401)
 
     try:
-        personnel = Personnel.objects.get(user=request.user)
+        personnel = Personnel.objects.get(id_personnel=personnel_id)
         return JsonResponse({
             'authenticated': True,
             'user': {
-                'id': request.user.id,
-                'email': request.user.email,
-                'first_name': request.user.first_name,
-                'last_name': request.user.last_name,
+                'id': personnel.id_personnel,
+                'email': personnel.email or '',
+                'first_name': personnel.prenom or '',
+                'last_name': personnel.nom or '',
                 'matricule': personnel.matricule,
             }
         })
@@ -730,10 +738,11 @@ def get_current_user(request):
 def require_auth(view_func):
     """Décorateur pour exiger une authentification."""
     def wrapper(request, *args, **kwargs):
-        if not request.user.is_authenticated:
+        personnel_id = request.session.get('personnel_id')
+        if not personnel_id:
             return JsonResponse({'error': 'Non authentifié'}, status=401)
         try:
-            request.personnel = Personnel.objects.get(user=request.user)
+            request.personnel = Personnel.objects.get(id_personnel=personnel_id)
         except Personnel.DoesNotExist:
             return JsonResponse({'error': 'Compte non configuré'}, status=401)
         return view_func(request, *args, **kwargs)
@@ -744,50 +753,109 @@ def require_auth(view_func):
 @require_http_methods(["POST"])
 def verify_contact(request):
     """
-    API pour vérifier/confirmer les contacts (email + téléphone) lors de la première connexion.
-    Le personnel peut confirmer ou mettre à jour ses informations de contact.
+    API pour vérifier/confirmer les contacts (email ou téléphone) via code OTP.
+    
+    Flow :
+    1. Frontend envoie {type: 'email'|'phone', code: '123456'}
+    2. On vérifie le code OTP stocké en session
+    3. Si valide → on marque email_verified=1 ou phone_verified=1 dans personnel
+    4. On déverrouille la session (needs_verification = False)
     """
-    if not request.user.is_authenticated:
+    personnel_id = request.session.get('personnel_id')
+    if not personnel_id:
         return JsonResponse({'success': False, 'error': 'Non authentifié'}, status=401)
 
     try:
         data = json.loads(request.body)
+        verify_type = data.get('type', 'email')  # 'email' ou 'phone'
+        code = data.get('code', '').strip()
+        
+        # Aussi accepter la vérification directe (sans OTP) pour la mise à jour initiale
         email = data.get('email', '').strip()
         telephone = data.get('telephone', '').strip()
-        personnel_id = request.session.get('personnel_id')
+        direct_update = data.get('direct_update', False)
 
-        if not personnel_id:
-            return JsonResponse({'success': False, 'error': 'Session invalide'}, status=400)
+        if direct_update:
+            # Mode mise à jour directe (premier setup — pas de code OTP requis)
+            if not email:
+                return JsonResponse({'success': False, 'error': 'Email requis'}, status=400)
+            
+            with connections['default'].cursor() as cur:
+                cur.execute("""
+                    UPDATE personnel
+                    SET email = %s,
+                        telephone = %s,
+                        email_verified = 1,
+                        phone_verified = CASE WHEN %s != '' THEN 1 ELSE 0 END
+                    WHERE id_personnel = %s
+                """, [email, telephone or None, telephone, personnel_id])
+            
+            # Débloquer la session
+            request.session['email_verified'] = True
+            request.session['phone_verified'] = bool(telephone)
+            request.session['user_email'] = email
+            request.session['_personnel_email'] = email
+            request.session['_personnel_cached'] = True
+            request.session['needs_verification'] = False
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Contacts vérifiés avec succès.',
+                'email_verified': True,
+                'phone_verified': bool(telephone),
+            })
 
-        if not email:
-            return JsonResponse({'success': False, 'error': 'Email requis'}, status=400)
+        # Mode vérification par OTP
+        if not code or len(code) != 6:
+            return JsonResponse({'success': False, 'error': 'Code de vérification requis (6 chiffres)'}, status=400)
 
+        # Vérifier le code OTP en session
+        stored_code = request.session.get('_otp_code')
+        stored_type = request.session.get('_otp_type')
+        otp_expires = request.session.get('_otp_expires', 0)
+
+        if not stored_code:
+            return JsonResponse({'success': False, 'error': 'Aucun code de vérification en attente. Veuillez en demander un nouveau.'}, status=400)
+
+        import time as _time
+        if _time.time() > otp_expires:
+            # Nettoyer
+            for k in ('_otp_code', '_otp_type', '_otp_expires'):
+                request.session.pop(k, None)
+            return JsonResponse({'success': False, 'error': 'Code expiré. Veuillez en demander un nouveau.'}, status=400)
+
+        if code != stored_code:
+            # Incrémenter les tentatives
+            attempts = request.session.get('_otp_attempts', 0) + 1
+            request.session['_otp_attempts'] = attempts
+            if attempts >= 3:
+                for k in ('_otp_code', '_otp_type', '_otp_expires', '_otp_attempts'):
+                    request.session.pop(k, None)
+                return JsonResponse({'success': False, 'error': 'Trop de tentatives. Veuillez demander un nouveau code.'}, status=400)
+            return JsonResponse({'success': False, 'error': f'Code incorrect. {3 - attempts} tentative(s) restante(s).'}, status=400)
+
+        # Code correct → marquer comme vérifié
         with connections['default'].cursor() as cur:
-            # Mettre à jour email et téléphone, et marquer comme vérifié
-            cur.execute("""
-                UPDATE personnel
-                SET email = %s,
-                    telephone = %s,
-                    email_verified = 1,
-                    phone_verified = CASE WHEN %s != '' THEN 1 ELSE 0 END
-                WHERE id_personnel = %s
-            """, [email, telephone or None, telephone, personnel_id])
+            if verify_type == 'phone':
+                cur.execute("UPDATE personnel SET phone_verified = 1 WHERE id_personnel = %s", [personnel_id])
+                request.session['phone_verified'] = True
+            else:
+                cur.execute("UPDATE personnel SET email_verified = 1 WHERE id_personnel = %s", [personnel_id])
+                request.session['email_verified'] = True
 
-            # Aussi mettre à jour auth_user email
-            cur.execute("""
-                UPDATE auth_user SET email = %s WHERE id = %s
-            """, [email, request.user.id])
+        # Nettoyer les données OTP de session
+        for k in ('_otp_code', '_otp_type', '_otp_expires', '_otp_attempts'):
+            request.session.pop(k, None)
 
-        # Mettre à jour la session
-        request.session['email_verified'] = True
-        request.session['phone_verified'] = bool(telephone)
-        request.session['user_email'] = email
+        # Débloquer la session
+        request.session['needs_verification'] = False
+        request.session['_personnel_cached'] = True
 
         return JsonResponse({
             'success': True,
-            'message': 'Contacts vérifiés avec succès.',
-            'email_verified': True,
-            'phone_verified': bool(telephone),
+            'message': f"{'Téléphone' if verify_type == 'phone' else 'Email'} vérifié avec succès.",
+            'email_verified': request.session.get('email_verified', False),
+            'phone_verified': request.session.get('phone_verified', False),
         })
 
     except Exception as e:

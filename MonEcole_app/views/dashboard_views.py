@@ -4,8 +4,8 @@ Reproduit exactement le contexte de dashboard_etablissement_view d'eSchool,
 adapté pour le multi-tenant par sous-domaine de MonEcole.
 """
 import json
+from functools import wraps
 from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
 from django.db import connections
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
@@ -25,6 +25,18 @@ from MonEcole_app.models.annee import Annee
 from MonEcole_app.models.country_structure import (
     EtablissementAnnee, EtablissementAnneeClasse, CoursAnnee as CoursAnneeModel,
 )
+
+
+def login_required(login_url='login'):
+    """Décorateur session-based qui remplace @login_required de Django."""
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            if not request.session.get('personnel_id'):
+                return redirect(login_url)
+            return view_func(request, *args, **kwargs)
+        return wrapper
+    return decorator
 
 
 def _get_etab_id(request):
@@ -617,43 +629,26 @@ def espace_enseignant_view(request):
 
     try:
         from MonEcole_app.models.personnel import Personnel
-        # 1. Chercher par user_id (lien direct Django)
-        pers = Personnel.objects.select_related('user').filter(
-            user=request.user, id_etablissement=etab_id
-        ).first()
+        # 1. Chercher par personnel_id de la session
+        pers_id = request.session.get('personnel_id')
+        pers = None
+        if pers_id:
+            pers = Personnel.objects.filter(
+                id_personnel=pers_id, id_etablissement=etab_id
+            ).first()
 
-        # 2. Fallback: chercher par email dans la table SQL
-        #    (les personnel ajoutés via dashboard ont un user_id bidon)
+        # 2. Fallback: chercher par email
         if not pers and request.user.email:
             try:
-                with connections['default'].cursor() as cur:
-                    cur.execute("""
-                        SELECT id_personnel, user_id FROM personnel
-                        WHERE (LOWER(email) = LOWER(%s) OR user_id = %s) AND id_etablissement = %s
-                        LIMIT 1
-                    """, [request.user.email, request.user.id, etab_id])
-                    row = cur.fetchone()
-                    if row:
-                        target_pers_id = row[0]
-                        # Tenter le re-link silencieusement (sans crasher)
-                        try:
-                            cur.execute(
-                                "UPDATE personnel SET user_id = %s WHERE id_personnel = %s AND id_etablissement = %s",
-                                [request.user.id, target_pers_id, etab_id]
-                            )
-                        except Exception:
-                            pass
-                        # Charger via ORM
-                        pers = Personnel.objects.filter(
-                            id_personnel=target_pers_id
-                        ).first()
+                pers = Personnel.objects.filter(
+                    email__iexact=request.user.email, id_etablissement=etab_id
+                ).first()
             except Exception:
-                import traceback
-                traceback.print_exc()
+                pass
 
         if pers:
             personnel_id = pers.id_personnel
-            # Utiliser les champs SQL directs si disponibles (nom, prenom)
+            # Utiliser les champs directs de personnel
             try:
                 with connections['default'].cursor() as cur:
                     cur.execute(
@@ -664,9 +659,9 @@ def espace_enseignant_view(request):
                     if sql_row:
                         personnel_info = {
                             'id': pers.id_personnel,
-                            'nom': sql_row[0] or pers.user.last_name,
-                            'prenom': sql_row[2] or pers.user.first_name,
-                            'email': sql_row[3] or pers.user.email,
+                            'nom': sql_row[0] or pers.nom or '',
+                            'prenom': sql_row[2] or pers.prenom or '',
+                            'email': sql_row[3] or pers.email or '',
                             'matricule': pers.matricule,
                             'telephone': sql_row[4] or '',
                             'imageUrl': sql_row[5] or '',
@@ -674,9 +669,9 @@ def espace_enseignant_view(request):
                     else:
                         personnel_info = {
                             'id': pers.id_personnel,
-                            'nom': pers.user.last_name,
-                            'prenom': pers.user.first_name,
-                            'email': pers.user.email,
+                            'nom': pers.nom or '',
+                            'prenom': pers.prenom or '',
+                            'email': pers.email or '',
                             'matricule': pers.matricule,
                             'telephone': str(pers.telephone) if pers.telephone else '',
                             'imageUrl': pers.imageUrl.url if pers.imageUrl else '',
@@ -684,9 +679,9 @@ def espace_enseignant_view(request):
             except Exception:
                 personnel_info = {
                     'id': pers.id_personnel,
-                    'nom': pers.user.last_name,
-                    'prenom': pers.user.first_name,
-                    'email': pers.user.email,
+                    'nom': pers.nom or '',
+                    'prenom': pers.prenom or '',
+                    'email': pers.email or '',
                     'matricule': pers.matricule,
                     'telephone': str(pers.telephone) if pers.telephone else '',
                     'imageUrl': pers.imageUrl.url if pers.imageUrl else '',
@@ -796,8 +791,9 @@ def api_enseignant_debug(request):
     """DEBUG TEMPORAIRE — vérifie la chaîne de données enseignant."""
     import pymysql
     etab_id = _get_etab_id(request)
+    pers_id = request.session.get('personnel_id')
     debug = {
-        'user_id': request.user.id,
+        'personnel_id': pers_id,
         'user_email': request.user.email,
         'etab_id': etab_id,
         'steps': {}
@@ -814,12 +810,12 @@ def api_enseignant_debug(request):
             cursorclass=pymysql.cursors.DictCursor,
         )
         with conn.cursor() as cur:
-            # Step 1: All personnel for this user
-            cur.execute("SELECT id_personnel, user_id, id_etablissement, matricule, en_fonction FROM personnel WHERE user_id = %s", [request.user.id])
-            debug['steps']['1_personnel_by_user_id'] = cur.fetchall()
+            # Step 1: Personnel by id_personnel
+            cur.execute("SELECT id_personnel, id_etablissement, matricule, en_fonction, email FROM personnel WHERE id_personnel = %s", [pers_id])
+            debug['steps']['1_personnel_by_id'] = cur.fetchall()
 
             # Step 2: Personnel for this etab
-            cur.execute("SELECT id_personnel, user_id, id_etablissement, matricule FROM personnel WHERE user_id = %s AND id_etablissement = %s", [request.user.id, etab_id])
+            cur.execute("SELECT id_personnel, id_etablissement, matricule FROM personnel WHERE id_personnel = %s AND id_etablissement = %s", [pers_id, etab_id])
             personnel_rows = cur.fetchall()
             debug['steps']['2_personnel_for_etab'] = personnel_rows
 
@@ -860,7 +856,7 @@ def api_enseignant_debug(request):
 def api_enseignant_dashboard(request):
     """API : Données dashboard enseignant — cours, horaires, stats."""
     import pymysql, sys
-    print(f"[api_enseignant_dashboard] CALLED by user={request.user} (id={request.user.id}, email={request.user.email})", file=sys.stderr, flush=True)
+    print(f"[api_enseignant_dashboard] CALLED by personnel_id={request.session.get('personnel_id')}, email={request.user.email}", file=sys.stderr, flush=True)
     etab_id = _get_etab_id(request)
     print(f"[api_enseignant_dashboard] etab_id={etab_id}", file=sys.stderr, flush=True)
     if not etab_id:
@@ -888,12 +884,11 @@ def api_enseignant_dashboard(request):
             # Find personnel for logged-in user (by user_id)
             cur.execute("""
                 SELECT p.id_personnel, p.nom, p.postnom, p.prenom, p.matricule,
-                       p.telephone, au.first_name, au.last_name, au.email
+                       p.telephone, p.prenom as first_name, p.nom as last_name, p.email
                 FROM personnel p
-                JOIN auth_user au ON au.id = p.user_id
-                WHERE au.id = %s AND p.id_etablissement = %s
+                WHERE p.id_personnel = %s AND p.id_etablissement = %s
                 LIMIT 1
-            """, [request.user.id, etab_id])
+            """, [request.user.id_personnel, etab_id])
             pers = cur.fetchone()
 
             # Fallback: chercher par email (personnel ajouté via dashboard avec user_id bidon)
@@ -914,10 +909,7 @@ def api_enseignant_dashboard(request):
                         pers['last_name'] = pers.get('nom') or ''
                         # Tenter le re-link silencieusement
                         try:
-                            cur.execute(
-                                "UPDATE personnel SET user_id = %s WHERE id_personnel = %s AND id_etablissement = %s",
-                                [request.user.id, pers['id_personnel'], etab_id]
-                            )
+                            pass  # Plus de re-link nécessaire — auth centrée sur personnel
                             conn.commit()
                         except Exception:
                             try:
@@ -928,12 +920,12 @@ def api_enseignant_dashboard(request):
             if not pers:
                 # Debug: print to stderr for journalctl
                 import sys
-                print(f"[api_enseignant_dashboard] Personnel NOT FOUND: user_id={request.user.id}, email={request.user.email}, etab_id={etab_id}", file=sys.stderr, flush=True)
-                cur.execute("SELECT id_personnel, user_id, email, nom, prenom FROM personnel WHERE id_etablissement = %s LIMIT 5", [etab_id])
+                print(f"[api_enseignant_dashboard] Personnel NOT FOUND: personnel_id={request.user.id_personnel}, email={request.user.email}, etab_id={etab_id}", file=sys.stderr, flush=True)
+                cur.execute("SELECT id_personnel, email, nom, prenom FROM personnel WHERE id_etablissement = %s LIMIT 5", [etab_id])
                 all_pers = cur.fetchall()
                 print(f"[api_enseignant_dashboard] First 5 personnel for etab {etab_id}: {all_pers}", file=sys.stderr, flush=True)
                 conn.close()
-                return JsonResponse({'success': False, 'error': f'Personnel non trouvé (user_id={request.user.id}, email={request.user.email})'}, status=403)
+                return JsonResponse({'success': False, 'error': f'Personnel non trouvé (id={request.user.id_personnel}, email={request.user.email})'}, status=403)
 
             personnel_id = pers['id_personnel']
 
@@ -1398,25 +1390,26 @@ def api_communication_send(request):
     subject = data.get('subject', '')
 
     # Identifier l'enseignant
-    pers = Personnel.objects.filter(user=request.user, id_etablissement=etab_id).first()
+    pers_id = request.session.get('personnel_id')
+    pers = Personnel.objects.filter(id_personnel=pers_id, id_etablissement=etab_id).first() if pers_id else None
     if not pers:
         # Fallback: chercher par email
         try:
             from django.db import connections
             with connections['default'].cursor() as cur:
                 cur.execute(
-                    "SELECT id_personnel, CONCAT(COALESCE(nom,''), ' ', COALESCE(prenom,'')) as full_name FROM personnel WHERE user_id = %s AND id_etablissement = %s LIMIT 1",
-                    [request.user.id, etab_id]
+                    "SELECT id_personnel, CONCAT(COALESCE(nom,''), ' ', COALESCE(prenom,'')) as full_name FROM personnel WHERE id_personnel = %s AND id_etablissement = %s LIMIT 1",
+                    [pers_id, etab_id]
                 )
                 row = cur.fetchone()
                 sender_id = row[0] if row else None
                 sender_name = (row[1] or '').strip() if row else request.user.get_full_name()
         except Exception:
             sender_id = None
-            sender_name = request.user.get_full_name() or request.user.username
+            sender_name = request.user.get_full_name() or ''
     else:
         sender_id = pers.id_personnel
-        sender_name = f"{pers.user.last_name} {pers.user.first_name}".strip() or pers.matricule
+        sender_name = f"{pers.nom or ''} {pers.prenom or ''}".strip() or pers.matricule
 
     # Année active
     annee_id = None
@@ -1637,13 +1630,12 @@ def api_communication_teachers(request):
             cur.execute("""
                 SELECT p.id_personnel,
                        CONCAT(COALESCE(p.nom,''), ' ', COALESCE(p.prenom,'')) as nom_complet,
-                       u.email
+                       p.email
                 FROM personnel p
-                LEFT JOIN auth_user u ON u.id = p.user_id
                 WHERE p.id_etablissement = %s
-                  AND p.user_id != %s
+                  AND p.id_personnel != %s
                 ORDER BY p.nom, p.prenom
-            """, [etab_id, request.user.id])
+            """, [etab_id, request.user.id_personnel])
             for row in cur.fetchall():
                 nm = (row[1] or '').strip()
                 if nm:
