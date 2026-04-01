@@ -563,10 +563,57 @@ def request_otp(request):
                 traceback.print_exc()
                 print(f"[OTP] Email send error: {mail_err}", file=sys.stderr, flush=True)
 
+        elif method == 'SMS':
+            # Envoi par WhatsApp via Twilio
+            phone = str(personnel.telephone).strip() if personnel.telephone else ''
+            if not phone:
+                return JsonResponse({'success': False, 'error': 'Aucun numéro de téléphone enregistré.'}, status=400)
+
+            # Normaliser le numéro (ajouter + si absent)
+            if not phone.startswith('+'):
+                phone = '+' + phone
+
+            try:
+                import urllib.request
+                import urllib.parse
+                import base64
+
+                from django.conf import settings as _settings
+                sid = getattr(_settings, 'TWILIO_ACCOUNT_SID', '')
+                token = getattr(_settings, 'TWILIO_AUTH_TOKEN', '')
+                from_number = getattr(_settings, 'TWILIO_PHONE_NUMBER', '')
+
+                if not sid or not token:
+                    return JsonResponse({'success': False, 'error': 'Service WhatsApp non configuré.'}, status=500)
+
+                url = f'https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json'
+                msg_body = f'Votre code de vérification MonEcole est : {code}\n\nCe code expire dans 10 minutes.'
+                post_data = urllib.parse.urlencode({
+                    'From': f'whatsapp:{from_number}',
+                    'To': f'whatsapp:{phone}',
+                    'Body': msg_body,
+                }).encode('utf-8')
+
+                # Auth Basic
+                credentials = base64.b64encode(f'{sid}:{token}'.encode()).decode()
+                req = urllib.request.Request(url, data=post_data, method='POST')
+                req.add_header('Authorization', f'Basic {credentials}')
+                req.add_header('Content-Type', 'application/x-www-form-urlencoded')
+
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    status_code = resp.getcode()
+                    if status_code >= 300:
+                        import sys
+                        print(f"[OTP] Twilio WhatsApp error: HTTP {status_code}", file=sys.stderr, flush=True)
+            except Exception as wa_err:
+                import traceback, sys
+                traceback.print_exc()
+                print(f"[OTP] WhatsApp send error: {wa_err}", file=sys.stderr, flush=True)
+
         return JsonResponse({
             'success': True,
             'token': 'session',
-            'message': f'Un code de vérification a été envoyé à votre {"email" if method == "EMAIL" else "téléphone"}.',
+            'message': f'Un code de vérification a été envoyé à votre {"email" if method == "EMAIL" else "WhatsApp"}.',
         })
 
     except Exception as e:
