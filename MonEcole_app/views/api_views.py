@@ -3714,8 +3714,14 @@ def save_etablissement_config(request):
             annee=annee
         )
         
-        # Clear existing config
-        etab_annee.classes_config.all().delete()
+        # Clear existing config — use raw SQL on Hub to avoid Django cross-DB
+        # cascade check (eleve_inscription FK lives in Spoke, not Hub)
+        from django.db import connections as db_conns
+        with db_conns['countryStructure'].cursor() as hub_cur:
+            hub_cur.execute(
+                "DELETE FROM etablissements_annees_classes WHERE etablissement_annee_id = %s",
+                [etab_annee.id]
+            )
         
         # Add new config
         for item in classes_config:
