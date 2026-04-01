@@ -564,7 +564,8 @@ def request_otp(request):
                 print(f"[OTP] Email send error: {mail_err}", file=sys.stderr, flush=True)
 
         elif method == 'SMS':
-            # Envoi par WhatsApp via Twilio
+            # Envoi par WhatsApp ou SMS selon le choix du canal
+            channel = data.get('channel', 'whatsapp')  # whatsapp par défaut
             phone = str(personnel.telephone).strip() if personnel.telephone else ''
             if not phone:
                 return JsonResponse({'success': False, 'error': 'Aucun numéro de téléphone enregistré.'}, status=400)
@@ -589,13 +590,21 @@ def request_otp(request):
                 from_number = getattr(_settings, 'TWILIO_PHONE_NUMBER', '')
 
                 if not sid or not token or not from_number:
-                    return JsonResponse({'success': False, 'error': 'Service WhatsApp non configuré.'}, status=500)
+                    return JsonResponse({'success': False, 'error': 'Service non configuré.'}, status=500)
 
                 url = f'https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json'
                 msg_body = f'MonEcole - Votre code de vérification est : {code} (expire dans 10 min)'
+
+                if channel == 'sms':
+                    from_addr = from_number
+                    to_addr = phone
+                else:
+                    from_addr = f'whatsapp:{from_number}'
+                    to_addr = f'whatsapp:{phone}'
+
                 post_data = urllib.parse.urlencode({
-                    'From': f'whatsapp:{from_number}',
-                    'To': f'whatsapp:{phone}',
+                    'From': from_addr,
+                    'To': to_addr,
                     'Body': msg_body,
                 }).encode('utf-8')
 
@@ -607,23 +616,24 @@ def request_otp(request):
                 try:
                     with urllib.request.urlopen(req, timeout=15) as resp:
                         resp_body = resp.read().decode('utf-8', errors='replace')
-                        print(f"[OTP-WA] Twilio OK ({resp.getcode()}): {resp_body[:300]}", file=sys.stderr, flush=True)
+                        print(f"[OTP-{channel.upper()}] Twilio OK ({resp.getcode()}): {resp_body[:300]}", file=sys.stderr, flush=True)
                 except urllib.error.HTTPError as http_err:
                     err_body = http_err.read().decode('utf-8', errors='replace')
-                    print(f"[OTP-WA] Twilio HTTP Error {http_err.code}: {err_body[:500]}", file=sys.stderr, flush=True)
+                    print(f"[OTP-{channel.upper()}] Twilio HTTP Error {http_err.code}: {err_body[:500]}", file=sys.stderr, flush=True)
                 except urllib.error.URLError as url_err:
-                    print(f"[OTP-WA] Twilio URL Error: {url_err.reason}", file=sys.stderr, flush=True)
+                    print(f"[OTP-{channel.upper()}] Twilio URL Error: {url_err.reason}", file=sys.stderr, flush=True)
 
-            except Exception as wa_err:
+            except Exception as send_err:
                 import traceback, sys
                 traceback.print_exc()
-                print(f"[OTP-WA] Send error: {wa_err}", file=sys.stderr, flush=True)
+                print(f"[OTP] Send error: {send_err}", file=sys.stderr, flush=True)
 
+            via = 'WhatsApp' if channel != 'sms' else 'SMS'
             return JsonResponse({
                 'success': True,
                 'token': 'session',
                 'phone': masked_phone,
-                'message': f'Un code de vérification a été envoyé sur votre WhatsApp au {masked_phone}.',
+                'message': f'Un code de vérification a été envoyé par {via} au {masked_phone}.',
             })
 
         return JsonResponse({

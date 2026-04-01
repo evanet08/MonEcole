@@ -518,15 +518,22 @@
                 <p id="waPhoneDisplay" style="font-size:1rem;font-weight:700;color:#1e293b;margin:6px 0 0;letter-spacing:1px">{{ user_phone|default:'—' }}</p>
             </div>
 
-            <!-- Step 1: Send -->
+            <!-- Step 1: Choix du canal -->
             <div id="waStep1">
-                <button onclick="wasSendOtp()" id="btnWaSend" style="
+                <button onclick="wasSendOtp('whatsapp')" id="btnWaSend" style="
                     width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;
                     font-size:0.9rem;font-weight:600;color:white;
                     background:linear-gradient(135deg,#25D366,#128C7E);
                     display:flex;align-items:center;justify-content:center;gap:8px;
+                    transition:all 0.2s;margin-bottom:8px;
+                "><i class="fab fa-whatsapp"></i> Envoyer par WhatsApp <span style="background:rgba(255,255,255,0.25);padding:2px 8px;border-radius:20px;font-size:0.7rem;margin-left:4px">Gratuit</span></button>
+                <button onclick="wasSendOtp('sms')" id="btnSmsSend" style="
+                    width:100%;padding:10px;border-radius:10px;border:1px solid #e5e7eb;cursor:pointer;
+                    font-size:0.78rem;font-weight:500;color:#94a3b8;
+                    background:white;
+                    display:flex;align-items:center;justify-content:center;gap:6px;
                     transition:all 0.2s;
-                "><i class="fab fa-whatsapp"></i> Envoyer le code</button>
+                "><i class="fas fa-sms"></i> Par SMS <span style="color:#ef4444;font-size:0.68rem;font-weight:600;margin-left:4px">~0,25 $ / SMS</span></button>
             </div>
 
             <!-- Step 2: Verify -->
@@ -557,30 +564,32 @@
         </div>
     </div>
     <script>
-    async function wasSendOtp() {
-        const btn = document.getElementById('btnWaSend');
+    async function wasSendOtp(channel) {
+        channel = channel || 'whatsapp';
+        const btn = channel === 'sms' ? document.getElementById('btnSmsSend') : document.getElementById('btnWaSend');
         if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Envoi...'; }
         hideWaMsg();
         try {
             const r = await fetch('/api/auth/request-otp/', {
                 method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({email:'{{ user_email }}', method:'SMS'})
+                body: JSON.stringify({email:'{{ user_email }}', method:'SMS', channel: channel})
             });
             const d = await r.json();
             if (d.success) {
                 document.getElementById('waStep1').style.display = 'none';
                 document.getElementById('waStep2').style.display = 'block';
+                const via = channel === 'sms' ? 'SMS' : 'WhatsApp';
                 if (d.phone) {
                     document.getElementById('waPhoneDisplay').textContent = d.phone;
-                    document.getElementById('waSentMsg').innerHTML = '<i class="fas fa-check-circle"></i> Code envoyé au ' + d.phone + ' !';
+                    document.getElementById('waSentMsg').innerHTML = '<i class="fas fa-check-circle"></i> Code envoyé par ' + via + ' au ' + d.phone + ' !';
                 }
             } else {
                 showWaMsg(d.error || 'Erreur', '#ef4444');
-                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fab fa-whatsapp"></i> Réessayer'; }
+                if (btn) { btn.disabled = false; btn.innerHTML = channel === 'sms' ? '<i class="fas fa-sms"></i> Réessayer par SMS' : '<i class="fab fa-whatsapp"></i> Réessayer'; }
             }
         } catch(e) {
             showWaMsg('Erreur de connexion', '#ef4444');
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fab fa-whatsapp"></i> Réessayer'; }
+            if (btn) { btn.disabled = false; btn.innerHTML = channel === 'sms' ? '<i class="fas fa-sms"></i> Réessayer par SMS' : '<i class="fab fa-whatsapp"></i> Réessayer'; }
         }
     }
     async function wasVerifyOtp() {
