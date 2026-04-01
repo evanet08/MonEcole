@@ -799,6 +799,7 @@ const COLORS=['linear-gradient(90deg,#6366f1,#818cf8)','linear-gradient(90deg,#0
 function getCsrfToken() {
     return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
 }
+const csrfToken = getCsrfToken();
 
 /* ===== CALENDRIER SCOLAIRE ===== */
 let calendarData = REPARTITIONS_NOTES || [];
