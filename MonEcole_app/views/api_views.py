@@ -5222,7 +5222,7 @@ def dashboard_add_personnel(request):
                     'identiteUrl': '',
                     'code_secret': None,
                     'codeAnnee': data.get('codeAnnee') or None,
-                    'date_creation': datetime.date.today().strftime('%Y-%m-%d'),
+                    'date_creation': __import__('datetime').date.today().strftime('%Y-%m-%d'),
                 }
                 cols = ', '.join(fields.keys())
                 placeholders = ', '.join(['%s'] * len(fields))
