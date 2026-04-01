@@ -3034,8 +3034,8 @@ async function loadPersonnelList(){
         if(data.success){
             currentPersonnelList=data.personnel||[];
             personnelRefData=data.ref||{categories:[],types:[],postes:[],diplomes:[],specialites:[],vacations:[],taches:[]};
-            document.getElementById('persGridCount').textContent=`(${currentPersonnelList.length})`;
-            document.getElementById('personnelCountDesc').textContent=currentPersonnelList.length+' membre'+(currentPersonnelList.length>1?'s':'');
+            const pgc=document.getElementById('persGridCount');if(pgc)pgc.textContent=`(${currentPersonnelList.length})`;
+            const pcDesc=document.getElementById('personnelCountDesc');if(pcDesc)pcDesc.textContent='('+currentPersonnelList.length+')';
             // Populate form dropdowns
             populatePersDropdowns();
             renderPersGrid();
