@@ -6536,7 +6536,7 @@ def dashboard_etablissement_view(request):
                         JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                         JOIN countryStructure.etablissements_annees_classes eac
                           ON eac.classe_id = ei.classe_id
-                          AND eac.groupe <=> ei.groupe
+                          AND eac.groupe COLLATE utf8mb4_general_ci <=> ei.groupe
                           AND eac.section_id <=> ei.section_id
                         JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id
                         LEFT JOIN countryStructure.sections s ON s.id_section = eac.section_id
