@@ -63,7 +63,7 @@ class Classe_deliberation(models.Model):
     id_deliberation = models.AutoField(primary_key=True)
     date_deliberation = models.DateField()
     id_annee = models.ForeignKey("Annee", on_delete=models.PROTECT, null=False)
-    id_campus = models.ForeignKey("Campus", on_delete=models.PROTECT, null=False)
+    idCampus = models.ForeignKey("Campus", on_delete=models.PROTECT, null=False)
     id_cycle = models.ForeignKey("MonEcole_app.Cycle", on_delete=models.PROTECT, null=False,
                                  db_column='id_cycle_id', db_constraint=False)
     id_classe = models.ForeignKey("MonEcole_app.EtablissementAnneeClasse", on_delete=models.PROTECT, null=False,
@@ -93,7 +93,7 @@ class Responsable_classe(models.Model):
     """
     id_responsable = models.AutoField(primary_key=True)
     id_annee = models.ForeignKey("Annee", on_delete=models.PROTECT, null=False)
-    id_campus = models.ForeignKey("Campus", on_delete=models.PROTECT, null=False)
+    idCampus = models.ForeignKey("Campus", on_delete=models.PROTECT, null=False)
     id_cycle = models.ForeignKey("MonEcole_app.Cycle", on_delete=models.PROTECT, null=False,
                                  db_column='id_cycle_id', db_constraint=False)
     id_classe = models.ForeignKey("MonEcole_app.EtablissementAnneeClasse", on_delete=models.PROTECT, null=False,

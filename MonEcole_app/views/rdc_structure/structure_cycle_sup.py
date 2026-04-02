@@ -42,7 +42,7 @@ def regrouper_cours_par_tp_tpe(cours):
 def recuperer_cours_obligatoires(id_annee, id_campus, id_cycle, id_classe):
     qs = Cours_par_classe.objects.filter(
         id_annee_id=id_annee,
-        id_campus_id=id_campus,
+        idCampus_id=id_campus,
         id_cycle_id=id_cycle,
         id_classe_id=id_classe,
         is_obligatory=True
@@ -129,7 +129,7 @@ def ajouter_cours_groupes_dans_table(
             cpc = Cours_par_classe.objects.filter(
                 id_cours__cours=nom_cours.strip(),
                 id_annee_id=id_annee,
-                id_campus_id=id_campus,
+                idCampus_id=id_campus,
                 id_cycle_id=id_cycle,
                 id_classe_id=id_classe,
                 is_obligatory=True
@@ -508,7 +508,7 @@ def get_place_secondaire_superieur(
     semestre2 = semestres_data[1][0]
     filtre_base = {
         "id_annee_id": id_annee,
-        "id_campus_id": id_campus,
+        "idCampus_id": id_campus,
         "id_cycle_id": id_cycle,
         "id_classe_id": id_classe,
         "id_eleve_id": id_eleve,

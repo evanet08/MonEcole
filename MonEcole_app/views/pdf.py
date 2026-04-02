@@ -40,23 +40,23 @@ def generer_bulletin_pdf(request):
     
     if request.method == 'POST':
         id_annee  = request.POST.get('id_annee')
-        id_campus = request.POST.get('id_campus')
+        idCampus = request.POST.get('idCampus')
         id_cycle  = request.POST.get('id_cycle')
         id_classe = request.POST.get('id_classe')
         id_eleves = request.POST.getlist('id_eleve')
     else:
         id_annee  = request.GET.get('id_annee')
-        id_campus = request.GET.get('id_campus')
+        idCampus = request.GET.get('idCampus')
         id_cycle  = request.GET.get('id_cycle')
         id_classe = request.GET.get('id_classe')
         # Support comma-separated IDs: ?id_eleve=2,3,5
         raw_eleves = request.GET.get('id_eleve', '')
         id_eleves = [e.strip() for e in raw_eleves.split(',') if e.strip()]
 
-    logger.warning(f"[BULLETIN PDF] Initial params: annee={id_annee}, campus={id_campus}, cycle={id_cycle}, classe={id_classe}, eleves={id_eleves[:3]}...")
+    logger.warning(f"[BULLETIN PDF] Initial params: annee={id_annee}, campus={idCampus}, cycle={id_cycle}, classe={id_classe}, eleves={id_eleves[:3]}...")
 
     # Auto-résolution des paramètres manquants via EAC
-    if id_classe and (not id_annee or not id_campus or not id_cycle):
+    if id_classe and (not id_annee or not idCampus or not id_cycle):
         try:
             from MonEcole_app.models.country_structure import EtablissementAnneeClasse
             eac = EtablissementAnneeClasse.objects.select_related(
@@ -67,22 +67,22 @@ def generer_bulletin_pdf(request):
                 id_annee = str(eac.etablissement_annee.annee_id)
             if not id_cycle and eac.classe and eac.classe.cycle:
                 id_cycle = str(eac.classe.cycle_id)
-            if not id_campus:
+            if not idCampus:
                 etab_id = eac.etablissement_annee.etablissement_id
                 campus = Campus.objects.filter(id_etablissement=etab_id).first()
-                id_campus = str(campus.id_campus) if campus else '1'
-            logger.warning(f"[BULLETIN PDF] After auto-resolve: annee={id_annee}, campus={id_campus}, cycle={id_cycle}")
+                idCampus = str(campus.idCampus) if campus else '1'
+            logger.warning(f"[BULLETIN PDF] After auto-resolve: annee={id_annee}, campus={idCampus}, cycle={id_cycle}")
         except Exception as e:
             logger.error(f"[BULLETIN PDF] Auto-resolve FAILED: {e}")
 
-    if not all([id_annee, id_campus, id_cycle, id_classe]) or not id_eleves or not id_eleves[0]:
-        logger.error(f"[BULLETIN PDF] MISSING PARAMS: annee={id_annee}, campus={id_campus}, cycle={id_cycle}, classe={id_classe}, eleves={id_eleves}")
+    if not all([id_annee, idCampus, id_cycle, id_classe]) or not id_eleves or not id_eleves[0]:
+        logger.error(f"[BULLETIN PDF] MISSING PARAMS: annee={id_annee}, campus={idCampus}, cycle={id_cycle}, classe={id_classe}, eleves={id_eleves}")
         messages.error(request, "Paramètres manquants ou invalides.")
         return HttpResponse('<script>window.location.href="/dashboard/evaluations/?section=bulletins";</script>')
 
     try:
         id_annee  = int(id_annee)
-        id_campus = int(id_campus)
+        idCampus = int(idCampus)
         id_cycle  = int(id_cycle)
         id_classe = int(id_classe)
         id_eleves = [int(e) for e in id_eleves if e and str(e).isdigit()]
@@ -114,16 +114,16 @@ def generer_bulletin_pdf(request):
     except Exception as e:
         logger.warning(f"[BULLETIN PDF] Could not sort by rank: {e}")
 
-    logger.warning(f"[BULLETIN PDF] Resolved params OK: annee={id_annee}, campus={id_campus}, cycle={id_cycle}, classe={id_classe}, eleves_count={len(id_eleves)}")
+    logger.warning(f"[BULLETIN PDF] Resolved params OK: annee={id_annee}, campus={idCampus}, cycle={id_cycle}, classe={id_classe}, eleves_count={len(id_eleves)}")
 
     # ───────────────────────────────────────────────
     # Déterminer la localisation
     # ───────────────────────────────────────────────
     try:
-        campus = Campus.objects.get(id_campus=id_campus)
+        campus = Campus.objects.get(idCampus=idCampus)
         localisation = campus.localisation.strip().upper()
     except Campus.DoesNotExist:
-        logger.error(f"[BULLETIN PDF] Campus NOT FOUND: id_campus={id_campus}")
+        logger.error(f"[BULLETIN PDF] Campus NOT FOUND: idCampus={idCampus}")
         messages.error(request, "Campus introuvable.")
         return HttpResponse('<script>history.back();</script>', status=404)
 
@@ -150,7 +150,7 @@ def generer_bulletin_pdf(request):
                 inscription = Eleve_inscription.objects.filter(
                     id_eleve=id_eleve,
                     id_annee=id_annee,
-                    id_campus=id_campus,
+                    idCampus=idCampus,
                     id_cycle=id_cycle,
                     id_classe=id_classe,
                     status=1
@@ -163,12 +163,12 @@ def generer_bulletin_pdf(request):
                     elements.append(PageBreak())
                 elements.extend(create_header_elements())
                 student_info, nom_eleve = create_student_info_tables(
-                    id_eleve, id_annee, id_campus, id_cycle, id_classe
+                    id_eleve, id_annee, idCampus, id_cycle, id_classe
                 )
                 elements.extend(student_info)
 
                 results_table, total_pct = create_results_table(
-                    id_eleve, id_annee, id_campus, id_cycle, id_classe
+                    id_eleve, id_annee, idCampus, id_cycle, id_classe
                 )
                 elements.extend(results_table)
 
@@ -176,7 +176,7 @@ def generer_bulletin_pdf(request):
                 elements.append(PageBreak())
 
                 elements.extend(create_back_page(
-                    id_annee, id_campus, id_cycle, id_eleve, id_classe, total_pct
+                    id_annee, idCampus, id_cycle, id_eleve, id_classe, total_pct
                 ))
 
                 filename_parts.append(slugify(nom_eleve))
@@ -252,7 +252,7 @@ def generer_bulletin_pdf(request):
                         elements.append(PageBreak())
 
                     elements.append(Spacer(1, 5*mm))
-                    institution = Institution.objects.get(id_ecole=id_campus)
+                    institution = Institution.objects.get(id_ecole=idCampus)
                     logo_path = institution.logo_ecole.path if institution.logo_ecole else None
                     emblem_path = institution.logo_ministere.path if institution.logo_ministere else None
                     check_image_paths(logo_path, emblem_path)
@@ -265,7 +265,7 @@ def generer_bulletin_pdf(request):
                     create_bulletin_title__secondaire_superieur(elements, style_title, style_right, id_classe=id_classe, id_annee=id_annee)
                     create_bulletin_maternelle(
                         elements, style_normal, style_center, style_title,
-                        id_annee, id_campus, id_cycle, id_classe, id_eleve
+                        id_annee, idCampus, id_cycle, id_classe, id_eleve
                     )
 
                     filename_parts.append(slugify(eleve.nom or f"eleve_{id_eleve}"))
@@ -291,7 +291,7 @@ def generer_bulletin_pdf(request):
                         elements.append(PageBreak())
 
                     elements.append(Spacer(1, 5*mm))
-                    institution = Institution.objects.get(id_ecole=id_campus)
+                    institution = Institution.objects.get(id_ecole=idCampus)
                     logo_path = institution.logo_ecole.path if institution.logo_ecole else None
                     emblem_path = institution.logo_ministere.path if institution.logo_ministere else None
                     check_image_paths(logo_path, emblem_path)
@@ -304,7 +304,7 @@ def generer_bulletin_pdf(request):
                     create_bulletin_title(elements, style_title, id_annee, id_classe)
                     create_notes_table(
                         elements, style_center, style_normal,
-                        id_annee, id_campus, id_cycle, id_classe, id_eleve
+                        id_annee, idCampus, id_cycle, id_classe, id_eleve
                     )
                     create_footer(elements, style_normal, style_center, id_classe=id_classe)
 
@@ -331,7 +331,7 @@ def generer_bulletin_pdf(request):
                         elements.append(PageBreak())
 
                     elements.append(Spacer(1, 5*mm))
-                    institution = Institution.objects.get(id_ecole=id_campus)
+                    institution = Institution.objects.get(id_ecole=idCampus)
                     logo_path = institution.logo_ecole.path if institution.logo_ecole else None
                     emblem_path = institution.logo_ministere.path if institution.logo_ministere else None
                     check_image_paths(logo_path, emblem_path)
@@ -344,7 +344,7 @@ def generer_bulletin_pdf(request):
                     create_bulletin_title__secondaire_rdc(elements, style_title, style_right, id_annee, id_classe)
                     create_notes_table__secondaire_rdc(
                         elements, style_center, style_normal,
-                        id_annee, id_campus, id_cycle, id_classe, id_eleve
+                        id_annee, idCampus, id_cycle, id_classe, id_eleve
                     )
                     create_footer__secondaire_rdc(elements, style_normal, style_center, id_classe)
 
@@ -374,7 +374,7 @@ def generer_bulletin_pdf(request):
                             elements.append(PageBreak())
 
                         elements.append(Spacer(1, 5*mm))
-                        institution = Institution.objects.get(id_ecole=id_campus)
+                        institution = Institution.objects.get(id_ecole=idCampus)
                         logo_path = institution.logo_ecole.path if institution.logo_ecole else None
                         emblem_path = institution.logo_ministere.path if institution.logo_ministere else None
                         check_image_paths(logo_path, emblem_path)
@@ -387,7 +387,7 @@ def generer_bulletin_pdf(request):
                         create_bulletin_title__secondaire_superieur(elements, style_title, style_right, id_classe=id_classe, id_annee=id_annee)
                         create_notes_table_superieur(
                             elements, style_center, style_normal,
-                            id_annee, id_campus, id_cycle, id_classe, id_eleve
+                            id_annee, idCampus, id_cycle, id_classe, id_eleve
                         )
                         create_footer__secondaire_rdc(elements, style_normal, style_center, id_classe)
 
@@ -412,7 +412,7 @@ def generer_bulletin_pdf(request):
                         if idx > 0:
                             elements.append(PageBreak())
 
-                        institution = Institution.objects.get(id_ecole=id_campus)
+                        institution = Institution.objects.get(id_ecole=idCampus)
                         logo_path = institution.logo_ecole.path if institution.logo_ecole else None
                         emblem_path = institution.logo_ministere.path if institution.logo_ministere else None
                         check_image_paths(logo_path, emblem_path)
@@ -425,7 +425,7 @@ def generer_bulletin_pdf(request):
                         create_bulletin_title__secondaire_superieur(elements, style_title, style_right, id_classe=id_classe, id_annee=id_annee)
                         create_bulletin_content_cycle_superieur(
                             elements, style_normal, style_center,
-                            id_annee, id_campus, id_cycle, id_classe, id_eleve,
+                            id_annee, idCampus, id_cycle, id_classe, id_eleve,
                             get_semestres=get_semestres
                         )
 

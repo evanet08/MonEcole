@@ -1590,7 +1590,7 @@ function renderCampusTable(){
     campusList.forEach((r,i)=>{
         const grad=colors[i%colors.length];
         const active=r.is_active;
-        h+=`<div data-campus-id="${r.id_campus}" style="background:#fff;border-radius:14px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.04);transition:box-shadow .2s,transform .2s" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,.04)';this.style.transform='none'">`;
+        h+=`<div data-campus-id="${r.idCampus}" style="background:#fff;border-radius:14px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.04);transition:box-shadow .2s,transform .2s" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,.04)';this.style.transform='none'">`;
         h+=`<div style="height:6px;background:${grad};${active?'':'opacity:.3'}"></div>`;
         h+=`<div style="padding:18px 20px">`;
         h+=`<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">`;
@@ -1599,9 +1599,9 @@ function renderCampusTable(){
         h+=`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;font-size:.62rem;font-weight:700;${active?'background:#ecfdf5;color:#059669':'background:#fef2f2;color:#ef4444'}">${active?'<i class="fas fa-circle" style="font-size:5px"></i> Actif':'<i class="fas fa-circle" style="font-size:5px"></i> Inactif'}</span>`;
         h+=`</div></div>`;
         h+=`<div style="display:flex;gap:4px">`;
-        h+=`<button onclick="editCampusInline(${r.id_campus})" style="width:32px;height:32px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;color:#4f46e5;cursor:pointer;font-size:.72rem;transition:all .15s" title="Modifier" onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background='#f8fafc'"><i class="fas fa-pen"></i></button>`;
-        h+=`<button onclick="toggleCampusActive(${r.id_campus},${active?0:1})" style="width:32px;height:32px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;color:${active?'#f59e0b':'#059669'};cursor:pointer;font-size:.72rem;transition:all .15s" title="${active?'Désactiver':'Activer'}" onmouseover="this.style.background='${active?'#fffbeb':'#ecfdf5'}'" onmouseout="this.style.background='#f8fafc'"><i class="fas ${active?'fa-toggle-on':'fa-toggle-off'}"></i></button>`;
-        h+=`<button onclick="deleteCampus(${r.id_campus},'${(r.campus||'').replace(/'/g,"\\\\'")}')" style="width:32px;height:32px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;color:#ef4444;cursor:pointer;font-size:.72rem;transition:all .15s" title="Supprimer" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#f8fafc'"><i class="fas fa-trash-alt"></i></button>`;
+        h+=`<button onclick="editCampusInline(${r.idCampus})" style="width:32px;height:32px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;color:#4f46e5;cursor:pointer;font-size:.72rem;transition:all .15s" title="Modifier" onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background='#f8fafc'"><i class="fas fa-pen"></i></button>`;
+        h+=`<button onclick="toggleCampusActive(${r.idCampus},${active?0:1})" style="width:32px;height:32px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;color:${active?'#f59e0b':'#059669'};cursor:pointer;font-size:.72rem;transition:all .15s" title="${active?'Désactiver':'Activer'}" onmouseover="this.style.background='${active?'#fffbeb':'#ecfdf5'}'" onmouseout="this.style.background='#f8fafc'"><i class="fas ${active?'fa-toggle-on':'fa-toggle-off'}"></i></button>`;
+        h+=`<button onclick="deleteCampus(${r.idCampus},'${(r.campus||'').replace(/'/g,"\\\\'")}')" style="width:32px;height:32px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;color:#ef4444;cursor:pointer;font-size:.72rem;transition:all .15s" title="Supprimer" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#f8fafc'"><i class="fas fa-trash-alt"></i></button>`;
         h+=`</div></div>`;
         h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">`;
         h+=`<div style="padding:10px 12px;background:#f8fafc;border-radius:8px"><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;font-weight:600;margin-bottom:3px"><i class="fas fa-map-pin" style="margin-right:4px"></i>Adresse</div><div class="campus-val" data-field="adresse" style="font-size:.78rem;color:#334155;font-weight:500">${r.adresse||'<span style=color:#cbd5e1>Non renseignée</span>'}</div></div>`;
@@ -1614,7 +1614,7 @@ function renderCampusTable(){
 function editCampusInline(id){
     const card=document.querySelector(`[data-campus-id="${id}"]`);
     if(!card) return;
-    const r=campusList.find(c=>c.id_campus===id);
+    const r=campusList.find(c=>c.idCampus===id);
     if(!r) return;
     card.querySelectorAll('.campus-val').forEach(sp=>{
         const f=sp.dataset.field,v=sp.textContent.trim();

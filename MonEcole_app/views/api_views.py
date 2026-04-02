@@ -4004,7 +4004,7 @@ def dashboard_add_eleve(request):
                 cur.execute("""
                     SELECT eac.id, eac.classe_id, eac.groupe,
                            ea.annee_id AS id_annee_id,
-                           c.id_campus AS id_campus_id,
+                           c.idCampus AS idCampus_id,
                            cl.cycle_id AS cycle_id
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON eac.etablissement_annee_id = ea.id
@@ -4034,11 +4034,11 @@ def dashboard_add_eleve(request):
                 cur.execute("""
                     INSERT INTO eleve_inscription
                     (date_inscription, redoublement, status, isDelegue,
-                     id_annee_id, id_campus_id, id_classe_id,
+                     id_annee_id, idCampus_id, id_classe_id,
                      id_eleve_id, id_etablissement)
                     VALUES (CURDATE(), 0, 1, 0, %s, %s, %s, %s, %s)
                 """, [
-                    ca['id_annee_id'], ca['id_campus_id'], ca['id'],
+                    ca['id_annee_id'], ca['idCampus_id'], ca['id'],
                     id_eleve, id_etablissement
                 ])
                 cur.execute("SET FOREIGN_KEY_CHECKS=1")
@@ -4398,7 +4398,7 @@ def dashboard_import_eleves(request):
             with conn.cursor() as cur:
                 # Verify class exists
                 cur.execute("""
-                    SELECT eac.id, c.id_campus AS id_campus_id, ea.annee_id AS id_annee_id, cl.cycle_id AS cycle_id
+                    SELECT eac.id, c.idCampus AS idCampus_id, ea.annee_id AS id_annee_id, cl.cycle_id AS cycle_id
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON eac.etablissement_annee_id = ea.id
                     JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id
@@ -4530,11 +4530,11 @@ def dashboard_import_eleves(request):
                             cur.execute("""
                                 INSERT INTO eleve_inscription
                                 (date_inscription, redoublement, status, isDelegue,
-                                 id_annee_id, id_campus_id, id_classe_id,
+                                 id_annee_id, idCampus_id, id_classe_id,
                                  id_eleve_id, id_etablissement)
                                 VALUES (CURDATE(), 0, 1, 0, %s, %s, %s, %s, %s)
                             """, [
-                                ca['id_annee_id'], ca['id_campus_id'], ca['id'],
+                                ca['id_annee_id'], ca['idCampus_id'], ca['id'],
                                 id_eleve, id_etablissement
                             ])
                             imported += 1
@@ -4581,7 +4581,7 @@ def dashboard_campus_list(request):
                 rows = cur.fetchall()
                 return JsonResponse({'success': True, 'campus': [
                     {
-                        'id_campus': r['id_campus'],
+                        'idCampus': r['idCampus'],
                         'campus': r['campus'],
                         'adresse': r['adresse'] or '',
                         'localisation': r['localisation'] or '',
@@ -4617,7 +4617,7 @@ def dashboard_campus_create(request):
                     data.get('id_etablissement'),
                 ])
                 conn.commit()
-                return JsonResponse({'success': True, 'id_campus': cur.lastrowid})
+                return JsonResponse({'success': True, 'idCampus': cur.lastrowid})
         finally:
             conn.close()
     except Exception as e:
@@ -4629,7 +4629,7 @@ def dashboard_campus_update(request):
     """Update a campus (name, adresse, localisation, is_active)."""
     import json
     data = json.loads(request.body)
-    campus_id = data.get('id_campus')
+    campus_id = data.get('idCampus')
     if not campus_id:
         return JsonResponse({'success': False, 'error': 'id_campus requis'}, status=400)
     try:
@@ -4648,7 +4648,7 @@ def dashboard_campus_update(request):
                 if not sets:
                     return JsonResponse({'success': False, 'error': 'Aucun champ à modifier'}, status=400)
                 params.append(campus_id)
-                cur.execute(f"UPDATE campus SET {', '.join(sets)} WHERE id_campus = %s", params)
+                cur.execute(f"UPDATE campus SET {', '.join(sets)} WHERE idCampus = %s", params)
                 conn.commit()
                 return JsonResponse({'success': True})
         finally:
@@ -4662,7 +4662,7 @@ def dashboard_campus_delete(request):
     """Delete a campus (only if no students are enrolled)."""
     import json
     data = json.loads(request.body)
-    campus_id = data.get('id_campus')
+    campus_id = data.get('idCampus')
     if not campus_id:
         return JsonResponse({'success': False, 'error': 'id_campus requis'}, status=400)
     try:
@@ -4670,14 +4670,14 @@ def dashboard_campus_delete(request):
         try:
             with conn.cursor() as cur:
                 # Check if students are enrolled in this campus
-                cur.execute("SELECT COUNT(*) as nb FROM eleve_inscription WHERE id_campus_id = %s", [campus_id])
+                cur.execute("SELECT COUNT(*) as nb FROM eleve_inscription WHERE idCampus_id = %s", [campus_id])
                 row = cur.fetchone()
                 if row and row['nb'] > 0:
                     return JsonResponse({
                         'success': False,
                         'error': f"Impossible de supprimer : {row['nb']} élève(s) inscrit(s) dans ce campus."
                     }, status=400)
-                cur.execute("DELETE FROM campus WHERE id_campus = %s", [campus_id])
+                cur.execute("DELETE FROM campus WHERE idCampus = %s", [campus_id])
                 conn.commit()
                 return JsonResponse({'success': True})
         finally:
@@ -4715,9 +4715,9 @@ def dashboard_eleves_stats(request):
         try:
             with conn.cursor() as cur:
                 # Get campus for this establishment
-                cur.execute("SELECT id_campus FROM campus WHERE id_etablissement=%s AND is_active=1",
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement=%s AND is_active=1",
                             [id_etablissement])
-                campus_ids = [r['id_campus'] for r in cur.fetchall()]
+                campus_ids = [r['idCampus'] for r in cur.fetchall()]
 
                 if not campus_ids:
                     return JsonResponse({'success': True, 'total': 0, 'garcons': 0, 'filles': 0,
@@ -4727,7 +4727,7 @@ def dashboard_eleves_stats(request):
                 params = list(campus_ids)
 
                 # Build WHERE clause
-                where = f"ei.id_campus_id IN ({placeholders}) AND ei.status=1"
+                where = f"ei.idCampus_id IN ({placeholders}) AND ei.status=1"
 
                 id_annee = request.GET.get('id_annee')
                 if id_annee:
@@ -5850,7 +5850,7 @@ def dashboard_attribution_cours(request):
 
                     # Get current année and campus — direct Hub query
                     cur.execute("""
-                        SELECT ea.annee_id AS id_annee, c.id_campus
+                        SELECT ea.annee_id AS id_annee, c.idCampus
                         FROM countryStructure.etablissements_annees_classes eac
                         JOIN countryStructure.etablissements_annees ea ON eac.etablissement_annee_id = ea.id
                         JOIN db_monecole.campus c ON c.id_etablissement = ea.etablissement_id AND c.is_active = 1
@@ -5858,7 +5858,7 @@ def dashboard_attribution_cours(request):
                     """, [id_classe])
                     classe_row = cur.fetchone()
                     id_annee = classe_row['id_annee'] if classe_row else 1
-                    id_campus = classe_row['id_campus'] if classe_row else 1
+                    idCampus = classe_row['idCampus'] if classe_row else 1
 
                     # Get cycle from Hub via cours_annee → cours → classe → cycle
                     try:
@@ -5887,9 +5887,9 @@ def dashboard_attribution_cours(request):
                     else:
                         cur.execute("""
                             INSERT INTO attribution_cours
-                            (attribution_type_id, id_annee_id, id_campus_id, id_classe_id, id_cours_id, id_cycle_id, id_personnel_id, date_attribution, id_etablissement)
+                            (attribution_type_id, id_annee_id, idCampus_id, id_classe_id, id_cours_id, id_cycle_id, id_personnel_id, date_attribution, id_etablissement)
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        """, [attr_type_id, id_annee, id_campus, id_classe, id_cours_classe, id_cycle, id_personnel,
+                        """, [attr_type_id, id_annee, idCampus, id_classe, id_cours_classe, id_cycle, id_personnel,
                               __import__('datetime').date.today().strftime('%Y-%m-%d'), id_etablissement])
 
                     conn.commit()
@@ -6441,10 +6441,10 @@ def dashboard_etablissement_view(request):
 
                 # Get campus IDs for this establishment
                 cur.execute("""
-                    SELECT id_campus FROM campus
+                    SELECT idCampus FROM campus
                     WHERE id_etablissement = %s AND is_active = 1
                 """, [etab_id])
-                campus_ids = [r['id_campus'] for r in cur.fetchall()]
+                campus_ids = [r['idCampus'] for r in cur.fetchall()]
 
                 annee_id = annee_active.id_annee if annee_active else None
 
@@ -6461,7 +6461,7 @@ def dashboard_etablissement_view(request):
                             SUM(CASE WHEN e.genre = 'F' THEN 1 ELSE 0 END) as filles
                         FROM eleve_inscription ei
                         JOIN eleve e ON e.id_eleve = ei.id_eleve_id
-                        WHERE ei.id_campus_id IN ({placeholders}) AND ei.status = 1{annee_filter}
+                        WHERE ei.idCampus_id IN ({placeholders}) AND ei.status = 1{annee_filter}
                     """, base_params)
                     row = cur.fetchone()
                     if row:
@@ -6476,7 +6476,7 @@ def dashboard_etablissement_view(request):
                             COUNT(*) as nb
                         FROM eleve_inscription ei
                         JOIN eleve e ON e.id_eleve = ei.id_eleve_id
-                        WHERE ei.id_campus_id IN ({placeholders}) AND ei.status = 1{annee_filter}
+                        WHERE ei.idCampus_id IN ({placeholders}) AND ei.status = 1{annee_filter}
                               AND e.date_naissance IS NOT NULL
                               AND e.date_naissance != '0000-00-00'
                         GROUP BY age
@@ -6504,7 +6504,7 @@ def dashboard_etablissement_view(request):
                         JOIN countryStructure.etablissements_annees_classes eac ON eac.id = ei.id_classe_id
                         JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id
                         LEFT JOIN countryStructure.sections s ON s.id_section = eac.section_id
-                        WHERE ei.id_campus_id IN ({placeholders}) AND ei.status = 1{annee_filter}
+                        WHERE ei.idCampus_id IN ({placeholders}) AND ei.status = 1{annee_filter}
                         GROUP BY eac.id
                         ORDER BY cl.ordre, cl.nom, eac.groupe
                     """, base_params)
@@ -6520,9 +6520,9 @@ def dashboard_etablissement_view(request):
                             c.campus as campus_nom,
                             COUNT(*) as total
                         FROM eleve_inscription ei
-                        JOIN campus c ON c.id_campus = ei.id_campus_id
-                        WHERE ei.id_campus_id IN ({placeholders}) AND ei.status = 1{annee_filter}
-                        GROUP BY c.id_campus, c.campus
+                        JOIN campus c ON c.idCampus = ei.idCampus_id
+                        WHERE ei.idCampus_id IN ({placeholders}) AND ei.status = 1{annee_filter}
+                        GROUP BY c.idCampus, c.campus
                         ORDER BY total DESC
                     """, base_params)
                     eleves_par_campus = [
@@ -8003,10 +8003,10 @@ def save_evaluation(request):
 
                 # Get campus_id
                 cur.execute("""
-                    SELECT id_campus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1
+                    SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1
                 """, [etab_id])
                 campus_row = cur.fetchone()
-                campus_id = campus_row['id_campus'] if campus_row else None
+                campus_id = campus_row['idCampus'] if campus_row else None
 
                 if eval_id:
                     # UPDATE
@@ -8025,7 +8025,7 @@ def save_evaluation(request):
                     # INSERT
                     cur.execute("""
                         INSERT INTO evaluation (title, id_type_eval, ponderer_eval, date_eval, date_soumission,
-                            contenu_evaluation, document_url, id_annee_id, id_campus_id, id_classe_id,
+                            contenu_evaluation, document_url, id_annee_id, idCampus_id, id_classe_id,
                             id_cours_classe_id, id_etablissement, date_creation)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                     """, [title, id_type_eval, int(ponderer_eval), date_eval, date_soumission,
@@ -8333,16 +8333,16 @@ def get_notes_grid(request):
                 if not ctx:
                     return JsonResponse({'success': False, 'error': 'Classe non trouvée.'}, status=404)
 
-                cur.execute("SELECT id_campus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
                 campus_row = cur.fetchone()
-                campus_id = campus_row['id_campus'] if campus_row else None
+                campus_id = campus_row['idCampus'] if campus_row else None
 
                 # 2. Get enrolled students (filtered by class)
                 cur.execute("""
                     SELECT DISTINCT e.id_eleve, e.nom, e.prenom
                     FROM eleve_inscription ei
                     JOIN eleve e ON e.id_eleve = ei.id_eleve_id
-                    WHERE ei.id_annee_id = %s AND ei.id_campus_id = %s
+                    WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
                       AND ei.id_classe_id = %s AND ei.status = 1
                     ORDER BY e.nom, e.prenom
                 """, [ctx['id_annee'], campus_id, classe_id])
@@ -8510,7 +8510,7 @@ def save_notes(request):
                         else:
                             # Get evaluation context for FK fields
                             cur.execute("""
-                                SELECT id_annee_id, id_campus_id, id_classe_id, id_cours_classe_id
+                                SELECT id_annee_id, idCampus_id, id_classe_id, id_cours_classe_id
                                 FROM evaluation WHERE id_evaluation = %s
                             """, [eval_id])
                             ev_ctx = cur.fetchone()
@@ -8519,11 +8519,11 @@ def save_notes(request):
 
                             cur.execute("""
                                 INSERT INTO eleve_note
-                                    (id_eleve_id, id_evaluation_id, note, id_annee_id, id_campus_id,
+                                    (id_eleve_id, id_evaluation_id, note, id_annee_id, idCampus_id,
                                      id_cours_id, id_etablissement, date_saisie)
                                 VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
                             """, [eleve_id, eval_id, note_float,
-                                  ev_ctx['id_annee_id'], ev_ctx['id_campus_id'],
+                                  ev_ctx['id_annee_id'], ev_ctx['idCampus_id'],
                                   ev_ctx['id_cours_classe_id'], etab_id])
                             saved += 1
 
@@ -8575,16 +8575,16 @@ def download_notes_template(request):
                 """, [classe_id])
                 ctx = cur.fetchone()
 
-                cur.execute("SELECT id_campus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
                 campus_row = cur.fetchone()
-                campus_id = campus_row['id_campus'] if campus_row else None
+                campus_id = campus_row['idCampus'] if campus_row else None
 
                 # Get students (filtered by class)
                 cur.execute("""
                     SELECT DISTINCT e.id_eleve, e.nom, e.prenom
                     FROM eleve_inscription ei
                     JOIN eleve e ON e.id_eleve = ei.id_eleve_id
-                    WHERE ei.id_annee_id = %s AND ei.id_campus_id = %s
+                    WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
                       AND ei.id_classe_id = %s AND ei.status = 1
                     ORDER BY e.nom, e.prenom
                 """, [ctx['id_annee'], campus_id, classe_id])
@@ -8791,7 +8791,7 @@ def import_notes_excel(request):
                                     [nd['note'], existing['id_note']])
                     else:
                         cur.execute("""
-                            SELECT id_annee_id, id_campus_id, id_cours_classe_id
+                            SELECT id_annee_id, idCampus_id, id_cours_classe_id
                             FROM evaluation WHERE id_evaluation = %s
                         """, [nd['evaluation_id']])
                         ev_ctx = cur.fetchone()
@@ -8800,11 +8800,11 @@ def import_notes_excel(request):
 
                         cur.execute("""
                             INSERT INTO eleve_note
-                                (id_eleve_id, id_evaluation_id, note, id_annee_id, id_campus_id,
+                                (id_eleve_id, id_evaluation_id, note, id_annee_id, idCampus_id,
                                  id_cours_id, id_etablissement, date_saisie)
                             VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
                         """, [nd['eleve_id'], nd['evaluation_id'], nd['note'],
-                              ev_ctx['id_annee_id'], ev_ctx['id_campus_id'],
+                              ev_ctx['id_annee_id'], ev_ctx['idCampus_id'],
                               ev_ctx['id_cours_classe_id'], etab_id])
                     saved += 1
 
@@ -8882,16 +8882,16 @@ def calculate_notes_bulletin(request):
                 if not ctx:
                     return JsonResponse({'success': False, 'error': 'Classe non trouvée.'}, status=404)
 
-                cur.execute("SELECT id_campus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
                 campus_row = cur.fetchone()
-                campus_id = campus_row['id_campus'] if campus_row else None
+                campus_id = campus_row['idCampus'] if campus_row else None
 
                 # Get enrolled students for this class
                 cur.execute("""
                     SELECT DISTINCT e.id_eleve
                     FROM eleve_inscription ei
                     JOIN eleve e ON e.id_eleve = ei.id_eleve_id
-                    WHERE ei.id_annee_id = %s AND ei.id_campus_id = %s
+                    WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
                       AND ei.id_classe_id = %s AND ei.status = 1
                 """, [ctx['id_annee'], campus_id, classe_id])
                 eleve_ids = [r['id_eleve'] for r in cur.fetchall()]
@@ -9130,15 +9130,15 @@ def get_notes_bulletin(request):
                 """, [classe_id])
                 ctx = cur.fetchone()
 
-                cur.execute("SELECT id_campus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
                 campus_row = cur.fetchone()
-                campus_id = campus_row['id_campus'] if campus_row else None
+                campus_id = campus_row['idCampus'] if campus_row else None
 
                 cur.execute("""
                     SELECT DISTINCT e.id_eleve, e.nom, e.prenom
                     FROM eleve_inscription ei
                     JOIN eleve e ON e.id_eleve = ei.id_eleve_id
-                    WHERE ei.id_annee_id = %s AND ei.id_campus_id = %s
+                    WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
                       AND ei.id_classe_id = %s AND ei.status = 1
                     ORDER BY e.nom, e.prenom
                 """, [ctx['id_annee'], campus_id, classe_id])
@@ -9838,7 +9838,7 @@ def dashboard_horaire(request):
                     id_classe_id=id_classe,
                     id_cours_id=id_cours,
                     id_annee_id=attr.id_annee_id,
-                    id_campus_id=attr.id_campus_id,
+                    idCampus_id=attr.idCampus_id,
                     id_cycle_id=attr.id_cycle_id,
                     id_horaire_type_id=type_id,
                     date=date_val,
@@ -9952,7 +9952,7 @@ def dashboard_horaire(request):
                     id_classe_id=id_classe,
                     id_cours_id=id_cours,
                     id_annee_id=attr.id_annee_id,
-                    id_campus_id=attr.id_campus_id,
+                    idCampus_id=attr.idCampus_id,
                     id_cycle_id=attr.id_cycle_id,
                     id_horaire_type_id=type_id,
                     date=date_val,
@@ -10017,7 +10017,7 @@ def dashboard_horaire(request):
                     id_classe_id=id_classe,
                     id_cours_id=h.id_cours_id,
                     id_annee_id=h.id_annee_id,
-                    id_campus_id=h.id_campus_id,
+                    idCampus_id=h.idCampus_id,
                     id_cycle_id=h.id_cycle_id,
                     id_horaire_type_id=h.id_horaire_type_id,
                     date=target_date,
@@ -10826,7 +10826,7 @@ def execute_deliberation(request):
 
         # Get campus for the establishment
         campus = Campus.objects.filter(id_etablissement=etab.id_etablissement).first()
-        campus_id = campus.id_campus if campus else 1
+        campus_id = campus.idCampus if campus else 1
 
         # Resolve cycle from EAC
         cycle_id = eac.cycle_id if hasattr(eac, 'cycle_id') and eac.cycle_id else 3
@@ -10843,7 +10843,7 @@ def execute_deliberation(request):
                     with connection.cursor() as cur:
                         cur.execute("""
                             INSERT INTO deliberation_periodique_resultats
-                            (id_eleve_id, id_campus_id, id_annee_id, id_cycle_id, id_classe_id,
+                            (id_eleve_id, idCampus_id, id_annee_id, id_cycle_id, id_classe_id,
                              id_trimestre_id, id_periode_id, pourcentage, place, date_creation, id_etablissement)
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURDATE(), %s)
                             ON DUPLICATE KEY UPDATE
@@ -10862,7 +10862,7 @@ def execute_deliberation(request):
                     with connection.cursor() as cur:
                         cur.execute("""
                             INSERT INTO deliberation_trimistrielle_resultats
-                            (id_eleve_id, id_campus_id, id_annee_id, id_cycle_id, id_classe_id,
+                            (id_eleve_id, idCampus_id, id_annee_id, id_cycle_id, id_classe_id,
                              id_trimestre_id, pourcentage, place, date_creation, id_etablissement)
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CURDATE(), %s)
                             ON DUPLICATE KEY UPDATE
@@ -10882,7 +10882,7 @@ def execute_deliberation(request):
                         id_annee=annee,
                         id_etablissement=etab.id_etablissement,
                         defaults={
-                            'id_campus_id': campus_id,
+                            'idCampus_id': campus_id,
                             'id_cycle_id': cycle_id,
                             'id_classe_id': int(classe_id),
                             'id_session_id': int(session_id),

@@ -29,7 +29,7 @@ class Variable(models.Model):
 class VariableDatebutoire(models.Model):
     id_datebutoire = models.AutoField(primary_key=True)
     id_variable = models.ForeignKey("Variable",on_delete=models.PROTECT,null=False) 
-    id_campus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)  
+    idCampus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)  
     id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null=False, db_constraint=False)
     id_cycle = models.ForeignKey("MonEcole_app.Cycle",on_delete=models.PROTECT,null=False,
                                  db_column='id_cycle_id', db_constraint=False) 
@@ -48,7 +48,7 @@ class VariableDatebutoire(models.Model):
 class VariableDerogation(models.Model):
     id_derogation = models.AutoField(primary_key=True)
     id_eleve = models.ForeignKey("Eleve",on_delete=models.PROTECT,null=False) 
-    id_campus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)  
+    idCampus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)  
     id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null=False, db_constraint=False)
     id_cycle = models.ForeignKey("MonEcole_app.Cycle",on_delete=models.PROTECT,null=False,
                                  db_column='id_cycle_id', db_constraint=False) 
@@ -70,7 +70,7 @@ class VariablePrix(models.Model):
     id_variable = models.ForeignKey("Variable",on_delete=models.PROTECT,null=False) 
     prix = models.PositiveIntegerField()
     id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null=False, db_constraint=False)
-    id_campus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)  
+    idCampus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)  
     id_cycle = models.ForeignKey("MonEcole_app.Cycle",on_delete=models.PROTECT,null=False,
                                  db_column='id_cycle_id', db_constraint=False) 
     id_classe = models.ForeignKey("MonEcole_app.EtablissementAnneeClasse",on_delete=models.PROTECT,null=False,
@@ -81,7 +81,7 @@ class VariablePrix(models.Model):
     
     
     def __str__(self):
-        return f'{self.prix}_{self.id_campus.campus}_{self.id_cycle.cycle_id.cycle}_{self.id_classe.classe_id.classe}_{self.id_annee.annee}'
+        return f'{self.prix}_{self.idCampus.campus}_{self.id_cycle.cycle_id.cycle}_{self.id_classe.classe_id.classe}_{self.id_annee.annee}'
     
 
 

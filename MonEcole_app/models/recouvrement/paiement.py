@@ -6,7 +6,7 @@ from MonEcole_app.models import Eleve
 class Eleve_reduction_prix(models.Model):
     id_reduction_prix = models.AutoField(primary_key=True)
     id_eleve = models.ForeignKey(Eleve,on_delete=models.PROTECT,null=False)
-    id_campus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)  
+    idCampus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)  
     id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null=False, db_constraint=False)
     id_cycle = models.ForeignKey("MonEcole_app.Cycle",on_delete=models.PROTECT,null=False,
                                  db_column='id_cycle_id', db_constraint=False) 
@@ -34,7 +34,7 @@ class Paiement(models.Model):
     date_paie = models.DateField()
     bordereau = models.ImageField(upload_to='invoices/',null=True,blank=True)
     id_eleve = models.ForeignKey(Eleve,on_delete=models.PROTECT,null=False)
-    id_campus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)  
+    idCampus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)  
     id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null=False, db_constraint=False)
     id_cycle = models.ForeignKey("MonEcole_app.Cycle",on_delete=models.PROTECT,null=False,
                                  db_column='id_cycle_id', db_constraint=False) 

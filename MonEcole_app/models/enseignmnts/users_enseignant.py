@@ -10,7 +10,7 @@ class User_enseignement(models.Model):
     user = models.ForeignKey("Personnel", on_delete=models.PROTECT, null=False,
                               db_column='user_id', db_constraint=False)
     id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null=False, db_constraint=False)
-    id_campus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)
+    idCampus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)
     classe_id = models.ForeignKey(EtablissementAnneeClasse,on_delete=models.PROTECT,null=False,
                                   db_column='classe_id_id', db_constraint=False)
     cycle_id = models.ForeignKey(Cycle,on_delete=models.PROTECT,null=False,

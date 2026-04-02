@@ -11,9 +11,12 @@ class Campus(models.Model):
     """
     Campus = site physique d'un établissement.
     Reste dans db_monecole (propre à chaque école).
+    idCampus = PK auto_increment (identifiant global unique)
+    id_campus = numéro séquentiel par établissement (1, 2, 3...)
     id_etablissement = FK logique vers countryStructure.etablissements
     """
-    id_campus = models.AutoField(primary_key=True) 
+    idCampus = models.AutoField(primary_key=True)
+    id_campus = models.IntegerField(default=1, verbose_name="N° campus par établissement")
     campus = models.CharField(max_length=50, null=False, unique=True)  
     adresse = models.CharField(max_length=255, null=False) 
     localisation = models.CharField(max_length=255, null=True, blank=True) 
@@ -31,4 +34,4 @@ class Campus(models.Model):
         verbose_name = "Campus"
 
     def __str__(self):
-        return self.campus
+        return self.campus

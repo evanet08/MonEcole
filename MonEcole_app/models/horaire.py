@@ -21,7 +21,7 @@ class Horaire_type(models.Model):
 class Horaire(models.Model):
     id_horaire = models.AutoField(primary_key=True)
     id_horaire_type = models.ForeignKey(Horaire_type,on_delete=models.PROTECT,null=False)
-    id_campus = models.ForeignKey("Campus",on_delete=models.PROTECT,null= False)
+    idCampus = models.ForeignKey("Campus",on_delete=models.PROTECT,null= False)
     id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null= False, db_constraint=False)
     id_cycle = models.ForeignKey(Cycle,on_delete=models.PROTECT,null= False,
                                  db_column='id_cycle_id', db_constraint=False)

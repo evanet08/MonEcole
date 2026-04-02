@@ -63,7 +63,7 @@ class Eleve_inscription(models.Model):
     id_inscription = models.AutoField(primary_key=True)
     date_inscription = models.DateField(auto_now_add=True)
     id_eleve = models.ForeignKey("Eleve", on_delete=models.PROTECT, null=False)
-    id_campus = models.ForeignKey("Campus", on_delete=models.PROTECT, null=False)
+    idCampus = models.ForeignKey("Campus", on_delete=models.PROTECT, null=False)
     id_annee = models.ForeignKey("Annee", on_delete=models.PROTECT, null=False,
                                  db_constraint=False)
     id_cycle = models.ForeignKey(Cycle, on_delete=models.PROTECT, null=False,
@@ -110,7 +110,7 @@ class Eleve_note(models.Model):
     id_note = models.AutoField(primary_key=True)
     id_annee = models.ForeignKey("Annee", on_delete=models.PROTECT, null=False,
                                  db_constraint=False)
-    id_campus = models.ForeignKey("Campus", on_delete=models.PROTECT, null=False)
+    idCampus = models.ForeignKey("Campus", on_delete=models.PROTECT, null=False)
     id_cycle = models.ForeignKey(Cycle, on_delete=models.PROTECT, null=False,
                                  db_column='id_cycle_id', db_constraint=False)
     id_classe = models.ForeignKey(EtablissementAnneeClasse, on_delete=models.PROTECT, null=False,
@@ -142,7 +142,7 @@ class Eleve_conduite(models.Model):
     id_eleve = models.ForeignKey('Eleve',on_delete=models.PROTECT,null=False)
     motif  = models.CharField(max_length=255,null=False)
     quote = models.PositiveIntegerField(default=0)
-    id_campus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)
+    idCampus = models.ForeignKey("Campus",on_delete=models.PROTECT,null=False)
     id_annee = models.ForeignKey("Annee",on_delete=models.PROTECT,null=False,
                                  db_constraint=False)
     id_cycle = models.ForeignKey(Cycle,on_delete=models.PROTECT,null=False,

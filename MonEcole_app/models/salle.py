@@ -10,7 +10,7 @@ class Salle(models.Model):
     id_salle = models.AutoField(primary_key=True)
     salle = models.CharField(max_length=250,null=False)
     id_annee = models.ForeignKey(Annee,on_delete=models.PROTECT,null= False, db_constraint=False)
-    id_campus = models.ForeignKey(Campus,on_delete=models.PROTECT,null=False)
+    idCampus = models.ForeignKey(Campus,on_delete=models.PROTECT,null=False)
     id_cycle = models.ForeignKey(Cycle,on_delete=models.PROTECT,null= False,
                                  db_column='id_cycle_id', db_constraint=False)
     id_classe = models.ForeignKey(EtablissementAnneeClasse,on_delete=models.PROTECT,null=False,

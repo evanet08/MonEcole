@@ -826,7 +826,7 @@ def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_
     
     filtre_base = {
         "id_annee_id": id_annee,
-        "id_campus_id": id_campus,
+        "idCampus_id": id_campus,
         "id_cycle_id": id_cycle,
         "id_classe_id": id_classe,
         "id_eleve_id": id_eleve,

@@ -401,9 +401,9 @@ def _get_dashboard_context(request):
             cur.execute("""
                 SELECT c.campus as campus_nom, COUNT(*) as total
                 FROM eleve_inscription ei
-                JOIN campus c ON c.id_campus = ei.id_campus_id
+                JOIN campus c ON c.idCampus = ei.idCampus_id
                 WHERE ei.status = 1 AND ei.id_etablissement = %s
-                GROUP BY c.id_campus, c.campus ORDER BY total DESC
+                GROUP BY c.idCampus, c.campus ORDER BY total DESC
             """, [etab_id])
             eleves_par_campus = [
                 {'campus_nom': r[0], 'total': int(r[1])} for r in cur.fetchall()
@@ -933,7 +933,7 @@ def api_enseignant_dashboard(request):
             courses = []
             cur.execute("""
                 SELECT ac.id_attribution, ac.id_cours_id, ac.id_classe_id,
-                       ac.id_cycle_id, ac.id_campus_id, ac.date_attribution
+                       ac.id_cycle_id, ac.idCampus_id, ac.date_attribution
                 FROM attribution_cours ac
                 WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s
                 ORDER BY ac.date_attribution DESC
