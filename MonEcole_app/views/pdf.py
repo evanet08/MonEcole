@@ -324,6 +324,31 @@ def generer_bulletin_pdf(request):
                 rightMargin=5*mm
             )
 
+            # Fetch logos from Pays table via Campus → Etablissement → Pays
+            logo_path = None
+            emblem_path = None
+            try:
+                from MonEcole_app.models.country_structure import Etablissement, Pays
+                campus_obj = Campus.objects.get(idCampus=idCampus)
+                etab = Etablissement.objects.select_related('pays').get(
+                    id_etablissement=campus_obj.id_etablissement
+                )
+                pays = etab.pays
+                media_root = getattr(settings, 'MEDIA_ROOT', '')
+                if not media_root:
+                    import os
+                    media_root = os.path.join(settings.BASE_DIR, 'media')
+                if pays.logo_pays:
+                    lp = os.path.join(media_root, pays.logo_pays)
+                    if os.path.exists(lp):
+                        logo_path = lp
+                if pays.logo_ministere:
+                    ep = os.path.join(media_root, pays.logo_ministere)
+                    if os.path.exists(ep):
+                        emblem_path = ep
+            except Exception as e:
+                logger.warning(f"[BULLETIN PDF] Could not fetch Pays logos: {e}")
+
             for idx, id_eleve in enumerate(id_eleves):
                 try:
                     eleve = Eleve.objects.get(id_eleve=id_eleve)
@@ -331,14 +356,10 @@ def generer_bulletin_pdf(request):
                         elements.append(PageBreak())
 
                     elements.append(Spacer(1, 5*mm))
-                    institution = Institution.objects.get(id_ecole=idCampus)
-                    logo_path = institution.logo_ecole.path if institution.logo_ecole else None
-                    emblem_path = institution.logo_ministere.path if institution.logo_ministere else None
-                    check_image_paths(logo_path, emblem_path)
 
-                    create_header(elements, logo_path, emblem_path, style_title, style_center)
+                    create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=eleve)
                     create_nid_section(elements, style_normal)
-                    left_table = create_line2_left(elements, style_normal)
+                    left_table = create_line2_left(elements, style_normal, id_campus=idCampus)
                     right_table = create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
                     create_line2_section__secondaire_rdc(elements, left_table, right_table)
                     create_bulletin_title__secondaire_rdc(elements, style_title, style_right, id_annee, id_classe)

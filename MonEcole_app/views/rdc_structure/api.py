@@ -52,9 +52,10 @@ def get_cours_classe_rdc(id_annee, id_campus, id_cycle, id_classe):
 
     groupes = defaultdict(list)
     for cpc in cpc_qs:
-        domaine_id = cpc.id_cours.domaine_id
+        # Priority: domaine_id from cours_annee (Programme Annuel), fallback to cours table
+        domaine_id = cpc.domaine_id or cpc.id_cours.domaine_id
         domaine_nom = domaines_dict.get(domaine_id, "Non classé") if domaine_id else "Non classé"
-        groupes[domaine_nom].append((cpc.ordre_cours, cpc)) 
+        groupes[domaine_nom].append((cpc.ordre_cours, cpc))
 
     domaines_ordonnes = []
     for domaine, liste in groupes.items():

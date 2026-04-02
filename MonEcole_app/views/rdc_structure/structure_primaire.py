@@ -98,14 +98,22 @@ def check_image_paths(logo_path, emblem_path):
     if emblem_path and not os.path.exists(emblem_path):
         raise ValueError(f"Fichier emblème introuvable : {emblem_path}")
 
-def create_header(elements, logo_path, emblem_path, style_title, style_center):
+def create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=None):
     logo = Image(logo_path, width=12*mm, height=12*mm) if logo_path and os.path.exists(logo_path) else Paragraph("", style_center)
     emblem = Image(emblem_path, width=12*mm, height=12*mm) if emblem_path and os.path.exists(emblem_path) else Paragraph("", style_center)
-    photo_square = Paragraph("Photo", style_center) 
+    # Student photo
+    photo_square = Paragraph("Photo", style_center)
+    if eleve and hasattr(eleve, 'imageUrl') and eleve.imageUrl:
+        try:
+            photo_file_path = eleve.imageUrl.path
+            if os.path.exists(photo_file_path):
+                photo_square = Image(photo_file_path, width=12*mm, height=15*mm)
+        except Exception:
+            pass
     header_data = [
         [logo, Paragraph("<font color='black'><b>REPUBLIQUE DEMOCRATIQUE DU CONGO<br/>MINISTERE DE L'EDUCATION NATIONALE ET NOUVELLE CITOYENNETE</b></font>", style_title), emblem, photo_square]
     ]
-    header_table = Table(header_data, colWidths=[20*mm, 140*mm, 20*mm, 10*mm], hAlign='LEFT')
+    header_table = Table(header_data, colWidths=[20*mm, 140*mm, 20*mm, 15*mm], hAlign='LEFT')
     header_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),

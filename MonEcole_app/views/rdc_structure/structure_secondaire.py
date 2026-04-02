@@ -81,17 +81,28 @@ def get_semestres(id_annee, id_campus, id_cycle, id_classe):
 
 def create_line2_right__secondaire_rdc(elements, eleve,id_classe, style_normal):
     try:
-        # eleve = Eleve.objects.get(id_eleve=eleve)
-        
         eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
         classe_name = eac.classe.classe.strip()
-        
     except:
-        # messages.error(request, "Classe ou année introuvable.")
         return HttpResponse('<script>history.back();</script>', status=404)
-    nperm_squares = [[None] * 13]
-    nperm_squares_table = Table(nperm_squares, colWidths=[3*mm]*27, rowHeights=4*mm)
-    nperm_squares_table.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.black)]))
+
+    # N.PERM = numero_serie from eleve table
+    nperm_str = str(eleve.numero_serie).strip() if eleve.numero_serie else ''
+    nb_cases = len(nperm_str) if nperm_str else 13
+    nperm_cells = [list(nperm_str)] if nperm_str else [[None] * nb_cases]
+    nperm_squares_table = Table(nperm_cells, colWidths=[3*mm]*nb_cases, rowHeights=4*mm)
+    nperm_squares_table.setStyle(TableStyle([
+        ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+        ('FONTNAME', (0,0), (-1,-1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 8),
+        ('LEADING', (0,0), (-1,-1), 11),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 0),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+        ('LEFTPADDING', (0,0), (-1,-1), 0),
+        ('RIGHTPADDING', (0,0), (-1,-1), 0),
+    ]))
     right_data = [
         [Paragraph(f"<font color='black'><b>ELEVE  : {eleve.nom} {eleve.prenom}</b></font>", style_normal), Paragraph(f"<font color='black'><b>SEXE : {eleve.genre}</b></font>", style_normal)],
         [Paragraph(f"<font color='black'><b>Ne(e) A : {getattr(eleve, 'Lieu_naissance', '..........')}</b></font>", style_normal), Paragraph(f"<font color='black'><b>DATE NAISSANCE: {eleve.date_naissance}</b></font>", style_normal)],
