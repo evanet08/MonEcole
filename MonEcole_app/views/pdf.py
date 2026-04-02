@@ -99,7 +99,7 @@ def generer_bulletin_pdf(request):
         return HttpResponse('<script>history.back();</script>', status=400)
 
     # Resolve EAC → business keys (if not already done above)
-    if 'bk_classe_id' not in dir():
+    if 'bk_classe_id' not in locals():
         try:
             from MonEcole_app.models.country_structure import EtablissementAnneeClasse as _EAC
             _eac = _EAC.objects.get(id=id_classe)
