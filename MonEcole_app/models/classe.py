@@ -46,13 +46,6 @@ class Classe(models.Model):
     def __str__(self):
         return self.classe
 
-# ============================================================
-# Les anciens modèles Classe_active et Classe_cycle_actif sont SUPPRIMÉS.
-# Utiliser directement :
-#   EtablissementAnneeClasse  (country_structure.py)
-#   Cycle                     (country_structure.py)
-# ============================================================
-
 
 
 # ============================================================

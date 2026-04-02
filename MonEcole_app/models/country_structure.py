@@ -106,7 +106,6 @@ class EtablissementAnnee(models.Model):
 class EtablissementAnneeClasse(models.Model):
     """
     Classes activées pour un établissement/année.
-    REMPLACE la VIEW 'classe_active' supprimée.
     Le spoke lit directement cette table Hub + filtre par campus local.
     """
     id = models.AutoField(primary_key=True)

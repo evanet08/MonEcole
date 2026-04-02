@@ -277,8 +277,8 @@ def recuperer_notes_par_classe_cycle_superieur(annee_id, campus_id, cycle_id, cl
     notes = Eleve_note.objects.filter(
         id_annee=annee_id,
         id_campus=campus_id,
-        id_cycle_actif=cycle_id,
-        id_classe_active=classe_id,
+        id_cycle=cycle_id,
+        id_classe=classe_id,
         id_trimestre=trimestre_id,
         id_cours_classe=cours_classe_id
     ).select_related(
