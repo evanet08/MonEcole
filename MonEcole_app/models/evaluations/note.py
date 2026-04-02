@@ -37,7 +37,7 @@ class Deliberation_annuelle_finalite(models.Model):
 class Deliberation_annuelle_condition(models.Model):
     id_decision = models.AutoField(primary_key=True)  
     id_annee = models.ForeignKey("Annee", on_delete=models.DO_NOTHING, null=False, db_constraint=False)
-    id_campus_id = models.IntegerField(null=False, db_column='id_campus_id')  # Spoke → IntegerField
+    idCampus_id = models.IntegerField(null=False, db_column='idCampus_id')  # Spoke → IntegerField
     id_cycle = models.ForeignKey(Cycle, on_delete=models.DO_NOTHING, null=False, db_constraint=False)
     id_classe = models.ForeignKey(EtablissementAnneeClasse, on_delete=models.DO_NOTHING, null=False, db_constraint=False)
     id_mention = models.ForeignKey(Mention, on_delete=models.DO_NOTHING, null=False, db_constraint=False)

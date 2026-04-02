@@ -3013,7 +3013,7 @@ function editCampusInline(id){
 
 async function saveEditCampus(id){
     const card=document.querySelector(`[data-campus-id="${id}"]`);
-    const data={id_campus:id};
+    const data={idCampus:id};
     card.querySelectorAll('.campus-edit').forEach(inp=>{data[inp.dataset.field]=inp.value});
     try{
         const res=await fetch('/api/dashboard/campus-update/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},body:JSON.stringify(data)}).then(r=>r.json());
@@ -3033,7 +3033,7 @@ async function saveCampus(){
 
 async function toggleCampusActive(id,newState){
     try{
-        const res=await fetch('/api/dashboard/campus-update/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},body:JSON.stringify({id_campus:id,is_active:newState})}).then(r=>r.json());
+        const res=await fetch('/api/dashboard/campus-update/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},body:JSON.stringify({idCampus:id,is_active:newState})}).then(r=>r.json());
         if(res.success){window._campusLoaded=false;loadCampusList()}else{alert(res.error||'Erreur')}
     }catch(e){alert('Erreur connexion')}
 }
@@ -3041,7 +3041,7 @@ async function toggleCampusActive(id,newState){
 async function deleteCampus(id,nom){
     if(!confirm('Supprimer le campus "'+nom+'" ? Cette action est irréversible.'))return;
     try{
-        const res=await fetch('/api/dashboard/campus-delete/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},body:JSON.stringify({id_campus:id})}).then(r=>r.json());
+        const res=await fetch('/api/dashboard/campus-delete/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},body:JSON.stringify({idCampus:id})}).then(r=>r.json());
         if(res.success){window._campusLoaded=false;loadCampusList()}else{alert(res.error||'Erreur')}
     }catch(e){alert('Erreur connexion')}
 }
