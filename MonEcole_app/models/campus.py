@@ -33,5 +33,15 @@ class Campus(models.Model):
         db_table = "campus" 
         verbose_name = "Campus"
 
+    def save(self, *args, **kwargs):
+        # Auto-increment id_campus par établissement lors de la création
+        if not self.pk and self.id_etablissement is not None:
+            max_id = Campus.all_objects.filter(
+                id_etablissement=self.id_etablissement
+            ).aggregate(models.Max('id_campus'))['id_campus__max'] or 0
+            self.id_campus = max_id + 1
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return self.campus
+        return self.campus
+

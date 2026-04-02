@@ -4607,17 +4607,25 @@ def dashboard_campus_create(request):
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
+                # Auto-increment id_campus per establishment
+                etab_id = data.get('id_etablissement')
+                cur.execute(
+                    "SELECT COALESCE(MAX(id_campus), 0) + 1 AS next_id FROM campus WHERE id_etablissement = %s",
+                    [etab_id]
+                )
+                next_id_campus = cur.fetchone()['next_id']
                 cur.execute("""
-                    INSERT INTO campus (campus, adresse, localisation, is_active, id_etablissement)
-                    VALUES (%s, %s, %s, 1, %s)
+                    INSERT INTO campus (id_campus, campus, adresse, localisation, is_active, id_etablissement)
+                    VALUES (%s, %s, %s, %s, 1, %s)
                 """, [
+                    next_id_campus,
                     campus_name,
                     data.get('adresse', ''),
                     data.get('localisation', ''),
-                    data.get('id_etablissement'),
+                    etab_id,
                 ])
                 conn.commit()
-                return JsonResponse({'success': True, 'idCampus': cur.lastrowid})
+                return JsonResponse({'success': True, 'idCampus': cur.lastrowid, 'id_campus': next_id_campus})
         finally:
             conn.close()
     except Exception as e:
