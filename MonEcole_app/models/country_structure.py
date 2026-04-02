@@ -24,7 +24,7 @@ class Pays(models.Model):
     domaine = models.CharField(max_length=255)
     nLevelsPedagogiques = models.PositiveIntegerField(default=0)
     nLevelsAdministratifs = models.PositiveIntegerField(default=0)
-    logo_ministere = models.CharField(max_length=255, db_column='logoMinistere', blank=True, null=True)
+    logo_ministere = models.CharField(max_length=255, blank=True, null=True)
     logo_pays = models.CharField(max_length=255, db_column='logoPays', blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
