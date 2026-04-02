@@ -56,9 +56,7 @@ class Eleve(models.Model):
 class Eleve_inscription(models.Model):
     """
     Inscription d'un élève dans une classe pour une année.
-    FK vers Hub : id_classe → etablissements_annees_classes.id
-                  id_cycle  → cycles.id_cycle
-                  id_trimestre → repartition_configs_etab_annee.id
+    La classe est identifiée par (classe_id + groupe + section_id) — clés métier stables.
     """
     id_inscription = models.AutoField(primary_key=True)
     date_inscription = models.DateField(auto_now_add=True)
@@ -68,8 +66,12 @@ class Eleve_inscription(models.Model):
                                  db_constraint=False)
     id_cycle = models.ForeignKey(Cycle, on_delete=models.PROTECT, null=False,
                                  db_column='id_cycle_id', db_constraint=False)
-    id_classe = models.ForeignKey(EtablissementAnneeClasse, on_delete=models.PROTECT, null=False,
-                                  db_column='id_classe_id', db_constraint=False)
+    id_classe = models.ForeignKey('Classe', on_delete=models.PROTECT, null=False,
+                                  db_column='classe_id', db_constraint=False)
+    groupe = models.CharField(max_length=5, null=True, blank=True)
+    section = models.ForeignKey('MonEcole_app.Section', on_delete=models.SET_NULL,
+                                null=True, blank=True, db_column='section_id',
+                                db_constraint=False)
     redoublement = models.BooleanField(default=False)
     status = models.BooleanField(default=True)
     isDelegue = models.BooleanField(default=False)
@@ -80,6 +82,7 @@ class Eleve_inscription(models.Model):
 
     class Meta:
         db_table = 'eleve_inscription'
+
 
 
 

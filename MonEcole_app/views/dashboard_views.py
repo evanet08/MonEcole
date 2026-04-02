@@ -373,16 +373,21 @@ def _get_dashboard_context(request):
                 {'tranche': f"{int(r[0])} ans", 'nb': int(r[1])} for r in cur.fetchall()
             ]
 
-            # Elèves par classe (cross-DB)
+            # Elèves par classe (cross-DB via clés métier)
             cur.execute("""
-                SELECT ei.id_classe_id as eac_id, COUNT(*) as total,
+                SELECT eac.id as eac_id, COUNT(*) as total,
                        SUM(CASE WHEN e.genre='M' THEN 1 ELSE 0 END) as garcons,
                        SUM(CASE WHEN e.genre='F' THEN 1 ELSE 0 END) as filles
                 FROM eleve_inscription ei
                 JOIN eleve e ON e.id_eleve = ei.id_eleve_id
+                JOIN countryStructure.etablissements_annees_classes eac
+                  ON eac.classe_id = ei.classe_id
+                  AND eac.groupe <=> ei.groupe
+                  AND eac.section_id <=> ei.section_id
+                  AND eac.etablissement_annee_id = %s
                 WHERE ei.status = 1 AND ei.id_etablissement = %s
-                GROUP BY ei.id_classe_id
-            """, [etab_id])
+                GROUP BY eac.id
+            """, [etab_annee.id if etab_annee else 0, etab_id])
             epc_raw = {int(r[0]): {'total': int(r[1]), 'garcons': int(r[2] or 0), 'filles': int(r[3] or 0)} for r in cur.fetchall()}
 
             # Match with classes_detail
@@ -1007,15 +1012,23 @@ def api_enseignant_dashboard(request):
                     except Exception:
                         pass
 
-                # Count students in this class (Spoke)
+                # Count students in this class (Spoke via business keys)
                 n_eleves = 0
                 try:
-                    cur.execute("""
-                        SELECT COUNT(*) as n FROM eleve_inscription
-                        WHERE id_classe_id = %s AND status = 1 AND id_etablissement = %s
-                    """, [classe_id, etab_id])
-                    r = cur.fetchone()
-                    n_eleves = r['n'] if r else 0
+                    # Resolve EAC id → business keys
+                    hub_cur.execute("""
+                        SELECT eac.classe_id, eac.groupe, eac.section_id
+                        FROM etablissements_annees_classes eac WHERE eac.id = %s
+                    """, [classe_id])
+                    bk = hub_cur.fetchone()
+                    if bk:
+                        cur.execute("""
+                            SELECT COUNT(*) as n FROM eleve_inscription
+                            WHERE classe_id = %s AND groupe <=> %s AND section_id <=> %s
+                              AND status = 1 AND id_etablissement = %s
+                        """, [bk['classe_id'], bk['groupe'], bk['section_id'], etab_id])
+                        r = cur.fetchone()
+                        n_eleves = r['n'] if r else 0
                 except Exception:
                     pass
 
@@ -1158,13 +1171,23 @@ def api_enseignant_presences(request):
                 if not horaire:
                     conn.close()
                     return JsonResponse({'success': False, 'error': 'Horaire non trouvé'}, status=404)
+                # Resolve EAC.id → business keys
                 cur.execute("""
-                    SELECT DISTINCT e.id_eleve, e.nom, e.prenom, e.genre
-                    FROM eleve_inscription ei JOIN eleve e ON e.id_eleve=ei.id_eleve_id
-                    WHERE ei.id_classe_id=%s AND ei.status=1 AND ei.id_etablissement=%s
-                    ORDER BY e.nom, e.prenom
-                """, [horaire['id_classe_id'], etab_id])
-                eleves = cur.fetchall()
+                    SELECT eac.classe_id, eac.groupe, eac.section_id
+                    FROM countryStructure.etablissements_annees_classes eac WHERE eac.id = %s
+                """, [horaire['id_classe_id']])
+                bk = cur.fetchone()
+                if bk:
+                    cur.execute("""
+                        SELECT DISTINCT e.id_eleve, e.nom, e.prenom, e.genre
+                        FROM eleve_inscription ei JOIN eleve e ON e.id_eleve=ei.id_eleve_id
+                        WHERE ei.classe_id=%s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                          AND ei.status=1 AND ei.id_etablissement=%s
+                        ORDER BY e.nom, e.prenom
+                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], etab_id])
+                    eleves = cur.fetchall()
+                else:
+                    eleves = []
                 # Ensure comportement_note column exists
                 try:
                     cur.execute("ALTER TABLE horaire_presence ADD COLUMN comportement_note TINYINT DEFAULT NULL")
@@ -1246,13 +1269,23 @@ def api_enseignant_presences(request):
                 if not horaire:
                     conn.close()
                     return JsonResponse({'success': False, 'error': 'Horaire non trouve'}, status=404)
+                # Resolve EAC.id → business keys
                 cur.execute("""
-                    SELECT DISTINCT e.id_eleve, e.nom, e.prenom, e.genre
-                    FROM eleve_inscription ei JOIN eleve e ON e.id_eleve=ei.id_eleve_id
-                    WHERE ei.id_classe_id=%s AND ei.status=1 AND ei.id_etablissement=%s
-                    ORDER BY e.nom, e.prenom
-                """, [horaire['id_classe_id'], etab_id])
-                eleves = cur.fetchall()
+                    SELECT eac.classe_id, eac.groupe, eac.section_id
+                    FROM countryStructure.etablissements_annees_classes eac WHERE eac.id = %s
+                """, [horaire['id_classe_id']])
+                bk = cur.fetchone()
+                if bk:
+                    cur.execute("""
+                        SELECT DISTINCT e.id_eleve, e.nom, e.prenom, e.genre
+                        FROM eleve_inscription ei JOIN eleve e ON e.id_eleve=ei.id_eleve_id
+                        WHERE ei.classe_id=%s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                          AND ei.status=1 AND ei.id_etablissement=%s
+                        ORDER BY e.nom, e.prenom
+                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], etab_id])
+                    eleves = cur.fetchall()
+                else:
+                    eleves = []
                 cur.execute("SELECT id_horaire_presence, id_eleve_id, present_ou_absent, si_absent_motif, comportement_note FROM horaire_presence WHERE id_horaire_id=%s", [horaire_id])
                 presences = {}
                 for p in cur.fetchall():
@@ -1486,16 +1519,23 @@ def api_communication_send(request):
 
             elif scope == 'class' and target_classe_id:
                 # Emails de tous les parents d'une classe
+                # Resolve EAC.id → business keys
                 cur.execute("""
-                    SELECT DISTINCT e.email_parent, e.nom, e.prenom
-                    FROM eleve_inscription ei
-                    JOIN eleve e ON e.id_eleve = ei.id_eleve_id
-                    WHERE ei.id_classe_id = %s
-                      AND ei.status = 1
-                      AND ei.id_etablissement = %s
-                      AND e.email_parent IS NOT NULL
-                      AND e.email_parent != ''
-                """, [target_classe_id, etab_id])
+                    SELECT eac.classe_id, eac.groupe, eac.section_id
+                    FROM countryStructure.etablissements_annees_classes eac WHERE eac.id = %s
+                """, [target_classe_id])
+                bk = cur.fetchone()
+                if bk:
+                    cur.execute("""
+                        SELECT DISTINCT e.email_parent, e.nom, e.prenom
+                        FROM eleve_inscription ei
+                        JOIN eleve e ON e.id_eleve = ei.id_eleve_id
+                        WHERE ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                          AND ei.status = 1
+                          AND ei.id_etablissement = %s
+                          AND e.email_parent IS NOT NULL
+                          AND e.email_parent != ''
+                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], etab_id])
                 rows = cur.fetchall()
                 for r in rows:
                     parent_emails.append({

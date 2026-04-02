@@ -4002,7 +4002,7 @@ def dashboard_add_eleve(request):
             with conn.cursor() as cur:
                 # Get classe_par_annee details (campus, cycle) — direct Hub query
                 cur.execute("""
-                    SELECT eac.id, eac.classe_id, eac.groupe,
+                    SELECT eac.id, eac.classe_id, eac.groupe, eac.section_id,
                            ea.annee_id AS id_annee_id,
                            c.idCampus AS idCampus_id,
                            cl.cycle_id AS cycle_id
@@ -4034,11 +4034,12 @@ def dashboard_add_eleve(request):
                 cur.execute("""
                     INSERT INTO eleve_inscription
                     (date_inscription, redoublement, status, isDelegue,
-                     id_annee_id, idCampus_id, id_classe_id,
-                     id_eleve_id, id_etablissement)
-                    VALUES (CURDATE(), 0, 1, 0, %s, %s, %s, %s, %s)
+                     id_annee_id, idCampus_id, classe_id, groupe, section_id,
+                     id_cycle_id, id_eleve_id, id_etablissement)
+                    VALUES (CURDATE(), 0, 1, 0, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, [
-                    ca['id_annee_id'], ca['idCampus_id'], ca['id'],
+                    ca['id_annee_id'], ca['idCampus_id'], ca['classe_id'],
+                    ca['groupe'], ca['section_id'], ca['cycle_id'],
                     id_eleve, id_etablissement
                 ])
                 cur.execute("SET FOREIGN_KEY_CHECKS=1")
@@ -4117,18 +4118,24 @@ def dashboard_eleve_template(request):
                         if row['groupe']:
                             classe_label += ' (' + row['groupe'] + ')'
 
-                    # Fetch existing students enrolled in this class
+                    # Fetch existing students enrolled in this class (via business keys)
                     cur.execute("""
-                        SELECT e.numero_serie, e.nom, e.prenom, e.genre,
-                               e.date_naissance, e.nom_pere, e.prenom_pere,
-                               e.nom_mere, e.prenom_mere, e.email_parent, e.telephone
-                        FROM eleve e
-                        JOIN eleve_inscription ei ON ei.id_eleve_id = e.id_eleve
-                        WHERE ei.id_classe_id = %s
-                          AND ei.id_etablissement = %s
-                        ORDER BY e.nom, e.prenom
-                    """, [classe_par_annee_id, id_etablissement])
-                    existing_students = cur.fetchall()
+                        SELECT eac.classe_id, eac.groupe, eac.section_id
+                        FROM countryStructure.etablissements_annees_classes eac WHERE eac.id = %s
+                    """, [classe_par_annee_id])
+                    bk = cur.fetchone()
+                    if bk:
+                        cur.execute("""
+                            SELECT e.numero_serie, e.nom, e.prenom, e.genre,
+                                   e.date_naissance, e.nom_pere, e.prenom_pere,
+                                   e.nom_mere, e.prenom_mere, e.email_parent, e.telephone
+                            FROM eleve e
+                            JOIN eleve_inscription ei ON ei.id_eleve_id = e.id_eleve
+                            WHERE ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                              AND ei.id_etablissement = %s
+                            ORDER BY e.nom, e.prenom
+                        """, [bk['classe_id'], bk['groupe'], bk['section_id'], id_etablissement])
+                        existing_students = cur.fetchall()
             finally:
                 conn.close()
         except Exception:
@@ -4398,7 +4405,8 @@ def dashboard_import_eleves(request):
             with conn.cursor() as cur:
                 # Verify class exists
                 cur.execute("""
-                    SELECT eac.id, c.idCampus AS idCampus_id, ea.annee_id AS id_annee_id, cl.cycle_id AS cycle_id
+                    SELECT eac.id, eac.classe_id, eac.groupe, eac.section_id,
+                           c.idCampus AS idCampus_id, ea.annee_id AS id_annee_id, cl.cycle_id AS cycle_id
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON eac.etablissement_annee_id = ea.id
                     JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id
@@ -4530,11 +4538,12 @@ def dashboard_import_eleves(request):
                             cur.execute("""
                                 INSERT INTO eleve_inscription
                                 (date_inscription, redoublement, status, isDelegue,
-                                 id_annee_id, idCampus_id, id_classe_id,
-                                 id_eleve_id, id_etablissement)
-                                VALUES (CURDATE(), 0, 1, 0, %s, %s, %s, %s, %s)
+                                 id_annee_id, idCampus_id, classe_id, groupe, section_id,
+                                 id_cycle_id, id_eleve_id, id_etablissement)
+                                VALUES (CURDATE(), 0, 1, 0, %s, %s, %s, %s, %s, %s, %s, %s)
                             """, [
-                                ca['id_annee_id'], ca['idCampus_id'], ca['id'],
+                                ca['id_annee_id'], ca['idCampus_id'], ca['classe_id'],
+                                ca['groupe'], ca['section_id'], ca['cycle_id'],
                                 id_eleve, id_etablissement
                             ])
                             imported += 1
@@ -4743,8 +4752,15 @@ def dashboard_eleves_stats(request):
                     params.append(int(id_annee))
 
                 if classe_par_annee_id:
-                    where += " AND ei.id_classe_id=%s"
-                    params.append(int(classe_par_annee_id))
+                    # Resolve EAC.id → business keys
+                    cur.execute("""
+                        SELECT eac.classe_id, eac.groupe, eac.section_id
+                        FROM countryStructure.etablissements_annees_classes eac WHERE eac.id = %s
+                    """, [int(classe_par_annee_id)])
+                    bk = cur.fetchone()
+                    if bk:
+                        where += " AND ei.classe_id=%s AND ei.groupe <=> %s AND ei.section_id <=> %s"
+                        params.extend([bk['classe_id'], bk['groupe'], bk['section_id']])
 
                 # Gender totals
                 cur.execute(f"""
@@ -4810,6 +4826,15 @@ def dashboard_eleves_list(request):
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
+                # Resolve EAC.id → business keys
+                cur.execute("""
+                    SELECT eac.classe_id, eac.groupe, eac.section_id
+                    FROM countryStructure.etablissements_annees_classes eac WHERE eac.id = %s
+                """, [classe_par_annee_id])
+                bk = cur.fetchone()
+                if not bk:
+                    return JsonResponse({'success': False, 'error': 'Classe introuvable'}, status=404)
+
                 cur.execute("""
                     SELECT e.id_eleve, e.numero_serie, e.nom, e.prenom, e.genre,
                            e.date_naissance, e.nom_pere, e.prenom_pere,
@@ -4819,9 +4844,9 @@ def dashboard_eleves_list(request):
                            ei.status, ei.isDelegue
                     FROM eleve e
                     JOIN eleve_inscription ei ON ei.id_eleve_id = e.id_eleve
-                    WHERE ei.id_classe_id = %s
+                    WHERE ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
                     ORDER BY e.nom, e.prenom
-                """, [classe_par_annee_id])
+                """, [bk['classe_id'], bk['groupe'], bk['section_id']])
                 students = cur.fetchall()
 
                 result = []
@@ -6509,7 +6534,10 @@ def dashboard_etablissement_view(request):
                             SUM(CASE WHEN e.genre = 'F' THEN 1 ELSE 0 END) as filles
                         FROM eleve_inscription ei
                         JOIN eleve e ON e.id_eleve = ei.id_eleve_id
-                        JOIN countryStructure.etablissements_annees_classes eac ON eac.id = ei.id_classe_id
+                        JOIN countryStructure.etablissements_annees_classes eac
+                          ON eac.classe_id = ei.classe_id
+                          AND eac.groupe <=> ei.groupe
+                          AND eac.section_id <=> ei.section_id
                         JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id
                         LEFT JOIN countryStructure.sections s ON s.id_section = eac.section_id
                         WHERE ei.idCampus_id IN ({placeholders}) AND ei.status = 1{annee_filter}
@@ -8330,9 +8358,10 @@ def get_notes_grid(request):
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
-                # 1. Get annee + campus from the EAC
+                # 1. Get annee + campus + business keys from the EAC
                 cur.execute("""
-                    SELECT ea.annee_id AS id_annee, ea.etablissement_id AS id_etab
+                    SELECT ea.annee_id AS id_annee, ea.etablissement_id AS id_etab,
+                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
                     WHERE eac.id = %s LIMIT 1
@@ -8345,15 +8374,16 @@ def get_notes_grid(request):
                 campus_row = cur.fetchone()
                 campus_id = campus_row['idCampus'] if campus_row else None
 
-                # 2. Get enrolled students (filtered by class)
+                # 2. Get enrolled students (filtered by business keys)
                 cur.execute("""
                     SELECT DISTINCT e.id_eleve, e.nom, e.prenom
                     FROM eleve_inscription ei
                     JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                     WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
-                      AND ei.id_classe_id = %s AND ei.status = 1
+                      AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.status = 1
                     ORDER BY e.nom, e.prenom
-                """, [ctx['id_annee'], campus_id, classe_id])
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
                 eleves = cur.fetchall()
 
                 # 3. Get evaluations assigned to this repartition for this classe
@@ -8577,7 +8607,9 @@ def download_notes_template(request):
         try:
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT ea.annee_id AS id_annee FROM countryStructure.etablissements_annees_classes eac
+                    SELECT ea.annee_id AS id_annee,
+                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
+                    FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
                     WHERE eac.id = %s LIMIT 1
                 """, [classe_id])
@@ -8587,15 +8619,16 @@ def download_notes_template(request):
                 campus_row = cur.fetchone()
                 campus_id = campus_row['idCampus'] if campus_row else None
 
-                # Get students (filtered by class)
+                # Get students (filtered by business keys)
                 cur.execute("""
                     SELECT DISTINCT e.id_eleve, e.nom, e.prenom
                     FROM eleve_inscription ei
                     JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                     WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
-                      AND ei.id_classe_id = %s AND ei.status = 1
+                      AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.status = 1
                     ORDER BY e.nom, e.prenom
-                """, [ctx['id_annee'], campus_id, classe_id])
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
                 eleves = cur.fetchall()
 
                 # Get assigned evaluations
@@ -8879,9 +8912,10 @@ def calculate_notes_bulletin(request):
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
-                # Get annee
+                # Get annee + business keys
                 cur.execute("""
-                    SELECT ea.annee_id AS id_annee
+                    SELECT ea.annee_id AS id_annee,
+                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
                     WHERE eac.id = %s LIMIT 1
@@ -8894,14 +8928,15 @@ def calculate_notes_bulletin(request):
                 campus_row = cur.fetchone()
                 campus_id = campus_row['idCampus'] if campus_row else None
 
-                # Get enrolled students for this class
+                # Get enrolled students for this class (business keys)
                 cur.execute("""
                     SELECT DISTINCT e.id_eleve
                     FROM eleve_inscription ei
                     JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                     WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
-                      AND ei.id_classe_id = %s AND ei.status = 1
-                """, [ctx['id_annee'], campus_id, classe_id])
+                      AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.status = 1
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
                 eleve_ids = [r['id_eleve'] for r in cur.fetchall()]
 
                 if not eleve_ids:
@@ -9129,9 +9164,10 @@ def get_notes_bulletin(request):
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
-                # Get students
+                # Get students + business keys
                 cur.execute("""
-                    SELECT ea.annee_id AS id_annee
+                    SELECT ea.annee_id AS id_annee,
+                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
                     WHERE eac.id = %s LIMIT 1
@@ -9147,9 +9183,10 @@ def get_notes_bulletin(request):
                     FROM eleve_inscription ei
                     JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                     WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
-                      AND ei.id_classe_id = %s AND ei.status = 1
+                      AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.status = 1
                     ORDER BY e.nom, e.prenom
-                """, [ctx['id_annee'], campus_id, classe_id])
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
                 eleves = cur.fetchall()
 
                 # Get cours (with ponderation) — filtered by classe
@@ -10065,11 +10102,25 @@ def dashboard_transfer_eleves(request):
         try:
             transferred = 0
             with conn.cursor() as cur:
+                # Resolve destination EAC.id → business keys
+                cur.execute("""
+                    SELECT eac.classe_id, eac.groupe, eac.section_id, cl.cycle_id
+                    FROM countryStructure.etablissements_annees_classes eac
+                    JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id
+                    WHERE eac.id = %s
+                """, [dest_classe_id])
+                bk = cur.fetchone()
+                if not bk:
+                    return JsonResponse({'success': False, 'error': 'Classe destination introuvable'}, status=404)
+
                 for e in eleves:
                     insc_id = e.get('id_inscription')
                     if insc_id:
-                        cur.execute("UPDATE eleve_inscription SET id_classe_id=%s WHERE id_inscription=%s",
-                                    [dest_classe_id, insc_id])
+                        cur.execute("""
+                            UPDATE eleve_inscription
+                            SET classe_id=%s, groupe=%s, section_id=%s, id_cycle_id=%s
+                            WHERE id_inscription=%s
+                        """, [bk['classe_id'], bk['groupe'], bk['section_id'], bk['cycle_id'], insc_id])
                         transferred += cur.rowcount
                 conn.commit()
             return JsonResponse({'success': True, 'transferred': transferred})
@@ -10718,7 +10769,7 @@ def execute_deliberation(request):
         if not eac:
             return JsonResponse({'success': False, 'error': 'Classe non trouvée.'}, status=404)
 
-        # Get enrolled students for THIS CLASS
+        # Get enrolled students for THIS CLASS (via business keys)
         from django.db import connection
         with connection.cursor() as cur:
             cur.execute("""
@@ -10726,11 +10777,11 @@ def execute_deliberation(request):
                 FROM eleve_inscription ei
                 JOIN eleve e ON ei.id_eleve_id = e.id_eleve
                 WHERE ei.id_annee_id = %s
-                  AND ei.id_classe_id = %s
+                  AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
                   AND ei.id_etablissement = %s
                   AND ei.status = 1
                 ORDER BY e.nom, e.prenom
-            """, [annee.id_annee, int(classe_id), etab.id_etablissement])
+            """, [annee.id_annee, eac.classe_id, eac.groupe, eac.section_id, etab.id_etablissement])
             columns = [col[0] for col in cur.description]
             eleves = [dict(zip(columns, row)) for row in cur.fetchall()]
 
@@ -11049,8 +11100,9 @@ def get_deliberated_classes(request):
             with connection.cursor() as cur:
                 cur.execute("""
                     SELECT COUNT(DISTINCT id_eleve_id) FROM eleve_inscription
-                    WHERE id_annee_id=%s AND id_classe_id=%s AND id_etablissement=%s AND status=1
-                """, [annee.id_annee, eac.id, etab.id_etablissement])
+                    WHERE id_annee_id=%s AND classe_id=%s AND groupe <=> %s AND section_id <=> %s
+                      AND id_etablissement=%s AND status=1
+                """, [annee.id_annee, eac.classe_id, eac.groupe, eac.section_id, etab.id_etablissement])
                 nb_eleves = cur.fetchone()[0]
 
             cycle_name = eac.classe.cycle.cycle if eac.classe and hasattr(eac.classe, 'cycle') and eac.classe.cycle else '—'
@@ -11097,6 +11149,11 @@ def get_bulletin_eleves(request):
         if not annee:
             return JsonResponse({'success': True, 'eleves': []})
 
+        # Resolve EAC.id → business keys
+        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).first()
+        if not eac:
+            return JsonResponse({'success': False, 'error': 'Classe non trouvée'}, status=404)
+
         from django.db import connection
         with connection.cursor() as cur:
             cur.execute("""
@@ -11104,11 +11161,11 @@ def get_bulletin_eleves(request):
                 FROM eleve_inscription ei
                 JOIN eleve e ON ei.id_eleve_id = e.id_eleve
                 WHERE ei.id_annee_id = %s
-                  AND ei.id_classe_id = %s
+                  AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
                   AND ei.id_etablissement = %s
                   AND ei.status = 1
                 ORDER BY e.nom, e.prenom
-            """, [annee.id_annee, int(classe_id), etab.id_etablissement])
+            """, [annee.id_annee, eac.classe_id, eac.groupe, eac.section_id, etab.id_etablissement])
             columns = [col[0] for col in cur.description]
             rows = cur.fetchall()
 

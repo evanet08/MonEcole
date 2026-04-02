@@ -71,7 +71,11 @@ def generer_bulletin_pdf(request):
                 etab_id = eac.etablissement_annee.etablissement_id
                 campus = Campus.objects.filter(id_etablissement=etab_id).first()
                 idCampus = str(campus.idCampus) if campus else '1'
-            logger.warning(f"[BULLETIN PDF] After auto-resolve: annee={id_annee}, campus={idCampus}, cycle={id_cycle}")
+            # Extract business keys for inscription filtering
+            bk_classe_id = eac.classe_id
+            bk_groupe = eac.groupe
+            bk_section_id = eac.section_id
+            logger.warning(f"[BULLETIN PDF] After auto-resolve: annee={id_annee}, campus={idCampus}, cycle={id_cycle}, bk_classe={bk_classe_id}, bk_groupe={bk_groupe}, bk_section={bk_section_id}")
         except Exception as e:
             logger.error(f"[BULLETIN PDF] Auto-resolve FAILED: {e}")
 
@@ -93,6 +97,19 @@ def generer_bulletin_pdf(request):
     if not id_eleves:
         messages.error(request, "Aucun élève sélectionné.")
         return HttpResponse('<script>history.back();</script>', status=400)
+
+    # Resolve EAC → business keys (if not already done above)
+    if 'bk_classe_id' not in dir():
+        try:
+            from MonEcole_app.models.country_structure import EtablissementAnneeClasse as _EAC
+            _eac = _EAC.objects.get(id=id_classe)
+            bk_classe_id = _eac.classe_id
+            bk_groupe = _eac.groupe
+            bk_section_id = _eac.section_id
+        except Exception:
+            bk_classe_id = id_classe
+            bk_groupe = None
+            bk_section_id = None
 
     # Trier les élèves par classement annuel (1er → dernier)
     try:
@@ -152,7 +169,9 @@ def generer_bulletin_pdf(request):
                     id_annee=id_annee,
                     idCampus=idCampus,
                     id_cycle=id_cycle,
-                    id_classe=id_classe,
+                    id_classe_id=bk_classe_id,
+                    groupe=bk_groupe,
+                    section_id=bk_section_id,
                     status=1
                 ).first()
 
