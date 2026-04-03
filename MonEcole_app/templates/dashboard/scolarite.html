@@ -287,10 +287,10 @@
 <div class="etab-section active-section" id="sec-eleves">
     <!-- Stat Cards (shared across all sections) -->
     <div class="stat-grid">
-        <div class="stat-card grad-purple"><div class="stat-icon"><i class="fas fa-users"></i></div><div><div class="stat-label">Élèves inscrits</div><div class="stat-value">{{ stats.n_eleves }}</div></div></div>
-        <div class="stat-card grad-teal"><div class="stat-icon"><i class="fas fa-chalkboard"></i></div><div><div class="stat-label">Classes</div><div class="stat-value">{{ stats.n_classes }}</div></div></div>
-        <div class="stat-card grad-blue"><div class="stat-icon"><i class="fas fa-mars"></i></div><div><div class="stat-label">Garçons</div><div class="stat-value">{{ stats.n_garcons }}</div></div></div>
-        <div class="stat-card grad-rose"><div class="stat-icon"><i class="fas fa-venus"></i></div><div><div class="stat-label">Filles</div><div class="stat-value">{{ stats.n_filles }}</div></div></div>
+        <div class="stat-card grad-purple"><div class="stat-icon"><i class="fas fa-users"></i></div><div><div class="stat-label">Élèves inscrits</div><div class="stat-value" id="statTotalEleves">{{ stats.n_eleves }}</div></div></div>
+        <div class="stat-card grad-teal"><div class="stat-icon"><i class="fas fa-chalkboard"></i></div><div><div class="stat-label">Classes</div><div class="stat-value" id="statTotalClasses">{{ stats.n_classes }}</div></div></div>
+        <div class="stat-card grad-blue"><div class="stat-icon"><i class="fas fa-mars"></i></div><div><div class="stat-label">Garçons</div><div class="stat-value" id="statTotalGarcons">{{ stats.n_garcons }}</div></div></div>
+        <div class="stat-card grad-rose"><div class="stat-icon"><i class="fas fa-venus"></i></div><div><div class="stat-label">Filles</div><div class="stat-value" id="statTotalFilles">{{ stats.n_filles }}</div></div></div>
     </div>
 
     <!-- Classe selector (shared) -->
@@ -2460,8 +2460,13 @@ function onClasseFilterChange(){
         if(classeLbl)classeLbl.textContent=selectedClasseLabel;
         if(addLbl)addLbl.textContent=selectedClasseLabel;
         document.getElementById('gridClasseLabel').textContent=selectedClasseLabel;
-        // Pre-load grid data
-        loadElevesList();
+        // Pre-load grid data + refresh modif tab
+        loadElevesList().then(()=>{
+            // If tab modif is active, re-render it
+            if(document.getElementById('inscPanelModif')?.style.display==='block'){
+                renderTransferList();populateTransferDestClasses();
+            }
+        });
     }else{
         selectedClasseActiveId=null;selectedClasseLabel='';
         [btnAdd,btnDl,btnImp].forEach(b=>{b.disabled=true;b.style.opacity='.5';b.style.cursor='not-allowed';b.title='Sélectionnez d\'abord une classe'});
@@ -2501,6 +2506,31 @@ async function refreshElevesStats(classeActiveId){
         const desc=document.getElementById('elevesCountDesc');
         if(desc) desc.textContent=res.total+' élève'+(res.total>1?'s':'')+' inscrit'+(res.total>1?'s':'');
     }catch(e){console.error('refreshElevesStats',e)}
+}
+
+async function refreshAllStats(){
+    // Refresh global header cards + charts (no class filter = global stats)
+    try{
+        const res=await fetch('/api/dashboard/eleves-stats/?id_etablissement='+ELEVE_ETAB_ID+'&id_annee='+(CA_ANNEE_ID||'')).then(r=>r.json());
+        if(!res.success) return;
+        // Update header cards
+        const el=document.getElementById('statTotalEleves');
+        const gc=document.getElementById('statTotalGarcons');
+        const fc=document.getElementById('statTotalFilles');
+        if(el) el.textContent=res.total;
+        if(gc) gc.textContent=res.garcons;
+        if(fc) fc.textContent=res.filles;
+        // Update gender donut (global)
+        ELEVES_STATS.garcons=res.garcons;ELEVES_STATS.filles=res.filles;ELEVES_STATS.total=res.total;
+        const gChart=document.getElementById('genderChartEleves');
+        if(gChart){delete gChart.dataset.r;gChart.innerHTML='';renderGender('genderChartEleves');}
+        // Update age chart
+        ELEVES_STATS.age_distribution=res.age_gender.map(a=>({tranche:a.age+' ans',nb:a.total}));
+        const aChart=document.getElementById('ageChart');
+        if(aChart){delete aChart.dataset.r;aChart.innerHTML='';renderAge();}
+        // Update effectifs par classe
+        renderClasse('classeTableEleves', null);
+    }catch(e){console.error('refreshAllStats',e)}
 }
 
 async function loadInitialAgeGender(){
@@ -2568,11 +2598,12 @@ async function saveEleve(){
             // Reset form
             ['eleveNom','elevePostnom','elevePrenom','eleveDN','elevePereNom','elevePerePrenom','eleveMereNom','eleveMerePrenom','eleveParentEmail','eleveTelephone'].forEach(id=>{document.getElementById(id).value=''});
             document.getElementById('eleveGenre').value='';
-            // Update count
-            const desc=document.getElementById('elevesCountDesc');
-            if(desc && data.total_eleves!==undefined) desc.textContent=data.total_eleves+' élève'+(data.total_eleves>1?'s':'')+' inscrit'+(data.total_eleves>1?'s':'');
-            // Refresh grid
-            if(selectedClasseActiveId) loadElevesList();
+            // Refresh grid + stats
+            if(selectedClasseActiveId) loadElevesList().then(()=>{
+                renderTransferList();
+            });
+            // Refresh ALL stats: header cards + charts
+            refreshAllStats();
         }else{
             showToast(data.error||'Erreur lors de l\'enregistrement.','error');
         }
@@ -2614,12 +2645,10 @@ async function importEleves(input){
             }else{
                 showToast(msg,'success');
             }
-            const desc=document.getElementById('elevesCountDesc');
-            if(desc && data.total_eleves!==undefined) desc.textContent=data.total_eleves+' élève'+(data.total_eleves>1?'s':'')+' inscrit'+(data.total_eleves>1?'s':'');
-            // Refresh stats
-            refreshElevesStats(null);
-            // Refresh grid
-            if(selectedClasseActiveId) loadElevesList();
+            // Refresh ALL stats (header cards + charts)
+            refreshAllStats();
+            // Refresh grid + transfer list
+            if(selectedClasseActiveId) loadElevesList().then(()=>renderTransferList());
         }else{
             showToast(data.error||'Erreur import.','error');
         }
