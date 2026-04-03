@@ -4538,6 +4538,34 @@ def dashboard_import_eleves(request):
                             if set_parts:
                                 set_vals.append(existing['id_eleve'])
                                 cur.execute(f"UPDATE eleve SET {', '.join(set_parts)} WHERE id_eleve = %s", set_vals)
+
+                            # Also ensure the student has an inscription for the TARGET class
+                            cur.execute("""
+                                SELECT id_inscription FROM eleve_inscription
+                                WHERE id_eleve_id = %s
+                                  AND classe_id = %s AND groupe <=> %s AND section_id <=> %s
+                                  AND id_etablissement = %s
+                                LIMIT 1
+                            """, [
+                                existing['id_eleve'],
+                                ca['classe_id'], ca['groupe'], ca['section_id'],
+                                id_etablissement
+                            ])
+                            existing_inscription = cur.fetchone()
+                            if not existing_inscription:
+                                # Create the missing inscription for this class
+                                cur.execute("""
+                                    INSERT INTO eleve_inscription
+                                    (date_inscription, redoublement, status, isDelegue,
+                                     id_annee_id, idCampus_id, classe_id, groupe, section_id,
+                                     id_cycle_id, id_eleve_id, id_etablissement)
+                                    VALUES (CURDATE(), 0, 1, 0, %s, %s, %s, %s, %s, %s, %s, %s)
+                                """, [
+                                    ca['id_annee_id'], ca['idCampus_id'], ca['classe_id'],
+                                    ca['groupe'], ca['section_id'], ca['cycle_id'],
+                                    existing['id_eleve'], id_etablissement
+                                ])
+                                imported += 1
                             updated += 1
                         else:
                             # For INSERT, genre and date are required
@@ -4872,8 +4900,9 @@ def dashboard_eleves_list(request):
                     FROM eleve e
                     JOIN eleve_inscription ei ON ei.id_eleve_id = e.id_eleve
                     WHERE ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.id_etablissement = %s AND ei.status = 1
                     ORDER BY e.nom, e.prenom
-                """, [bk['classe_id'], bk['groupe'], bk['section_id']])
+                """, [bk['classe_id'], bk['groupe'], bk['section_id'], id_etablissement])
                 students = cur.fetchall()
 
                 result = []
