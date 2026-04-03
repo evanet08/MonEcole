@@ -346,11 +346,11 @@ def _get_dashboard_context(request):
     # --- Cross-DB stats from spoke (db_monecole = default) ---
     try:
         with connections['default'].cursor() as cur:
-            # Elèves — filtrer par établissement
+            # Elèves — filtrer par établissement (DISTINCT pour éviter doublons)
             cur.execute("""
-                SELECT COUNT(*) as total,
-                       SUM(CASE WHEN e.genre='M' THEN 1 ELSE 0 END) as garcons,
-                       SUM(CASE WHEN e.genre='F' THEN 1 ELSE 0 END) as filles
+                SELECT COUNT(DISTINCT ei.id_eleve_id) as total,
+                       COUNT(DISTINCT CASE WHEN e.genre='M' THEN ei.id_eleve_id END) as garcons,
+                       COUNT(DISTINCT CASE WHEN e.genre='F' THEN ei.id_eleve_id END) as filles
                 FROM eleve_inscription ei
                 JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                 WHERE ei.status = 1 AND ei.id_etablissement = %s
@@ -363,7 +363,7 @@ def _get_dashboard_context(request):
 
             # Age distribution
             cur.execute("""
-                SELECT TIMESTAMPDIFF(YEAR, e.date_naissance, CURDATE()) as age, COUNT(*) as nb
+                SELECT TIMESTAMPDIFF(YEAR, e.date_naissance, CURDATE()) as age, COUNT(DISTINCT ei.id_eleve_id) as nb
                 FROM eleve_inscription ei
                 JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                 WHERE ei.status = 1 AND ei.id_etablissement = %s AND e.date_naissance IS NOT NULL AND e.date_naissance != '0000-00-00'
@@ -373,16 +373,16 @@ def _get_dashboard_context(request):
                 {'tranche': f"{int(r[0])} ans", 'nb': int(r[1])} for r in cur.fetchall()
             ]
 
-            # Elèves par classe (cross-DB via clés métier)
+            # Elèves par classe (cross-DB via clés métier + COLLATE)
             cur.execute("""
-                SELECT eac.id as eac_id, COUNT(*) as total,
-                       SUM(CASE WHEN e.genre='M' THEN 1 ELSE 0 END) as garcons,
-                       SUM(CASE WHEN e.genre='F' THEN 1 ELSE 0 END) as filles
+                SELECT eac.id as eac_id, COUNT(DISTINCT ei.id_eleve_id) as total,
+                       COUNT(DISTINCT CASE WHEN e.genre='M' THEN ei.id_eleve_id END) as garcons,
+                       COUNT(DISTINCT CASE WHEN e.genre='F' THEN ei.id_eleve_id END) as filles
                 FROM eleve_inscription ei
                 JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                 JOIN countryStructure.etablissements_annees_classes eac
                   ON eac.classe_id = ei.classe_id
-                  AND eac.groupe COLLATE utf8mb4_general_ci <=> ei.groupe
+                  AND (eac.groupe COLLATE utf8mb4_general_ci <=> ei.groupe COLLATE utf8mb4_general_ci)
                   AND eac.section_id <=> ei.section_id
                   AND eac.etablissement_annee_id = %s
                 WHERE ei.status = 1 AND ei.id_etablissement = %s

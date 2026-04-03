@@ -3960,6 +3960,33 @@ def _get_spoke_connection():
     )
 
 
+def _resolve_eac_keys(cur, eac_id):
+    """
+    Résout un EAC.id (Hub) en clés métier stables.
+    Retourne dict {classe_id, groupe, section_id, cycle_id, annee_id, campus_id} ou None.
+    """
+    cur.execute("""
+        SELECT eac.classe_id, eac.groupe, eac.section_id,
+               cl.cycle_id, ea.annee_id,
+               (SELECT c.idCampus FROM db_monecole.campus c
+                WHERE c.id_etablissement = ea.etablissement_id AND c.is_active=1 LIMIT 1) AS campus_id
+        FROM countryStructure.etablissements_annees_classes eac
+        JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id
+        JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+        WHERE eac.id = %s
+    """, [eac_id])
+    return cur.fetchone()
+
+
+def _ei_classe_filter(alias='ei'):
+    """
+    Retourne la clause SQL WHERE pour filtrer eleve_inscription par business keys.
+    Usage: f"AND {_ei_classe_filter()}" puis passer [bk['classe_id'], bk['groupe'], bk['section_id']]
+    Le COLLATE assure la compatibilité cross-DB Hub/Spoke.
+    """
+    return f"{alias}.classe_id = %s AND {alias}.groupe COLLATE utf8mb4_general_ci <=> %s AND {alias}.section_id <=> %s"
+
+
 def _count_eleves(cur, id_etablissement):
     """Count active students for an establishment."""
     cur.execute(
@@ -6529,14 +6556,14 @@ def dashboard_etablissement_view(request):
                                 COALESCE(CONCAT(' - ', s.nom), ''),
                                 COALESCE(CONCAT(' (', eac.groupe, ')'), '')
                             ) as classe_nom,
-                            COUNT(*) as total,
-                            SUM(CASE WHEN e.genre = 'M' THEN 1 ELSE 0 END) as garcons,
-                            SUM(CASE WHEN e.genre = 'F' THEN 1 ELSE 0 END) as filles
+                            COUNT(DISTINCT ei.id_eleve_id) as total,
+                            COUNT(DISTINCT CASE WHEN e.genre = 'M' THEN ei.id_eleve_id END) as garcons,
+                            COUNT(DISTINCT CASE WHEN e.genre = 'F' THEN ei.id_eleve_id END) as filles
                         FROM eleve_inscription ei
                         JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                         JOIN countryStructure.etablissements_annees_classes eac
                           ON eac.classe_id = ei.classe_id
-                          AND eac.groupe COLLATE utf8mb4_general_ci <=> ei.groupe
+                          AND (eac.groupe COLLATE utf8mb4_general_ci <=> ei.groupe COLLATE utf8mb4_general_ci)
                           AND eac.section_id <=> ei.section_id
                         JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id
                         LEFT JOIN countryStructure.sections s ON s.id_section = eac.section_id
