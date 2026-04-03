@@ -24,6 +24,9 @@ urlpatterns = [
     path('api/auth/set-password/', auth_views.set_password, name='auth_set_password'),
     path('api/auth/verify-contact/', auth_views.verify_contact, name='auth_verify_contact'),
     path('api/auth/login/', auth_views.api_login, name='auth_login'),
+    path('api/auth/forgot-password/', auth_views.forgot_password, name='auth_forgot_password'),
+    path('api/auth/verify-reset-otp/', auth_views.verify_reset_otp, name='auth_verify_reset_otp'),
+    path('api/auth/reset-password/', auth_views.reset_password, name='auth_reset_password'),
     path('api/auth/logout/', auth_views.api_logout, name='auth_logout'),
 
     # ============ DASHBOARD — 4 PAGES ============

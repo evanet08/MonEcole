@@ -942,6 +942,202 @@ def api_login(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+def forgot_password(request):
+    """
+    Mot de passe oublié — Étape 1.
+    Vérifie que l'email existe et que email_verified=1.
+    Si oui, envoie un code OTP sur l'email.
+    """
+    try:
+        data = json.loads(request.body)
+        email = data.get('email', '').strip().lower()
+
+        if not email:
+            return JsonResponse({'success': False, 'error': 'Email requis.'}, status=400)
+
+        etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+
+        # Chercher le personnel
+        personnel = None
+        if etab_id:
+            personnel = Personnel.objects.filter(email__iexact=email, id_etablissement=etab_id).first()
+        if not personnel:
+            personnel = Personnel.objects.filter(email__iexact=email).first()
+
+        if not personnel:
+            return JsonResponse({
+                'success': False,
+                'error': "Aucun compte trouvé avec cette adresse email."
+            }, status=404)
+
+        if not personnel.email_verified:
+            return JsonResponse({
+                'success': False,
+                'error': "Votre email n'a pas été vérifié. Contactez l'administrateur pour réinitialiser votre mot de passe."
+            }, status=403)
+
+        # Générer le code OTP (6 chiffres)
+        import random
+        code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+
+        # Stocker en session
+        import time as _time
+        request.session['_reset_otp_code'] = code
+        request.session['_reset_otp_expires'] = _time.time() + 600  # 10 min
+        request.session['_reset_otp_attempts'] = 0
+        request.session['_reset_otp_email'] = email
+        request.session['_reset_otp_verified'] = False
+
+        # Envoyer le code par email
+        try:
+            from MonEcole_app.email_service import send_brevo_email
+            result = send_brevo_email(
+                to_emails=[email],
+                subject='MonEcole - Réinitialisation du mot de passe',
+                html_content=f'''
+                    <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px">
+                        <h2 style="color:#667eea;text-align:center">MonEcole</h2>
+                        <p>Vous avez demandé la réinitialisation de votre mot de passe.</p>
+                        <p>Votre code de vérification est :</p>
+                        <div style="text-align:center;margin:20px 0">
+                            <span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#667eea;background:#f0f0ff;padding:12px 24px;border-radius:8px">{code}</span>
+                        </div>
+                        <p style="color:#666;font-size:14px">Ce code expire dans 10 minutes. Si vous n'avez pas fait cette demande, ignorez cet email.</p>
+                    </div>
+                ''',
+                text_content=f'Votre code de réinitialisation MonEcole est : {code}\n\nCe code expire dans 10 minutes.',
+            )
+            if not result.get('success'):
+                import sys
+                print(f"[FORGOT-PW] Brevo send failed: {result}", file=sys.stderr, flush=True)
+        except Exception as mail_err:
+            import traceback, sys
+            traceback.print_exc()
+            print(f"[FORGOT-PW] Email send error: {mail_err}", file=sys.stderr, flush=True)
+
+        # Masquer l'email pour la réponse
+        masked = email[:2] + '***' + email[email.index('@')-1:] if '@' in email and len(email) > 4 else email
+
+        return JsonResponse({
+            'success': True,
+            'masked_email': masked,
+            'message': f'Un code de vérification a été envoyé à {masked}.',
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def verify_reset_otp(request):
+    """
+    Mot de passe oublié — Étape 2.
+    Vérifie le code OTP envoyé pour la réinitialisation.
+    """
+    try:
+        data = json.loads(request.body)
+        code = data.get('code', '').strip()
+
+        if not code or len(code) != 6:
+            return JsonResponse({'success': False, 'error': 'Code à 6 chiffres requis.'}, status=400)
+
+        stored_code = request.session.get('_reset_otp_code')
+        otp_expires = request.session.get('_reset_otp_expires', 0)
+
+        if not stored_code:
+            return JsonResponse({'success': False, 'error': 'Aucun code en attente. Recommencez la procédure.'}, status=400)
+
+        import time as _time
+        if _time.time() > otp_expires:
+            for k in ('_reset_otp_code', '_reset_otp_expires', '_reset_otp_attempts', '_reset_otp_email', '_reset_otp_verified'):
+                request.session.pop(k, None)
+            return JsonResponse({'success': False, 'error': 'Code expiré. Recommencez la procédure.'}, status=400)
+
+        if code != stored_code:
+            attempts = request.session.get('_reset_otp_attempts', 0) + 1
+            request.session['_reset_otp_attempts'] = attempts
+            if attempts >= 3:
+                for k in ('_reset_otp_code', '_reset_otp_expires', '_reset_otp_attempts', '_reset_otp_email', '_reset_otp_verified'):
+                    request.session.pop(k, None)
+                return JsonResponse({'success': False, 'error': 'Trop de tentatives. Recommencez la procédure.'}, status=400)
+            return JsonResponse({'success': False, 'error': f'Code incorrect. {3 - attempts} tentative(s) restante(s).'}, status=400)
+
+        # Code correct
+        request.session['_reset_otp_verified'] = True
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Code vérifié. Vous pouvez maintenant définir votre nouveau mot de passe.',
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def reset_password(request):
+    """
+    Mot de passe oublié — Étape 3.
+    Définit le nouveau mot de passe après vérification OTP.
+    Ne crée PAS de session de login — l'utilisateur doit se reconnecter.
+    """
+    try:
+        data = json.loads(request.body)
+        password = data.get('password', '')
+
+        if not password or len(password) < 6:
+            return JsonResponse({'success': False, 'error': 'Mot de passe minimum 6 caractères.'}, status=400)
+
+        # Vérifier que l'OTP a été validé
+        if not request.session.get('_reset_otp_verified'):
+            return JsonResponse({'success': False, 'error': 'Vérification OTP requise.'}, status=403)
+
+        email = request.session.get('_reset_otp_email', '').strip().lower()
+        if not email:
+            return JsonResponse({'success': False, 'error': 'Email manquant. Recommencez la procédure.'}, status=400)
+
+        etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+
+        # Trouver le personnel
+        personnel = None
+        if etab_id:
+            personnel = Personnel.objects.filter(email__iexact=email, id_etablissement=etab_id).first()
+        if not personnel:
+            personnel = Personnel.objects.filter(email__iexact=email).first()
+        if not personnel:
+            return JsonResponse({'success': False, 'error': 'Personnel introuvable.'}, status=404)
+
+        # Définir le nouveau mot de passe
+        personnel.set_password(password)
+        with connections['default'].cursor() as cur:
+            cur.execute(
+                "UPDATE personnel SET password_hash=%s WHERE id_personnel=%s",
+                [personnel.password_hash, personnel.id_personnel]
+            )
+
+        # Nettoyer la session de reset
+        for k in ('_reset_otp_code', '_reset_otp_expires', '_reset_otp_attempts', '_reset_otp_email', '_reset_otp_verified'):
+            request.session.pop(k, None)
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Mot de passe modifié avec succès. Vous pouvez maintenant vous connecter.',
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
 def api_logout(request):
     """API Déconnexion."""
     request.session.flush()
