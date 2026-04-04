@@ -1,0 +1,612 @@
+\documentclass[11pt,a4paper,oneside]{book}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{calc,positioning,shadows.blur,fit,arrows.meta}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{enumitem}
+\usepackage{fontawesome5}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{multicol}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{changepage}
+
+\geometry{left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+
+\definecolor{primary}{HTML}{667EEA}
+\definecolor{primaryDark}{HTML}{4338CA}
+\definecolor{secondary}{HTML}{764BA2}
+\definecolor{accent}{HTML}{059669}
+\definecolor{danger}{HTML}{EF4444}
+\definecolor{warning}{HTML}{F59E0B}
+\definecolor{info}{HTML}{0EA5E9}
+\definecolor{grayLight}{HTML}{F1F5F9}
+\definecolor{grayMid}{HTML}{94A3B8}
+\definecolor{grayDark}{HTML}{334155}
+\definecolor{darkBg}{HTML}{1E1B4B}
+\definecolor{breadBg}{HTML}{EEF2FF}
+\definecolor{breadBorder}{HTML}{C7D2FE}
+\definecolor{tabActive}{HTML}{4F46E5}
+\definecolor{tabInactive}{HTML}{64748B}
+\definecolor{sidebarBg}{HTML}{F8FAFC}
+\definecolor{amber}{HTML}{D97706}
+\definecolor{rose}{HTML}{E11D48}
+\definecolor{teal}{HTML}{0D9488}
+\definecolor{emerald}{HTML}{059669}
+\definecolor{purple}{HTML}{7C3AED}
+
+\hypersetup{colorlinks=true, linkcolor=primaryDark, urlcolor=primary, pdftitle={Manuel Utilisateur MonEcole}, pdfauthor={Nexora Tech}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{grayMid}{\leftmark}}
+\fancyhead[R]{\small\textcolor{primary}{\textbf{MonEcole}}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\titleformat{\chapter}[display]{\normalfont\huge\bfseries\color{primaryDark}}
+  {\tikz[remember picture,overlay]{\fill[primaryDark] (0,0) rectangle (1.2cm,-1.2cm);
+    \node[white,font=\fontsize{36}{36}\selectfont\bfseries] at (0.6cm,-0.6cm) {\thechapter};}}{1.5cm}{}
+  [\vspace{-0.5cm}\textcolor{primary}{\rule{\textwidth}{2pt}}]
+\titleformat{\section}{\normalfont\Large\bfseries\color{primaryDark}}
+  {\colorbox{primary}{\textcolor{white}{\makebox[1.8em]{\thesection}}}}{0.8em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries\color{grayDark}}{\textcolor{primary}{\thesubsection}}{0.6em}{}
+\titleformat{\subsubsection}{\normalfont\normalsize\bfseries\color{primaryDark}}{\textcolor{tabActive}{\thesubsubsection}}{0.5em}{}
+
+\newcommand{\nav}[1]{%
+  \begin{tcolorbox}[enhanced, colback=breadBg, colframe=breadBorder, boxrule=0.8pt, arc=6pt, left=8pt, right=8pt, top=4pt, bottom=4pt, shadow={1mm}{-1mm}{0mm}{black!8}]
+  \small\textcolor{primaryDark}{\faCompass~}\textbf{\textcolor{primaryDark}{Chemin :}} \textcolor{grayDark}{#1}
+  \end{tcolorbox}\vspace{2pt}
+}
+\newcommand{\sidebar}[2]{%
+  \begin{tcolorbox}[enhanced, colback=sidebarBg, colframe=grayMid!40, boxrule=0.5pt, arc=8pt, left=6pt, right=6pt, top=6pt, bottom=6pt,
+    title={\small\faColumns~\textbf{Barre Lat\'{e}rale --- #1}}, fonttitle=\color{primaryDark}, coltitle=primaryDark, colbacktitle=breadBg]
+  \small #2
+  \end{tcolorbox}
+}
+\newcommand{\ecran}[2]{%
+  \begin{tcolorbox}[enhanced, colback=white, colframe=grayDark, boxrule=1pt, arc=10pt, left=10pt, right=10pt, top=8pt, bottom=8pt,
+    title={\small\faDesktop~\textbf{#1}}, fonttitle=\color{white}, colbacktitle=grayDark, shadow={2mm}{-2mm}{0mm}{black!12}]
+  #2
+  \end{tcolorbox}
+}
+\newtcolorbox{astuce}{enhanced, breakable, colback=accent!5, colframe=accent, fonttitle=\bfseries, title={\faLightbulb~Astuce}, left=6pt, right=6pt, top=4pt, bottom=4pt, boxrule=0.5pt, arc=4pt}
+\newtcolorbox{attention}{enhanced, breakable, colback=warning!8, colframe=warning, fonttitle=\bfseries, title={\faExclamationTriangle~Attention}, left=6pt, right=6pt, top=4pt, bottom=4pt, boxrule=0.5pt, arc=4pt}
+\newtcolorbox{importantbox}{enhanced, breakable, colback=danger!5, colframe=danger, fonttitle=\bfseries, title={\faExclamationCircle~Important}, left=6pt, right=6pt, top=4pt, bottom=4pt, boxrule=0.5pt, arc=4pt}
+\newtcolorbox{infobox}{enhanced, breakable, colback=info!5, colframe=info, fonttitle=\bfseries, title={\faInfoCircle~Information}, left=6pt, right=6pt, top=4pt, bottom=4pt, boxrule=0.5pt, arc=4pt}
+
+\newcommand{\btn}[2][\primaryDark]{%
+  \tikz[baseline=(X.base)]{\node[fill=#1, text=white, rounded corners=3pt, inner sep=3pt, font=\small\bfseries, blur shadow={shadow blur steps=3, shadow xshift=0.5mm, shadow yshift=-0.5mm}](X){#2};}%
+}
+\newcommand{\btngreen}[1]{\btn[emerald]{#1}}
+\newcommand{\btnblue}[1]{\btn[info]{#1}}
+\newcommand{\btnpurple}[1]{\btn[purple]{#1}}
+\newcommand{\btnrose}[1]{\btn[rose]{#1}}
+\newcommand{\champ}[1]{\texttt{\textcolor{grayDark}{#1}}}
+\newcommand{\onglet}[1]{\textcolor{tabActive}{\faBorderAll~\textbf{#1}}}
+
+\newcommand{\workflow}[1]{%
+\begin{center}
+\begin{tikzpicture}[
+  fstep/.style={rectangle, rounded corners=8pt, draw=primary, fill=primary!8, text=grayDark, font=\small\bfseries, minimum height=1cm, minimum width=2.8cm, align=center, blur shadow={shadow blur steps=3}},
+  arr/.style={-{Stealth[length=5pt]}, line width=1.2pt, primary!70}
+]
+#1
+\end{tikzpicture}
+\end{center}
+}
+\begin{document}
+\begin{titlepage}
+\begin{tikzpicture}[remember picture, overlay]
+  \fill[darkBg] (current page.south west) rectangle (current page.north east);
+  \fill[primary, opacity=0.15] (current page.north east) ++(-4cm,-3cm) circle (8cm);
+  \fill[secondary, opacity=0.10] (current page.south west) ++(5cm,4cm) circle (6cm);
+  \fill[accent, opacity=0.08] (current page.center) ++(2cm,1cm) circle (5cm);
+  \node[text=white, font=\fontsize{14}{16}\selectfont, anchor=south] at ([yshift=9cm]current page.center) {PLATEFORME DE GESTION SCOLAIRE};
+  \node[text=white, font=\fontsize{42}{48}\selectfont\bfseries, anchor=south] at ([yshift=6.5cm]current page.center) {MonEcole};
+  \node[text=primary!60, font=\fontsize{18}{22}\selectfont, anchor=south] at ([yshift=5cm]current page.center) {Manuel Utilisateur};
+  \node[fill=primary, text=white, rounded corners=6pt, inner sep=8pt, font=\large\bfseries, anchor=south] at ([yshift=3cm]current page.center) {Version 2.0 --- Avril 2026};
+  \draw[primary, line width=2pt] ([yshift=2cm, xshift=-4cm]current page.center) -- ([yshift=2cm, xshift=4cm]current page.center);
+  \node[text=grayMid, font=\normalsize, text width=12cm, align=center, anchor=north] at ([yshift=1.5cm]current page.center) {Guide complet pour les administrateurs, gestionnaires et enseignants.\\[4pt]De la configuration initiale \`{a} la g\'{e}n\'{e}ration des bulletins scolaires.};
+  \node[text=grayMid, font=\small, anchor=south] at ([yshift=1.5cm]current page.south) {\copyright{} 2026 Nexora Tech --- Tous droits r\'{e}serv\'{e}s};
+\end{tikzpicture}
+\end{titlepage}
+\tableofcontents
+\clearpage
+
+\chapter{Introduction}
+\section{Pr\'{e}sentation de MonEcole}
+\textbf{MonEcole} est une plateforme compl\`{e}te de gestion scolaire couvrant le cycle de vie acad\'{e}mique complet : configuration, inscriptions, \'{e}valuations, d\'{e}lib\'{e}rations et bulletins.
+
+\subsection{Les 5 modules}
+\begin{center}
+\begin{tikzpicture}[mod/.style={rectangle, rounded corners=10pt, minimum width=3cm, minimum height=1.4cm, align=center, font=\small\bfseries, text=white, blur shadow={shadow blur steps=4}}]
+\node[mod, fill=primaryDark] at (0,0) {\faCogs\\[2pt]Administration};
+\node[mod, fill=teal] at (3.8,0) {\faUserGraduate\\[2pt]Scolarit\'{e}};
+\node[mod, fill=amber] at (7.6,0) {\faClipboardCheck\\[2pt]\'{E}valuations};
+\node[mod, fill=purple] at (11.4,0) {\faChalkboardTeacher\\[2pt]Enseignements};
+\node[mod, fill=rose] at (15.2,0) {\faChalkboard\\[2pt]Espace Ens.};
+\end{tikzpicture}
+\end{center}
+
+\subsection{Pr\'{e}requis}
+\begin{itemize}[leftmargin=2em]
+  \item Navigateur moderne (Chrome, Firefox, Safari, Edge)
+  \item Connexion internet active
+  \item R\'{e}solution 1280$\times$720 minimum
+\end{itemize}
+
+\chapter{Connexion et Authentification}
+\nav{\faGlobe~https://votre-ecole.monecole.pro}
+
+\section{Flux de connexion}
+\workflow{
+\node[fstep] (s1) at (0,0) {\faEnvelope\\Email};
+\node[fstep] (s2) at (4,0) {\faLock\\Mot de passe};
+\node[fstep] (s3) at (8,0) {\faThLarge\\Dashboard};
+\draw[arr] (s1) -- (s2); \draw[arr] (s2) -- (s3);
+}
+
+\subsection{Premi\`{e}re connexion (Activation)}
+\workflow{
+\node[fstep] (a) at (0,0) {\faEnvelope\\Email};
+\node[fstep] (b) at (3.5,0) {\faShieldAlt\\Choix OTP};
+\node[fstep] (c) at (7,0) {\faKey\\Code 6 chiffres};
+\node[fstep] (d) at (10.5,0) {\faLock\\Cr\'{e}er MdP};
+\node[fstep] (e) at (14,0) {\faCheckCircle\\Activ\'{e}};
+\draw[arr] (a)--(b); \draw[arr] (b)--(c); \draw[arr] (c)--(d); \draw[arr] (d)--(e);
+}
+\begin{itemize}
+  \item \textbf{Canal OTP} : Email ou WhatsApp
+  \item \textbf{Validit\'{e}} : 10 minutes, 3 tentatives max
+  \item \textbf{Mot de passe} : minimum 6 caract\`{e}res
+\end{itemize}
+
+\subsection{Mot de passe oubli\'{e}}
+\nav{\'{E}cran Mot de passe $\triangleright$ \textcolor{primary}{Mot de passe oubli\'{e} ?}}
+Un code OTP est envoy\'{e} par email. Apr\`{e}s v\'{e}rification, d\'{e}finissez un nouveau mot de passe.
+
+\subsection{D\'{e}connexion}
+Session ferm\'{e}e apr\`{e}s 60 minutes d'inactivit\'{e}. D\'{e}connexion manuelle via \faSignOutAlt{} dans la barre sup\'{e}rieure.
+
+\chapter{Module Administration}
+\nav{\faCogs~Administration}
+
+\sidebar{Administration}{
+\begin{itemize}[leftmargin=1em, itemsep=2pt]
+  \item[\textcolor{primaryDark}{\faThLarge}] \textbf{Dashboard} --- Vue d'ensemble
+  \item[\textcolor{info}{\faSchool}] \textbf{MonEcole} --- Fiche \'{e}tablissement
+  \item[\textcolor{accent}{\faCogs}] \textbf{Configuration} --- Campus, cycles, classes, cours
+  \item[\textcolor{warning}{\faCalendarAlt}] \textbf{Calendrier} --- Trimestres et p\'{e}riodes
+  \item[\textcolor{amber}{\faUsersCog}] \textbf{Personnel} --- Gestion du personnel
+  \item[\textcolor{rose}{\faShieldAlt}] \textbf{Utilisateurs} --- Droits d'acc\`{e}s
+\end{itemize}
+}
+
+\section{Dashboard}
+\nav{\faCogs~Administration $\triangleright$ \faThLarge~Dashboard}
+
+\ecran{Dashboard Administration}{
+\textbf{4 cartes statistiques} en haut de page :
+\begin{center}
+\begin{tikzpicture}[card/.style={rectangle, rounded corners=8pt, minimum width=3.2cm, minimum height=1.2cm, align=center, font=\footnotesize\bfseries, text=white, blur shadow={shadow blur steps=3}}]
+\node[card, fill=purple] at (0,0) {\faLayerGroup\\Cycles Actifs};
+\node[card, fill=teal] at (3.8,0) {\faChalkboard\\Classes};
+\node[card, fill=info] at (7.6,0) {\faUsers\\Enseignants};
+\node[card, fill=rose] at (11.4,0) {\faUserGraduate\\\'{E}l\`{e}ves};
+\end{tikzpicture}
+\end{center}
+\textbf{Widgets :}
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Timeline Gantt} : barre verte = trimestre actif, bleu = termin\'{e}, gris = \`{a} venir
+  \item \textbf{Donut Genre} : r\'{e}partition Gar\c{c}ons/Filles avec pourcentages
+  \item \textbf{Actions Rapides} : 3 boutons d'acc\`{e}s direct
+\end{itemize}
+}
+
+\section{MonEcole --- Fiche de l'\'{E}tablissement}
+\nav{\faCogs~Administration $\triangleright$ \faSchool~MonEcole}
+
+\ecran{Fiche de l'\'{E}tablissement (3 colonnes)}{
+\begin{center}
+\begin{tikzpicture}[col/.style={rectangle, rounded corners=6pt, draw=primary!30, fill=white, minimum width=4.5cm, minimum height=5cm, align=left, font=\scriptsize, anchor=north west, text=grayDark}]
+\node[col] (c1) at (0,0) {\textcolor{primaryDark}{\faImage~\textbf{LOGO}}\\[3pt]\textit{Cliquez pour uploader}\\[6pt]\textcolor{primaryDark}{\faFingerprint~\textbf{IDENTIFICATION}}\\[2pt]Nom, Sigle, R\'{e}gime\\Structure P\'{e}dagogique\\[6pt]\textcolor{primaryDark}{\faCalendarPlus~\textbf{HISTORIQUE}}\\[2pt]Ann\'{e}e Cr\'{e}ation\\Ann\'{e}e Agr\'{e}ment};
+\node[col] (c2) at (5.2,0) {\textcolor{primaryDark}{\faStamp~\textbf{IMMATRICULATION}}\\[2pt]Matricule, Code \'{E}cole\\N\textdegree{} DINACOPE\\R\'{e}f. Agr\'{e}ment\\Code Structurel\\[6pt]\textcolor{primaryDark}{\faFileAlt~\textbf{DOC. AGR\'{E}MENT}}\\[2pt]\textit{Joindre un scan}\\[6pt]\textcolor{primaryDark}{\faUserTie~\textbf{DIRECTION}}\\[2pt]Repr\'{e}sentant L\'{e}gal\\Gestionnaire};
+\node[col] (c3) at (10.4,0) {\textcolor{primaryDark}{\faAddressBook~\textbf{COORDONN\'{E}ES}}\\[2pt]Email, T\'{e}l\'{e}phone\\Fax, Bo\^{i}te Postale\\Sous-domaine\\[6pt]\textcolor{primaryDark}{\faMapMarkedAlt~\textbf{ADRESSE}}\\[2pt]Hi\'{e}rarchie administrative\\Province $\to$ Commune\\$\to$ Zone $\to$ Colline\\[3pt]Nom de Rue, Num\'{e}ro};
+\end{tikzpicture}
+\end{center}
+}
+
+\subsubsection{Modifier la fiche}
+\begin{enumerate}
+  \item Cliquez \btn{Modifier} (coin sup\'{e}rieur droit)
+  \item Les champs \'{e}ditables se transforment en zones de saisie
+  \item Modifiez les valeurs $\to$ \btngreen{Enregistrer} ou \btn[grayMid]{Annuler}
+\end{enumerate}
+
+\begin{importantbox}
+Les champs en \textit{italique gris} (Structure P\'{e}dagogique, Code Structurel, Gestionnaire) sont g\'{e}r\'{e}s par le Hub national et restent en lecture seule.
+\end{importantbox}
+
+\subsubsection{Localisation Administrative}
+\nav{\faCogs~Administration $\triangleright$ \faSchool~MonEcole $\triangleright$ Panneau droit ``Localisation''}
+
+\workflow{
+\node[fstep] (p1) at (0,0) {\faMapPin\\Province};
+\node[fstep] (p2) at (3.5,0) {\faCity\\Commune};
+\node[fstep] (p3) at (7,0) {\faMapMarkerAlt\\Zone};
+\node[fstep] (p4) at (10.5,0) {\faMountain\\Colline};
+\node[fstep] (p5) at (14,0) {\faRoad\\Rue};
+\draw[arr] (p1)--(p2); \draw[arr] (p2)--(p3); \draw[arr] (p3)--(p4); \draw[arr] (p4)--(p5);
+}
+
+\begin{enumerate}
+  \item Tapez les premi\`{e}res lettres $\to$ liste de suggestions
+  \item S\'{e}lectionnez $\to$ le champ se verrouille (\textcolor{accent}{\faCheckCircle} vert)
+  \item Le niveau suivant se d\'{e}verrouille automatiquement
+  \item Renseignez \champ{Nom de la Rue} et \champ{Num\'{e}ro}
+  \item Cliquez \btngreen{\faSave~Attacher \`{a} l'\'{e}cole}
+\end{enumerate}
+
+\begin{astuce}
+Si une entit\'{e} n'existe pas, l'option \textcolor{accent}{\textit{+ Cr\'{e}er ``...''}} appara\^{i}t en bas de la liste.
+\end{astuce}
+
+\section{Configuration}
+\nav{\faCogs~Administration $\triangleright$ \faCogs~Configuration}
+
+\begin{center}
+\begin{tikzpicture}[tab/.style={rectangle, rounded corners=5pt, minimum width=3.2cm, minimum height=0.8cm, align=center, font=\small\bfseries}, tabA/.style={tab, fill=tabActive, text=white}, tabI/.style={tab, fill=grayLight, text=tabInactive, draw=grayMid!30}]
+\node[tabA] at (0,0) {\faMapMarkerAlt~Campus};
+\node[tabI] at (3.8,0) {\faLayerGroup~Cycles};
+\node[tabI] at (7.6,0) {\faChalkboard~Classes};
+\node[tabI] at (11.4,0) {\faBook~Cours};
+\end{tikzpicture}
+\end{center}
+
+\subsection{Campus / Emplacement}
+\nav{\faCogs~Administration $\triangleright$ \faCogs~Configuration $\triangleright$ \onglet{Campus}}
+\begin{enumerate}
+  \item Cliquez \btngreen{\faPlus~Nouveau campus}
+  \item Remplissez : \champ{Nom} \textcolor{danger}{*}, \champ{Adresse}, \champ{Localisation}
+  \item Cliquez \btnpurple{\faCheck~Enregistrer}
+\end{enumerate}
+
+\subsection{Cycles et P\'{e}riodes}
+\nav{\faCogs~Administration $\triangleright$ \faCogs~Configuration $\triangleright$ \onglet{Cycles}}
+\begin{enumerate}
+  \item \textbf{Cochez} les cycles \`{a} activer
+  \item S\'{e}lectionnez le \textbf{d\'{e}coupage temporel} : Trimestres ou Semestres
+  \item Cliquez \btngreen{\faSave~Sauvegarder}
+\end{enumerate}
+
+\begin{attention}
+Les notes ne peuvent \^{e}tre saisies que pour les trimestres \textbf{Ouverts}. V\'{e}rifiez ce statut avant toute campagne de saisie.
+\end{attention}
+
+\subsection{Classes}
+\nav{\faCogs~Administration $\triangleright$ \faCogs~Configuration $\triangleright$ \onglet{Classes}}
+\begin{enumerate}
+  \item Les classes s'affichent par \textbf{cycle}
+  \item \textbf{Cochez} les classes \`{a} activer (ou ``Tout cocher'')
+  \item \textbf{Groupes} : stepper \texttt{-}/\texttt{+} pour cr\'{e}er A, B, C...
+  \item Pour les cycles avec \textbf{sections} : cochez les fili\`{e}res
+  \item Cliquez \btngreen{\faSave~Sauvegarder}
+\end{enumerate}
+
+\subsection{Cours et Pond\'{e}rations}
+\nav{\faCogs~Administration $\triangleright$ \faCogs~Configuration $\triangleright$ \onglet{Cours}}
+\begin{infobox}
+Cet onglet n'appara\^{i}t que pour les cycles \textbf{non-uniformes} (ex : CFP).
+\end{infobox}
+\begin{enumerate}
+  \item S\'{e}lectionnez \champ{Cycle} $\to$ \champ{Classe} $\to$ \champ{Fili\`{e}re}
+  \item La grille des cours s'affiche
+  \item \btnpurple{\faLayerGroup~Domaines} : g\'{e}rer les cat\'{e}gories
+  \item \btngreen{\faPlus~Ajouter un cours}
+  \item Pond\'{e}rations modifiables en ligne
+\end{enumerate}
+
+\section{Calendrier Scolaire}
+\nav{\faCogs~Administration $\triangleright$ \faCalendarAlt~Calendrier}
+
+\begin{center}
+\begin{tikzpicture}[mode/.style={rectangle, rounded corners=8pt, minimum width=5.5cm, minimum height=2.2cm, align=left, font=\small, text=grayDark}]
+\node[mode, fill=primaryDark!8, draw=primaryDark] (sync) at (0,0) {\textcolor{primaryDark}{\faSyncAlt~\textbf{Synchronis\'{e}}}\\[3pt]Dates g\'{e}r\'{e}es par le Hub national.\\Lecture seule. Recommand\'{e}.};
+\node[mode, fill=warning!8, draw=warning] (perso) at (7.5,0) {\textcolor{amber}{\faSlidersH~\textbf{Personnalis\'{e}}}\\[3pt]Vous d\'{e}finissez vos propres\\dates de d\'{e}but et fin.};
+\draw[-{Stealth}, line width=1.5pt, grayMid] (sync.east) -- (perso.west) node[midway, above, font=\scriptsize\bfseries, text=grayMid] {Bascule};
+\end{tikzpicture}
+\end{center}
+
+\section{Gestion du Personnel}
+\nav{\faCogs~Administration $\triangleright$ \faUsersCog~Personnel}
+
+\ecran{Section Personnel}{
+\textbf{Barre d'actions} :
+\begin{center}
+\begin{tikzpicture}[b/.style={rectangle, rounded corners=4pt, minimum height=0.7cm, align=center, font=\scriptsize\bfseries, text=white, blur shadow={shadow blur steps=2}}]
+\node[b, fill=emerald] at (0,0) {\faUserPlus~Ajouter};
+\node[b, fill=info] at (2.5,0) {\faSyncAlt~Actualiser};
+\node[b, fill=purple] at (5.3,0) {\faFileDownload~Mod\`{e}le Import};
+\node[b, fill=rose] at (8.6,0) {\faFileUpload~Importer};
+\end{tikzpicture}
+\end{center}
+}
+
+\subsubsection{Ajouter un membre}
+\begin{enumerate}
+  \item Cliquez \btngreen{\faUserPlus~Ajouter}
+  \item Formulaire : \champ{Nom}, \champ{Pr\'{e}nom}, \champ{Post-nom}, \champ{Genre}, \champ{T\'{e}l\'{e}phone}, \champ{Email}
+  \item \btnblue{\faSave~Enregistrer}
+\end{enumerate}
+
+\subsubsection{Importation en masse}
+\begin{enumerate}
+  \item \btnpurple{\faFileDownload~Mod\`{e}le Import} $\to$ t\'{e}l\'{e}charge un fichier Excel
+  \item Remplissez le fichier
+  \item \btnrose{\faFileUpload~Importer} $\to$ s\'{e}lectionnez le fichier .xlsx/.xls
+\end{enumerate}
+
+\section{Utilisateurs et Droits d'acc\`{e}s}
+\nav{\faCogs~Administration $\triangleright$ \faShieldAlt~Utilisateurs}
+
+\ecran{Gestion des Droits}{
+\textbf{3 cartes} : Personnel Total, Utilisateurs Actifs, Super Admin.
+
+\textbf{Tableau :} chaque ligne = un membre, chaque colonne = un module.
+\begin{center}
+\begin{tabular}{l|c|c|c|c|c}
+\textbf{Personnel} & \textbf{Admin} & \textbf{Scol.} & \textbf{\'{E}vals} & \textbf{Ens.} & \textbf{Esp.E.} \\
+\hline
+Dupont Jean & \textcolor{accent}{\faCheckSquare} & \textcolor{accent}{\faCheckSquare} & \textcolor{accent}{\faCheckSquare} & \textcolor{grayMid}{\faSquare} & \textcolor{grayMid}{\faSquare} \\
+Martin Paul & \textcolor{grayMid}{\faSquare} & \textcolor{grayMid}{\faSquare} & \textcolor{grayMid}{\faSquare} & \textcolor{accent}{\faCheckSquare} & \textcolor{accent}{\faCheckSquare} \\
+\end{tabular}
+\end{center}
+Modifications \textbf{instantan\'{e}es} (pas de bouton Sauvegarder).
+}
+
+\begin{importantbox}
+Le module \textbf{Espace Enseignant} est automatiquement accord\'{e} \`{a} tout personnel ayant des cours attribu\'{e}s.
+\end{importantbox}
+\chapter{Module Scolarit\'{e}}
+\nav{\faUserGraduate~Scolarit\'{e}}
+
+\sidebar{Scolarit\'{e}}{
+\begin{itemize}[leftmargin=1em, itemsep=2pt]
+  \item[\textcolor{primaryDark}{\faChartPie}] \textbf{Accueil} --- Statistiques et graphiques
+  \item[\textcolor{accent}{\faUserPlus}] \textbf{Inscription} --- Saisie, importation, transferts
+  \item[\textcolor{amber}{\faFolderOpen}] \textbf{Dossier} --- Documents administratifs
+\end{itemize}
+}
+
+\begin{infobox}
+Un \textbf{s\'{e}lecteur de classe} commun est affich\'{e} en haut \`{a} droite de toutes les sections. Il conditionne les donn\'{e}es affich\'{e}es et les actions disponibles.
+\end{infobox}
+
+\section{Accueil --- Statistiques}
+\nav{\faUserGraduate~Scolarit\'{e} $\triangleright$ \faChartPie~Accueil}
+
+\ecran{Dashboard Scolarit\'{e}}{
+\textbf{4 cartes statistiques} :
+\begin{center}
+\begin{tikzpicture}[card/.style={rectangle, rounded corners=8pt, minimum width=3.2cm, minimum height=1.2cm, align=center, font=\footnotesize\bfseries, text=white, blur shadow={shadow blur steps=3}}]
+\node[card, fill=purple] at (0,0) {\faUsers\\\'{E}l\`{e}ves inscrits};
+\node[card, fill=teal] at (3.8,0) {\faChalkboard\\Classes};
+\node[card, fill=info] at (7.6,0) {\faMars\\Gar\c{c}ons};
+\node[card, fill=rose] at (11.4,0) {\faVenus\\Filles};
+\end{tikzpicture}
+\end{center}
+\textbf{Graphiques (grille 3 colonnes)} :
+\begin{itemize}
+  \item \textbf{Par Genre} : donut chart avec pourcentages
+  \item \textbf{Par \^{A}ge} : barres horizontales par tranche d'\^{a}ge
+  \item \textbf{\^{A}ge $\times$ Genre} : barres bicolores (bleu gar\c{c}ons / rose filles)
+\end{itemize}
+\textbf{Tableau Effectifs par Classe} : toutes les classes avec Total, G, F et barre de genre.\\
+\textbf{Par Campus} : r\'{e}partition par site g\'{e}ographique (si multi-campus).
+}
+
+\section{Inscription des \'{E}l\`{e}ves}
+\nav{\faUserGraduate~Scolarit\'{e} $\triangleright$ \faUserPlus~Inscription}
+
+\begin{center}
+\begin{tikzpicture}[tab/.style={rectangle, rounded corners=5pt, minimum width=3.8cm, minimum height=0.8cm, align=center, font=\small\bfseries}, tabA/.style={tab, fill=tabActive, text=white}, tabI/.style={tab, fill=grayLight, text=tabInactive, draw=grayMid!30}]
+\node[tabA] at (0,0) {\faKeyboard~Par Saisie};
+\node[tabI] at (4.5,0) {\faFileUpload~Par Importation};
+\node[tabI] at (9.5,0) {\faExchangeAlt~Modifier Inscription};
+\end{tikzpicture}
+\end{center}
+
+\subsection{Par Saisie individuelle}
+\nav{\faUserGraduate~Scolarit\'{e} $\triangleright$ \faUserPlus~Inscription $\triangleright$ \onglet{Par Saisie}}
+
+\begin{attention}
+Vous devez \textbf{d'abord s\'{e}lectionner une classe} dans le s\'{e}lecteur en haut \`{a} droite. Sans cela, le bouton Ajouter reste gris\'{e}.
+\end{attention}
+
+\subsubsection{Proc\'{e}dure d'ajout}
+\begin{enumerate}
+  \item S\'{e}lectionnez une \textbf{classe} dans le s\'{e}lecteur (coin sup\'{e}rieur droit)
+  \item Cliquez \btngreen{\faUserPlus~Ajouter} $\to$ le formulaire s'ouvre
+  \item Remplissez les champs :
+\end{enumerate}
+
+\begin{center}
+\begin{tabularx}{0.92\textwidth}{l l X}
+\toprule
+\textbf{Champ} & \textbf{Obligatoire} & \textbf{Format / Description} \\
+\midrule
+\champ{N\textdegree{} S\'{e}rie} & Non & Num\'{e}ro de s\'{e}rie interne \\
+\champ{Nom} & \textcolor{danger}{Oui} & Nom de famille \\
+\champ{Postnom} & Non & Post-nom (usage local) \\
+\champ{Pr\'{e}nom} & \textcolor{danger}{Oui} & Pr\'{e}nom de l'\'{e}l\`{e}ve \\
+\champ{Date Naissance} & \textcolor{danger}{Oui} & Format \texttt{jj/mm/aaaa} (auto-format\'{e}) \\
+\champ{Genre} & \textcolor{danger}{Oui} & Masculin / F\'{e}minin \\
+\champ{Nom P\`{e}re} & Non & Nom de famille du p\`{e}re \\
+\champ{Pr\'{e}nom P\`{e}re} & Non & Pr\'{e}nom du p\`{e}re \\
+\champ{Nom M\`{e}re} & Non & Nom de famille de la m\`{e}re \\
+\champ{Pr\'{e}nom M\`{e}re} & Non & Pr\'{e}nom de la m\`{e}re \\
+\champ{Email Parent} & Non & Adresse email du parent / tuteur \\
+\champ{T\'{e}l\'{e}phone} & Non & Num\'{e}ro avec indicatif (+243...) \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{enumerate}[resume]
+  \item Cliquez \btngreen{\faSave~Enregistrer} ou \btn[grayMid]{\faTimes~Annuler}
+  \item L'\'{e}l\`{e}ve appara\^{i}t instantan\'{e}ment dans le tableau
+\end{enumerate}
+
+\subsubsection{Tableau des \'{e}l\`{e}ves}
+\begin{itemize}
+  \item \textbf{\'{E}dition en ligne} : cliquez sur une cellule $\to$ modifiez $\to$ sauvegarde automatique
+  \item \textbf{Photo} : cliquez sur l'avatar circulaire $\to$ s\'{e}lectionnez une photo
+  \item \btnpurple{\faColumns~Colonnes} : afficher/masquer les colonnes
+  \item \btngreen{\faSyncAlt} : rafra\^{i}chir la liste
+\end{itemize}
+
+\subsection{Par Importation Excel}
+\nav{\faUserGraduate~Scolarit\'{e} $\triangleright$ \faUserPlus~Inscription $\triangleright$ \onglet{Par Importation}}
+
+\workflow{
+\node[fstep] (i1) at (0,0) {\faChalkboard\\Choisir classe};
+\node[fstep] (i2) at (4,0) {\faFileDownload\\T\'{e}l\'{e}charger\\mod\`{e}le};
+\node[fstep] (i3) at (8,0) {\faFileExcel\\Remplir\\le fichier};
+\node[fstep] (i4) at (12,0) {\faFileUpload\\Importer};
+\draw[arr] (i1)--(i2); \draw[arr] (i2)--(i3); \draw[arr] (i3)--(i4);
+}
+
+\begin{importantbox}
+\textbf{Ne modifiez jamais les noms de colonnes} du mod\`{e}le Excel. Formats accept\'{e}s : \texttt{.xlsx}, \texttt{.xls}, \texttt{.csv}.
+\end{importantbox}
+
+\subsection{Modifier une Inscription (Transfert)}
+\nav{\faUserGraduate~Scolarit\'{e} $\triangleright$ \faUserPlus~Inscription $\triangleright$ \onglet{Modifier Une Inscription}}
+
+\begin{enumerate}
+  \item S\'{e}lectionnez la \textbf{classe source} en haut \`{a} droite
+  \item Le tableau appara\^{i}t avec des \textbf{cases \`{a} cocher}
+  \item Cochez les \'{e}l\`{e}ves \`{a} transf\'{e}rer (\faCheckSquare~individuellement ou \textbf{Tout s\'{e}lectionner})
+  \item S\'{e}lectionnez la \textbf{Classe de destination}
+  \item Cliquez \btnpurple{\faExchangeAlt~Transf\'{e}rer}
+\end{enumerate}
+
+\section{Dossier Administratif}
+\nav{\faUserGraduate~Scolarit\'{e} $\triangleright$ \faFolderOpen~Dossier}
+
+\subsection{Configurer les Types de Documents}
+\nav{\faUserGraduate~Scolarit\'{e} $\triangleright$ \faFolderOpen~Dossier $\triangleright$ Types de Documents}
+\begin{enumerate}
+  \item Cliquez \btngreen{\faPlus~Nouveau Type}
+  \item Remplissez : \champ{Nom} \textcolor{danger}{*}, \champ{Description}, \faCheckSquare~\textbf{Obligatoire}
+  \item \btngreen{\faSave~Enregistrer}
+\end{enumerate}
+
+\subsection{G\'{e}rer les Documents par \'{E}l\`{e}ve}
+\nav{\faUserGraduate~Scolarit\'{e} $\triangleright$ \faFolderOpen~Dossier $\triangleright$ Documents des \'{E}l\`{e}ves}
+\begin{enumerate}
+  \item S\'{e}lectionnez une \textbf{classe} puis un \textbf{\'{e}l\`{e}ve}
+  \item La liste des documents s'affiche :
+  \begin{itemize}
+    \item \textcolor{accent}{\faCheckCircle} Document fourni
+    \item \textcolor{danger}{\faTimesCircle} Document manquant
+    \item Bouton \textbf{Joindre} pour uploader
+  \end{itemize}
+  \item Indicateur de progression : \texttt{3/5 documents}
+\end{enumerate}
+
+\chapter{Module \'{E}valuations}
+\nav{\faClipboardCheck~\'{E}valuations}
+
+\section{Saisie des notes}
+\nav{\faClipboardCheck~\'{E}valuations $\triangleright$ Notes}
+\workflow{
+\node[fstep] (n1) at (0,0) {\faLayerGroup\\Cycle};
+\node[fstep] (n2) at (3.5,0) {\faChalkboard\\Classe};
+\node[fstep] (n3) at (7,0) {\faBook\\Cours};
+\node[fstep] (n4) at (10.5,0) {\faCalendarCheck\\P\'{e}riode};
+\node[fstep] (n5) at (14,0) {\faEdit\\Saisie};
+\draw[arr] (n1)--(n2); \draw[arr] (n2)--(n3); \draw[arr] (n3)--(n4); \draw[arr] (n4)--(n5);
+}
+
+\section{Bulletins PDF}
+\nav{\faClipboardCheck~\'{E}valuations $\triangleright$ Bulletins}
+\begin{enumerate}
+  \item S\'{e}lectionnez une \textbf{classe d\'{e}lib\'{e}r\'{e}e}
+  \item Cochez les \'{e}l\`{e}ves
+  \item Cliquez \btn{G\'{e}n\'{e}rer PDF} $\to$ ouverture dans un nouvel onglet
+\end{enumerate}
+
+\chapter{Annexes}
+
+\section{Carte de navigation compl\`{e}te}
+\begin{center}
+\begin{tikzpicture}[root/.style={rectangle, rounded corners=10pt, fill=darkBg, text=white, font=\bfseries, minimum width=3cm, minimum height=0.9cm, align=center}, modu/.style={rectangle, rounded corners=6pt, fill=primaryDark, text=white, font=\small\bfseries, minimum width=2.5cm, minimum height=0.7cm, align=center}, sec/.style={rectangle, rounded corners=4pt, fill=primary!15, text=grayDark, font=\scriptsize\bfseries, minimum width=2.2cm, minimum height=0.5cm, align=center}, sub/.style={rectangle, rounded corners=3pt, fill=grayLight, text=grayDark, font=\tiny, minimum width=1.8cm, minimum height=0.4cm, align=center}, edge/.style={-{Stealth[length=3pt]}, grayMid, line width=0.6pt}]
+\node[root] (R) at (0,0) {MonEcole};
+\node[modu] (A) at (-6,-1.5) {Administration};
+\node[modu] (S) at (-1,-1.5) {Scolarit\'{e}};
+\node[modu] (E) at (3.5,-1.5) {\'{E}valuations};
+\node[modu] (N) at (7,-1.5) {Enseignements};
+\draw[edge] (R)--(A); \draw[edge] (R)--(S); \draw[edge] (R)--(E); \draw[edge] (R)--(N);
+\node[sec] (a1) at (-8.5,-3) {Dashboard};
+\node[sec] (a2) at (-6.5,-3) {MonEcole};
+\node[sec] (a3) at (-4.5,-3) {Config};
+\node[sec] (a4) at (-8.5,-4) {Calendrier};
+\node[sec] (a5) at (-6.5,-4) {Personnel};
+\node[sec] (a6) at (-4.5,-4) {Utilisateurs};
+\foreach \x in {1,...,6} {\draw[edge] (A)--(a\x);}
+\node[sub] (c1) at (-5.5,-5) {Campus};
+\node[sub] (c2) at (-3.5,-5) {Cycles};
+\node[sub] (c3) at (-5.5,-5.6) {Classes};
+\node[sub] (c4) at (-3.5,-5.6) {Cours};
+\foreach \x in {1,...,4} {\draw[edge] (a3)--(c\x);}
+\node[sec] (s1) at (-1.5,-3) {Accueil};
+\node[sec] (s2) at (0.5,-3) {Inscription};
+\node[sec] (s3) at (-0.5,-4) {Dossier};
+\draw[edge] (S)--(s1); \draw[edge] (S)--(s2); \draw[edge] (S)--(s3);
+\node[sub] (i1) at (-0.5,-5) {Saisie};
+\node[sub] (i2) at (1.5,-5) {Import};
+\node[sub] (i3) at (0.5,-5.6) {Transfert};
+\foreach \x in {1,...,3} {\draw[edge] (s2)--(i\x);}
+\end{tikzpicture}
+\end{center}
+
+\section{Glossaire}
+\begin{description}[leftmargin=3em, style=nextline]
+  \item[Hub] Base de donn\'{e}es centralis\'{e}e nationale.
+  \item[Spoke] Base de donn\'{e}es locale de l'\'{e}tablissement.
+  \item[OTP] Code de v\'{e}rification \`{a} usage unique.
+  \item[EAC] \'{E}tablissement-Ann\'{e}e-Classe --- identifiant unique.
+  \item[Pond\'{e}ration] Coefficient d'un cours dans le calcul des moyennes.
+  \item[D\'{e}lib\'{e}ration] D\'{e}cision sur le passage/redoublement.
+\end{description}
+
+\section{Support}
+\begin{center}
+\begin{tcolorbox}[enhanced, colback=primaryDark!5, colframe=primaryDark, arc=8pt, width=0.65\textwidth]
+\centering
+\textbf{\faEnvelope~Email} : support@monecole.pro \\[4pt]
+\textbf{\faGlobe~Site} : https://monecole.pro \\[4pt]
+\textbf{\faWhatsapp~WhatsApp} : +257 XX XXX XXX
+\end{tcolorbox}
+\end{center}
+
+\vfill
+\begin{center}
+\textcolor{grayMid}{\rule{0.5\textwidth}{0.5pt}}\\[6pt]
+\textcolor{grayMid}{\small Document g\'{e}n\'{e}r\'{e} le \today{} --- MonEcole v2.0}\\
+\textcolor{grayMid}{\small \copyright{} 2026 Nexora Tech (Next Aura Technologies)}
+\end{center}
+\end{document}

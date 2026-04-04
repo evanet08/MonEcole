@@ -104,13 +104,18 @@ class Attribution_type(models.Model):
 
 
 class Attribution_cours(models.Model):
+    """Attribution de cours. Classe identifiée par clés métier stables."""
     id_attribution = models.AutoField(primary_key=True)
     idCampus = models.ForeignKey("Campus", on_delete=models.PROTECT, null=False)
     id_annee = models.ForeignKey("Annee", on_delete=models.PROTECT, null=False, db_constraint=False)
     id_cycle = models.ForeignKey("MonEcole_app.Cycle", on_delete=models.PROTECT, null=False,
                                  db_column='id_cycle_id', db_constraint=False)
-    id_classe = models.ForeignKey("MonEcole_app.EtablissementAnneeClasse", on_delete=models.PROTECT, null=False,
-                                  db_column='id_classe_id', db_constraint=False)
+    id_classe = models.ForeignKey('Classe', on_delete=models.PROTECT, null=False,
+                                  db_column='classe_id', db_constraint=False)
+    groupe = models.CharField(max_length=5, null=True, blank=True)
+    section = models.ForeignKey('MonEcole_app.Section', on_delete=models.SET_NULL,
+                                null=True, blank=True, db_column='section_id',
+                                db_constraint=False)
     attribution_type = models.ForeignKey("Attribution_type", on_delete=models.PROTECT, null=False)
     id_cours = models.ForeignKey("Cours_par_classe", on_delete=models.PROTECT, null=False)
     id_personnel = models.ForeignKey("Personnel", on_delete=models.PROTECT, null=False)
@@ -122,4 +127,3 @@ class Attribution_cours(models.Model):
 
     def __str__(self):
         return f"{self.id_attribution} -{self.id_cours}"
-

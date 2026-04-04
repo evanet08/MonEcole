@@ -2410,7 +2410,7 @@ def get_cours_data(request):
         # Récupérer les cours avec le domaine et section FK
         cours_qs = Cours.objects.filter(classe__cycle__pays=pays)
         if id_classe:
-            cours_qs = cours_qs.filter(classe_id=id_classe)
+            cours_qs = cours_qs.filter(id_classe_id=id_classe)
             # Filtrer par section si spécifié
             if id_section:
                 cours_qs = cours_qs.filter(section_id=id_section)
@@ -2434,7 +2434,7 @@ def get_cours_data(request):
                 'code_cours': c.code_cours,
                 'domaine_id': c.domaine_id,
                 'domaine_nom': _domaine_map.get(c.domaine_id, ''),
-                'classe_id': c.classe_id,
+                'id_classe_id': c.classe_id,
                 'section_id': c.section_id,
                 'section_nom': _section_map.get(c.section_id, ''),
             })
@@ -2672,7 +2672,7 @@ def get_cours_annee_data(request):
             return JsonResponse({'success': True, 'cours_annee': [], 'annees': annees, 'domaines': domaines})
 
         # Tous les cours du catalogue pour cette classe (+section)
-        cours_catalogue = Cours.objects.filter(classe_id=id_classe).order_by('cours')
+        cours_catalogue = Cours.objects.filter(id_classe_id=id_classe).order_by('cours')
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
@@ -2824,7 +2824,7 @@ def bulk_activate_cours_annee(request):
         if not id_classe or not id_annee:
             return JsonResponse({'success': False, 'error': 'Classe et année requis.'}, status=400)
 
-        cours_catalogue = Cours.objects.filter(classe_id=id_classe)
+        cours_catalogue = Cours.objects.filter(id_classe_id=id_classe)
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
@@ -2876,7 +2876,7 @@ def download_cours_annee_template(request):
             cell.fill = header_fill
             cell.font = Font(bold=True, color="FFFFFF")
 
-        for c in Cours.objects.filter(classe_id=id_classe).order_by('domaine', 'code_cours'):
+        for c in Cours.objects.filter(id_classe_id=id_classe).order_by('domaine', 'code_cours'):
             config = CoursAnnee.objects.filter(cours=c, annee=annee).first()
             ws.append([
                 c.code_cours, c.cours, c.domaine,
@@ -3672,7 +3672,7 @@ def get_etablissement_config(request):
         for eac in etab_annee.classes_config.select_related('classe', 'section').all():
             activated.append({
                 'id': eac.id,
-                'classe_id': eac.classe_id,
+                'id_classe_id': eac.classe_id,
                 'classe_nom': str(eac.classe) if eac.classe else '-',
                 'section_id': eac.section_id,
                 'section_nom': str(eac.section) if eac.section else '-',
@@ -3985,6 +3985,26 @@ def _ei_classe_filter(alias='ei'):
     Le COLLATE assure la compatibilité cross-DB Hub/Spoke.
     """
     return f"{alias}.classe_id = %s AND {alias}.groupe COLLATE utf8mb4_general_ci <=> %s AND {alias}.section_id <=> %s"
+
+
+def _resolve_eac_orm(eac_id):
+    """
+    Version ORM de _resolve_eac_keys.
+    Résout un EAC.id (Hub) en clés métier stables via Django ORM.
+    Retourne dict {classe_id, groupe, section_id} ou None.
+    """
+    try:
+        from MonEcole_app.models.country_structure import EtablissementAnneeClasse
+        eac = EtablissementAnneeClasse.objects.filter(id=eac_id).first()
+        if eac:
+            return {
+                'classe_id': eac.classe_id,
+                'groupe': eac.groupe,
+                'section_id': eac.section_id,
+            }
+    except Exception:
+        pass
+    return None
 
 
 def _count_eleves(cur, id_etablissement):
@@ -5877,7 +5897,7 @@ def dashboard_attribution_cours(request):
                             FROM attribution_cours ac
                             LEFT JOIN personnel p ON p.id_personnel = ac.id_personnel_id
                             WHERE ac.id_cours_id IN ({placeholders})
-                              AND ac.id_classe_id = %s AND ac.id_etablissement = %s
+                              AND ac.classe_id = %s AND ac.id_etablissement = %s
                         """, ca_annee_ids + [int(id_classe), id_etablissement])
                         for r in cur.fetchall():
                             attributions_map[r['id_cours_id']] = r
@@ -5937,17 +5957,12 @@ def dashboard_attribution_cours(request):
                     if not all([id_cours_classe, id_personnel, id_classe]):
                         return JsonResponse({'success': False, 'error': 'Cours, personnel et classe requis.'}, status=400)
 
-                    # Get current année and campus — direct Hub query
-                    cur.execute("""
-                        SELECT ea.annee_id AS id_annee, c.idCampus
-                        FROM countryStructure.etablissements_annees_classes eac
-                        JOIN countryStructure.etablissements_annees ea ON eac.etablissement_annee_id = ea.id
-                        JOIN db_monecole.campus c ON c.id_etablissement = ea.etablissement_id AND c.is_active = 1
-                        WHERE eac.id = %s
-                    """, [id_classe])
-                    classe_row = cur.fetchone()
-                    id_annee = classe_row['id_annee'] if classe_row else 1
-                    idCampus = classe_row['idCampus'] if classe_row else 1
+                    # Get current année, campus and business keys — via helper
+                    bk = _resolve_eac_keys(cur, id_classe)
+                    if not bk:
+                        return JsonResponse({'success': False, 'error': 'Classe introuvable.'}, status=400)
+                    id_annee = bk['annee_id']
+                    idCampus = bk['campus_id'] or 1
 
                     # Get cycle from Hub via cours_annee → cours → classe → cycle
                     try:
@@ -5960,11 +5975,11 @@ def dashboard_attribution_cours(request):
                     except Exception:
                         id_cycle = id_cycle or 1
 
-                    # Check if attribution already exists (by cours_annee id)
+                    # Check if attribution already exists (by cours_annee id + business keys)
                     cur.execute("""
                         SELECT id_attribution FROM attribution_cours
-                        WHERE id_cours_id=%s AND id_classe_id=%s AND id_etablissement=%s
-                    """, [id_cours_classe, id_classe, id_etablissement])
+                        WHERE id_cours_id=%s AND classe_id=%s AND groupe <=> %s AND section_id <=> %s AND id_etablissement=%s
+                    """, [id_cours_classe, bk['classe_id'], bk['groupe'], bk['section_id'], id_etablissement])
                     existing = cur.fetchone()
 
                     if existing:
@@ -5976,9 +5991,10 @@ def dashboard_attribution_cours(request):
                     else:
                         cur.execute("""
                             INSERT INTO attribution_cours
-                            (attribution_type_id, id_annee_id, idCampus_id, id_classe_id, id_cours_id, id_cycle_id, id_personnel_id, date_attribution, id_etablissement)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        """, [attr_type_id, id_annee, idCampus, id_classe, id_cours_classe, id_cycle, id_personnel,
+                            (attribution_type_id, id_annee_id, idCampus_id, classe_id, groupe, section_id, id_cours_id, id_cycle_id, id_personnel_id, date_attribution, id_etablissement)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """, [attr_type_id, id_annee, idCampus, bk['classe_id'], bk['groupe'], bk['section_id'],
+                              id_cours_classe, id_cycle, id_personnel,
                               __import__('datetime').date.today().strftime('%Y-%m-%d'), id_etablissement])
 
                     conn.commit()
@@ -7934,7 +7950,7 @@ def _get_spoke_connection():
 def get_evaluation_cours(request):
     """Retourne les cours pour une classe via le Hub (CoursAnnee/Cours)."""
     try:
-        eac_id = request.GET.get('classe_id')  # This is actually EtablissementAnneeClasse.id
+        eac_id = request.GET.get('id_classe_id')  # This is actually EtablissementAnneeClasse.id
         if not eac_id:
             return JsonResponse({'success': False, 'error': 'classe_id requis.'}, status=400)
 
@@ -7977,7 +7993,7 @@ def get_evaluation_cours(request):
 def get_evaluations_list(request):
     """Retourne les évaluations pour une classe/cours donné."""
     try:
-        classe_id = request.GET.get('classe_id')
+        classe_id = request.GET.get('id_classe_id')
         cours_id = request.GET.get('cours_id')
         if not classe_id or not cours_id:
             return JsonResponse({'success': False, 'error': 'classe_id et cours_id requis.'}, status=400)
@@ -8000,7 +8016,7 @@ def get_evaluations_list(request):
                            (SELECT COUNT(*) FROM evaluation_repartition er WHERE er.id_evaluation = e.id_evaluation) AS assign_count
                     FROM evaluation e
                     LEFT JOIN countryStructure.evaluation_types et ON et.id_type_eval = e.id_type_eval
-                    WHERE e.id_classe_id = %s AND e.id_cours_classe_id = %s
+                    WHERE e.classe_id = %s AND e.id_cours_classe_id = %s
                           AND e.id_etablissement = %s
                     ORDER BY e.date_eval DESC, e.id_evaluation DESC
                 """, [classe_id, cours_id, etab_id])
@@ -8084,14 +8100,8 @@ def save_evaluation(request):
         try:
             with conn.cursor() as cur:
                 # Get annee_id from the session context
-                cur.execute("""
-                    SELECT ea.annee_id AS id_annee
-                    FROM countryStructure.etablissements_annees_classes eac
-                    JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
-                    WHERE eac.id = %s LIMIT 1
-                """, [classe_id])
-                annee_row = cur.fetchone()
-                annee_id = annee_row['id_annee'] if annee_row else None
+                # Resolve EAC → business keys
+                bk = _resolve_eac_keys(cur, classe_id)
 
                 # Get campus_id
                 cur.execute("""
@@ -8117,11 +8127,13 @@ def save_evaluation(request):
                     # INSERT
                     cur.execute("""
                         INSERT INTO evaluation (title, id_type_eval, ponderer_eval, date_eval, date_soumission,
-                            contenu_evaluation, document_url, id_annee_id, idCampus_id, id_classe_id,
-                            id_cours_classe_id, id_etablissement, date_creation)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                            contenu_evaluation, document_url, id_annee_id, idCampus_id, classe_id,
+                            groupe, section_id, id_cours_classe_id, id_etablissement, date_creation)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                     """, [title, id_type_eval, int(ponderer_eval), date_eval, date_soumission,
-                          contenu, document_url, annee_id, campus_id, int(classe_id),
+                          contenu, document_url, bk['annee_id'] if bk else None, campus_id,
+                          bk['classe_id'] if bk else int(classe_id),
+                          bk['groupe'] if bk else None, bk['section_id'] if bk else None,
                           int(cours_id), etab_id])
                     new_id = cur.lastrowid
 
@@ -8193,7 +8205,7 @@ def delete_evaluation(request):
 def get_evaluation_candidates(request):
     """Retourne les évaluations candidates pour une répartition (filtrées par intervalle de dates)."""
     try:
-        classe_id = request.GET.get('classe_id')
+        classe_id = request.GET.get('id_classe_id')
         cours_id = request.GET.get('cours_id')
         repartition_id = request.GET.get('repartition_id')
 
@@ -8224,7 +8236,7 @@ def get_evaluation_candidates(request):
                                et.sigle AS type_sigle
                         FROM evaluation e
                         LEFT JOIN countryStructure.evaluation_types et ON et.id_type_eval = e.id_type_eval
-                        WHERE e.id_classe_id = %s AND e.id_cours_classe_id = %s
+                        WHERE e.classe_id = %s AND e.id_cours_classe_id = %s
                               AND e.id_etablissement = %s
                               AND e.date_eval BETWEEN %s AND %s
                         ORDER BY e.date_eval ASC
@@ -8237,7 +8249,7 @@ def get_evaluation_candidates(request):
                                et.sigle AS type_sigle
                         FROM evaluation e
                         LEFT JOIN countryStructure.evaluation_types et ON et.id_type_eval = e.id_type_eval
-                        WHERE e.id_classe_id = %s AND e.id_cours_classe_id = %s
+                        WHERE e.classe_id = %s AND e.id_cours_classe_id = %s
                               AND e.id_etablissement = %s
                         ORDER BY e.date_eval ASC
                     """, [classe_id, cours_id, etab_id])
@@ -8259,7 +8271,7 @@ def get_evaluation_candidates(request):
                         WHERE er.id_repartition_config = %s
                             AND er.id_evaluation IN (
                                 SELECT e.id_evaluation FROM evaluation e
-                                WHERE e.id_cours_classe_id = %s AND e.id_classe_id = %s
+                                WHERE e.id_cours_classe_id = %s AND e.classe_id = %s
                             )
                     """, [config.id, cours_id, classe_id])
                     assigned = [{
@@ -8289,7 +8301,7 @@ def assign_evaluations(request):
         data = json.loads(request.body)
         repartition_id = data.get('repartition_id')
         cours_id = data.get('cours_id')
-        classe_id = data.get('classe_id')
+        classe_id = data.get('id_classe_id')
         assignments = data.get('assignments', [])
 
         if not repartition_id or not cours_id:
@@ -8311,7 +8323,7 @@ def assign_evaluations(request):
                     JOIN evaluation e ON e.id_evaluation = er.id_evaluation
                     WHERE er.id_repartition_config = %s
                       AND e.id_cours_classe_id = %s
-                      AND e.id_classe_id = %s
+                      AND e.classe_id = %s
                 """, [config.id, cours_id, classe_id])
 
                 # Insert new assignments
@@ -8392,7 +8404,7 @@ def get_notes_grid(request):
     Retourne: élèves inscrits, cours avec évaluations assignées, notes existantes.
     """
     try:
-        classe_id = request.GET.get('classe_id')
+        classe_id = request.GET.get('id_classe_id')
         repartition_id = request.GET.get('repartition_id')
         note_type = request.GET.get('note_type', 'TJ')  # TJ ou EXAM
 
@@ -8462,7 +8474,7 @@ def get_notes_grid(request):
                         LEFT JOIN countryStructure.cours_annee cann ON cann.id_cours_annee = ev.id_cours_classe_id
                         LEFT JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
                         WHERE er.id_repartition_config = %s
-                          AND ev.id_classe_id = %s
+                          AND ev.classe_id = %s
                           AND ev.id_etablissement = %s
                         ORDER BY ev.id_cours_classe_id, ev.date_eval
                     """, [config.id, classe_id, etab_id])
@@ -8604,7 +8616,7 @@ def save_notes(request):
                         else:
                             # Get evaluation context for FK fields
                             cur.execute("""
-                                SELECT id_annee_id, idCampus_id, id_classe_id, id_cours_classe_id
+                                SELECT id_annee_id, idCampus_id, classe_id, groupe, section_id, id_cours_classe_id
                                 FROM evaluation WHERE id_evaluation = %s
                             """, [eval_id])
                             ev_ctx = cur.fetchone()
@@ -8614,10 +8626,12 @@ def save_notes(request):
                             cur.execute("""
                                 INSERT INTO eleve_note
                                     (id_eleve_id, id_evaluation_id, note, id_annee_id, idCampus_id,
+                                     classe_id, groupe, section_id,
                                      id_cours_id, id_etablissement, date_saisie)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                             """, [eleve_id, eval_id, note_float,
                                   ev_ctx['id_annee_id'], ev_ctx['idCampus_id'],
+                                  ev_ctx['classe_id'], ev_ctx['groupe'], ev_ctx['section_id'],
                                   ev_ctx['id_cours_classe_id'], etab_id])
                             saved += 1
 
@@ -8644,7 +8658,7 @@ def download_notes_template(request):
         from openpyxl.styles import Font, Protection, PatternFill, Alignment, Border, Side
         from io import BytesIO
 
-        classe_id = request.GET.get('classe_id')
+        classe_id = request.GET.get('id_classe_id')
         repartition_id = request.GET.get('repartition_id')
 
         if not classe_id or not repartition_id:
@@ -8698,7 +8712,7 @@ def download_notes_template(request):
                         LEFT JOIN countryStructure.cours_annee cann ON cann.id_cours_annee = ev.id_cours_classe_id
                         LEFT JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
                         WHERE er.id_repartition_config = %s
-                          AND ev.id_classe_id = %s AND ev.id_etablissement = %s
+                          AND ev.classe_id = %s AND ev.id_etablissement = %s
                         ORDER BY ev.id_cours_classe_id, ev.date_eval
                     """, [config.id, classe_id, etab_id])
                     evals = cur.fetchall()
@@ -8888,7 +8902,7 @@ def import_notes_excel(request):
                                     [nd['note'], existing['id_note']])
                     else:
                         cur.execute("""
-                            SELECT id_annee_id, idCampus_id, id_cours_classe_id
+                            SELECT id_annee_id, idCampus_id, classe_id, groupe, section_id, id_cours_classe_id
                             FROM evaluation WHERE id_evaluation = %s
                         """, [nd['evaluation_id']])
                         ev_ctx = cur.fetchone()
@@ -8898,10 +8912,12 @@ def import_notes_excel(request):
                         cur.execute("""
                             INSERT INTO eleve_note
                                 (id_eleve_id, id_evaluation_id, note, id_annee_id, idCampus_id,
+                                 classe_id, groupe, section_id,
                                  id_cours_id, id_etablissement, date_saisie)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                         """, [nd['eleve_id'], nd['evaluation_id'], nd['note'],
                               ev_ctx['id_annee_id'], ev_ctx['idCampus_id'],
+                              ev_ctx['classe_id'], ev_ctx['groupe'], ev_ctx['section_id'],
                               ev_ctx['id_cours_classe_id'], etab_id])
                     saved += 1
 
@@ -8942,7 +8958,7 @@ def calculate_notes_bulletin(request):
         etab_id = etab.id_etablissement
 
         data = json.loads(request.body)
-        classe_id = data.get('classe_id')
+        classe_id = data.get('id_classe_id')
         repartition_id = data.get('repartition_id')
 
         if not classe_id or not repartition_id:
@@ -9032,7 +9048,7 @@ def calculate_notes_bulletin(request):
                                 JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
                                 WHERE er.id_repartition_config = %s
                                   AND ev.id_cours_classe_id = %s
-                                  AND ev.id_classe_id = %s
+                                  AND ev.classe_id = %s
                                   AND ev.id_etablissement = %s
                             """, [config.id, cours_id, classe_id, etab_id])
                             evals = cur.fetchall()
@@ -9191,7 +9207,7 @@ def get_notes_bulletin(request):
     Params: classe_id, repartition_id
     """
     try:
-        classe_id = request.GET.get('classe_id')
+        classe_id = request.GET.get('id_classe_id')
         repartition_id = request.GET.get('repartition_id')
 
         if not classe_id or not repartition_id:
@@ -9447,7 +9463,7 @@ def get_cours_data(request):
 
         cours_qs = Cours.objects.filter(classe__cycle__pays=pays)
         if id_classe:
-            cours_qs = cours_qs.filter(classe_id=id_classe)
+            cours_qs = cours_qs.filter(id_classe_id=id_classe)
             if id_section:
                 cours_qs = cours_qs.filter(section_id=id_section)
             else:
@@ -9459,7 +9475,7 @@ def get_cours_data(request):
                 'id_cours': c.id_cours, 'cours': c.cours, 'code_cours': c.code_cours,
                 'domaine_id': c.domaine_id,
                 'domaine_nom': domaine_map.get(c.domaine_id, ''),
-                'classe_id': c.classe_id,
+                'id_classe_id': c.classe_id,
                 'section_id': c.section_id,
                 'section_nom': section_map.get(c.section_id, ''),
             })
@@ -9569,7 +9585,7 @@ def get_cours_annee_data(request):
 
         # Tous les cours du catalogue pour cette classe (+section)
         # NOTE: Cours.domaine_id is IntegerField, NOT FK — cannot use select_related/order_by FK
-        cours_catalogue = Cours.objects.filter(classe_id=id_classe).order_by('cours')
+        cours_catalogue = Cours.objects.filter(id_classe_id=id_classe).order_by('cours')
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
@@ -9732,7 +9748,7 @@ def bulk_activate_cours_annee(request):
         if Cours is None:
             return JsonResponse({'success': False, 'error': 'Modèle Cours non disponible.'}, status=500)
 
-        cours_catalogue = Cours.objects.filter(classe_id=id_classe)
+        cours_catalogue = Cours.objects.filter(id_classe_id=id_classe)
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
@@ -9849,12 +9865,19 @@ def dashboard_horaire(request):
             if not id_classe:
                 return JsonResponse({'success': False, 'error': 'id_classe requis'})
 
+            # Resolve EAC.id → business keys
+            bk = _resolve_eac_orm(id_classe)
+            if not bk:
+                return JsonResponse({'success': False, 'error': 'Classe introuvable.'}, status=404)
+
             from MonEcole_app.models.horaire import Horaire, Horaire_type
             from MonEcole_app.models.enseignmnts.matiere import Cours_par_classe
 
             qs = Horaire.objects.filter(
                 id_etablissement=etab_id,
-                id_classe_id=id_classe,
+                id_classe_id=bk['classe_id'],
+                groupe=bk['groupe'],
+                section=bk['section_id'],
             )
             if date_debut and date_fin:
                 qs = qs.filter(date__gte=date_debut, date__lte=date_fin)
@@ -9904,9 +9927,16 @@ def dashboard_horaire(request):
             if not all([id_classe, id_cours, date_val, debut, fin]):
                 return JsonResponse({'success': False, 'error': 'Tous les champs sont requis'})
 
+            # Resolve EAC.id → business keys (Spoke only)
+            bk = _resolve_eac_orm(id_classe)
+            if not bk:
+                return JsonResponse({'success': False, 'error': 'Classe introuvable.'}, status=404)
+
             overlap = Horaire.objects.filter(
                 id_etablissement=etab_id,
-                id_classe_id=id_classe,
+                id_classe_id=bk['classe_id'],
+                groupe=bk['groupe'],
+                section=bk['section_id'],
                 date=date_val,
             ).exclude(id_horaire=id_horaire if id_horaire else 0)
 
@@ -9919,7 +9949,9 @@ def dashboard_horaire(request):
 
             attr = Attribution_cours.objects.filter(
                 id_cours_id=id_cours,
-                id_classe_id=id_classe,
+                id_classe_id=bk['classe_id'],
+                groupe=bk['groupe'],
+                section_id=bk['section_id'],
             ).first()
 
             if not attr:
@@ -9936,7 +9968,9 @@ def dashboard_horaire(request):
             else:
                 Horaire.objects.create(
                     id_etablissement=etab_id,
-                    id_classe_id=id_classe,
+                    id_classe_id=bk['classe_id'],
+                    groupe=bk['groupe'],
+                    section=bk['section_id'],
                     id_cours_id=id_cours,
                     id_annee_id=attr.id_annee_id,
                     idCampus_id=attr.idCampus_id,
@@ -9967,9 +10001,16 @@ def dashboard_horaire(request):
             if not id_classe:
                 return JsonResponse({'success': False, 'error': 'id_classe requis'})
 
+            # Resolve EAC.id → business keys (Spoke only)
+            bk = _resolve_eac_orm(id_classe)
+            if not bk:
+                return JsonResponse({'success': False, 'error': 'Classe introuvable.'}, status=404)
+
             # Ne PAS faire select_related cross-database (spoke→hub)
             attrs = Attribution_cours.objects.filter(
-                id_classe_id=id_classe,
+                id_classe_id=bk['classe_id'],
+                groupe=bk['groupe'],
+                section_id=bk['section_id'],
             ).values('id_cours_id', 'id_personnel_id')
 
             # Collecter les IDs
@@ -9979,7 +10020,7 @@ def dashboard_horaire(request):
                 cours_annee_ids.add(a['id_cours_id'])
                 personnel_ids.add(a['id_personnel_id'])
 
-            # Charger les noms depuis le Hub (cours_annee → cours)
+            # Charger les noms depuis le Hub (cours_annee → cours) — Hub inchangé
             cours_map = {}
             if cours_annee_ids:
                 for ca in Cours_par_classe.objects.filter(id_cours_classe__in=cours_annee_ids).select_related('id_cours'):
@@ -9999,7 +10040,11 @@ def dashboard_horaire(request):
 
             # Construire la liste
             cours_list = []
-            for a in Attribution_cours.objects.filter(id_classe_id=id_classe).values('id_cours_id', 'id_personnel_id'):
+            for a in Attribution_cours.objects.filter(
+                id_classe_id=bk['classe_id'],
+                groupe=bk['groupe'],
+                section_id=bk['section_id'],
+            ).values('id_cours_id', 'id_personnel_id'):
                 cours_list.append({
                     'cours_annee_id': a['id_cours_id'],
                     'cours_nom': cours_map.get(a['id_cours_id'], f"Cours #{a['id_cours_id']}"),
@@ -10023,9 +10068,16 @@ def dashboard_horaire(request):
             if not all([id_classe, id_cours, dates, debut, fin]):
                 return JsonResponse({'success': False, 'error': 'Tous les champs sont requis'})
 
+            # Resolve EAC.id → business keys (Spoke only)
+            bk = _resolve_eac_orm(id_classe)
+            if not bk:
+                return JsonResponse({'success': False, 'error': 'Classe introuvable.'}, status=404)
+
             attr = Attribution_cours.objects.filter(
                 id_cours_id=id_cours,
-                id_classe_id=id_classe,
+                id_classe_id=bk['classe_id'],
+                groupe=bk['groupe'],
+                section_id=bk['section_id'],
             ).first()
             if not attr:
                 return JsonResponse({'success': False, 'error': "Pas d'attribution trouvée"})
@@ -10036,7 +10088,9 @@ def dashboard_horaire(request):
                 # Vérifier chevauchement
                 overlap = Horaire.objects.filter(
                     id_etablissement=etab_id,
-                    id_classe_id=id_classe,
+                    id_classe_id=bk['classe_id'],
+                    groupe=bk['groupe'],
+                    section=bk['section_id'],
                     date=date_val,
                 )
                 has_overlap = False
@@ -10050,7 +10104,9 @@ def dashboard_horaire(request):
 
                 Horaire.objects.create(
                     id_etablissement=etab_id,
-                    id_classe_id=id_classe,
+                    id_classe_id=bk['classe_id'],
+                    groupe=bk['groupe'],
+                    section=bk['section_id'],
                     id_cours_id=id_cours,
                     id_annee_id=attr.id_annee_id,
                     idCampus_id=attr.idCampus_id,
@@ -10082,6 +10138,11 @@ def dashboard_horaire(request):
             if len(source_dates) != len(target_dates):
                 return JsonResponse({'success': False, 'error': 'Nombre de jours incompatible'})
 
+            # Resolve EAC.id → business keys (Spoke only)
+            bk = _resolve_eac_orm(id_classe)
+            if not bk:
+                return JsonResponse({'success': False, 'error': 'Classe introuvable.'}, status=404)
+
             # Map source day -> target day
             day_map = {}
             for i, sd in enumerate(source_dates):
@@ -10090,7 +10151,9 @@ def dashboard_horaire(request):
 
             source_horaires = Horaire.objects.filter(
                 id_etablissement=etab_id,
-                id_classe_id=id_classe,
+                id_classe_id=bk['classe_id'],
+                groupe=bk['groupe'],
+                section=bk['section_id'],
                 date__in=source_dates,
             )
 
@@ -10104,7 +10167,9 @@ def dashboard_horaire(request):
                 # Vérifier si déjà existant
                 exists = Horaire.objects.filter(
                     id_etablissement=etab_id,
-                    id_classe_id=id_classe,
+                    id_classe_id=bk['classe_id'],
+                    groupe=bk['groupe'],
+                    section=bk['section_id'],
                     date=target_date,
                     debut=h.debut,
                     fin=h.fin,
@@ -10115,7 +10180,9 @@ def dashboard_horaire(request):
 
                 Horaire.objects.create(
                     id_etablissement=etab_id,
-                    id_classe_id=id_classe,
+                    id_classe_id=bk['classe_id'],
+                    groupe=bk['groupe'],
+                    section=bk['section_id'],
                     id_cours_id=h.id_cours_id,
                     id_annee_id=h.id_annee_id,
                     idCampus_id=h.idCampus_id,
@@ -10615,7 +10682,7 @@ def get_evaluations_repartitions(request):
       5. Limite le nombre de répartitions au nombre prévu par la config cycle × hiérarchie
     """
     try:
-        classe_id = request.GET.get('classe_id')
+        classe_id = request.GET.get('id_classe_id')
         if not classe_id:
             return JsonResponse({'success': False, 'error': 'classe_id requis'}, status=400)
 
@@ -10727,7 +10794,7 @@ def get_deliberation_conditions(request):
         from MonEcole_app.models.evaluations.note import (
             Deliberation_annuelle_condition, Deliberation_annuelle_finalite
         )
-        classe_id = request.GET.get('classe_id')
+        classe_id = request.GET.get('id_classe_id')
         if not classe_id:
             return JsonResponse({'success': False, 'error': 'classe_id requis'}, status=400)
 
@@ -10804,7 +10871,7 @@ def execute_deliberation(request):
         from MonEcole_app.models.campus import Campus
 
         data = json.loads(request.body)
-        classe_id = data.get('classe_id')
+        classe_id = data.get('id_classe_id')
         delib_type = data.get('type')  # 'periode', 'trimestre', 'annee', 'repechage'
         repartition_id = data.get('repartition_id')
         session_id = data.get('session_id')
@@ -10873,7 +10940,7 @@ def execute_deliberation(request):
                     JOIN evaluation ev ON ev.id_evaluation = en.id_evaluation_id
                     WHERE en.id_eleve_id = %s
                       AND en.id_annee_id = %s
-                      AND en.id_classe_id = %s
+                      AND en.classe_id = %s
                       AND en.id_etablissement = %s
                       {rep_filter}
                 """
@@ -10958,13 +11025,15 @@ def execute_deliberation(request):
                     with connection.cursor() as cur:
                         cur.execute("""
                             INSERT INTO deliberation_periodique_resultats
-                            (id_eleve_id, idCampus_id, id_annee_id, id_cycle_id, id_classe_id,
+                            (id_eleve_id, idCampus_id, id_annee_id, id_cycle_id, classe_id,
+                             groupe, section_id,
                              id_trimestre_id, id_periode_id, pourcentage, place, date_creation, id_etablissement)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURDATE(), %s)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURDATE(), %s)
                             ON DUPLICATE KEY UPDATE
                                 pourcentage=VALUES(pourcentage), place=VALUES(place)
                         """, [r['id_eleve'], campus_id, annee.id_annee, cycle_id,
-                              int(classe_id), int(repartition_id), int(repartition_id),
+                              eac.classe_id, eac.groupe, eac.section_id,
+                              int(repartition_id), int(repartition_id),
                               r['pourcentage'], r['place'], etab.id_etablissement])
                     saved_count += 1
                 except Exception as save_err:
@@ -10977,13 +11046,15 @@ def execute_deliberation(request):
                     with connection.cursor() as cur:
                         cur.execute("""
                             INSERT INTO deliberation_trimistrielle_resultats
-                            (id_eleve_id, idCampus_id, id_annee_id, id_cycle_id, id_classe_id,
+                            (id_eleve_id, idCampus_id, id_annee_id, id_cycle_id, classe_id,
+                             groupe, section_id,
                              id_trimestre_id, pourcentage, place, date_creation, id_etablissement)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CURDATE(), %s)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURDATE(), %s)
                             ON DUPLICATE KEY UPDATE
                                 pourcentage=VALUES(pourcentage), place=VALUES(place)
                         """, [r['id_eleve'], campus_id, annee.id_annee, cycle_id,
-                              int(classe_id), int(repartition_id),
+                              eac.classe_id, eac.groupe, eac.section_id,
+                              int(repartition_id),
                               r['pourcentage'], r['place'], etab.id_etablissement])
                     saved_count += 1
                 except Exception as save_err:
@@ -10999,7 +11070,9 @@ def execute_deliberation(request):
                         defaults={
                             'idCampus_id': campus_id,
                             'id_cycle_id': cycle_id,
-                            'id_classe_id': int(classe_id),
+                            'id_classe_id': eac.classe_id,
+                            'groupe': eac.groupe,
+                            'section_id': eac.section_id,
                             'id_session_id': int(session_id),
                             'id_mention_id': r.get('mention_id', 1),
                             'id_decision_id': r.get('finalite_id', 1),
@@ -11037,7 +11110,7 @@ def cancel_deliberation(request):
         )
 
         data = json.loads(request.body)
-        classe_id = data.get('classe_id')
+        classe_id = data.get('id_classe_id')
         delib_type = data.get('type')
 
         etab, err = _get_tenant_etab(request)
@@ -11149,7 +11222,7 @@ def get_deliberated_classes(request):
         for eac in eacs:
             hub_classe_id = eac.classe_id
             model_info = bcm_map.get(hub_classe_id, None)
-            is_deliberated = eac.id in delib_classes
+            is_deliberated = hub_classe_id in delib_classes
 
             # Compter les élèves inscrits
             from django.db import connection
@@ -11193,7 +11266,7 @@ def get_bulletin_eleves(request):
     GET /api/bulletins/eleves/?classe_id=X
     """
     try:
-        classe_id = request.GET.get('classe_id')
+        classe_id = request.GET.get('id_classe_id')
         if not classe_id:
             return JsonResponse({'success': False, 'error': 'classe_id requis'}, status=400)
 

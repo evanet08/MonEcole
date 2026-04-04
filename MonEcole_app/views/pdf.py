@@ -117,7 +117,9 @@ def generer_bulletin_pdf(request):
         import re
         rank_map = {}
         delib_qs = Deliberation_annuelle_resultat.objects.filter(
-            id_classe_id=id_classe,
+            id_classe_id=bk_classe_id,
+            groupe=bk_groupe,
+            section_id=bk_section_id,
             id_eleve_id__in=id_eleves
         ).values_list('id_eleve_id', 'place')
         for eleve_id, place in delib_qs:

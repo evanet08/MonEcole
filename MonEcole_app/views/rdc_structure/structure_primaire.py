@@ -907,7 +907,7 @@ def get_place_for_column(id_annee, id_campus, id_cycle, id_classe, id_eleve, col
         "id_annee_id": id_annee,
         "idCampus_id": id_campus,
         "id_cycle_id": id_cycle,
-        "id_classe_id": id_classe,
+        "classe_id": id_classe,
         "id_eleve_id": id_eleve,
         "id_trimestre_id": trimestre_id,
     }

@@ -53,14 +53,19 @@ class Classe(models.Model):
 # ============================================================
 
 class Classe_deliberation(models.Model):
+    """Délibération de classe. Classe identifiée par clés métier stables."""
     id_deliberation = models.AutoField(primary_key=True)
     date_deliberation = models.DateField()
     id_annee = models.ForeignKey("Annee", on_delete=models.PROTECT, null=False)
     idCampus = models.ForeignKey("Campus", on_delete=models.PROTECT, null=False)
     id_cycle = models.ForeignKey("MonEcole_app.Cycle", on_delete=models.PROTECT, null=False,
                                  db_column='id_cycle_id', db_constraint=False)
-    id_classe = models.ForeignKey("MonEcole_app.EtablissementAnneeClasse", on_delete=models.PROTECT, null=False,
-                                  db_column='id_classe_id', db_constraint=False)
+    id_classe = models.ForeignKey('Classe', on_delete=models.PROTECT, null=False,
+                                  db_column='classe_id', db_constraint=False)
+    groupe = models.CharField(max_length=5, null=True, blank=True)
+    section = models.ForeignKey('MonEcole_app.Section', on_delete=models.SET_NULL,
+                                null=True, blank=True, db_column='section_id',
+                                db_constraint=False)
     id_session = models.ForeignKey("Session", on_delete=models.PROTECT, null=False)
     showResults = models.BooleanField(default=False)
     showsResultsEnOrdre = models.BooleanField(default=False)
@@ -75,22 +80,19 @@ class Classe_deliberation(models.Model):
         return f"{self.id_deliberation}-{self.id_classe}-{self.id_annee}"
 
 
-# NOTE: Classe_section supprimé — les sections/filières sont gérées dans le Hub
-# (countryStructure.sections via EtablissementAnneeClasse.section_id)
-
-
 class Responsable_classe(models.Model):
-    """
-    Responsable (titulaire) d'une classe pour une année.
-    Table locale spoke : db_monecole.responsable_classe
-    """
+    """Responsable (titulaire) d'une classe. Classe identifiée par clés métier stables."""
     id_responsable = models.AutoField(primary_key=True)
     id_annee = models.ForeignKey("Annee", on_delete=models.PROTECT, null=False)
     idCampus = models.ForeignKey("Campus", on_delete=models.PROTECT, null=False)
     id_cycle = models.ForeignKey("MonEcole_app.Cycle", on_delete=models.PROTECT, null=False,
                                  db_column='id_cycle_id', db_constraint=False)
-    id_classe = models.ForeignKey("MonEcole_app.EtablissementAnneeClasse", on_delete=models.PROTECT, null=False,
-                                  db_column='id_classe_id', db_constraint=False)
+    id_classe = models.ForeignKey('Classe', on_delete=models.PROTECT, null=False,
+                                  db_column='classe_id', db_constraint=False)
+    groupe = models.CharField(max_length=5, null=True, blank=True)
+    section = models.ForeignKey('MonEcole_app.Section', on_delete=models.SET_NULL,
+                                null=True, blank=True, db_column='section_id',
+                                db_constraint=False)
     id_personnel = models.ForeignKey("Personnel", on_delete=models.PROTECT, null=False)
     date_creation = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
@@ -101,5 +103,4 @@ class Responsable_classe(models.Model):
 
     def __str__(self):
         return f"Responsable {self.id_personnel} - Classe {self.id_classe} - Année {self.id_annee}"
-
 

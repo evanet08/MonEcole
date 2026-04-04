@@ -937,7 +937,7 @@ def api_enseignant_dashboard(request):
             # 1. Mes cours attribués
             courses = []
             cur.execute("""
-                SELECT ac.id_attribution, ac.id_cours_id, ac.id_classe_id,
+                SELECT ac.id_attribution, ac.id_cours_id, ac.classe_id,
                        ac.id_cycle_id, ac.idCampus_id, ac.date_attribution
                 FROM attribution_cours ac
                 WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s
@@ -968,7 +968,7 @@ def api_enseignant_dashboard(request):
 
             for att in attributions:
                 cours_annee_id = att['id_cours_id']
-                classe_id = att['id_classe_id']
+                classe_id = att['classe_id']
 
                 cours_nom = f"Cours #{cours_annee_id}"
                 code_cours = ''
@@ -1060,16 +1060,16 @@ def api_enseignant_dashboard(request):
             try:
                 cur.execute("""
                     SELECT h.id_horaire, h.date, h.debut, h.fin,
-                           h.id_cours_id, h.id_classe_id
+                           h.id_cours_id, h.classe_id
                     FROM horaire h
                     JOIN attribution_cours ac ON ac.id_cours_id = h.id_cours_id
-                        AND ac.id_classe_id = h.id_classe_id
+                        AND ac.classe_id = h.classe_id
                     WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s
                     ORDER BY h.date DESC, h.debut
                     LIMIT 50
                 """, [personnel_id, etab_id])
                 for row in cur.fetchall():
-                    lookup_key = f"{row['id_cours_id']}_{row['id_classe_id']}"
+                    lookup_key = f"{row['id_cours_id']}_{row['classe_id']}"
                     info = cours_lookup.get(lookup_key, {})
                     schedule.append({
                         'id': row['id_horaire'],
@@ -1080,7 +1080,7 @@ def api_enseignant_dashboard(request):
                         'classe_nom': info.get('classe_nom', ''),
                         'code_cours': info.get('code_cours', ''),
                         'id_cours_id': row['id_cours_id'],
-                        'id_classe_id': row['id_classe_id'],
+                        'id_classe_id': row['classe_id'],
                     })
             except Exception:
                 pass
@@ -1094,7 +1094,7 @@ def api_enseignant_dashboard(request):
                            SUM(CASE WHEN hp.present_ou_absent = 0 THEN 1 ELSE 0 END) as absents
                     FROM horaire h
                     JOIN attribution_cours ac ON ac.id_cours_id = h.id_cours_id
-                        AND ac.id_classe_id = h.id_classe_id
+                        AND ac.classe_id = h.classe_id
                     LEFT JOIN horaire_presence hp ON hp.id_horaire_id = h.id_horaire
                     WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s
                 """, [personnel_id, etab_id])
@@ -1166,7 +1166,7 @@ def api_enseignant_presences(request):
                 conn.close()
                 return JsonResponse({'success': False, 'error': 'horaire_id requis'}, status=400)
             with conn.cursor() as cur:
-                cur.execute("SELECT id_horaire, date, debut, fin, id_cours_id, id_classe_id FROM horaire WHERE id_horaire=%s", [horaire_id])
+                cur.execute("SELECT id_horaire, date, debut, fin, id_cours_id, classe_id FROM horaire WHERE id_horaire=%s", [horaire_id])
                 horaire = cur.fetchone()
                 if not horaire:
                     conn.close()
@@ -1175,7 +1175,7 @@ def api_enseignant_presences(request):
                 cur.execute("""
                     SELECT eac.classe_id, eac.groupe, eac.section_id
                     FROM countryStructure.etablissements_annees_classes eac WHERE eac.id = %s
-                """, [horaire['id_classe_id']])
+                """, [horaire['classe_id']])
                 bk = cur.fetchone()
                 if bk:
                     cur.execute("""
@@ -1264,7 +1264,7 @@ def api_enseignant_presences(request):
                 conn.close()
                 return JsonResponse({'success': False, 'error': 'horaire_id requis'}, status=400)
             with conn.cursor() as cur:
-                cur.execute("SELECT id_horaire, date, debut, fin, id_cours_id, id_classe_id FROM horaire WHERE id_horaire=%s", [horaire_id])
+                cur.execute("SELECT id_horaire, date, debut, fin, id_cours_id, classe_id FROM horaire WHERE id_horaire=%s", [horaire_id])
                 horaire = cur.fetchone()
                 if not horaire:
                     conn.close()
@@ -1273,7 +1273,7 @@ def api_enseignant_presences(request):
                 cur.execute("""
                     SELECT eac.classe_id, eac.groupe, eac.section_id
                     FROM countryStructure.etablissements_annees_classes eac WHERE eac.id = %s
-                """, [horaire['id_classe_id']])
+                """, [horaire['classe_id']])
                 bk = cur.fetchone()
                 if bk:
                     cur.execute("""
@@ -1466,7 +1466,7 @@ def api_communication_send(request):
         scope=scope,
         direction='out',
         target_eleve_id=target_eleve_id if target_eleve_id else None,
-        target_classe_id=target_classe_id if target_classe_id else None,
+        target_id_classe_id=target_classe_id if target_classe_id else None,
         target_personnel_id=target_personnel_id if target_personnel_id else None,
         subject=subject,
         message=message_text,

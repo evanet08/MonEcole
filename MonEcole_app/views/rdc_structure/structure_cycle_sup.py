@@ -131,7 +131,7 @@ def ajouter_cours_groupes_dans_table(
                 id_annee_id=id_annee,
                 idCampus_id=id_campus,
                 id_cycle_id=id_cycle,
-                id_classe_id=id_classe,
+                classe_id=id_classe,
                 is_obligatory=True
             ).first()
 
@@ -510,7 +510,7 @@ def get_place_secondaire_superieur(
         "id_annee_id": id_annee,
         "idCampus_id": id_campus,
         "id_cycle_id": id_cycle,
-        "id_classe_id": id_classe,
+        "classe_id": id_classe,
         "id_eleve_id": id_eleve,
         "id_trimestre_id": id_semestre,
     }

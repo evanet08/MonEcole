@@ -2,7 +2,7 @@ from django.db import models
 from MonEcole_app.models.personnel import Personnel
 from MonEcole_app.models.mention import Mention
 from MonEcole_app.models.country_structure import (
-    Session, EtablissementAnneeClasse, Cycle, RepartitionInstance
+    Session, Cycle, RepartitionInstance
 )
 from phonenumber_field.modelfields import PhoneNumberField
 from MonEcole_app.variables import *
@@ -106,9 +106,7 @@ class Eleve_note_type(models.Model):
 class Eleve_note(models.Model):
     """
     Notes d'un élève.
-    FK vers Hub : id_classe → etablissements_annees_classes.id
-                  id_cycle  → cycles.id_cycle
-                  id_repartition_instance → repartition_instances.id_instance
+    La classe est identifiée par (classe_id + groupe + section_id) — clés métier stables.
     """
     id_note = models.AutoField(primary_key=True)
     id_annee = models.ForeignKey("Annee", on_delete=models.PROTECT, null=False,
@@ -116,8 +114,12 @@ class Eleve_note(models.Model):
     idCampus = models.ForeignKey("Campus", on_delete=models.PROTECT, null=False)
     id_cycle = models.ForeignKey(Cycle, on_delete=models.PROTECT, null=False,
                                  db_column='id_cycle_id', db_constraint=False)
-    id_classe = models.ForeignKey(EtablissementAnneeClasse, on_delete=models.PROTECT, null=False,
-                                  db_column='id_classe_id', db_constraint=False)
+    id_classe = models.ForeignKey('Classe', on_delete=models.PROTECT, null=False,
+                                  db_column='classe_id', db_constraint=False)
+    groupe = models.CharField(max_length=5, null=True, blank=True)
+    section = models.ForeignKey('MonEcole_app.Section', on_delete=models.SET_NULL,
+                                null=True, blank=True, db_column='section_id',
+                                db_constraint=False)
     id_repartition_instance = models.ForeignKey(
         RepartitionInstance, on_delete=models.PROTECT, null=True, blank=True,
         db_column='id_repartition_instance', db_constraint=False)
@@ -133,13 +135,13 @@ class Eleve_note(models.Model):
     id_evaluation = models.ForeignKey('Evaluation', on_delete=models.PROTECT, null=False)
     id_etablissement = models.IntegerField(null=True, blank=True)
 
-    
     def __str__(self):
         return f'{self.id_eleve.nom} {self.id_eleve.prenom}-{self.id_cours.cours}'
     class Meta:
         db_table = 'eleve_note'
 
 class Eleve_conduite(models.Model):
+    """Conduite d'un élève. Classe identifiée par clés métier stables."""
     id_eleve_conduite = models.AutoField(primary_key=True)
     id_horaire = models.ForeignKey('Horaire',on_delete=models.PROTECT,null=False)
     id_eleve = models.ForeignKey('Eleve',on_delete=models.PROTECT,null=False)
@@ -150,8 +152,12 @@ class Eleve_conduite(models.Model):
                                  db_constraint=False)
     id_cycle = models.ForeignKey(Cycle,on_delete=models.PROTECT,null=False,
                                  db_column='id_cycle_id', db_constraint=False)
-    id_classe = models.ForeignKey(EtablissementAnneeClasse,on_delete=models.PROTECT,null=False,
-                                  db_column='id_classe_id', db_constraint=False)
+    id_classe = models.ForeignKey('Classe', on_delete=models.PROTECT, null=False,
+                                  db_column='classe_id', db_constraint=False)
+    groupe = models.CharField(max_length=5, null=True, blank=True)
+    section = models.ForeignKey('MonEcole_app.Section', on_delete=models.SET_NULL,
+                                null=True, blank=True, db_column='section_id',
+                                db_constraint=False)
     id_session = models.ForeignKey('Session',on_delete=models.PROTECT,null=False,
                                    db_constraint=False)
     id_trimestre = models.ForeignKey('Annee_trimestre',on_delete=models.PROTECT,null=False,
@@ -160,9 +166,8 @@ class Eleve_conduite(models.Model):
                                    db_constraint=False)
     date_enregistrement = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
-    
+
     def __str__(self):
         return f'{self.id_eleve.nom} {self.id_eleve.prenom}'
     class Meta:
         db_table = 'eleve_conduite'
-    
