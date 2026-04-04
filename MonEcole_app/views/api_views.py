@@ -8016,10 +8016,13 @@ def get_evaluations_list(request):
                     SELECT e.id_evaluation, e.title, e.id_type_eval,
                            e.ponderer_eval, e.date_eval, e.date_soumission,
                            e.contenu_evaluation, e.document_url,
+                           e.id_repartition_instance,
                            et.sigle AS type_sigle, et.nom AS type_nom,
+                           ri.nom AS repartition_nom,
                            (SELECT COUNT(*) FROM evaluation_repartition er WHERE er.id_evaluation = e.id_evaluation) AS assign_count
                     FROM evaluation e
                     LEFT JOIN countryStructure.evaluation_types et ON et.id_type_eval = e.id_type_eval
+                    LEFT JOIN countryStructure.repartition_instances ri ON ri.id_instance = e.id_repartition_instance
                     WHERE e.classe_id = %s AND e.groupe <=> %s AND e.section_id <=> %s
                           AND e.id_cours_classe_id = %s
                           AND e.id_etablissement = %s
@@ -8039,6 +8042,8 @@ def get_evaluations_list(request):
                         'contenu': r['contenu_evaluation'] or '',
                         'document_url': r['document_url'],
                         'is_assigned': r['assign_count'] > 0,
+                        'id_repartition_instance': r['id_repartition_instance'],
+                        'repartition_nom': r['repartition_nom'] or '',
                     })
             return JsonResponse({'success': True, 'evaluations': evals})
         finally:
@@ -8070,6 +8075,7 @@ def save_evaluation(request):
         classe_id = request.POST.get('id_classe_id', '').strip()
         cours_id = request.POST.get('id_cours_classe_id', '').strip()
         doc_file = request.FILES.get('document')
+        repartition_id = request.POST.get('id_repartition_instance', '').strip() or None
 
         if not title or not date_eval or not ponderer_eval:
             return JsonResponse({'success': False, 'error': 'Titre, date et maximum requis.'}, status=400)
@@ -8119,9 +8125,10 @@ def save_evaluation(request):
                     # UPDATE
                     update_parts = [
                         "title=%s", "id_type_eval=%s", "date_eval=%s",
-                        "date_soumission=%s", "ponderer_eval=%s", "contenu_evaluation=%s"
+                        "date_soumission=%s", "ponderer_eval=%s", "contenu_evaluation=%s",
+                        "id_repartition_instance=%s"
                     ]
-                    params = [title, id_type_eval, date_eval, date_soumission, int(ponderer_eval), contenu]
+                    params = [title, id_type_eval, date_eval, date_soumission, int(ponderer_eval), contenu, repartition_id]
                     if document_url:
                         update_parts.append("document_url=%s")
                         params.append(document_url)
@@ -8133,13 +8140,13 @@ def save_evaluation(request):
                     cur.execute("""
                         INSERT INTO evaluation (title, id_type_eval, ponderer_eval, date_eval, date_soumission,
                             contenu_evaluation, document_url, id_annee_id, idCampus_id, classe_id,
-                            groupe, section_id, id_cours_classe_id, id_etablissement, date_creation)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                            groupe, section_id, id_cours_classe_id, id_repartition_instance, id_etablissement, date_creation)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                     """, [title, id_type_eval, int(ponderer_eval), date_eval, date_soumission,
                           contenu, document_url, bk['annee_id'] if bk else None, campus_id,
                           bk['classe_id'] if bk else int(classe_id),
                           bk['groupe'] if bk else None, bk['section_id'] if bk else None,
-                          int(cours_id), etab_id])
+                          int(cours_id), repartition_id, etab_id])
                     new_id = cur.lastrowid
 
                     # Rename the uploaded file with actual ID

@@ -692,6 +692,12 @@
                         </select>
                     </div>
                     <div class="col-md-4">
+                        <label class="form-label" style="font-size:.75rem;font-weight:600"><i class="fas fa-calendar-week" style="color:#d97706;margin-right:3px"></i>Période *</label>
+                        <select class="form-select form-select-sm" id="evalPeriode" style="font-size:.8rem;">
+                            <option value="">— Période —</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
                         <label class="form-label" style="font-size:.75rem;font-weight:600">Date *</label>
                         <input type="text" class="form-control form-control-sm" id="evalDate" style="font-size:.8rem;" placeholder="jj/mm/aaaa" maxlength="10">
                     </div>
@@ -1002,6 +1008,7 @@ function renderEvalGrid() {
     html += '<thead><tr style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);position:sticky;top:0;z-index:2">' +
         '<th style="padding:10px 12px;text-align:left;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0">Titre</th>' +
         '<th style="padding:10px 8px;text-align:center;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;width:90px">Type</th>' +
+        '<th style="padding:10px 8px;text-align:center;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;width:100px">Période</th>' +
         '<th style="padding:10px 8px;text-align:center;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;width:90px">Date</th>' +
         '<th style="padding:10px 8px;text-align:center;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;width:60px">Max</th>' +
         '<th style="padding:10px 8px;text-align:center;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;width:70px">Doc</th>' +
@@ -1011,6 +1018,7 @@ function renderEvalGrid() {
     _currentEvals.forEach((ev, i) => {
         const bg = i % 2 === 0 ? '#fff' : '#fafbfc';
         const typeLabel = ev.type_sigle ? `<span style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:1px 8px;border-radius:20px;font-size:.58rem;font-weight:700">${ev.type_sigle}</span>` : '<span style="color:#cbd5e1">—</span>';
+        const periodeLabel = ev.repartition_nom ? `<span style="background:linear-gradient(135deg,#7c3aed22,#8b5cf622);color:#7c3aed;padding:2px 8px;border-radius:6px;font-size:.58rem;font-weight:700">${ev.repartition_nom}</span>` : '<span style="color:#cbd5e1">—</span>';
         const docBtn = ev.document_url
             ? `<button onclick="viewPdf('${ev.document_url}','${ev.title.replace(/'/g,"\\'")}')" style="border:none;background:#fef2f2;color:#dc2626;padding:3px 10px;border-radius:6px;font-size:.62rem;cursor:pointer;font-weight:600"><i class="fas fa-file-pdf me-1"></i>PDF</button>`
             : '<span style="color:#cbd5e1;font-size:.62rem">—</span>';
@@ -1021,6 +1029,7 @@ function renderEvalGrid() {
                 ${ev.contenu ? `<div style="font-size:.62rem;color:#94a3b8;margin-top:1px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ev.contenu}</div>` : ''}
             </td>
             <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9">${typeLabel}</td>
+            <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9">${periodeLabel}</td>
             <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;font-weight:500;color:#475569">${ev.date_eval || '—'}</td>
             <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9"><span style="font-weight:700;color:#ea580c">${ev.ponderer_eval || '—'}</span></td>
             <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9">${docBtn}</td>
@@ -1051,7 +1060,22 @@ function openEvalModal() {
     _setupDateInput(document.getElementById('evalDate'));
     _setupDateInput(document.getElementById('evalDateRemise'));
     populateEvalTypeDropdown();
+    populateEvalPeriodeDropdown();
     new bootstrap.Modal(document.getElementById('evalModal')).show();
+}
+
+function populateEvalPeriodeDropdown(selectedId) {
+    const sel = document.getElementById('evalPeriode');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">\u2014 Période \u2014</option>';
+    const reps = window._repartitionsData || [];
+    reps.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.id || r.id_instance;
+        opt.textContent = r.nom;
+        if (selectedId && (String(r.id) === String(selectedId) || String(r.id_instance) === String(selectedId))) opt.selected = true;
+        sel.appendChild(opt);
+    });
 }
 
 function editEvaluation(id) {
@@ -1077,6 +1101,7 @@ function editEvaluation(id) {
     document.getElementById('evalModalTitle').innerHTML = '<i class="fas fa-pen me-2"></i>Modifier Évaluation';
     _setupDateInput(document.getElementById('evalDate'));
     _setupDateInput(document.getElementById('evalDateRemise'));
+    populateEvalPeriodeDropdown(ev.id_repartition_instance);
     new bootstrap.Modal(document.getElementById('evalModal')).show();
 }
 
@@ -1114,6 +1139,7 @@ async function saveEvaluation() {
     formData.append('contenu_evaluation', contenu);
     formData.append('id_classe_id', classeId);
     formData.append('id_cours_classe_id', coursId);
+    formData.append('id_repartition_instance', document.getElementById('evalPeriode')?.value || '');
     if (docFile) formData.append('document', docFile);
 
     try {
