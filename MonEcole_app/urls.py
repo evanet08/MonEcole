@@ -136,6 +136,10 @@ urlpatterns = [
     path('api/notes/bulletin/calculate/', api_views.calculate_notes_bulletin, name='calculate_notes_bulletin'),
     path('api/notes/bulletin/get/', api_views.get_notes_bulletin, name='get_notes_bulletin'),
 
+    # Notes d'Examen — saisie directe
+    path('api/notes/exam/grid/', api_views.get_exam_grid, name='get_exam_grid'),
+    path('api/notes/exam/save/', api_views.save_exam_notes, name='save_exam_notes'),
+
     # Délibérations
     path('api/evaluations/sessions/', api_views.get_evaluations_sessions, name='get_evaluations_sessions'),
     path('api/evaluations/repartitions/', api_views.get_evaluations_repartitions, name='get_evaluations_repartitions'),

@@ -9216,6 +9216,244 @@ def calculate_notes_bulletin(request):
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
+# ============================================================
+# EXAM NOTES — SAISIE DIRECTE PAR RÉPARTITION PRINCIPALE
+# ============================================================
+
+@require_http_methods(["GET"])
+def get_exam_grid(request):
+    """
+    Charge la grille de saisie des notes d'examen pour une répartition principale.
+    Params: classe_id (EAC id), repartition_id
+    Retourne: élèves, cours avec maxima_exam, notes d'examen existantes.
+    """
+    try:
+        classe_id = request.GET.get('classe_id') or request.GET.get('id_classe_id')
+        repartition_id = request.GET.get('repartition_id')
+
+        if not classe_id or not repartition_id:
+            return JsonResponse({'success': False, 'error': 'classe_id et repartition_id requis.'}, status=400)
+
+        user_id = request.session.get('user_id')
+        if not user_id:
+            return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        etab_id = etab.id_etablissement
+
+        # Get repartition config (auto-creates if synched mode)
+        config = _get_or_create_repartition_config(repartition_id, etab_id)
+        repartition_name = config.repartition.nom if config else ''
+        rep_type = config.repartition.type if config else None
+
+        # Find the EX note_type for this repartition type
+        from structure_app.models import RepartitionTypeNote
+        ex_rtn = RepartitionTypeNote.objects.filter(
+            repartition_type=rep_type,
+            note_type__sigle='EX',
+            is_active=True
+        ).select_related('note_type').first() if rep_type else None
+
+        if not ex_rtn:
+            return JsonResponse({'success': False, 'error': f'Aucun type de note "Examen" configuré pour "{rep_type.nom if rep_type else "?"}".'}, status=404)
+
+        ex_note_type_id = ex_rtn.note_type.id_type_note
+        default_max = ex_rtn.ponderation_max or 20
+
+        conn = _get_spoke_connection()
+        try:
+            with conn.cursor() as cur:
+                # 1. Get annee + business keys from EAC
+                cur.execute("""
+                    SELECT ea.annee_id AS id_annee, ea.etablissement_id AS id_etab,
+                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
+                    FROM countryStructure.etablissements_annees_classes eac
+                    JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+                    WHERE eac.id = %s LIMIT 1
+                """, [classe_id])
+                ctx = cur.fetchone()
+                if not ctx:
+                    return JsonResponse({'success': False, 'error': 'Classe non trouvée.'}, status=404)
+
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                campus_row = cur.fetchone()
+                campus_id = campus_row['idCampus'] if campus_row else None
+
+                # 2. Get enrolled students
+                cur.execute("""
+                    SELECT DISTINCT e.id_eleve, e.nom, e.prenom
+                    FROM eleve_inscription ei
+                    JOIN eleve e ON e.id_eleve = ei.id_eleve_id
+                    WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
+                      AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.status = 1
+                    ORDER BY e.nom, e.prenom
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
+                eleves = cur.fetchall()
+
+                # 3. Get cours for this class with maxima_exam
+                cur.execute("""
+                    SELECT cann.id_cours_annee, ca.cours AS cours_nom, ca.code_cours,
+                           cann.maxima_exam, cann.ordre
+                    FROM countryStructure.cours_annee cann
+                    JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
+                    JOIN countryStructure.etablissements_annees ea ON ea.annee_id = cann.annee_id
+                    JOIN countryStructure.etablissements_annees_classes eac ON eac.etablissement_annee_id = ea.id
+                    WHERE eac.id = %s AND ca.classe_id = eac.classe_id
+                    GROUP BY cann.cours_id
+                    ORDER BY cann.ordre, ca.cours
+                """, [classe_id])
+                cours_rows = cur.fetchall()
+
+                # 4. Get existing exam notes from note_bulletin
+                cours_list = []
+                notes = {}
+                if config and cours_rows:
+                    cours_ids = [r['id_cours_annee'] for r in cours_rows]
+                    placeholders = ','.join(['%s'] * len(cours_ids))
+                    cur.execute(f"""
+                        SELECT nb.id_eleve_id, nb.id_cours_annee, nb.note, nb.maxima
+                        FROM note_bulletin nb
+                        WHERE nb.id_repartition_config = %s
+                          AND nb.id_note_type = %s
+                          AND nb.id_cours_annee IN ({placeholders})
+                          AND nb.id_etablissement = %s
+                    """, [config.id, ex_note_type_id] + cours_ids + [etab_id])
+                    for n in cur.fetchall():
+                        key = f"{n['id_eleve_id']}_{n['id_cours_annee']}"
+                        notes[key] = float(n['note']) if n['note'] is not None else None
+
+                for r in cours_rows:
+                    cours_list.append({
+                        'id_cours_annee': r['id_cours_annee'],
+                        'cours_nom': r['cours_nom'] or f'Cours #{r["id_cours_annee"]}',
+                        'code_cours': r['code_cours'] or '',
+                        'maxima_exam': r['maxima_exam'] or default_max,
+                    })
+
+            return JsonResponse({
+                'success': True,
+                'repartition_name': repartition_name,
+                'note_type_id': ex_note_type_id,
+                'eleves': [{'id': e['id_eleve'], 'nom': e['nom'], 'prenom': e['prenom']} for e in eleves],
+                'cours': cours_list,
+                'notes': notes,
+                'context': {
+                    'annee_id': ctx['id_annee'],
+                    'campus_id': campus_id,
+                    'etab_id': etab_id,
+                    'config_id': config.id if config else None,
+                }
+            })
+        finally:
+            conn.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def save_exam_notes(request):
+    """
+    Enregistre les notes d'examen directement dans note_bulletin.
+    Payload: { classe_id, repartition_id, notes: [{eleve_id, cours_annee_id, note}] }
+    """
+    try:
+        user_id = request.session.get('user_id')
+        if not user_id:
+            return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        etab_id = etab.id_etablissement
+
+        data = json.loads(request.body)
+        classe_id = data.get('classe_id')
+        repartition_id = data.get('repartition_id')
+        notes_data = data.get('notes', [])
+
+        if not classe_id or not repartition_id:
+            return JsonResponse({'success': False, 'error': 'classe_id et repartition_id requis.'}, status=400)
+        if not notes_data:
+            return JsonResponse({'success': False, 'error': 'Aucune note à enregistrer.'}, status=400)
+
+        # Get config
+        config = _get_or_create_repartition_config(repartition_id, etab_id)
+        if not config:
+            return JsonResponse({'success': False, 'error': 'Configuration de répartition introuvable.'}, status=404)
+
+        rep_type = config.repartition.type
+
+        # Find EX note_type
+        from structure_app.models import RepartitionTypeNote
+        ex_rtn = RepartitionTypeNote.objects.filter(
+            repartition_type=rep_type,
+            note_type__sigle='EX',
+            is_active=True
+        ).select_related('note_type').first()
+
+        if not ex_rtn:
+            return JsonResponse({'success': False, 'error': 'Type de note Examen non configuré.'}, status=404)
+
+        ex_nt_id = ex_rtn.note_type.id_type_note
+
+        conn = _get_spoke_connection()
+        try:
+            saved = 0
+            with conn.cursor() as cur:
+                for nd in notes_data:
+                    eleve_id = nd.get('eleve_id')
+                    cours_annee_id = nd.get('cours_annee_id')
+                    note_val = nd.get('note')
+                    maxima = nd.get('maxima')
+
+                    if not eleve_id or not cours_annee_id:
+                        continue
+
+                    # Handle empty/null notes: delete existing
+                    if note_val is None or str(note_val).strip() == '':
+                        cur.execute("""
+                            DELETE FROM note_bulletin
+                            WHERE id_eleve_id = %s AND id_cours_annee = %s
+                              AND id_repartition_config = %s AND id_note_type = %s
+                        """, [eleve_id, cours_annee_id, config.id, ex_nt_id])
+                        continue
+
+                    try:
+                        note_float = round(float(note_val), 2)
+                    except (ValueError, TypeError):
+                        continue
+
+                    maxima_val = int(maxima) if maxima else (ex_rtn.ponderation_max or 20)
+
+                    # Upsert
+                    cur.execute("""
+                        INSERT INTO note_bulletin
+                            (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
+                             note, maxima, source_type, date_calcul, id_etablissement)
+                        VALUES (%s, %s, %s, %s, %s, %s, 'SAISIE_DIRECTE', NOW(), %s)
+                        ON DUPLICATE KEY UPDATE
+                            note = VALUES(note), maxima = VALUES(maxima),
+                            source_type = 'SAISIE_DIRECTE',
+                            date_calcul = NOW(), updated_at = NOW()
+                    """, [eleve_id, cours_annee_id, config.id, ex_nt_id, note_float, maxima_val, etab_id])
+                    saved += 1
+
+            conn.commit()
+            return JsonResponse({
+                'success': True,
+                'saved': saved,
+                'message': f'{saved} note(s) d\'examen enregistrée(s).'
+            })
+        finally:
+            conn.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
 @require_http_methods(["GET"])
 def get_notes_bulletin(request):
     """
