@@ -938,6 +938,30 @@ def api_enseignant_dashboard(request):
 
             # 1. Mes cours attribués
             courses = []
+
+            # Resolve the EtablissementAnnee.id for EAC lookups
+            etab_annee_id = None
+            try:
+                from MonEcole_app.models.etablissement import EtablissementAnnee, Etablissement
+                from MonEcole_app.models.annee import Annee
+                etab_obj = Etablissement.objects.get(id_etablissement=etab_id)
+                pays = etab_obj.pays
+                annee_active = Annee.objects.filter(
+                    pays_id=pays.id_pays, etat_annee__in=['En Cours', 'actif']
+                ).order_by('-annee').first()
+                if not annee_active:
+                    annee_active = Annee.objects.filter(
+                        pays_id=pays.id_pays, etat_annee='ouverte'
+                    ).order_by('-annee').first()
+                if annee_active:
+                    ea = EtablissementAnnee.objects.filter(
+                        etablissement=etab_obj, annee=annee_active
+                    ).first()
+                    if ea:
+                        etab_annee_id = ea.id
+            except Exception:
+                pass
+
             cur.execute("""
                 SELECT ac.id_attribution, ac.id_cours_id, ac.classe_id,
                        ac.groupe, ac.section_id,
@@ -979,6 +1003,7 @@ def api_enseignant_dashboard(request):
                 heure_semaine = 0
                 classe_nom = f"Classe #{classe_id}"
                 cycle_nom = '-'
+                real_eac_id = None  # Will be resolved from Hub
 
                 # Course info from Hub
                 if hub_cur:
@@ -1014,6 +1039,23 @@ def api_enseignant_dashboard(request):
                     except Exception:
                         pass
 
+                    # Resolve real eac_id (etablissements_annees_classes.id) from business keys
+                    if etab_annee_id:
+                        try:
+                            hub_cur.execute("""
+                                SELECT eac.id FROM etablissements_annees_classes eac
+                                WHERE eac.classe_id = %s
+                                  AND eac.groupe <=> %s
+                                  AND eac.section_id <=> %s
+                                  AND eac.etablissement_annee_id = %s
+                                LIMIT 1
+                            """, [classe_id, att.get('groupe'), att.get('section_id'), etab_annee_id])
+                            eac_row = hub_cur.fetchone()
+                            if eac_row:
+                                real_eac_id = eac_row['id']
+                        except Exception:
+                            pass
+
                 # Count students in this class (Spoke via business keys, already in att)
                 n_eleves = 0
                 try:
@@ -1036,7 +1078,7 @@ def api_enseignant_dashboard(request):
                     'heure_semaine': heure_semaine,
                     'classe_nom': classe_nom,
                     'cycle_nom': cycle_nom,
-                    'eac_id': classe_id,
+                    'eac_id': real_eac_id or classe_id,
                     'n_eleves': n_eleves,
                 })
 

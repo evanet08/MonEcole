@@ -570,13 +570,15 @@ async function initWaChat(){
     // 4️⃣ Load individual students for each class
     for(const [id,cl] of Object.entries(cm)){
         try{
+            console.log('[WaChat] Loading students for eac_id='+id);
             const r=await fetch(`/api/dashboard/eleves-list/?id_etablissement=${ETAB_ID}&classe_par_annee_id=${id}`);
             const d=await r.json();
+            console.log('[WaChat] eac_id='+id+' → success='+d.success+' eleves='+(d.eleves?.length||0));
             if(d.success)(d.eleves||[]).forEach(e=>{
                 const nm=`${e.nom||''} ${e.postnom||''} ${e.prenom||''}`.trim();
                 waContacts.push({id:'stu_'+e.id_eleve,eleve_id:e.id_eleve,type:'student',name:nm,sub:cl.nom+(e.email_parent?' · '+e.email_parent:''),color:e.genre==='F'?'#ec4899':'#3b82f6',icon:'user',email:e.email_parent,tel:e.telephone,scope:'individual',target_eleve_id:e.id_eleve,target_classe_id:parseInt(id)});
             });
-        }catch(e){}
+        }catch(e){console.error('[WaChat] Error loading students for eac_id='+id,e);}
     }
 
     // Load existing threads to get unread counts
