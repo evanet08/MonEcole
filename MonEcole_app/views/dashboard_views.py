@@ -1453,7 +1453,7 @@ def api_communication_send(request):
         scope=scope,
         direction='out',
         target_eleve_id=target_eleve_id if target_eleve_id else None,
-        target_id_classe_id=target_classe_id if target_classe_id else None,
+        target_classe_id=target_classe_id if target_classe_id else None,
         target_personnel_id=target_personnel_id if target_personnel_id else None,
         subject=subject,
         message=message_text,
@@ -1624,6 +1624,12 @@ def api_communication_threads(request):
             thread_id=t['thread_id']
         ).order_by('-created_at').first()
 
+        # Get first message for subject/scope info
+        first_comm = Communication.objects.filter(
+            id_etablissement=etab_id,
+            thread_id=t['thread_id']
+        ).order_by('created_at').first()
+
         thread_list.append({
             'thread_id': t['thread_id'],
             'last_message': last_comm.message[:60] if last_comm else '',
@@ -1631,6 +1637,8 @@ def api_communication_threads(request):
             'last_direction': last_comm.direction if last_comm else '',
             'last_time': last_comm.created_at.strftime('%H:%M') if last_comm and last_comm.created_at else '',
             'last_date': last_comm.created_at.strftime('%d/%m') if last_comm and last_comm.created_at else '',
+            'scope': first_comm.scope if first_comm else 'individual',
+            'subject': first_comm.subject if first_comm else '',
             'msg_count': t['msg_count'],
             'unread': t['unread'],
         })
@@ -1651,6 +1659,9 @@ def api_communication_teachers(request):
     if not etab_id:
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
 
+    # Use session-based personnel_id (request.user is Django User, not Personnel)
+    current_personnel_id = request.session.get('personnel_id', 0)
+
     teachers = []
     try:
         with connections['default'].cursor() as cur:
@@ -1660,9 +1671,10 @@ def api_communication_teachers(request):
                        p.email
                 FROM personnel p
                 WHERE p.id_etablissement = %s
+                  AND p.en_fonction = 1
                   AND p.id_personnel != %s
                 ORDER BY p.nom, p.prenom
-            """, [etab_id, request.user.id_personnel])
+            """, [etab_id, current_personnel_id])
             for row in cur.fetchall():
                 nm = (row[1] or '').strip()
                 if nm:
@@ -1672,6 +1684,8 @@ def api_communication_teachers(request):
                         'email': row[2] or '',
                     })
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
     return JsonResponse({'success': True, 'teachers': teachers})

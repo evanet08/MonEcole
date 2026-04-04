@@ -656,7 +656,8 @@ async function openWaChat(contactId){
         <div>${scopeTag(waActiveContact.scope)}</div>
     </div>`;
     h+='<div class="wa-messages" id="waMessagesArea"><div style="text-align:center;color:#94a3b8;font-size:.65rem;margin:auto"><i class="fas fa-spinner fa-spin" style="display:block;margin-bottom:4px"></i>Chargement...</div></div>';
-    h+=`<div class="wa-input-bar"><input type="text" id="waInput" placeholder="Écrivez un message..." onkeydown="if(event.key==='Enter')sendWaMsg()"><button onclick="sendWaMsg()"><i class="fas fa-paper-plane"></i></button></div>`;
+    h+=`<div id="waSubjectBar" style="display:none;padding:6px 14px;background:#f8fafc;border-top:1px solid #e2e8f0;z-index:1"><div style="display:flex;align-items:center;gap:6px"><i class="fas fa-tag" style="color:#128c7e;font-size:.65rem"></i><input type="text" id="waSubjectInput" placeholder="Sujet du message (optionnel)..." style="flex:1;padding:6px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:.68rem;outline:none"><button onclick="toggleSubjectBar()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:.8rem" title="Fermer">×</button></div></div>`;
+    h+=`<div class="wa-input-bar"><button onclick="toggleSubjectBar()" style="width:36px;height:36px;border-radius:50%;border:none;background:#f1f5f9;color:#64748b;cursor:pointer;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s" title="Ajouter un sujet"><i class="fas fa-tag"></i></button><input type="text" id="waInput" placeholder="Écrivez un message..." onkeydown="if(event.key==='Enter')sendWaMsg()"><button onclick="sendWaMsg()"><i class="fas fa-paper-plane"></i></button></div>`;
     p.innerHTML=h;
     // Load messages from API
     try{
@@ -699,6 +700,7 @@ function renderWaMessages(msgs){
         const tag=m.scope?scopeTag(m.scope):'';
         h+=`<div class="wa-msg ${dir}">`;
         if(dir==='recv'&&m.sender_name)h+=`<div class="wa-msg-sender">${m.sender_name}</div>`;
+        if(m.subject)h+=`<div style="font-size:.58rem;font-weight:700;color:#075e54;margin-bottom:2px">📌 ${m.subject}</div>`;
         h+=`<div>${m.message}</div><div class="wa-msg-time">${tag} ${m.time||''} ${statusIcon}</div></div>`;
     });
     area.innerHTML=h;
@@ -710,6 +712,11 @@ function showWaSidebar(){
     if(sb)sb.classList.remove('hidden');
 }
 
+function toggleSubjectBar(){
+    const bar=document.getElementById('waSubjectBar');
+    if(bar) bar.style.display = bar.style.display === 'none' ? '' : 'none';
+}
+
 async function sendWaMsg(){
     if(!waActiveContact)return;
     const inp=document.getElementById('waInput');
@@ -717,6 +724,8 @@ async function sendWaMsg(){
     if(!txt)return;
     inp.value='';
     const threadId=getThreadId(waActiveContact);
+    const subjectInp=document.getElementById('waSubjectInput');
+    const subject=(subjectInp && subjectInp.value.trim()) || '';
     // Optimistically add message to UI
     const area=document.getElementById('waMessagesArea');
     if(area){
@@ -727,7 +736,10 @@ async function sendWaMsg(){
         const time=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
         const msgEl=document.createElement('div');
         msgEl.className='wa-msg sent';
-        msgEl.innerHTML=`<div>${txt}</div><div class="wa-msg-time">${time} <span class="msg-status"><i class="fas fa-clock"></i></span></div>`;
+        let msgHtml = '';
+        if(subject) msgHtml += `<div style="font-size:.58rem;font-weight:700;color:#075e54;margin-bottom:2px">📌 ${subject}</div>`;
+        msgHtml += `<div>${txt}</div><div class="wa-msg-time">${time} <span class="msg-status"><i class="fas fa-clock"></i></span></div>`;
+        msgEl.innerHTML=msgHtml;
         area.appendChild(msgEl);
         area.scrollTop=area.scrollHeight;
     }
@@ -742,6 +754,7 @@ async function sendWaMsg(){
                 target_eleve_id:waActiveContact.target_eleve_id||null,
                 target_classe_id:waActiveContact.target_classe_id||null,
                 target_personnel_id:waActiveContact.target_personnel_id||null,
+                subject:subject,
                 message:txt
             })
         });
