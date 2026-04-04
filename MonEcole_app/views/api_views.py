@@ -5897,8 +5897,9 @@ def dashboard_attribution_cours(request):
                             FROM attribution_cours ac
                             LEFT JOIN personnel p ON p.id_personnel = ac.id_personnel_id
                             WHERE ac.id_cours_id IN ({placeholders})
-                              AND ac.classe_id = %s AND ac.id_etablissement = %s
-                        """, ca_annee_ids + [int(id_classe), id_etablissement])
+                              AND ac.classe_id = %s AND ac.groupe <=> %s AND ac.section_id <=> %s
+                              AND ac.id_etablissement = %s
+                        """, ca_annee_ids + [real_classe_id, eac.groupe, eac.section_id, id_etablissement])
                         for r in cur.fetchall():
                             attributions_map[r['id_cours_id']] = r
 
