@@ -11574,3 +11574,118 @@ def get_bulletin_eleves(request):
         import traceback
         traceback.print_exc()
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def delete_inscriptions(request):
+    """
+    Supprime les inscriptions d'élèves sélectionnés UNIQUEMENT s'ils ne sont
+    référencés dans aucune autre table (notes, presences, bulletins, deliberations, etc.)
+    pour cette classe et cette année.
+    """
+    try:
+        user_id = request.session.get('user_id')
+        if not user_id:
+            return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
+
+        etab, err = _get_tenant_etab(request)
+        if err:
+            return err
+        etab_id = etab.id_etablissement
+
+        data = json.loads(request.body)
+        eleve_ids = data.get('eleve_ids', [])
+        classe_par_annee_id = data.get('classe_par_annee_id')
+
+        if not eleve_ids or not classe_par_annee_id:
+            return JsonResponse({'success': False, 'error': 'eleve_ids et classe_par_annee_id requis.'}, status=400)
+
+        # Resolve EAC → business keys
+        bk = _resolve_eac_orm(classe_par_annee_id)
+        if not bk:
+            return JsonResponse({'success': False, 'error': 'Classe introuvable.'}, status=404)
+
+        conn = _get_spoke_connection()
+        try:
+            deleted = []
+            blocked = []
+
+            with conn.cursor() as cur:
+                for eid in eleve_ids:
+                    eid = int(eid)
+                    reasons = []
+
+                    # Check all related tables
+                    dependency_checks = [
+                        ("eleve_note", "id_eleve_id", "Notes d'évaluation"),
+                        ("note_bulletin", "id_eleve_id", "Notes de bulletin"),
+                        ("horaire_presence", "id_eleve_id", "Présences"),
+                        ("eleve_conduite", "id_eleve_id", "Conduite"),
+                        ("deliberation_annuelle_resultats", "id_eleve_id", "Délibération annuelle"),
+                        ("deliberation_periodique_resultats", "id_eleve_id", "Délibération périodique"),
+                        ("deliberation_trimistrielle_resultats", "id_eleve_id", "Délibération trimestrielle"),
+                        ("deliberation_examen_resultats", "id_eleve_id", "Délibération examen"),
+                        ("biblio_emprunt", "id_eleve_id", "Emprunts bibliothèque"),
+                        ("document_eleve", "id_eleve", "Documents administratifs"),
+                        ("recouvrment_paiement", "id_eleve_id", "Paiements"),
+                    ]
+
+                    for table, col, label in dependency_checks:
+                        try:
+                            cur.execute(f"SELECT COUNT(*) AS cnt FROM {table} WHERE {col} = %s", [eid])
+                            row = cur.fetchone()
+                            cnt = row['cnt'] if isinstance(row, dict) else row[0]
+                            if cnt > 0:
+                                reasons.append(f"{label} ({cnt})")
+                        except Exception:
+                            # Table might not exist in this spoke
+                            pass
+
+                    if reasons:
+                        # Get student name for feedback
+                        cur.execute("SELECT nom, prenom FROM eleve WHERE id_eleve = %s", [eid])
+                        stu = cur.fetchone()
+                        nom = f"{stu['nom'] or ''} {stu['prenom'] or ''}".strip() if stu else f"ID {eid}"
+                        blocked.append({
+                            'id_eleve': eid,
+                            'nom': nom,
+                            'reasons': reasons
+                        })
+                    else:
+                        # Safe to delete — remove inscription first, then eleve
+                        cur.execute("""
+                            DELETE FROM eleve_inscription
+                            WHERE id_eleve_id = %s
+                              AND classe_id = %s AND groupe <=> %s AND section_id <=> %s
+                              AND id_etablissement = %s
+                        """, [eid, bk['classe_id'], bk['groupe'], bk['section_id'], etab_id])
+
+                        # Check if eleve has any other inscriptions remaining
+                        cur.execute("""
+                            SELECT COUNT(*) AS cnt FROM eleve_inscription WHERE id_eleve_id = %s
+                        """, [eid])
+                        remaining = cur.fetchone()
+                        remaining_cnt = remaining['cnt'] if isinstance(remaining, dict) else remaining[0]
+
+                        if remaining_cnt == 0:
+                            # No more inscriptions — safe to delete the eleve record
+                            cur.execute("DELETE FROM eleve WHERE id_eleve = %s", [eid])
+
+                        deleted.append(eid)
+
+            conn.commit()
+
+            return JsonResponse({
+                'success': True,
+                'deleted_count': len(deleted),
+                'deleted_ids': deleted,
+                'blocked_count': len(blocked),
+                'blocked': blocked,
+            })
+        finally:
+            conn.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

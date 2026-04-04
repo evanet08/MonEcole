@@ -367,6 +367,17 @@
                         <button class="eleve-btn" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;font-size:.65rem" onclick="loadElevesList()" title="Rafraîchir"><i class="fas fa-sync-alt"></i></button>
                     </div>
                 </div>
+                <!-- ✦ DELETE SELECTION TOOLBAR ✦ -->
+                <div id="deleteSelectionBar" style="display:none;background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1.5px solid #fca5a5;border-radius:10px;padding:8px 14px;margin-bottom:8px;align-items:center;gap:10px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;flex:1">
+                        <input type="checkbox" id="deleteSelectAll" onchange="toggleDeleteSelectAll(this.checked)" style="accent-color:#dc2626;width:16px;height:16px">
+                        <label for="deleteSelectAll" style="font-size:.7rem;font-weight:600;color:#991b1b;cursor:pointer">Tout sélectionner</label>
+                        <span id="deleteSelCount" style="font-size:.68rem;font-weight:700;color:#dc2626;background:#fff;padding:3px 10px;border-radius:12px;border:1px solid #fca5a5">0 sélectionné(s)</span>
+                    </div>
+                    <button class="eleve-btn" onclick="executeDeleteInscriptions()" id="btnDeleteSelected" disabled style="background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;font-size:.7rem;padding:6px 16px;opacity:.5;cursor:not-allowed">
+                        <i class="fas fa-trash-alt" style="margin-right:4px"></i>Supprimer la sélection
+                    </button>
+                </div>
                 <div id="elevesGridContainer" style="overflow-x:auto;max-height:500px;overflow-y:auto;border-radius:8px;border:1px solid #e2e8f0"></div>
                 <input type="file" id="photoUploadInput" accept="image/*" style="display:none" onchange="uploadStudentPhoto(this)">
             </div>
@@ -2764,12 +2775,13 @@ function renderElevesGrid(){
         return;
     }
     const visibleCols=GRID_COLUMNS.filter(c=>gridColumnState[c.key]);
-    let html='<table class="eleves-table"><thead><tr><th style="width:28px">#</th>';
+    let html='<table class="eleves-table"><thead><tr><th style="width:30px"><input type="checkbox" id="gridSelectAll" onchange="toggleDeleteSelectAll(this.checked)" style="accent-color:#dc2626;width:14px;height:14px;cursor:pointer"></th><th style="width:28px">#</th>';
     visibleCols.forEach(c=>{html+=`<th>${c.label}</th>`});
     html+='</tr></thead><tbody>';
 
     currentElevesList.forEach((stu,idx)=>{
         html+=`<tr data-id="${stu.id_eleve}">`;
+        html+=`<td style="text-align:center"><input type="checkbox" class="delete-check" data-id="${stu.id_eleve}" onchange="updateDeleteCount()" style="accent-color:#dc2626;width:14px;height:14px;cursor:pointer"></td>`;
         html+=`<td class="row-num">${idx+1}</td>`;
         visibleCols.forEach(c=>{
             if(c.key==='photo'){
@@ -3758,6 +3770,99 @@ function viewDocAgrement() {
         body.innerHTML = `<div style="text-align:center;padding:40px;color:#475569;font-size:.82rem"><i class="fas fa-file-download" style="font-size:2rem;color:#6366f1;display:block;margin-bottom:12px"></i><p>Ce type de document ne peut pas être prévisualisé.</p><a href="${url}" target="_blank" download style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#6366f1,#818cf8);color:#fff;padding:8px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:.78rem"><i class="fas fa-download"></i> Télécharger le document</a></div>`;
     }
     new bootstrap.Modal(document.getElementById('docAgrementModal')).show();
+}
+
+
+/* ===== DELETE INSCRIPTIONS (multi-select) ===== */
+function toggleDeleteSelectAll(checked) {
+    document.querySelectorAll('.delete-check').forEach(cb => cb.checked = checked);
+    const gridAll = document.getElementById('gridSelectAll');
+    const barAll = document.getElementById('deleteSelectAll');
+    if (gridAll) gridAll.checked = checked;
+    if (barAll) barAll.checked = checked;
+    updateDeleteCount();
+}
+
+function updateDeleteCount() {
+    const checked = document.querySelectorAll('.delete-check:checked');
+    const total = document.querySelectorAll('.delete-check');
+    const count = checked.length;
+    const bar = document.getElementById('deleteSelectionBar');
+    const countEl = document.getElementById('deleteSelCount');
+    const btn = document.getElementById('btnDeleteSelected');
+
+    if (bar) bar.style.display = count > 0 ? 'flex' : 'none';
+    if (countEl) countEl.textContent = count + ' sélectionné' + (count > 1 ? 's' : '');
+    if (btn) {
+        btn.disabled = count === 0;
+        btn.style.opacity = count > 0 ? '1' : '.5';
+        btn.style.cursor = count > 0 ? 'pointer' : 'not-allowed';
+    }
+    // Sync "select all" checkboxes
+    const gridAll = document.getElementById('gridSelectAll');
+    const barAll = document.getElementById('deleteSelectAll');
+    const allChecked = total.length > 0 && checked.length === total.length;
+    if (gridAll) gridAll.checked = allChecked;
+    if (barAll) barAll.checked = allChecked;
+}
+
+async function executeDeleteInscriptions() {
+    const checked = document.querySelectorAll('.delete-check:checked');
+    if (!checked.length) return;
+
+    // Build names list for confirmation
+    const ids = [];
+    const names = [];
+    checked.forEach(cb => {
+        const id = parseInt(cb.dataset.id);
+        ids.push(id);
+        const stu = currentElevesList.find(s => s.id_eleve == id);
+        names.push(stu ? (stu.nom + ' ' + (stu.prenom || '')).trim() : 'ID ' + id);
+    });
+
+    const namesList = names.length <= 10
+        ? names.map((n, i) => `  ${i+1}. ${n}`).join('\n')
+        : names.slice(0, 8).map((n, i) => `  ${i+1}. ${n}`).join('\n') + `\n  ... et ${names.length - 8} autres`;
+
+    const ok = confirm(
+        `⚠️ SUPPRESSION D'INSCRIPTIONS\n\nVous allez supprimer ${ids.length} inscription(s) :\n\n${namesList}\n\n` +
+        `Les élèves qui ont des notes, presences, bulletins, etc. ne seront PAS supprimés.\n\n` +
+        `Confirmer la suppression ?`
+    );
+    if (!ok) return;
+
+    const csrfToken = getCsrfToken();
+    try {
+        showToast('Suppression en cours...', 'info');
+        const res = await fetch('/api/dashboard/delete-inscriptions/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+            body: JSON.stringify({
+                eleve_ids: ids,
+                classe_par_annee_id: selectedClasseActiveId
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            let msg = `${data.deleted_count} inscription(s) supprimée(s).`;
+            if (data.blocked_count > 0) {
+                const blockedList = data.blocked.map(b =>
+                    `• ${b.nom} → ${b.reasons.join(', ')}`
+                ).join('\n');
+                msg += `\n\n${data.blocked_count} élève(s) NON supprimé(s) car utilisé(s) dans :\n${blockedList}`;
+                alert(msg);
+            }
+            showToast(`${data.deleted_count} supprimé(s)${data.blocked_count > 0 ? ', ' + data.blocked_count + ' bloqué(s)' : ''}`, data.blocked_count > 0 ? 'warning' : 'success');
+
+            // Refresh
+            document.getElementById('deleteSelectionBar').style.display = 'none';
+            await loadElevesList();
+        } else {
+            showToast(data.error || 'Erreur', 'error');
+        }
+    } catch(e) {
+        showToast('Erreur de connexion', 'error');
+    }
 }
 
 </script>
