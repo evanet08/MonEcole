@@ -424,6 +424,8 @@ def _get_dashboard_context(request):
         traceback.print_exc()
 
     stats['n_eleves'] = eleves_stats.get('total', 0)
+    stats['n_garcons'] = eleves_stats.get('garcons', 0)
+    stats['n_filles'] = eleves_stats.get('filles', 0)
 
     # --- Fiche établissement ---
     regime_nom = '-'
