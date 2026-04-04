@@ -938,6 +938,7 @@ def api_enseignant_dashboard(request):
             courses = []
             cur.execute("""
                 SELECT ac.id_attribution, ac.id_cours_id, ac.classe_id,
+                       ac.groupe, ac.section_id,
                        ac.id_cycle_id, ac.idCampus_id, ac.date_attribution
                 FROM attribution_cours ac
                 WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s
@@ -995,40 +996,32 @@ def api_enseignant_dashboard(request):
                     except Exception:
                         pass
 
-                    # Class & cycle info from Hub
+                    # Class & cycle info from Hub (classe_id is now Hub Classe.id_classe)
                     try:
                         hub_cur.execute("""
-                            SELECT cl.nom AS classe_nom, cy.nom AS cycle_nom, eac.groupe
-                            FROM etablissements_annees_classes eac
-                            JOIN classes cl ON cl.id_classe = eac.classe_id
+                            SELECT cl.nom AS classe_nom, cy.nom AS cycle_nom
+                            FROM classes cl
                             LEFT JOIN cycles cy ON cy.id_cycle = cl.cycle_id
-                            WHERE eac.id = %s
+                            WHERE cl.id_classe = %s
                         """, [classe_id])
                         cl = hub_cur.fetchone()
                         if cl:
-                            grp = cl.get('groupe') or ''
-                            classe_nom = cl['classe_nom'] + (f' {grp}' if grp else '')
+                            grp = att.get('groupe') or ''
+                            classe_nom = cl['classe_nom'] + (f' ({grp})' if grp else '')
                             cycle_nom = cl['cycle_nom'] or '-'
                     except Exception:
                         pass
 
-                # Count students in this class (Spoke via business keys)
+                # Count students in this class (Spoke via business keys, already in att)
                 n_eleves = 0
                 try:
-                    # Resolve EAC id → business keys
-                    hub_cur.execute("""
-                        SELECT eac.classe_id, eac.groupe, eac.section_id
-                        FROM etablissements_annees_classes eac WHERE eac.id = %s
-                    """, [classe_id])
-                    bk = hub_cur.fetchone()
-                    if bk:
-                        cur.execute("""
-                            SELECT COUNT(*) as n FROM eleve_inscription
-                            WHERE classe_id = %s AND groupe <=> %s AND section_id <=> %s
-                              AND status = 1 AND id_etablissement = %s
-                        """, [bk['classe_id'], bk['groupe'], bk['section_id'], etab_id])
-                        r = cur.fetchone()
-                        n_eleves = r['n'] if r else 0
+                    cur.execute("""
+                        SELECT COUNT(*) as n FROM eleve_inscription
+                        WHERE classe_id = %s AND groupe <=> %s AND section_id <=> %s
+                          AND status = 1 AND id_etablissement = %s
+                    """, [classe_id, att.get('groupe'), att.get('section_id'), etab_id])
+                    r = cur.fetchone()
+                    n_eleves = r['n'] if r else 0
                 except Exception:
                     pass
 
@@ -1060,10 +1053,11 @@ def api_enseignant_dashboard(request):
             try:
                 cur.execute("""
                     SELECT h.id_horaire, h.date, h.debut, h.fin,
-                           h.id_cours_id, h.classe_id
+                           h.id_cours_id, h.classe_id, h.groupe
                     FROM horaire h
                     JOIN attribution_cours ac ON ac.id_cours_id = h.id_cours_id
                         AND ac.classe_id = h.classe_id
+                        AND ac.groupe <=> h.groupe AND ac.section_id <=> h.section_id
                     WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s
                     ORDER BY h.date DESC, h.debut
                     LIMIT 50
@@ -1095,6 +1089,7 @@ def api_enseignant_dashboard(request):
                     FROM horaire h
                     JOIN attribution_cours ac ON ac.id_cours_id = h.id_cours_id
                         AND ac.classe_id = h.classe_id
+                        AND ac.groupe <=> h.groupe AND ac.section_id <=> h.section_id
                     LEFT JOIN horaire_presence hp ON hp.id_horaire_id = h.id_horaire
                     WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s
                 """, [personnel_id, etab_id])
@@ -1132,7 +1127,7 @@ def api_enseignant_dashboard(request):
             'presences_stats': presences_stats,
             'n_evaluations': n_evaluations,
             'n_courses': len(courses),
-            'n_classes': len(set(c['eac_id'] for c in courses)),
+            'n_classes': len(set(f"{c['eac_id']}_{c.get('groupe','')}" for c in courses)),
             'n_eleves_total': sum(c['n_eleves'] for c in courses),
         })
 
@@ -1264,28 +1259,20 @@ def api_enseignant_presences(request):
                 conn.close()
                 return JsonResponse({'success': False, 'error': 'horaire_id requis'}, status=400)
             with conn.cursor() as cur:
-                cur.execute("SELECT id_horaire, date, debut, fin, id_cours_id, classe_id FROM horaire WHERE id_horaire=%s", [horaire_id])
+                cur.execute("SELECT id_horaire, date, debut, fin, id_cours_id, classe_id, groupe, section_id FROM horaire WHERE id_horaire=%s", [horaire_id])
                 horaire = cur.fetchone()
                 if not horaire:
                     conn.close()
                     return JsonResponse({'success': False, 'error': 'Horaire non trouve'}, status=404)
-                # Resolve EAC.id → business keys
+                # Business keys are now directly in the horaire table
                 cur.execute("""
-                    SELECT eac.classe_id, eac.groupe, eac.section_id
-                    FROM countryStructure.etablissements_annees_classes eac WHERE eac.id = %s
-                """, [horaire['classe_id']])
-                bk = cur.fetchone()
-                if bk:
-                    cur.execute("""
-                        SELECT DISTINCT e.id_eleve, e.nom, e.prenom, e.genre
-                        FROM eleve_inscription ei JOIN eleve e ON e.id_eleve=ei.id_eleve_id
-                        WHERE ei.classe_id=%s AND ei.groupe <=> %s AND ei.section_id <=> %s
-                          AND ei.status=1 AND ei.id_etablissement=%s
-                        ORDER BY e.nom, e.prenom
-                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], etab_id])
-                    eleves = cur.fetchall()
-                else:
-                    eleves = []
+                    SELECT DISTINCT e.id_eleve, e.nom, e.prenom, e.genre
+                    FROM eleve_inscription ei JOIN eleve e ON e.id_eleve=ei.id_eleve_id
+                    WHERE ei.classe_id=%s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.status=1 AND ei.id_etablissement=%s
+                    ORDER BY e.nom, e.prenom
+                """, [horaire['classe_id'], horaire['groupe'], horaire['section_id'], etab_id])
+                eleves = cur.fetchall()
                 cur.execute("SELECT id_horaire_presence, id_eleve_id, present_ou_absent, si_absent_motif, comportement_note FROM horaire_presence WHERE id_horaire_id=%s", [horaire_id])
                 presences = {}
                 for p in cur.fetchall():
