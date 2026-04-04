@@ -8006,6 +8006,11 @@ def get_evaluations_list(request):
         if err: return err
         etab_id = etab.id_etablissement
 
+        # Resolve EAC.id → business keys
+        bk = _resolve_eac_orm(classe_id)
+        if not bk:
+            return JsonResponse({'success': False, 'error': 'Classe introuvable.'}, status=404)
+
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
@@ -8017,10 +8022,11 @@ def get_evaluations_list(request):
                            (SELECT COUNT(*) FROM evaluation_repartition er WHERE er.id_evaluation = e.id_evaluation) AS assign_count
                     FROM evaluation e
                     LEFT JOIN countryStructure.evaluation_types et ON et.id_type_eval = e.id_type_eval
-                    WHERE e.classe_id = %s AND e.id_cours_classe_id = %s
+                    WHERE e.classe_id = %s AND e.groupe <=> %s AND e.section_id <=> %s
+                          AND e.id_cours_classe_id = %s
                           AND e.id_etablissement = %s
                     ORDER BY e.date_eval DESC, e.id_evaluation DESC
-                """, [classe_id, cours_id, etab_id])
+                """, [bk['classe_id'], bk['groupe'], bk['section_id'], cours_id, etab_id])
                 evals = []
                 for r in cur.fetchall():
                     evals.append({
@@ -8220,8 +8226,12 @@ def get_evaluation_candidates(request):
         if err: return err
         etab_id = etab.id_etablissement
 
+        # Resolve EAC.id → business keys
+        bk = _resolve_eac_orm(classe_id)
+        if not bk:
+            return JsonResponse({'success': False, 'error': 'Classe introuvable.'}, status=404)
+
         # Get repartition config dates
-        # already imported at top
         config = RepartitionConfigEtabAnnee.objects.filter(
             repartition_id=repartition_id
         ).first()
@@ -8237,23 +8247,24 @@ def get_evaluation_candidates(request):
                                et.sigle AS type_sigle
                         FROM evaluation e
                         LEFT JOIN countryStructure.evaluation_types et ON et.id_type_eval = e.id_type_eval
-                        WHERE e.classe_id = %s AND e.id_cours_classe_id = %s
+                        WHERE e.classe_id = %s AND e.groupe <=> %s AND e.section_id <=> %s
+                              AND e.id_cours_classe_id = %s
                               AND e.id_etablissement = %s
                               AND e.date_eval BETWEEN %s AND %s
                         ORDER BY e.date_eval ASC
-                    """, [classe_id, cours_id, etab_id, config.debut, config.fin])
+                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], cours_id, etab_id, config.debut, config.fin])
                 else:
-                    # No dates configured — show all evaluations
                     cur.execute("""
                         SELECT e.id_evaluation, e.title, e.id_type_eval,
                                e.ponderer_eval, e.date_eval,
                                et.sigle AS type_sigle
                         FROM evaluation e
                         LEFT JOIN countryStructure.evaluation_types et ON et.id_type_eval = e.id_type_eval
-                        WHERE e.classe_id = %s AND e.id_cours_classe_id = %s
+                        WHERE e.classe_id = %s AND e.groupe <=> %s AND e.section_id <=> %s
+                              AND e.id_cours_classe_id = %s
                               AND e.id_etablissement = %s
                         ORDER BY e.date_eval ASC
-                    """, [classe_id, cours_id, etab_id])
+                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], cours_id, etab_id])
 
                 candidates = [{
                     'id_evaluation': r['id_evaluation'],
@@ -8273,8 +8284,9 @@ def get_evaluation_candidates(request):
                             AND er.id_evaluation IN (
                                 SELECT e.id_evaluation FROM evaluation e
                                 WHERE e.id_cours_classe_id = %s AND e.classe_id = %s
+                                  AND e.groupe <=> %s AND e.section_id <=> %s
                             )
-                    """, [config.id, cours_id, classe_id])
+                    """, [config.id, cours_id, bk['classe_id'], bk['groupe'], bk['section_id']])
                     assigned = [{
                         'id_evaluation': r['id_evaluation'],
                         'pourcentage': float(r['pourcentage']) if r['pourcentage'] else None,
@@ -8308,7 +8320,11 @@ def assign_evaluations(request):
         if not repartition_id or not cours_id:
             return JsonResponse({'success': False, 'error': 'repartition_id et cours_id requis.'}, status=400)
 
-        # already imported at top
+        # Resolve EAC.id → business keys
+        bk = _resolve_eac_orm(classe_id)
+        if not bk:
+            return JsonResponse({'success': False, 'error': 'Classe introuvable.'}, status=404)
+
         config = RepartitionConfigEtabAnnee.objects.filter(
             repartition_id=repartition_id
         ).first()
@@ -8324,8 +8340,8 @@ def assign_evaluations(request):
                     JOIN evaluation e ON e.id_evaluation = er.id_evaluation
                     WHERE er.id_repartition_config = %s
                       AND e.id_cours_classe_id = %s
-                      AND e.classe_id = %s
-                """, [config.id, cours_id, classe_id])
+                      AND e.classe_id = %s AND e.groupe <=> %s AND e.section_id <=> %s
+                """, [config.id, cours_id, bk['classe_id'], bk['groupe'], bk['section_id']])
 
                 # Insert new assignments
                 for a in assignments:
@@ -8475,10 +8491,10 @@ def get_notes_grid(request):
                         LEFT JOIN countryStructure.cours_annee cann ON cann.id_cours_annee = ev.id_cours_classe_id
                         LEFT JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
                         WHERE er.id_repartition_config = %s
-                          AND ev.classe_id = %s
+                          AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
                           AND ev.id_etablissement = %s
                         ORDER BY ev.id_cours_classe_id, ev.date_eval
-                    """, [config.id, classe_id, etab_id])
+                    """, [config.id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id])
                     evaluations = cur.fetchall()
                 else:
                     evaluations = []
@@ -8713,9 +8729,10 @@ def download_notes_template(request):
                         LEFT JOIN countryStructure.cours_annee cann ON cann.id_cours_annee = ev.id_cours_classe_id
                         LEFT JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
                         WHERE er.id_repartition_config = %s
-                          AND ev.classe_id = %s AND ev.id_etablissement = %s
+                          AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
+                          AND ev.id_etablissement = %s
                         ORDER BY ev.id_cours_classe_id, ev.date_eval
-                    """, [config.id, classe_id, etab_id])
+                    """, [config.id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id])
                     evals = cur.fetchall()
         finally:
             conn.close()
@@ -9049,9 +9066,9 @@ def calculate_notes_bulletin(request):
                                 JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
                                 WHERE er.id_repartition_config = %s
                                   AND ev.id_cours_classe_id = %s
-                                  AND ev.classe_id = %s
+                                  AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
                                   AND ev.id_etablissement = %s
-                            """, [config.id, cours_id, classe_id, etab_id])
+                            """, [config.id, cours_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id])
                             evals = cur.fetchall()
 
                             if not evals:
@@ -10941,11 +10958,11 @@ def execute_deliberation(request):
                     JOIN evaluation ev ON ev.id_evaluation = en.id_evaluation_id
                     WHERE en.id_eleve_id = %s
                       AND en.id_annee_id = %s
-                      AND en.classe_id = %s
+                      AND en.classe_id = %s AND en.groupe <=> %s AND en.section_id <=> %s
                       AND en.id_etablissement = %s
                       {rep_filter}
                 """
-                params = [id_eleve, annee.id_annee, int(classe_id), etab.id_etablissement] + rep_params
+                params = [id_eleve, annee.id_annee, eac.classe_id, eac.groupe, eac.section_id, etab.id_etablissement] + rep_params
                 cur.execute(query, params)
                 row = cur.fetchone()
                 total_note = float(row[0]) if row and row[0] else 0
