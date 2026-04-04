@@ -92,15 +92,32 @@ class PersonnelAuthMiddleware:
         # Bloquer l'accès au dashboard si le compte n'est pas vérifié
         needs_verification = request.session.get('needs_verification', False)
         if needs_verification:
-            # Autoriser uniquement les endpoints de vérification et la page login
-            verification_paths = ('/login/', '/api/auth/verify-contact/', '/api/auth/request-otp/', '/api/auth/verify-otp/', '/logout/')
-            if not any(request.path.startswith(p) for p in verification_paths):
-                if request.path.startswith('/api/'):
-                    return JsonResponse({
-                        'error': 'Veuillez vérifier votre email ou numéro de téléphone.',
-                        'needs_verification': True
-                    }, status=403)
-                return redirect('/login/?step=verify')
+            # Re-check DB to avoid stale session causing redirect loops
+            try:
+                from django.db import connections
+                pid = request.session.get('personnel_id')
+                if pid:
+                    with connections['default'].cursor() as cur:
+                        cur.execute("SELECT email_verified, phone_verified FROM personnel WHERE id_personnel=%s", [pid])
+                        row = cur.fetchone()
+                        if row and (row[0] or row[1]):
+                            request.session['needs_verification'] = False
+                            request.session['email_verified'] = bool(row[0])
+                            request.session['phone_verified'] = bool(row[1])
+                            needs_verification = False
+            except Exception:
+                pass
+
+            if needs_verification:
+                # Autoriser uniquement les endpoints de vérification et la page login
+                verification_paths = ('/login/', '/api/auth/verify-contact/', '/api/auth/request-otp/', '/api/auth/verify-otp/', '/logout/')
+                if not any(request.path.startswith(p) for p in verification_paths):
+                    if request.path.startswith('/api/'):
+                        return JsonResponse({
+                            'error': 'Veuillez vérifier votre email ou numéro de téléphone.',
+                            'needs_verification': True
+                        }, status=403)
+                    return redirect('/login/?step=verify')
 
         return self.get_response(request)
 
