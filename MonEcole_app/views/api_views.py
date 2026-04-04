@@ -3672,12 +3672,12 @@ def get_etablissement_config(request):
         for eac in etab_annee.classes_config.select_related('classe', 'section').all():
             activated.append({
                 'id': eac.id,
-                'id_classe_id': eac.classe_id,
+                'classe_id': eac.classe_id,
                 'classe_nom': str(eac.classe) if eac.classe else '-',
                 'section_id': eac.section_id,
                 'section_nom': str(eac.section) if eac.section else '-',
                 'groupe': eac.groupe,
-                'classe_par_annee_id': eac.id,  # Maps to etablissements_annees_classes.id
+                'classe_par_annee_id': eac.id,
             })
         
         return JsonResponse({
