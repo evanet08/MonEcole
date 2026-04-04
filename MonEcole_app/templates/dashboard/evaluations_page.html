@@ -533,12 +533,13 @@
     if (!evalClasseSelect) return;
     const classesData = [
         {% for c in classes_detail %}
-        { eac_id: {{ c.eac_id }}, nom: "{{ c.classe_nom|escapejs }}", cycle: "{{ c.cycle_nom|escapejs }}" },
+        { eac_id: {{ c.eac_id }}, nom: "{{ c.classe_nom|escapejs }}", cycle: "{{ c.cycle_nom|escapejs }}", section: "{{ c.section_nom|escapejs }}" },
         {% endfor %}
     ];
     classesData.forEach(function(c) {
         const opt1 = document.createElement('option');
-        opt1.value = c.eac_id; opt1.textContent = c.nom + ' (' + c.cycle + ')';
+        var label = (c.section && c.section !== '-') ? c.section : c.cycle;
+        opt1.value = c.eac_id; opt1.textContent = c.nom + ' (' + label + ')';
         evalClasseSelect.appendChild(opt1);
         const opt2 = opt1.cloneNode(true);
         compClasseSelect.appendChild(opt2);
@@ -1161,13 +1162,14 @@ async function saveComposition() {
     if (!classeSelect) return;
     const classesData = [
         {% for c in classes_detail %}
-        { eac_id: {{ c.eac_id }}, nom: "{{ c.classe_nom|escapejs }}", cycle: "{{ c.cycle_nom|escapejs }}" },
+        { eac_id: {{ c.eac_id }}, nom: "{{ c.classe_nom|escapejs }}", cycle: "{{ c.cycle_nom|escapejs }}", section: "{{ c.section_nom|escapejs }}" },
         {% endfor %}
     ];
     classesData.forEach(function(c) {
         const opt = document.createElement('option');
         opt.value = c.eac_id;
-        opt.textContent = c.nom + ' (' + c.cycle + ')';
+        var label = (c.section && c.section !== '-') ? c.section : c.cycle;
+        opt.textContent = c.nom + ' (' + label + ')';
         classeSelect.appendChild(opt);
     });
 
@@ -1913,12 +1915,13 @@ function toggleBulletinAccordion(accId) {
     if (!delibClasseSelect) return;
     var classesData = [
         {% for c in classes_detail %}
-        { eac_id: {{ c.eac_id }}, nom: "{{ c.classe_nom|escapejs }}", cycle: "{{ c.cycle_nom|escapejs }}" },
+        { eac_id: {{ c.eac_id }}, nom: "{{ c.classe_nom|escapejs }}", cycle: "{{ c.cycle_nom|escapejs }}", section: "{{ c.section_nom|escapejs }}" },
         {% endfor %}
     ];
     classesData.forEach(function(c) {
         var opt = document.createElement('option');
-        opt.value = c.eac_id; opt.textContent = c.nom + ' (' + c.cycle + ')';
+        var label = (c.section && c.section !== '-') ? c.section : c.cycle;
+        opt.value = c.eac_id; opt.textContent = c.nom + ' (' + label + ')';
         delibClasseSelect.appendChild(opt);
     });
 })();

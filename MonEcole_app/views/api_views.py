@@ -7951,7 +7951,7 @@ def _get_spoke_connection():
 def get_evaluation_cours(request):
     """Retourne les cours pour une classe via le Hub (CoursAnnee/Cours)."""
     try:
-        eac_id = request.GET.get('id_classe_id')  # This is actually EtablissementAnneeClasse.id
+        eac_id = request.GET.get('classe_id') or request.GET.get('id_classe_id')
         if not eac_id:
             return JsonResponse({'success': False, 'error': 'classe_id requis.'}, status=400)
 
@@ -7994,7 +7994,7 @@ def get_evaluation_cours(request):
 def get_evaluations_list(request):
     """Retourne les évaluations pour une classe/cours donné."""
     try:
-        classe_id = request.GET.get('id_classe_id')
+        classe_id = request.GET.get('classe_id') or request.GET.get('id_classe_id')
         cours_id = request.GET.get('cours_id')
         if not classe_id or not cours_id:
             return JsonResponse({'success': False, 'error': 'classe_id et cours_id requis.'}, status=400)
@@ -8212,7 +8212,7 @@ def delete_evaluation(request):
 def get_evaluation_candidates(request):
     """Retourne les évaluations candidates pour une répartition (filtrées par intervalle de dates)."""
     try:
-        classe_id = request.GET.get('id_classe_id')
+        classe_id = request.GET.get('classe_id') or request.GET.get('id_classe_id')
         cours_id = request.GET.get('cours_id')
         repartition_id = request.GET.get('repartition_id')
 
@@ -8314,7 +8314,7 @@ def assign_evaluations(request):
         data = json.loads(request.body)
         repartition_id = data.get('repartition_id')
         cours_id = data.get('cours_id')
-        classe_id = data.get('id_classe_id')
+        classe_id = data.get('classe_id') or data.get('id_classe_id')
         assignments = data.get('assignments', [])
 
         if not repartition_id or not cours_id:
@@ -8421,7 +8421,7 @@ def get_notes_grid(request):
     Retourne: élèves inscrits, cours avec évaluations assignées, notes existantes.
     """
     try:
-        classe_id = request.GET.get('id_classe_id')
+        classe_id = request.GET.get('classe_id') or request.GET.get('id_classe_id')
         repartition_id = request.GET.get('repartition_id')
         note_type = request.GET.get('note_type', 'TJ')  # TJ ou EXAM
 
@@ -8675,7 +8675,7 @@ def download_notes_template(request):
         from openpyxl.styles import Font, Protection, PatternFill, Alignment, Border, Side
         from io import BytesIO
 
-        classe_id = request.GET.get('id_classe_id')
+        classe_id = request.GET.get('classe_id') or request.GET.get('id_classe_id')
         repartition_id = request.GET.get('repartition_id')
 
         if not classe_id or not repartition_id:
@@ -8976,7 +8976,7 @@ def calculate_notes_bulletin(request):
         etab_id = etab.id_etablissement
 
         data = json.loads(request.body)
-        classe_id = data.get('id_classe_id')
+        classe_id = data.get('classe_id') or data.get('id_classe_id')
         repartition_id = data.get('repartition_id')
 
         if not classe_id or not repartition_id:
@@ -9225,7 +9225,7 @@ def get_notes_bulletin(request):
     Params: classe_id, repartition_id
     """
     try:
-        classe_id = request.GET.get('id_classe_id')
+        classe_id = request.GET.get('classe_id') or request.GET.get('id_classe_id')
         repartition_id = request.GET.get('repartition_id')
 
         if not classe_id or not repartition_id:
@@ -10700,7 +10700,7 @@ def get_evaluations_repartitions(request):
       5. Limite le nombre de répartitions au nombre prévu par la config cycle × hiérarchie
     """
     try:
-        classe_id = request.GET.get('id_classe_id')
+        classe_id = request.GET.get('classe_id') or request.GET.get('id_classe_id')
         if not classe_id:
             return JsonResponse({'success': False, 'error': 'classe_id requis'}, status=400)
 
@@ -10812,7 +10812,7 @@ def get_deliberation_conditions(request):
         from MonEcole_app.models.evaluations.note import (
             Deliberation_annuelle_condition, Deliberation_annuelle_finalite
         )
-        classe_id = request.GET.get('id_classe_id')
+        classe_id = request.GET.get('classe_id') or request.GET.get('id_classe_id')
         if not classe_id:
             return JsonResponse({'success': False, 'error': 'classe_id requis'}, status=400)
 
@@ -10889,7 +10889,7 @@ def execute_deliberation(request):
         from MonEcole_app.models.campus import Campus
 
         data = json.loads(request.body)
-        classe_id = data.get('id_classe_id')
+        classe_id = data.get('classe_id') or data.get('id_classe_id')
         delib_type = data.get('type')  # 'periode', 'trimestre', 'annee', 'repechage'
         repartition_id = data.get('repartition_id')
         session_id = data.get('session_id')
@@ -11128,7 +11128,7 @@ def cancel_deliberation(request):
         )
 
         data = json.loads(request.body)
-        classe_id = data.get('id_classe_id')
+        classe_id = data.get('classe_id') or data.get('id_classe_id')
         delib_type = data.get('type')
 
         etab, err = _get_tenant_etab(request)
@@ -11284,7 +11284,7 @@ def get_bulletin_eleves(request):
     GET /api/bulletins/eleves/?classe_id=X
     """
     try:
-        classe_id = request.GET.get('id_classe_id')
+        classe_id = request.GET.get('classe_id') or request.GET.get('id_classe_id')
         if not classe_id:
             return JsonResponse({'success': False, 'error': 'classe_id requis'}, status=400)
 
