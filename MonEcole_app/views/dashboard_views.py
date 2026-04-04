@@ -1081,6 +1081,7 @@ def api_enseignant_dashboard(request):
                     'eac_id': real_eac_id or classe_id,
                     'n_eleves': n_eleves,
                 })
+                print(f"[api_enseignant_dashboard] course: classe_id={classe_id}, groupe={att.get('groupe')}, section_id={att.get('section_id')}, etab_annee_id={etab_annee_id}, real_eac_id={real_eac_id}, final_eac_id={real_eac_id or classe_id}", file=sys.stderr, flush=True)
 
             if hub_cur:
                 hub_cur.close()

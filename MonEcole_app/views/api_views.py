@@ -4889,8 +4889,10 @@ def dashboard_eleves_stats(request):
 @require_http_methods(["GET"])
 def dashboard_eleves_list(request):
     """Return the list of students enrolled in a specific class with all attributes."""
+    import sys
     id_etablissement = request.GET.get('id_etablissement')
     classe_par_annee_id = request.GET.get('classe_par_annee_id') or request.GET.get('classe_par_annee_id')
+    print(f"[dashboard_eleves_list] CALLED: id_etablissement={id_etablissement}, classe_par_annee_id={classe_par_annee_id}", file=sys.stderr, flush=True)
 
     if not id_etablissement or not classe_par_annee_id:
         return JsonResponse({'success': False, 'error': 'id_etablissement et classe_par_annee_id requis'}, status=400)
@@ -4905,6 +4907,7 @@ def dashboard_eleves_list(request):
                     FROM countryStructure.etablissements_annees_classes eac WHERE eac.id = %s
                 """, [classe_par_annee_id])
                 bk = cur.fetchone()
+                print(f"[dashboard_eleves_list] EAC lookup for id={classe_par_annee_id}: bk={bk}", file=sys.stderr, flush=True)
                 if not bk:
                     return JsonResponse({'success': False, 'error': 'Classe introuvable'}, status=404)
 
