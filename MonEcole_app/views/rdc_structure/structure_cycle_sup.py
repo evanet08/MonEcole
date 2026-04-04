@@ -52,8 +52,8 @@ def recuperer_cours_obligatoires(id_annee, id_campus, id_cycle, id_classe):
     for c in qs:
         cours.append({
             "nom": c.id_cours.cours,   
-            "tp": c.TP,
-            "tpe": c.TPE,
+            "tp": c.maxima_tj,
+            "tpe": c.maxima_periode,
         })
 
     return cours

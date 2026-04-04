@@ -973,7 +973,7 @@ def api_enseignant_dashboard(request):
 
                 cours_nom = f"Cours #{cours_annee_id}"
                 code_cours = ''
-                ponderation = 0
+                maxima_exam = 0
                 heure_semaine = 0
                 classe_nom = f"Classe #{classe_id}"
                 cycle_nom = '-'
@@ -982,7 +982,7 @@ def api_enseignant_dashboard(request):
                 if hub_cur:
                     try:
                         hub_cur.execute("""
-                            SELECT c.cours, c.code_cours, ca.ponderation, ca.heure_semaine
+                            SELECT c.cours, c.code_cours, ca.maxima_exam, ca.heure_semaine
                             FROM cours_annee ca
                             JOIN cours c ON c.id_cours = ca.cours_id
                             WHERE ca.id_cours_annee = %s
@@ -991,7 +991,7 @@ def api_enseignant_dashboard(request):
                         if cr:
                             cours_nom = cr['cours']
                             code_cours = cr['code_cours'] or ''
-                            ponderation = cr['ponderation'] or 0
+                            maxima_exam = cr['maxima_exam'] or 0
                             heure_semaine = cr['heure_semaine'] or 0
                     except Exception:
                         pass
@@ -1030,7 +1030,7 @@ def api_enseignant_dashboard(request):
                     'id_cours_annee': cours_annee_id,
                     'cours': cours_nom,
                     'code_cours': code_cours,
-                    'ponderation': ponderation,
+                    'maxima_exam': maxima_exam,
                     'heure_semaine': heure_semaine,
                     'classe_nom': classe_nom,
                     'cycle_nom': cycle_nom,

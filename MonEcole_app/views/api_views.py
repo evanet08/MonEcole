@@ -2711,9 +2711,8 @@ def get_cours_annee_data(request):
             if ca:
                 entry.update({
                     'id_cours_annee': ca.id_cours_annee,
-                    'ponderation': ca.ponderation,
-                    'CM': ca.CM, 'TD': ca.TD,
-                    'maxima_tp': ca.maxima_tp, 'maxima_tpe': ca.maxima_tpe,
+                    'maxima_exam': ca.maxima_exam,
+                    'maxima_tj': ca.maxima_tj, 'maxima_periode': ca.maxima_periode,
                     'credits': ca.credits, 'heure_semaine': ca.heure_semaine,
                     'is_obligatory': ca.is_obligatory, 'ordre': ca.ordre,
                     'compte_au_nombre_echec': ca.compte_au_nombre_echec,
@@ -2745,7 +2744,7 @@ def save_cours_annee(request):
         cours_id = data.get('cours_id')
         annee_id = data.get('annee_id')
 
-        int_fields_names = ['ponderation', 'CM', 'TD', 'maxima_tp', 'maxima_tpe', 'credits',
+        int_fields_names = ['maxima_exam', 'maxima_tj', 'maxima_periode', 'credits',
                             'heure_semaine', 'ordre', 'est_considerer_echec_lorsque_pourcentage_est']
         bool_fields_names = ['is_obligatory', 'compte_au_nombre_echec', 'total_considerable_trimestre', 'is_second_semester']
 
@@ -2866,8 +2865,8 @@ def download_cours_annee_template(request):
         ws.cell(row=1, column=1).fill = PatternFill(start_color="2E7D32", end_color="2E7D32", fill_type="solid")
         ws.cell(row=1, column=1).font = Font(bold=True, color="FFFFFF")
 
-        headers = ['CODE_COURS', 'COURS', 'DOMAINE', 'PONDERATION', 'CM', 'TD',
-                    'MAXIMA_TP', 'MAXIMA_TPE', 'CREDITS', 'HEURE_SEMAINE',
+        headers = ['CODE_COURS', 'COURS', 'DOMAINE', 'MAXIMA_EXAM', 'MAXIMA_TJ',
+                    'MAXIMA_PERIODE', 'CREDITS', 'HEURE_SEMAINE',
                     'OBLIGATOIRE', 'ORDRE', 'COMPTE_ECHEC', 'TOTAL_TRIMESTRE',
                     'SEUIL_ECHEC_%', 'SEMESTRE_2_UNIQUEMENT']
         ws.append(headers)
@@ -2880,9 +2879,9 @@ def download_cours_annee_template(request):
             config = CoursAnnee.objects.filter(cours=c, annee=annee).first()
             ws.append([
                 c.code_cours, c.cours, c.domaine,
-                config.ponderation if config else '', config.CM if config else '',
-                config.TD if config else '', config.maxima_tp if config else '',
-                config.maxima_tpe if config else '', config.credits if config else '',
+                config.maxima_exam if config else '',
+                config.maxima_tj if config else '',
+                config.maxima_periode if config else '', config.credits if config else '',
                 config.heure_semaine if config else '',
                 1 if config and config.is_obligatory else 0,
                 config.ordre if config else '',
@@ -2974,10 +2973,9 @@ def import_cours_annee_excel(request):
                 CoursAnnee.objects.update_or_create(
                     cours=cours, annee=annee,
                     defaults={
-                        'ponderation': to_int(val(row, 'PONDERATION')),
-                        'CM': to_int(val(row, 'CM')), 'TD': to_int(val(row, 'TD')),
-                        'maxima_tp': to_int(val(row, 'MAXIMA_TP')),
-                        'maxima_tpe': to_int(val(row, 'MAXIMA_TPE')),
+                        'maxima_exam': to_int(val(row, 'MAXIMA_EXAM')),
+                        'maxima_tj': to_int(val(row, 'MAXIMA_TJ')),
+                        'maxima_periode': to_int(val(row, 'MAXIMA_PERIODE')),
                         'credits': to_int(val(row, 'CREDITS')),
                         'heure_semaine': to_int(val(row, 'HEURE_SEMAINE')),
                         'is_obligatory': to_bool(val(row, 'OBLIGATOIRE')),
@@ -5914,7 +5912,7 @@ def dashboard_attribution_cours(request):
                             'id_cours': ca.cours_id,
                             'cours': ca.cours.cours,
                             'code_cours': ca.cours.code_cours,
-                            'ponderation': ca.ponderation,
+                            'maxima_exam': ca.maxima_exam,
                             'id_attribution': attr.get('id_attribution'),
                             'id_personnel': attr.get('id_personnel_id'),
                             'personnel_nom': pers_name,
@@ -7979,8 +7977,8 @@ def get_evaluation_cours(request):
             'id_cours_classe': ca.id_cours_annee,
             'nom': ca.cours.cours,
             'code': ca.cours.code_cours,
-            'ponderation': ca.ponderation,
-            'maxima': ca.ponderation,
+            'maxima_exam': ca.maxima_exam,
+            'maxima': ca.maxima_exam,
         } for ca in cours_annee_qs]
 
         return JsonResponse({'success': True, 'cours': cours})
@@ -9032,9 +9030,9 @@ def calculate_notes_bulletin(request):
                 if not eleve_ids:
                     return JsonResponse({'success': False, 'error': 'Aucun élève inscrit.'}, status=404)
 
-                # Get cours for this class (with ponderation) — filtered by classe
+                # Get cours for this class (with maxima_exam) — filtered by classe
                 cur.execute("""
-                    SELECT MIN(cann.id_cours_annee) AS id_cours_annee, MAX(cann.ponderation) AS ponderation
+                    SELECT MIN(cann.id_cours_annee) AS id_cours_annee, MAX(cann.maxima_exam) AS maxima_exam
                     FROM countryStructure.cours_annee cann
                     JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
                     JOIN countryStructure.etablissements_annees ea ON ea.annee_id = cann.annee_id
@@ -9043,9 +9041,9 @@ def calculate_notes_bulletin(request):
                     GROUP BY cann.cours_id
                 """, [classe_id])
                 cours_rows = cur.fetchall()
-                # Dict: cours_id → ponderation
-                cours_ponderations = {r['id_cours_annee']: r['ponderation'] for r in cours_rows}
-                cours_ids = list(cours_ponderations.keys())
+                # Dict: cours_id → maxima_exam
+                cours_maximas = {r['id_cours_annee']: r['maxima_exam'] for r in cours_rows}
+                cours_ids = list(cours_maximas.keys())
 
                 calculated = 0
 
@@ -9056,8 +9054,8 @@ def calculate_notes_bulletin(request):
                     if en.source_type == 'EVALUATIONS':
                         # Calculate from evaluation notes assigned to this repartition
                         for cours_id in cours_ids:
-                            # Use the course's own ponderation, fallback to default
-                            cours_maxima = cours_ponderations.get(cours_id) or default_max
+                            # Use the course's own maxima_exam, fallback to default
+                            cours_maxima = cours_maximas.get(cours_id) or default_max
 
                             # Get evaluations assigned to this repartition for this cours
                             cur.execute("""
@@ -9279,10 +9277,10 @@ def get_notes_bulletin(request):
                 """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
                 eleves = cur.fetchall()
 
-                # Get cours (with ponderation) — filtered by classe
+                # Get cours (with maxima_exam) — filtered by classe
                 cur.execute("""
                     SELECT MIN(cann.id_cours_annee) AS id_cours_annee, ca.cours AS cours_nom, ca.code_cours,
-                           MAX(cann.ponderation) AS ponderation
+                           MAX(cann.maxima_exam) AS maxima_exam
                     FROM countryStructure.cours_annee cann
                     JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
                     JOIN countryStructure.etablissements_annees ea ON ea.annee_id = cann.annee_id
@@ -9318,7 +9316,7 @@ def get_notes_bulletin(request):
                 'repartition_type': rep_type.nom,
                 'eleves': [{'id': e['id_eleve'], 'nom': e['nom'], 'prenom': e['prenom']} for e in eleves],
                 'cours': [{'id': c['id_cours_annee'], 'nom': c['cours_nom'], 'code': c['code_cours'],
-                           'ponderation': c['ponderation']} for c in cours],
+                           'maxima_exam': c['maxima_exam']} for c in cours],
                 'note_types': [{'id': e.note_type.id_type_note, 'sigle': e.note_type.sigle,
                                 'nom': e.note_type.nom, 'max': e.ponderation_max,
                                 'source': e.source_type, 'ordre': e.ordre} for e in expected],
@@ -9650,9 +9648,8 @@ def get_cours_annee_data(request):
             if ca:
                 entry.update({
                     'id_cours_annee': ca.id_cours_annee,
-                    'ponderation': ca.ponderation,
-                    'CM': ca.CM, 'TD': ca.TD,
-                    'maxima_tp': ca.maxima_tp, 'maxima_tpe': ca.maxima_tpe,
+                    'maxima_exam': ca.maxima_exam,
+                    'maxima_tj': ca.maxima_tj, 'maxima_periode': ca.maxima_periode,
                     'credits': ca.credits, 'heure_semaine': ca.heure_semaine,
                     'is_obligatory': ca.is_obligatory, 'ordre': ca.ordre,
                     'compte_au_nombre_echec': ca.compte_au_nombre_echec,
@@ -9679,7 +9676,7 @@ def save_cours_annee(request):
         cours_id = data.get('cours_id')
         annee_id = data.get('annee_id')
 
-        int_fields = ['ponderation', 'CM', 'TD', 'maxima_tp', 'maxima_tpe', 'credits',
+        int_fields = ['maxima_exam', 'maxima_tj', 'maxima_periode', 'credits',
                       'heure_semaine', 'ordre', 'est_considerer_echec_lorsque_pourcentage_est']
         bool_fields = ['is_obligatory', 'compte_au_nombre_echec', 'total_considerable_trimestre', 'is_second_semester']
 

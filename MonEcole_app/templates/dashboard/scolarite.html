@@ -1889,9 +1889,8 @@ function renderCoursEtabGrid(cours, domaines) {
 
     function renderRow(c) {
         const checked = c.is_configured ? 'checked' : '';
-        const tj = c.CM || '';
-        const ex = c.TD || '';
-        const total = c.ponderation || '';
+        const tj = c.maxima_tj || '';
+        const ex = c.maxima_exam || '';
         const hsem = c.heure_semaine || '';
         const oblig = c.is_obligatory ? 'checked' : '';
         const inpStyle = 'width:45px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:.72rem;padding:2px 4px';
@@ -1905,9 +1904,8 @@ function renderCoursEtabGrid(cours, domaines) {
                     ${domaines.map(d => `<option value="${d.id_domaine}" ${d.id_domaine == c.domaine_id ? 'selected' : ''}>${d.nom}</option>`).join('')}
                 </select>
             </td>
-            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="CM" value="${tj}" style="${inpStyle}"></td>
-            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="TD" value="${ex}" style="${inpStyle}"></td>
-            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="ponderation" value="${total}" style="${inpStyle}"></td>
+            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="maxima_tj" value="${tj}" style="${inpStyle}"></td>
+            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="maxima_exam" value="${ex}" style="${inpStyle}"></td>
             <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="heure_semaine" value="${hsem}" style="${inpStyle}"></td>
             <td style="text-align:center"><input type="checkbox" data-cours="${c.id_cours}" data-field="is_obligatory" ${oblig} class="cours-oblig-check"></td>
             <td style="text-align:center">
@@ -1970,9 +1968,9 @@ async function saveCoursEtab() {
                     cours_id: coursId,
                     annee_id: CA_ANNEE_ID,
                     etablissement_id: CA_ETAB_ID,
-                    CM: getVal('CM'),
-                    TD: getVal('TD'),
-                    ponderation: getVal('ponderation'),
+                    maxima_tj: getVal('maxima_tj'),
+                    maxima_exam: getVal('maxima_exam'),
+
                     heure_semaine: getVal('heure_semaine'),
                     is_obligatory: getVal('is_obligatory'),
                     domaine_id: getVal('domaine_id')
@@ -3432,7 +3430,7 @@ function renderAttribution(courses,id_classe){
         html+=`<td style="padding:8px 12px;text-align:center;color:#94a3b8;font-weight:700;font-size:.62rem">${idx+1}</td>`;
         html+=`<td style="padding:8px 12px;font-weight:700;color:#1e293b;font-size:.72rem"><div style="display:flex;align-items:center;gap:8px"><div style="width:28px;height:28px;border-radius:6px;background:${hasTeacher?'linear-gradient(135deg,#059669,#10b981)':'linear-gradient(135deg,#f59e0b,#fbbf24)'};display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas ${hasTeacher?'fa-check':'fa-clock'}" style="color:#fff;font-size:.55rem"></i></div>${c.cours}</div></td>`;
         html+=`<td style="padding:8px 12px;text-align:center"><span style="background:#f0f1ff;color:#4f46e5;padding:2px 8px;border-radius:6px;font-size:.6rem;font-weight:700">${c.code_cours}</span></td>`;
-        html+=`<td style="padding:8px 12px;text-align:center;font-weight:600;color:#475569">${c.ponderation||'—'}</td>`;
+        html+=`<td style="padding:8px 12px;text-align:center;font-weight:600;color:#475569">${c.maxima_exam||'—'}</td>`;
         html+=`<td style="padding:8px 10px"><select id="attrPers_${c.id_cours}" style="width:100%;padding:6px 8px;border:1px solid ${hasTeacher?'#86efac':'#e2e8f0'};border-radius:6px;font-size:.68rem;background:#fff;cursor:pointer;color:#334155"><option value="">— Non attribué —</option>${persOpts}</select></td>`;
         html+=`<td style="padding:8px 6px;text-align:center"><select id="attrType_${c.id_cours}" style="width:100%;padding:6px 6px;border:1px solid #e2e8f0;border-radius:6px;font-size:.62rem;background:#fff;cursor:pointer;color:#475569">${typeOpts}</select></td>`;
         html+=`<td style="padding:8px 8px;text-align:center"><div style="display:flex;gap:4px;justify-content:center">`;

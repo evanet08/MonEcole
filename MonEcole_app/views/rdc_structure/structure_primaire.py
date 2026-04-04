@@ -1010,7 +1010,7 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
 
         for cpc in groupe['cours']:
             nom_cours = cpc.id_cours.cours
-            ponderation = cpc.TPE if cpc.TPE is not None else "-"
+            ponderation = cpc.maxima_periode if cpc.maxima_periode is not None else "-"
             max_exam = float(ponderation) * 2 if isinstance(ponderation, (int, float)) else "-"
             max_trim_val = max_exam * 2 if max_exam != "-" else "-"
             max_annee = max_trim_val * 3 if max_trim_val != "-" else "-"

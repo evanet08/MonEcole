@@ -296,7 +296,7 @@ function renderCoursesDash(courses){
     Object.entries(grouped).forEach(([cn,cls])=>{
         h+=`<div style="margin-bottom:10px"><div style="font-size:.7rem;font-weight:700;color:#475569;margin-bottom:6px;display:flex;align-items:center;gap:6px"><i class="fas fa-chalkboard" style="color:#6366f1;font-size:.6rem"></i>${cn} <span style="font-size:.58rem;color:#94a3b8;font-weight:500">(${cls[0]?.n_eleves||0} élèves)</span></div>`;
         h+='<div style="display:grid;gap:6px">';
-        cls.forEach(x=>{const col=CC[ci++%CC.length];h+=`<div class="course-card"><div class="cc-color" style="background:${col}"></div><div style="padding-left:8px"><div class="cc-title">${x.cours} ${x.code_cours?`<span style="font-size:.58rem;color:#94a3b8">(${x.code_cours})</span>`:''}</div><div class="cc-stats"><span class="cc-stat"><i class="fas fa-users"></i> <strong>${x.n_eleves}</strong> élèves</span><span class="cc-stat"><i class="fas fa-weight-hanging"></i> <strong>${x.ponderation}%</strong></span>${x.heure_semaine?`<span class="cc-stat"><i class="fas fa-clock"></i> <strong>${x.heure_semaine}h</strong>/sem</span>`:''}</div></div></div>`;});
+        cls.forEach(x=>{const col=CC[ci++%CC.length];h+=`<div class="course-card"><div class="cc-color" style="background:${col}"></div><div style="padding-left:8px"><div class="cc-title">${x.cours} ${x.code_cours?`<span style="font-size:.58rem;color:#94a3b8">(${x.code_cours})</span>`:''}</div><div class="cc-stats"><span class="cc-stat"><i class="fas fa-users"></i> <strong>${x.n_eleves}</strong> élèves</span><span class="cc-stat"><i class="fas fa-weight-hanging"></i> <strong>${x.maxima_exam||'—'}</strong></span>${x.heure_semaine?`<span class="cc-stat"><i class="fas fa-clock"></i> <strong>${x.heure_semaine}h</strong>/sem</span>`:''}</div></div></div>`;});
         h+='</div></div>';
     });
     c.innerHTML=h;
@@ -311,7 +311,7 @@ function renderCoursesFullList(courses){
     Object.entries(grouped).forEach(([cn,cls])=>{
         h+=`<div class="dash-section"><div class="dash-section-title"><i class="fas fa-chalkboard"></i> ${cn}</div><div class="dash-section-sub">${cls.length} cours · ${cls[0]?.n_eleves||0} élèves</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">`;
         cls.forEach(x=>{const col=CC[ci++%CC.length];
-        h+=`<div class="course-card"><div class="cc-color" style="background:${col}"></div><div style="padding-left:8px"><div class="cc-title">${x.cours} ${x.code_cours?`<span style="font-size:.58rem;color:#94a3b8">(${x.code_cours})</span>`:''}</div><div class="cc-class">${cn}</div><div class="cc-stats"><span class="cc-stat"><i class="fas fa-users"></i> <strong>${x.n_eleves}</strong></span><span class="cc-stat"><i class="fas fa-weight-hanging"></i> <strong>${x.ponderation}%</strong></span></div></div></div>`;
+        h+=`<div class="course-card"><div class="cc-color" style="background:${col}"></div><div style="padding-left:8px"><div class="cc-title">${x.cours} ${x.code_cours?`<span style="font-size:.58rem;color:#94a3b8">(${x.code_cours})</span>`:''}</div><div class="cc-class">${cn}</div><div class="cc-stats"><span class="cc-stat"><i class="fas fa-users"></i> <strong>${x.n_eleves}</strong></span><span class="cc-stat"><i class="fas fa-weight-hanging"></i> <strong>${x.maxima_exam||'—'}</strong></span></div></div></div>`;
         });h+='</div></div>';
     });
     c.innerHTML=h;

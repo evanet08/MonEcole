@@ -329,8 +329,8 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
             continue
 
        
-        ponderation = groupes[domaine][0].ponderation
-        max_val = str(ponderation) if ponderation is not None else ""
+        maxima_periode = groupes[domaine][0].maxima_periode
+        max_val = str(maxima_periode) if maxima_periode is not None else ""
 
         # Ligne "Groupe X" + Maxima
         table_data.append([

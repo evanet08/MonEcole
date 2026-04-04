@@ -42,7 +42,7 @@ class Cours_par_classe(models.Model):
     (ancienne VIEW db_monecole.cours_par_classe supprimée)
 
     Colonnes Hub : id_cours_annee, cours_id, annee_id, etablissement_id,
-                   domaine_id, ponderation, CM, TD, maxima_tp, maxima_tpe,
+                   domaine_id, maxima_exam, maxima_tj, maxima_periode,
                    credits, heure_semaine, is_obligatory, ordre,
                    compte_au_nombre_echec, total_considerable_trimestre,
                    est_considerer_echec_lorsque_pourcentage_est,
@@ -57,11 +57,9 @@ class Cours_par_classe(models.Model):
                                       db_column='etablissement_id',
                                       null=True, blank=True, related_name='cours_configs')
     domaine_id = models.IntegerField(null=True, blank=True)
-    ponderation = models.IntegerField(null=True, blank=True)
-    CM = models.IntegerField(null=True, blank=True)
-    TD = models.IntegerField(null=True, blank=True)
-    TP = models.IntegerField(null=True, blank=True, db_column='maxima_tp')
-    TPE = models.IntegerField(null=True, blank=True, db_column='maxima_tpe')
+    maxima_exam = models.IntegerField(null=True, blank=True, db_column='maxima_exam')
+    maxima_tj = models.IntegerField(null=True, blank=True, db_column='maxima_tj')
+    maxima_periode = models.IntegerField(null=True, blank=True, db_column='maxima_periode')
     compte_au_nombre_echec = models.BooleanField(default=False)
     total_considerable_trimestre = models.BooleanField(default=False)
     est_considerer_echec_lorsque_pourcentage_est = models.IntegerField(null=True, blank=True)

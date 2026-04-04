@@ -425,8 +425,8 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
 
         for cpc in groupe['cours']:
             nom_cours = cpc.id_cours.cours
-            ponderation = cpc.TP if cpc.TP is not None else "-"
-            exam = cpc.ponderation if cpc.ponderation is not None else "-"
+            ponderation = cpc.maxima_tj if cpc.maxima_tj is not None else "-"
+            exam = cpc.maxima_exam if cpc.maxima_exam is not None else "-"
             row = [Paragraph(nom_cours, style_normal)]
             id_cpc = cpc.id_cours_id
             notes_cours_periodes = notes_periodes.get(id_cpc, {})
