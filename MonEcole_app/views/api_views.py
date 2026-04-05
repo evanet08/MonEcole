@@ -8480,13 +8480,10 @@ def get_notes_grid(request):
                 eleves = cur.fetchall()
 
                 # 3. Get evaluations assigned to this repartition for this classe
+                #    Two sources: (A) explicit evaluation_repartition table,
+                #                 (B) direct id_repartition_instance on evaluation
                 if config:
-                    # Filter by note_type: TJ = types TJ-like, EXAM = types Exam-like
-                    note_type_filter = ""
-                    if note_type == 'TJ':
-                        note_type_filter = "AND (et.sigle IN ('IE','IO','DM','DC','TP','PRT') OR et.sigle IS NULL)"
-                    elif note_type == 'EXAM':
-                        note_type_filter = "AND et.sigle IN ('EB','EXP','PRJ')"
+                    repartition_instance_id = config.repartition_id  # FK to repartition_instances
 
                     cur.execute(f"""
                         SELECT ev.id_evaluation, ev.title, ev.ponderer_eval,
@@ -8494,15 +8491,21 @@ def get_notes_grid(request):
                                et.sigle AS type_sigle,
                                ca.cours AS cours_nom, ca.code_cours AS cours_code
                         FROM evaluation ev
-                        JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
                         LEFT JOIN countryStructure.evaluation_types et ON et.id_type_eval = ev.id_type_eval
                         LEFT JOIN countryStructure.cours_annee cann ON cann.id_cours_annee = ev.id_cours_classe_id
                         LEFT JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
-                        WHERE er.id_repartition_config = %s
-                          AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
+                        WHERE ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
                           AND ev.id_etablissement = %s
+                          AND (
+                              ev.id_evaluation IN (
+                                  SELECT er.id_evaluation FROM evaluation_repartition er
+                                  WHERE er.id_repartition_config = %s
+                              )
+                              OR ev.id_repartition_instance = %s
+                          )
                         ORDER BY ev.id_cours_classe_id, ev.date_eval
-                    """, [config.id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id])
+                    """, [ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'],
+                          etab_id, config.id, repartition_instance_id])
                     evaluations = cur.fetchall()
                 else:
                     evaluations = []
