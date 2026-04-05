@@ -8653,23 +8653,33 @@ def save_notes(request):
                         else:
                             # Get evaluation context for FK fields
                             cur.execute("""
-                                SELECT id_annee_id, idCampus_id, classe_id, groupe, section_id, id_cours_classe_id
+                                SELECT id_annee_id, idCampus_id, classe_id, groupe, section_id,
+                                       id_cours_classe_id, id_classe_id, id_cycle_id,
+                                       id_repartition_instance, id_session_id, id_type_eval
                                 FROM evaluation WHERE id_evaluation = %s
                             """, [eval_id])
                             ev_ctx = cur.fetchone()
                             if not ev_ctx:
                                 continue
 
+                            # Map evaluation type to note type: default TJ=1
+                            id_type_note = 1  # TJ by default
+
                             cur.execute("""
                                 INSERT INTO eleve_note
                                     (id_eleve_id, id_evaluation_id, note, id_annee_id, idCampus_id,
-                                     classe_id, groupe, section_id,
-                                     id_cours_id, id_etablissement, date_saisie)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                                     id_classe_id, classe_id, groupe, section_id,
+                                     id_cycle_id, id_repartition_instance,
+                                     id_cours_id, id_type_note_id, id_session_id,
+                                     id_etablissement, date_saisie)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                             """, [eleve_id, eval_id, note_float,
                                   ev_ctx['id_annee_id'], ev_ctx['idCampus_id'],
-                                  ev_ctx['classe_id'], ev_ctx['groupe'], ev_ctx['section_id'],
-                                  ev_ctx['id_cours_classe_id'], etab_id])
+                                  ev_ctx['id_classe_id'] or 0, ev_ctx['classe_id'], ev_ctx['groupe'], ev_ctx['section_id'],
+                                  ev_ctx['id_cycle_id'] or 0,
+                                  ev_ctx['id_repartition_instance'] or 0,
+                                  ev_ctx['id_cours_classe_id'], id_type_note,
+                                  ev_ctx['id_session_id'] or 0, etab_id])
                             saved += 1
 
             conn.commit()
@@ -8940,23 +8950,33 @@ def import_notes_excel(request):
                                     [nd['note'], existing['id_note']])
                     else:
                         cur.execute("""
-                            SELECT id_annee_id, idCampus_id, classe_id, groupe, section_id, id_cours_classe_id
+                            SELECT id_annee_id, idCampus_id, classe_id, groupe, section_id,
+                                   id_cours_classe_id, id_classe_id, id_cycle_id,
+                                   id_repartition_instance, id_session_id, id_type_eval
                             FROM evaluation WHERE id_evaluation = %s
                         """, [nd['evaluation_id']])
                         ev_ctx = cur.fetchone()
                         if not ev_ctx:
                             continue
 
+                        # Map evaluation type to note type: default TJ=1
+                        id_type_note = 1  # TJ by default
+
                         cur.execute("""
                             INSERT INTO eleve_note
                                 (id_eleve_id, id_evaluation_id, note, id_annee_id, idCampus_id,
-                                 classe_id, groupe, section_id,
-                                 id_cours_id, id_etablissement, date_saisie)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                                 id_classe_id, classe_id, groupe, section_id,
+                                 id_cycle_id, id_repartition_instance,
+                                 id_cours_id, id_type_note_id, id_session_id,
+                                 id_etablissement, date_saisie)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                         """, [nd['eleve_id'], nd['evaluation_id'], nd['note'],
                               ev_ctx['id_annee_id'], ev_ctx['idCampus_id'],
-                              ev_ctx['classe_id'], ev_ctx['groupe'], ev_ctx['section_id'],
-                              ev_ctx['id_cours_classe_id'], etab_id])
+                              ev_ctx['id_classe_id'] or 0, ev_ctx['classe_id'], ev_ctx['groupe'], ev_ctx['section_id'],
+                              ev_ctx['id_cycle_id'] or 0,
+                              ev_ctx['id_repartition_instance'] or 0,
+                              ev_ctx['id_cours_classe_id'], id_type_note,
+                              ev_ctx['id_session_id'] or 0, etab_id])
                     saved += 1
 
             conn.commit()
