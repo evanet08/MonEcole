@@ -8138,6 +8138,16 @@ def save_evaluation(request):
                     params.append(int(eval_id))
                     cur.execute(f"UPDATE evaluation SET {', '.join(update_parts)} WHERE id_evaluation=%s", params)
                     new_id = int(eval_id)
+
+                    # Sync evaluation_repartition when repartition changes
+                    if repartition_id:
+                        config = _get_or_create_repartition_config(int(repartition_id), etab_id)
+                        if config:
+                            cur.execute("DELETE FROM evaluation_repartition WHERE id_evaluation = %s", [new_id])
+                            cur.execute("""
+                                INSERT INTO evaluation_repartition (id_evaluation, id_repartition_config)
+                                VALUES (%s, %s)
+                            """, [new_id, config.id])
                 else:
                     # INSERT
                     cur.execute("""
@@ -8151,6 +8161,15 @@ def save_evaluation(request):
                           bk['groupe'] if bk else None, bk['section_id'] if bk else None,
                           int(cours_id), repartition_id, etab_id])
                     new_id = cur.lastrowid
+
+                    # Auto-create evaluation_repartition entry
+                    if repartition_id:
+                        config = _get_or_create_repartition_config(int(repartition_id), etab_id)
+                        if config:
+                            cur.execute("""
+                                INSERT INTO evaluation_repartition (id_evaluation, id_repartition_config)
+                                VALUES (%s, %s)
+                            """, [new_id, config.id])
 
                     # Rename the uploaded file with actual ID
                     if document_url and 'new' in document_url:
@@ -8479,33 +8498,23 @@ def get_notes_grid(request):
                 """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
                 eleves = cur.fetchall()
 
-                # 3. Get evaluations assigned to this repartition for this classe
-                #    Two sources: (A) explicit evaluation_repartition table,
-                #                 (B) direct id_repartition_instance on evaluation
+                # 3. Get evaluations assigned to this repartition via evaluation_repartition
                 if config:
-                    repartition_instance_id = config.repartition_id  # FK to repartition_instances
-
                     cur.execute(f"""
                         SELECT ev.id_evaluation, ev.title, ev.ponderer_eval,
                                ev.id_cours_classe_id, ev.date_eval,
                                et.sigle AS type_sigle,
                                ca.cours AS cours_nom, ca.code_cours AS cours_code
                         FROM evaluation ev
+                        JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
                         LEFT JOIN countryStructure.evaluation_types et ON et.id_type_eval = ev.id_type_eval
                         LEFT JOIN countryStructure.cours_annee cann ON cann.id_cours_annee = ev.id_cours_classe_id
                         LEFT JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
-                        WHERE ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
+                        WHERE er.id_repartition_config = %s
+                          AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
                           AND ev.id_etablissement = %s
-                          AND (
-                              ev.id_evaluation IN (
-                                  SELECT er.id_evaluation FROM evaluation_repartition er
-                                  WHERE er.id_repartition_config = %s
-                              )
-                              OR ev.id_repartition_instance = %s
-                          )
                         ORDER BY ev.id_cours_classe_id, ev.date_eval
-                    """, [ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'],
-                          etab_id, config.id, repartition_instance_id])
+                    """, [config.id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id])
                     evaluations = cur.fetchall()
                 else:
                     evaluations = []
