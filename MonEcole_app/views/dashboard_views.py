@@ -980,7 +980,7 @@ def api_enseignant_dashboard(request):
                         SELECT ea.id FROM etablissements_annees ea
                         JOIN annees a ON a.id_annee = ea.annee_id
                         WHERE ea.etablissement_id = %s
-                          AND a.etat_annee IN ('En Cours', 'actif', 'ouverte')
+                          AND a.etat IN ('En Cours', 'actif', 'ouverte')
                         ORDER BY a.annee DESC LIMIT 1
                     """, [etab_id])
                     ea_row = hub_cur.fetchone()
