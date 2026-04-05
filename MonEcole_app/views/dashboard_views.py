@@ -939,28 +939,8 @@ def api_enseignant_dashboard(request):
             # 1. Mes cours attribués
             courses = []
 
-            # Resolve the EtablissementAnnee.id for EAC lookups
+            # etab_annee_id will be resolved after hub connection is established
             etab_annee_id = None
-            try:
-                from MonEcole_app.models.etablissement import EtablissementAnnee, Etablissement
-                from MonEcole_app.models.annee import Annee
-                etab_obj = Etablissement.objects.get(id_etablissement=etab_id)
-                pays = etab_obj.pays
-                annee_active = Annee.objects.filter(
-                    pays_id=pays.id_pays, etat_annee__in=['En Cours', 'actif']
-                ).order_by('-annee').first()
-                if not annee_active:
-                    annee_active = Annee.objects.filter(
-                        pays_id=pays.id_pays, etat_annee='ouverte'
-                    ).order_by('-annee').first()
-                if annee_active:
-                    ea = EtablissementAnnee.objects.filter(
-                        etablissement=etab_obj, annee=annee_active
-                    ).first()
-                    if ea:
-                        etab_annee_id = ea.id
-            except Exception:
-                pass
 
             cur.execute("""
                 SELECT ac.id_attribution, ac.id_cours_id, ac.classe_id,
@@ -992,6 +972,23 @@ def api_enseignant_dashboard(request):
                 traceback.print_exc()
                 hub_cur = None
                 hub_conn = None
+
+            # Resolve etab_annee_id via direct SQL on Hub
+            if hub_cur:
+                try:
+                    hub_cur.execute("""
+                        SELECT ea.id FROM etablissements_annees ea
+                        JOIN annees a ON a.id_annee = ea.annee_id
+                        WHERE ea.etablissement_id = %s
+                          AND a.etat_annee IN ('En Cours', 'actif', 'ouverte')
+                        ORDER BY a.annee DESC LIMIT 1
+                    """, [etab_id])
+                    ea_row = hub_cur.fetchone()
+                    if ea_row:
+                        etab_annee_id = ea_row['id']
+                    print(f"[api_enseignant_dashboard] etab_annee_id resolved via SQL: {etab_annee_id}", file=sys.stderr, flush=True)
+                except Exception as e:
+                    print(f"[api_enseignant_dashboard] etab_annee_id resolution error: {e}", file=sys.stderr, flush=True)
 
             for att in attributions:
                 cours_annee_id = att['id_cours_id']
