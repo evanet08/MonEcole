@@ -80,15 +80,10 @@ def _get_dashboard_context(request):
     active_section = request.GET.get('section', 'dashboard')
 
     # --- Année scolaire active ---
-    # Annee.pays_id is an IntegerField, not a FK
-    # etat_annee can be 'En Cours', 'ouverte', or 'actif' depending on config
+    # isOpen = True (1) si l'année est en cours, False (0) sinon
     annee_active = Annee.objects.filter(
-        pays_id=pays.id_pays, etat_annee__in=['En Cours', 'actif']
+        pays_id=pays.id_pays, isOpen=True
     ).order_by('-annee').first()
-    if not annee_active:
-        annee_active = Annee.objects.filter(
-            pays_id=pays.id_pays, etat_annee='ouverte'
-        ).order_by('-annee').first()
     if not annee_active:
         annee_active = Annee.objects.filter(
             pays_id=pays.id_pays
@@ -96,9 +91,8 @@ def _get_dashboard_context(request):
 
     annees_raw = Annee.objects.filter(
         pays_id=pays.id_pays
-    ).order_by('-annee').values('id_annee', 'annee', 'etat_annee')
-    # Template uses {{ a.etat }}, so alias etat_annee → etat
-    annees_list = [{'id_annee': a['id_annee'], 'annee': a['annee'], 'etat': a['etat_annee'] or ''} for a in annees_raw]
+    ).order_by('-annee').values('id_annee', 'annee', 'isOpen')
+    annees_list = [{'id_annee': a['id_annee'], 'annee': a['annee'], 'isOpen': a['isOpen']} for a in annees_raw]
 
     # --- Stats ---
     stats = {
@@ -525,7 +519,7 @@ def _get_dashboard_context(request):
         'annee_active': {
             'id': annee_active.id_annee,
             'annee': annee_active.annee,
-            'etat': getattr(annee_active, 'etat_annee', ''),
+            'isOpen': annee_active.isOpen,
         } if annee_active else None,
         'annees_list': annees_list,
         'annees_json': json.dumps(annees_list, ensure_ascii=False, default=str),
@@ -980,7 +974,7 @@ def api_enseignant_dashboard(request):
                         SELECT ea.id FROM etablissements_annees ea
                         JOIN annees a ON a.id_annee = ea.annee_id
                         WHERE ea.etablissement_id = %s
-                          AND a.etat IN ('En Cours', 'actif', 'ouverte')
+                          AND a.isOpen = 1
                         ORDER BY a.annee DESC LIMIT 1
                     """, [etab_id])
                     ea_row = hub_cur.fetchone()
@@ -1481,7 +1475,7 @@ def api_communication_send(request):
         etab_obj = Etab.objects.select_related('pays').filter(id_etablissement=etab_id).first()
         if etab_obj:
             annee_active = AnneeModel.objects.filter(
-                pays_id=etab_obj.pays_id, etat_annee__in=['En Cours', 'actif']
+                pays_id=etab_obj.pays_id, isOpen=True
             ).order_by('-annee').first()
             annee_id = annee_active.id_annee if annee_active else None
     except Exception:

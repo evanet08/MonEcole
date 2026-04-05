@@ -1,9 +1,8 @@
 
 
-etat_annee=[('En attente','En attente'),
-             ('En Cours','En Cours'),
-             ('Cloturée','Cloturée'),
-]
+
+# isOpen: True (1) = En Cours, False (0) = Clôturée (remplace l'ancien etat_annee)
+
 
 sexe_choices=[('M','M'),
              ('F','F'),

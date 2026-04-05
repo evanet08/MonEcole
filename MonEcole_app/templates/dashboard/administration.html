@@ -477,7 +477,7 @@
     <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:10px">
         <label style="font-size:.72rem;color:#64748b;margin:0;font-weight:600"><i class="fas fa-calendar" style="margin-right:4px;color:#6366f1"></i>Année:</label>
         <select id="selectAnneeConfig" onchange="onAnneeChange()" style="padding:4px 10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#1e293b;font-size:.72rem;font-weight:600;cursor:pointer;min-width:120px">
-            {% for a in annees_list %}<option value="{{ a.id_annee }}" {% if annee_active and a.id_annee == annee_active.id %}selected{% endif %}">{{ a.annee }} ({{ a.etat }})</option>{% endfor %}
+            {% for a in annees_list %}<option value="{{ a.id_annee }}" {% if annee_active and a.id_annee == annee_active.id %}selected{% endif %}">{{ a.annee }} {% if a.isOpen %}✓{% endif %}</option>{% endfor %}
         </select>
     </div>
     <div class="config-tabs" id="configTabs">

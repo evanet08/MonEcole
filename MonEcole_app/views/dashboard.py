@@ -59,7 +59,7 @@ def _get_dashboard_stats(etab_id):
                 FROM etablissements_annees_classes eac
                 JOIN etablissements_annees ea ON ea.id = eac.etablissement_annee_id
                 JOIN annees a ON a.id_annee = ea.annee_id
-                WHERE ea.etablissement_id = %s AND a.etat_annee = 'En Cours'
+                WHERE ea.etablissement_id = %s AND a.isOpen = 1
             """, [etab_id])
             row = cur.fetchone()
             if row:
@@ -73,7 +73,7 @@ def _get_dashboard_stats(etab_id):
                 JOIN annees a ON a.id_annee = ea.annee_id
                 JOIN classes cl ON cl.id_classe = eac.classe_id
                 JOIN cycles c ON c.id_cycle = cl.cycle_id
-                WHERE ea.etablissement_id = %s AND a.etat_annee = 'En Cours'
+                WHERE ea.etablissement_id = %s AND a.isOpen = 1
             """, [etab_id])
             row = cur.fetchone()
             if row:

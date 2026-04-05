@@ -2663,7 +2663,7 @@ def get_cours_annee_data(request):
         if not pays:
             return JsonResponse({'success': True, 'cours_annee': [], 'annees': []})
 
-        annees = list(Annee.objects.filter(pays=pays).order_by('-annee').values('id_annee', 'annee', 'etat'))
+        annees = list(Annee.objects.filter(pays=pays).order_by('-annee').values('id_annee', 'annee', 'isOpen'))
 
         # Récupérer les domaines du pays
         domaines = list(Domaine.objects.filter(pays=pays).values('id_domaine', 'nom', 'code'))
@@ -3422,7 +3422,7 @@ def resultats_scolaires_view(request):
     pays = context.get('pays_from_domain')
     if pays:
         context['current_pays'] = pays
-        context['annees'] = list(Annee.objects.filter(pays=pays).order_by('-annee').values('id_annee', 'annee', 'etat'))
+        context['annees'] = list(Annee.objects.filter(pays=pays).order_by('-annee').values('id_annee', 'annee', 'isOpen'))
     else:
         context['annees'] = []
     return render(request, 'structure_app/resultats_scolaires.html', context)
@@ -3559,7 +3559,7 @@ def get_annees_data(request):
                 'annee': annee_label or "Année Sans Nom",
                 'dateOuverture': a.dateOuverture.isoformat() if a.dateOuverture else None,
                 'dateCloture': a.dateCloture.isoformat() if a.dateCloture else None,
-                'etat': a.etat,
+                'isOpen': a.isOpen,
                 'nb_etablissements': nb_etabs
             })
         return JsonResponse({'success': True, 'annees': results})
@@ -3577,7 +3577,7 @@ def save_annee(request):
         annee_str = data.get('annee')
         dateOuverture = data.get('dateOuverture')
         dateCloture = data.get('dateCloture')
-        etat = data.get('etat', 'ouverte')
+        isOpen = data.get('isOpen', True)
         
         pays = get_object_or_404(Pays, sigle__iexact=sigle)
         
@@ -3589,19 +3589,19 @@ def save_annee(request):
             annee_obj.annee = annee_str
             annee_obj.dateOuverture = dateOuverture
             annee_obj.dateCloture = dateCloture
-            annee_obj.etat = etat
+            annee_obj.isOpen = isOpen
             annee_obj.save()
         else:
             # Check if year already exists for this country
-            if Annee.objects.filter(pays=pays, annee=annee_str).exists():
+            if Annee.objects.filter(pays_id=pays.id_pays, annee=annee_str).exists():
                 return JsonResponse({'success': False, 'error': f'L\'année {annee_str} existe déjà pour ce pays.'})
             
             Annee.objects.create(
-                pays=pays,
+                pays_id=pays.id_pays,
                 annee=annee_str,
                 dateOuverture=dateOuverture,
                 dateCloture=dateCloture,
-                etat=etat
+                isOpen=isOpen
             )
         return JsonResponse({'success': True})
     except Exception as e:
@@ -6194,11 +6194,11 @@ def dashboard_etablissement_view(request):
     }]
 
     # --- Année scolaire active (fallback to most recent if none open) ---
-    annee_active = Annee.objects.filter(pays_id=pays.id_pays, etat_annee__in=['ouverte', 'actif']).order_by('-annee').first()
+    annee_active = Annee.objects.filter(pays_id=pays.id_pays, isOpen=True).order_by('-annee').first()
     if not annee_active:
         annee_active = Annee.objects.filter(pays_id=pays.id_pays).order_by('-annee').first()
     annees_list = list(Annee.objects.filter(pays_id=pays.id_pays).order_by('-annee').values(
-        'id_annee', 'annee', 'etat_annee'
+        'id_annee', 'annee', 'isOpen'
     ))
 
     # --- Stats pour l'année active ---
@@ -6669,7 +6669,7 @@ def dashboard_etablissement_view(request):
         'annee_active': {
             'id': annee_active.id_annee,
             'annee': annee_active.annee,
-            'etat': annee_active.etat,
+            'isOpen': annee_active.isOpen,
         } if annee_active else None,
         'annees_list': annees_list,
         'annees_json': json.dumps(annees_list, ensure_ascii=False, default=str),
@@ -6854,7 +6854,7 @@ def toggle_calendar_synch(request):
         repartitions = []
 
         # Get allowed repartition types from active cycles
-        annee_active = Annee.objects.filter(etat_annee='actif').first()
+        annee_active = Annee.objects.filter(isOpen=True).first()
         allowed_type_ids = set()
         if annee_active:
             etab_annee, _ = EtablissementAnnee.objects.get_or_create(
@@ -9838,7 +9838,7 @@ def get_cours_annee_data(request):
         if not pays:
             return JsonResponse({'success': True, 'cours_annee': [], 'annees': []})
 
-        annees = list(Annee.objects.filter(pays_id=pays.id_pays).order_by('-annee').values('id_annee', 'annee', 'etat_annee'))
+        annees = list(Annee.objects.filter(pays_id=pays.id_pays).order_by('-annee').values('id_annee', 'annee', 'isOpen'))
         domaines = list(Domaine.objects.filter(pays=pays).values('id_domaine', 'nom', 'code')) if Domaine else []
 
         if not id_classe or not id_annee:
@@ -10868,7 +10868,7 @@ def dashboard_users_modules(request):
                 with db_connections['countryStructure'].cursor() as hub_cur:
                     hub_cur.execute("""
                         SELECT id_annee FROM annees
-                        WHERE etat IN ('En Cours', 'actif', 'ouverte')
+                        WHERE isOpen = 1
                         ORDER BY annee DESC LIMIT 1
                     """)
                     hub_row = hub_cur.fetchone()
@@ -10953,7 +10953,7 @@ def get_evaluations_repartitions(request):
         if err:
             return err
 
-        annee = Annee.objects.filter(etat_annee__in=['En Cours', 'actif', 'ouverte']).first()
+        annee = Annee.objects.filter(isOpen=True).first()
         if not annee:
             return JsonResponse({'success': True, 'repartitions': []})
 
@@ -11065,7 +11065,7 @@ def get_deliberation_conditions(request):
         if err:
             return err
 
-        annee = Annee.objects.filter(etat_annee__in=['En Cours', 'actif', 'ouverte']).first()
+        annee = Annee.objects.filter(isOpen=True).first()
         if not annee:
             return JsonResponse({'success': True, 'conditions': []})
 
@@ -11146,7 +11146,7 @@ def execute_deliberation(request):
         if err:
             return err
 
-        annee = Annee.objects.filter(etat_annee__in=['En Cours', 'actif', 'ouverte']).first()
+        annee = Annee.objects.filter(isOpen=True).first()
         if not annee:
             return JsonResponse({'success': False, 'error': 'Aucune année en cours.'}, status=400)
 
@@ -11380,7 +11380,7 @@ def cancel_deliberation(request):
         if err:
             return err
 
-        annee = Annee.objects.filter(etat_annee__in=['En Cours', 'actif', 'ouverte']).first()
+        annee = Annee.objects.filter(isOpen=True).first()
         if not annee:
             return JsonResponse({'success': False, 'error': 'Aucune année en cours.'}, status=400)
 
@@ -11428,7 +11428,7 @@ def get_deliberated_classes(request):
         if err:
             return err
 
-        annee = Annee.objects.filter(etat_annee__in=['En Cours', 'actif', 'ouverte']).first()
+        annee = Annee.objects.filter(isOpen=True).first()
         if not annee:
             return JsonResponse({'success': True, 'classes': []})
 
@@ -11537,7 +11537,7 @@ def get_bulletin_eleves(request):
         if err:
             return err
 
-        annee = Annee.objects.filter(etat_annee__in=['En Cours', 'actif', 'ouverte']).first()
+        annee = Annee.objects.filter(isOpen=True).first()
         if not annee:
             return JsonResponse({'success': True, 'eleves': []})
 

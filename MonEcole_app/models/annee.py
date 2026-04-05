@@ -8,17 +8,16 @@ from django.db import models
 class Annee(models.Model):
     """
     Année scolaire — lecture directe depuis countryStructure.annees
-    Plus de table locale spoke.
-    
-    Hub colonnes : id_annee, pays_id, annee, dateOuverture, dateCloture, etat
-    Compat arrière : date_ouverture → dateOuverture, etat_annee → etat
+
+    Hub colonnes : id_annee, pays_id, annee, dateOuverture, dateCloture, isOpen
+    isOpen = 1 si l'année est en cours, 0 sinon
     """
     id_annee = models.AutoField(primary_key=True)
     pays_id = models.IntegerField(null=True, blank=True)
     annee = models.CharField(max_length=20, null=False)
     date_ouverture = models.DateField(db_column='dateOuverture')
     date_cloture = models.DateField(db_column='dateCloture')
-    etat_annee = models.CharField(max_length=10, db_column='etat', default='ouverte')
+    isOpen = models.BooleanField(default=True, db_column='isOpen')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
