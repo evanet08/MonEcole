@@ -8266,7 +8266,7 @@ def get_evaluation_candidates(request):
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
-                # Candidates: evaluations within date range
+                # Candidates: evaluations matching by date range OR by repartition_instance
                 if config and config.debut and config.fin:
                     cur.execute("""
                         SELECT e.id_evaluation, e.title, e.id_type_eval,
@@ -8277,9 +8277,10 @@ def get_evaluation_candidates(request):
                         WHERE e.classe_id = %s AND e.groupe <=> %s AND e.section_id <=> %s
                               AND e.id_cours_classe_id = %s
                               AND e.id_etablissement = %s
-                              AND e.date_eval BETWEEN %s AND %s
+                              AND (e.date_eval BETWEEN %s AND %s OR e.id_repartition_instance = %s)
                         ORDER BY e.date_eval ASC
-                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], cours_id, etab_id, config.debut, config.fin])
+                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], cours_id, etab_id,
+                          config.debut, config.fin, int(repartition_id)])
                 else:
                     cur.execute("""
                         SELECT e.id_evaluation, e.title, e.id_type_eval,
@@ -8290,8 +8291,10 @@ def get_evaluation_candidates(request):
                         WHERE e.classe_id = %s AND e.groupe <=> %s AND e.section_id <=> %s
                               AND e.id_cours_classe_id = %s
                               AND e.id_etablissement = %s
+                              AND (e.id_repartition_instance = %s OR 1=1)
                         ORDER BY e.date_eval ASC
-                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], cours_id, etab_id])
+                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], cours_id, etab_id,
+                          int(repartition_id)])
 
                 candidates = [{
                     'id_evaluation': r['id_evaluation'],

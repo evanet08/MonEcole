@@ -1442,17 +1442,14 @@ function onNotesClasseChange() {
     if (btnSave) btnSave.disabled = true;
 }
 function onNotesPeriodeChange() {
-    // When period changes, load the cours list for this classe+period
+    // When period changes, load the cours list AND the notes grid
     var classeId = document.getElementById('notes-classe-select').value;
     var periodeId = document.getElementById('notes-periode-select').value;
     var coursSelect = document.getElementById('notes-cours-select');
     coursSelect.innerHTML = '<option value="">— Tous les cours —</option>';
     coursSelect.disabled = true;
-    // Clear grid
-    var container = document.getElementById('notesGridContainer');
-    if (container) container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#94a3b8"><i class="fas fa-clipboard-list" style="font-size:2rem;color:#6366f1;opacity:.5;display:block;margin-bottom:12px"></i><div style="font-weight:700;font-size:.85rem;color:#1e293b;margin-bottom:4px">S\u00e9lectionnez un cours</div></div>';
     if (!classeId || !periodeId) return;
-    // Fetch cours for this classe
+    // Fetch cours for dropdown (filter only), then load grid
     fetch('/api/evaluations/cours/?classe_id=' + classeId)
         .then(function(r){ return r.json(); })
         .then(function(data){
@@ -1464,11 +1461,11 @@ function onNotesPeriodeChange() {
                     coursSelect.appendChild(opt);
                 });
                 coursSelect.disabled = false;
-            } else {
-                coursSelect.innerHTML = '<option value="">Aucun cours configur\u00e9</option>';
             }
         })
         .catch(function(e){ console.error('loadCours', e); });
+    // Load grid immediately with all courses
+    loadNotesGrid();
 }
 
 let _notesGridData = null;
@@ -1489,8 +1486,8 @@ async function loadNotesGrid() {
     _notesDirty = {};
 
     var coursFilterId = document.getElementById('notes-cours-select').value;
-    if (!classeId || !periodeId || !coursFilterId) {
-        container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#94a3b8"><i class="fas fa-clipboard-list" style="font-size:2rem;color:#6366f1;opacity:.5;display:block;margin-bottom:12px"></i><div style="font-weight:700;font-size:.85rem;color:#1e293b;margin-bottom:4px">S\u00e9lectionnez une classe, une p\u00e9riode et un cours</div></div>';
+    if (!classeId || !periodeId) {
+        container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#94a3b8"><i class="fas fa-clipboard-list" style="font-size:2rem;color:#6366f1;opacity:.5;display:block;margin-bottom:12px"></i><div style="font-weight:700;font-size:.85rem;color:#1e293b;margin-bottom:4px">S\u00e9lectionnez une classe et une p\u00e9riode</div></div>';
         return;
     }
 
