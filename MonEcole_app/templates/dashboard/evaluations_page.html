@@ -353,29 +353,7 @@
 {% block content %}
 <div class="etab-section {% if active_section == 'evaluations' or active_section == 'notes' %}active-section{% endif %}" id="sec-evaluations">
 
-    <!-- ✦ PREMIUM STAT CARDS ✦ -->
-    <div class="eval-stats-row">
-        <div class="eval-kpi" style="--accent:#7c3aed;--accent-light:#ede9fe;--accent-glow:rgba(124,58,237,.18)">
-            <div class="eval-kpi-icon"><i class="fas fa-book"></i></div>
-            <div class="eval-kpi-body"><span class="eval-kpi-num">{{ stats.n_cours }}</span><span class="eval-kpi-label">Cours</span></div>
-            <div class="eval-kpi-ring"></div>
-        </div>
-        <div class="eval-kpi" style="--accent:#0d9488;--accent-light:#ccfbf1;--accent-glow:rgba(13,148,136,.18)">
-            <div class="eval-kpi-icon"><i class="fas fa-chalkboard"></i></div>
-            <div class="eval-kpi-body"><span class="eval-kpi-num">{{ stats.n_classes }}</span><span class="eval-kpi-label">Classes</span></div>
-            <div class="eval-kpi-ring"></div>
-        </div>
-        <div class="eval-kpi" style="--accent:#2563eb;--accent-light:#dbeafe;--accent-glow:rgba(37,99,235,.18)">
-            <div class="eval-kpi-icon"><i class="fas fa-calendar-check"></i></div>
-            <div class="eval-kpi-body"><span class="eval-kpi-num">{{ stats.n_trimestres_ouverts|default:"0" }}</span><span class="eval-kpi-label">Périodes</span></div>
-            <div class="eval-kpi-ring"></div>
-        </div>
-        <div class="eval-kpi" style="--accent:#e11d48;--accent-light:#ffe4e6;--accent-glow:rgba(225,29,72,.18)">
-            <div class="eval-kpi-icon"><i class="fas fa-users"></i></div>
-            <div class="eval-kpi-body"><span class="eval-kpi-num">{{ stats.n_eleves }}</span><span class="eval-kpi-label">Élèves inscrits</span></div>
-            <div class="eval-kpi-ring"></div>
-        </div>
-    </div>
+
 
     <!-- ✦ PILL NAVIGATION ✦ -->
     <div class="eval-nav-pills">
@@ -443,23 +421,7 @@
             </button>
         </div>
 
-        <!-- ✦ MINI STATS (hidden until data) ✦ -->
-        <div id="evalStats" style="display:none;margin-bottom:12px">
-            <div class="eval-mini-stats">
-                <div class="eval-mini-stat" style="--ms-color:#ea580c;--ms-bg:linear-gradient(135deg,#fff7ed,#ffedd5);--ms-border:#fed7aa">
-                    <span class="eval-mini-num" id="evalCountTotal">0</span>
-                    <span class="eval-mini-label">Total</span>
-                </div>
-                <div class="eval-mini-stat" style="--ms-color:#059669;--ms-bg:linear-gradient(135deg,#f0fdf4,#ecfdf5);--ms-border:#bbf7d0">
-                    <span class="eval-mini-num" id="evalCountWithDoc">0</span>
-                    <span class="eval-mini-label">Avec Document</span>
-                </div>
-                <div class="eval-mini-stat" style="--ms-color:#2563eb;--ms-bg:linear-gradient(135deg,#eff6ff,#dbeafe);--ms-border:#93c5fd">
-                    <span class="eval-mini-num" id="evalCountAssigned">0</span>
-                    <span class="eval-mini-label">Assignées</span>
-                </div>
-            </div>
-        </div>
+        <!-- stats removed for cleaner layout -->
 
         <!-- ✦ EVAL GRID ✦ -->
         <div class="eval-content-card">
@@ -949,7 +911,7 @@ async function onEvalClasseChange() {
     coursSelect.innerHTML = '<option value="">— Tous les cours —</option>';
     coursSelect.disabled = true;
     document.getElementById('btnAddEval').disabled = true;
-    document.getElementById('evalStats').style.display = 'none';
+
 
     if (!classeId) return;
     try {
@@ -977,7 +939,7 @@ async function loadEvaluations() {
 
     if (!classeId) {
         container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-info-circle me-1"></i>Sélectionnez une classe.</div>';
-        document.getElementById('evalStats').style.display = 'none';
+
         return;
     }
     container.innerHTML = '<div style="text-align:center;padding:30px"><i class="fas fa-spinner fa-spin" style="color:#f59e0b;font-size:1.5rem"></i></div>';
@@ -995,18 +957,10 @@ async function loadEvaluations() {
 
 function renderEvalGrid() {
     const container = document.getElementById('evalGridContainer');
-    const stats = document.getElementById('evalStats');
-
     if (!_currentEvals.length) {
         container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-file-alt me-1"></i>Aucune \u00e9valuation trouv\u00e9e.</div>';
-        stats.style.display = 'none';
         return;
     }
-
-    stats.style.display = '';
-    document.getElementById('evalCountTotal').textContent = _currentEvals.length;
-    document.getElementById('evalCountWithDoc').textContent = _currentEvals.filter(e => e.document_url).length;
-    document.getElementById('evalCountAssigned').textContent = _currentEvals.filter(e => e.is_assigned).length;
 
     // Group by cours
     const grouped = {};
