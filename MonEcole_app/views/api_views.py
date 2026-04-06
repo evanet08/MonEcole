@@ -8514,26 +8514,24 @@ def get_notes_grid(request):
                 """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
                 eleves = cur.fetchall()
 
-                # 3. Get evaluations assigned to this repartition via evaluation_repartition
-                if config:
-                    cur.execute(f"""
-                        SELECT ev.id_evaluation, ev.title, ev.ponderer_eval,
-                               ev.id_cours_classe_id, ev.date_eval,
-                               et.sigle AS type_sigle,
-                               ca.cours AS cours_nom, ca.code_cours AS cours_code
-                        FROM evaluation ev
-                        JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
-                        LEFT JOIN countryStructure.evaluation_types et ON et.id_type_eval = ev.id_type_eval
-                        LEFT JOIN countryStructure.cours_annee cann ON cann.id_cours_annee = ev.id_cours_classe_id
-                        LEFT JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
-                        WHERE er.id_repartition_config = %s
-                          AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
-                          AND ev.id_etablissement = %s
-                        ORDER BY ev.id_cours_classe_id, ev.date_eval
-                    """, [config.id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id])
-                    evaluations = cur.fetchall()
-                else:
-                    evaluations = []
+                # 3. Get evaluations for this repartition (period)
+                #    Loads ALL evaluations whose id_repartition_instance matches,
+                #    no need to be formally assigned via evaluation_repartition.
+                cur.execute("""
+                    SELECT ev.id_evaluation, ev.title, ev.ponderer_eval,
+                           ev.id_cours_classe_id, ev.date_eval,
+                           et.sigle AS type_sigle,
+                           ca.cours AS cours_nom, ca.code_cours AS cours_code
+                    FROM evaluation ev
+                    LEFT JOIN countryStructure.evaluation_types et ON et.id_type_eval = ev.id_type_eval
+                    LEFT JOIN countryStructure.cours_annee cann ON cann.id_cours_annee = ev.id_cours_classe_id
+                    LEFT JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
+                    WHERE ev.id_repartition_instance = %s
+                      AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
+                      AND ev.id_etablissement = %s
+                    ORDER BY ev.id_cours_classe_id, ev.date_eval
+                """, [repartition_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id])
+                evaluations = cur.fetchall()
 
                 # 4. Get existing notes for these evaluations + students
                 eval_ids = [e['id_evaluation'] for e in evaluations]
@@ -8764,22 +8762,19 @@ def download_notes_template(request):
                 """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
                 eleves = cur.fetchall()
 
-                # Get assigned evaluations
-                evals = []
-                if config:
-                    cur.execute("""
-                        SELECT ev.id_evaluation, ev.title, ev.ponderer_eval,
-                               ca.cours AS cours_nom
-                        FROM evaluation ev
-                        JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
-                        LEFT JOIN countryStructure.cours_annee cann ON cann.id_cours_annee = ev.id_cours_classe_id
-                        LEFT JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
-                        WHERE er.id_repartition_config = %s
-                          AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
-                          AND ev.id_etablissement = %s
-                        ORDER BY ev.id_cours_classe_id, ev.date_eval
-                    """, [config.id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id])
-                    evals = cur.fetchall()
+                # Get evaluations for this period
+                cur.execute("""
+                    SELECT ev.id_evaluation, ev.title, ev.ponderer_eval,
+                           ca.cours AS cours_nom
+                    FROM evaluation ev
+                    LEFT JOIN countryStructure.cours_annee cann ON cann.id_cours_annee = ev.id_cours_classe_id
+                    LEFT JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
+                    WHERE ev.id_repartition_instance = %s
+                      AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
+                      AND ev.id_etablissement = %s
+                    ORDER BY ev.id_cours_classe_id, ev.date_eval
+                """, [repartition_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id])
+                evals = cur.fetchall()
         finally:
             conn.close()
 

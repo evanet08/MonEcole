@@ -549,8 +549,16 @@
                     <button class="eval-add-btn" onclick="saveAllNotes()" id="btnSaveNotes" disabled style="--btn-gradient:linear-gradient(135deg,#059669,#10b981)">
                         <i class="fas fa-save"></i><span>Enregistrer</span>
                     </button>
+                    <button class="eval-add-btn" onclick="downloadNotesTemplate()" id="btnDownloadNotesTemplate" disabled style="--btn-gradient:linear-gradient(135deg,#7c3aed,#a78bfa)">
+                        <i class="fas fa-file-excel"></i><span>Modèle Excel</span>
+                    </button>
+                    <label class="eval-add-btn" style="--btn-gradient:linear-gradient(135deg,#2563eb,#60a5fa);cursor:pointer;margin:0">
+                        <i class="fas fa-file-upload"></i><span>Importer</span>
+                        <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importNotesExcel(this)" id="notesImportInput">
+                    </label>
+                    <span style="font-size:.62rem;color:#64748b;margin-left:auto" id="notesSaisieInfo"></span>
                 </div>
-                <div id="notesGridContainer" style="overflow:auto;max-height:calc(100vh - 380px)">
+                <div id="notesGridContainer" style="overflow:auto;max-height:calc(100vh - 280px)">
                     <div class="eval-empty-state">
                         <div class="eval-empty-anim"><div class="eval-empty-circle" style="background:linear-gradient(135deg,#e0e7ff,#f0f1ff)"></div><i class="fas fa-clipboard-list" style="color:#6366f1"></i></div>
                         <h3>Sélectionnez une classe et une période</h3>
@@ -1595,7 +1603,7 @@ function renderNotesGrid(data) {
         return;
     }
     if (!coursList.length) {
-        container.innerHTML = '<div style="text-align:center;padding:40px;color:#f59e0b;font-size:.78rem"><i class="fas fa-exclamation-circle me-1"></i>Aucune évaluation assignée pour cette période. Assignez d\'abord des évaluations dans la section <strong>Évaluations → Notes Pondérées</strong>.</div>';
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#f59e0b;font-size:.78rem"><i class="fas fa-exclamation-circle me-1"></i>Aucune évaluation pour cette période. Créez d\'abord des évaluations depuis l\'onglet <strong>Planifier les Évaluations</strong> en leur assignant cette période.</div>';
         return;
     }
 
