@@ -9411,8 +9411,41 @@ def calculate_period_notes(request):
                 if not tj_row:
                     return JsonResponse({'success': False, 'error': "Pas de note TJ configurée pour cette période."}, status=404)
 
-                tj_max = tj_row[0] or 20
+                tj_max_global = tj_row[0] or 20
                 tj_nt_id = tj_row[1]
+
+                # === Fetch course-level maxima_tj to use as ponderation ===
+                cur.execute("""
+                    SELECT maxima_tj, maxima_periode
+                    FROM countryStructure.cours_annee
+                    WHERE id_cours_annee = %s LIMIT 1
+                """, [cours_id])
+                cours_row = cur.fetchone()
+                cours_maxima_tj = int(cours_row['maxima_tj']) if cours_row and cours_row['maxima_tj'] else None
+                cours_maxima_periode = int(cours_row['maxima_periode']) if cours_row and cours_row['maxima_periode'] else None
+
+                # Count child periods for this parent to divide maxima_tj
+                nb_child_periods = 1
+                if parent_type_id:
+                    cur.execute("""
+                        SELECT COUNT(*) AS cnt
+                        FROM countryStructure.repartition_configs_etab_annee rc
+                        JOIN countryStructure.repartition_instances r ON r.id_instance = rc.repartition_id
+                        WHERE rc.etablissement_annee_id = (
+                            SELECT etablissement_annee_id FROM countryStructure.repartition_configs_etab_annee WHERE id = %s
+                        ) AND r.type_id = %s AND rc.is_open = 1
+                    """, [config_id, rep_type_id])
+                    cnt_row = cur.fetchone()
+                    nb_child_periods = max(int(cnt_row['cnt']), 1) if cnt_row else 1
+
+                # Determine effective TJ max for this single period:
+                # Priority: 1) cours_annee.maxima_periode  2) cours_annee.maxima_tj / nb_periods  3) global
+                if cours_maxima_periode:
+                    tj_max = cours_maxima_periode
+                elif cours_maxima_tj:
+                    tj_max = round(cours_maxima_tj / nb_child_periods, 2)
+                else:
+                    tj_max = tj_max_global
 
                 # Calculate for each student
                 eval_ids = [e['id'] for e in included_evals]
