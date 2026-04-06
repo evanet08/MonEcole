@@ -8209,14 +8209,15 @@ def save_evaluation(request):
                                 VALUES (%s, %s)
                             """, [new_id, config.id])
                 else:
-                    # INSERT
+                    # INSERT — id_classe_id is the legacy EAC FK (NOT NULL)
                     cur.execute("""
                         INSERT INTO evaluation (title, id_type_eval, ponderer_eval, date_eval, date_soumission,
-                            contenu_evaluation, document_url, id_annee_id, idCampus_id, classe_id,
+                            contenu_evaluation, document_url, id_annee_id, idCampus_id, id_classe_id, classe_id,
                             groupe, section_id, id_cours_classe_id, id_repartition_instance, id_etablissement, date_creation)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                     """, [title, id_type_eval, int(ponderer_eval), date_eval, date_soumission,
                           contenu, document_url, bk['annee_id'] if bk else None, campus_id,
+                          int(classe_id),
                           bk['classe_id'] if bk else int(classe_id),
                           bk['groupe'] if bk else None, bk['section_id'] if bk else None,
                           int(cours_id), repartition_id, etab_id])
