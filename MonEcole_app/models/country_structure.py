@@ -195,6 +195,7 @@ class RepartitionInstance(models.Model):
     ordre = models.PositiveIntegerField(default=1)
     date_debut = models.DateField(null=True, blank=True)
     date_fin = models.DateField(null=True, blank=True)
+    taux_participation = models.DecimalField(max_digits=6, decimal_places=2, default=100.00)
     is_active = models.BooleanField(default=True)
 
     class Meta:

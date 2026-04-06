@@ -9414,36 +9414,43 @@ def calculate_period_notes(request):
                 tj_max_global = tj_row[0] or 20
                 tj_nt_id = tj_row[1]
 
-                # === Fetch course-level maxima_tj to use as ponderation ===
+                # === Fetch course-level maxima_tj ===
                 cur.execute("""
-                    SELECT maxima_tj, maxima_periode
+                    SELECT maxima_tj
                     FROM countryStructure.cours_annee
                     WHERE id_cours_annee = %s LIMIT 1
                 """, [cours_id])
                 cours_row = cur.fetchone()
                 cours_maxima_tj = int(cours_row['maxima_tj']) if cours_row and cours_row['maxima_tj'] else None
-                cours_maxima_periode = int(cours_row['maxima_periode']) if cours_row and cours_row['maxima_periode'] else None
 
-                # Count child periods for this parent to divide maxima_tj
-                nb_child_periods = 1
+                # === Fetch taux_participation for this period + sum of all sibling periods ===
+                # Get this period's taux_participation
+                cur.execute("""
+                    SELECT r.taux_participation
+                    FROM countryStructure.repartition_instances r
+                    WHERE r.id_instance = %s
+                """, [cfg_row['repartition_id']])
+                tp_row = cur.fetchone()
+                this_taux = float(tp_row['taux_participation']) if tp_row and tp_row['taux_participation'] else 100.0
+
+                # Get sum of taux for all sibling periods (same type, same parent)
+                total_taux = this_taux  # fallback
                 if parent_type_id:
                     cur.execute("""
-                        SELECT COUNT(*) AS cnt
+                        SELECT COALESCE(SUM(r.taux_participation), 0) AS total_taux
                         FROM countryStructure.repartition_configs_etab_annee rc
                         JOIN countryStructure.repartition_instances r ON r.id_instance = rc.repartition_id
                         WHERE rc.etablissement_annee_id = (
                             SELECT etablissement_annee_id FROM countryStructure.repartition_configs_etab_annee WHERE id = %s
                         ) AND r.type_id = %s AND rc.is_open = 1
                     """, [config_id, rep_type_id])
-                    cnt_row = cur.fetchone()
-                    nb_child_periods = max(int(cnt_row['cnt']), 1) if cnt_row else 1
+                    sum_row = cur.fetchone()
+                    total_taux = float(sum_row['total_taux']) if sum_row and sum_row['total_taux'] else this_taux
 
-                # Determine effective TJ max for this single period:
-                # Priority: 1) cours_annee.maxima_periode  2) cours_annee.maxima_tj / nb_periods  3) global
-                if cours_maxima_periode:
-                    tj_max = cours_maxima_periode
-                elif cours_maxima_tj:
-                    tj_max = round(cours_maxima_tj / nb_child_periods, 2)
+                # Determine effective TJ max for this period:
+                # Period max = maxima_tj × (this_taux / total_taux_of_all_siblings)
+                if cours_maxima_tj and total_taux > 0:
+                    tj_max = round(cours_maxima_tj * (this_taux / total_taux), 2)
                 else:
                     tj_max = tj_max_global
 
