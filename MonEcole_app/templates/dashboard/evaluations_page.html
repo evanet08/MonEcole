@@ -499,9 +499,9 @@
 
     <!-- ====== TAB: NOTES PAR EVALUATION ====== -->
     <div id="evalPanelNotesParEval" style="{% if active_section != 'notes' %}display:none{% endif %}">
-        <!-- Filter Bar -->
+        <!-- Filter Bar: 4 cascading filters -->
         <div class="eval-filter-bar">
-            <div class="eval-filter-group">
+            <div class="eval-filter-group" style="flex-wrap:wrap">
                 <div class="eval-filter-item">
                     <div class="eval-filter-icon"><i class="fas fa-graduation-cap"></i></div>
                     <div class="eval-filter-field">
@@ -531,63 +531,38 @@
                         </select>
                     </div>
                 </div>
-            </div>
-        </div>
-        <!-- Sub-tabs: Saisie / Importation -->
-        <div class="eval-nav-pills" style="margin-bottom:0;border-radius:14px 14px 0 0;padding:4px 4px 0">
-            <button class="eval-pill active" id="notesTabSaisie" onclick="switchNotesTab('saisie')" style="border-radius:10px 10px 0 0;font-size:.72rem;padding:8px 18px">
-                <i class="fas fa-pen"></i><span>Saisie</span>
-            </button>
-            <button class="eval-pill" id="notesTabBulletin" onclick="switchNotesTab('bulletin')" style="border-radius:10px 10px 0 0;font-size:.72rem;padding:8px 18px">
-                <i class="fas fa-file-upload"></i><span>Importation</span>
-            </button>
-        </div>
-        <!-- Saisie Content -->
-        <div id="notesTabContentSaisie">
-            <div class="eval-content-card" style="border-radius:0 14px 14px 14px">
-                <div style="display:flex;flex-wrap:wrap;gap:8px;padding:10px 14px;background:rgba(248,250,252,.8);border-bottom:1px solid #e2e8f0;align-items:center">
-                    <button class="eval-add-btn" onclick="saveAllNotes()" id="btnSaveNotes" disabled style="--btn-gradient:linear-gradient(135deg,#059669,#10b981)">
-                        <i class="fas fa-save"></i><span>Enregistrer</span>
-                    </button>
-                    <button class="eval-add-btn" onclick="downloadNotesTemplate()" id="btnDownloadNotesTemplate" disabled style="--btn-gradient:linear-gradient(135deg,#7c3aed,#a78bfa)">
-                        <i class="fas fa-file-excel"></i><span>Modèle Excel</span>
-                    </button>
-                    <label class="eval-add-btn" style="--btn-gradient:linear-gradient(135deg,#2563eb,#60a5fa);cursor:pointer;margin:0">
-                        <i class="fas fa-file-upload"></i><span>Importer</span>
-                        <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importNotesExcel(this)" id="notesImportInput">
-                    </label>
-                    <span style="font-size:.62rem;color:#64748b;margin-left:auto" id="notesSaisieInfo"></span>
-                </div>
-                <div id="notesGridContainer" style="overflow:auto;max-height:calc(100vh - 280px)">
-                    <div class="eval-empty-state">
-                        <div class="eval-empty-anim"><div class="eval-empty-circle" style="background:linear-gradient(135deg,#e0e7ff,#f0f1ff)"></div><i class="fas fa-clipboard-list" style="color:#6366f1"></i></div>
-                        <h3>Sélectionnez une classe et une période</h3>
-                        <p>La grille de saisie des notes s'affichera ici.</p>
+                <div class="eval-filter-divider"></div>
+                <div class="eval-filter-item">
+                    <div class="eval-filter-icon" style="--fi-color:#7c3aed"><i class="fas fa-file-alt"></i></div>
+                    <div class="eval-filter-field">
+                        <label>Évaluation</label>
+                        <select id="notes-eval-select" onchange="onNotesEvalChange()" disabled>
+                            <option value="">— Toutes les évaluations —</option>
+                        </select>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- Importation Content -->
-        <div id="notesTabContentBulletin" style="display:none">
-            <div class="eval-content-card" style="border-radius:0 14px 14px 14px">
-                <div style="display:flex;flex-wrap:wrap;gap:8px;padding:10px 14px;background:rgba(248,250,252,.8);border-bottom:1px solid #e2e8f0;align-items:center">
-                    <button class="eval-add-btn" onclick="downloadNotesTemplate()" id="btnDownloadNotesTemplate2" style="--btn-gradient:linear-gradient(135deg,#7c3aed,#a78bfa)">
-                        <i class="fas fa-file-excel"></i><span>Modèle</span>
-                    </button>
-                    <label class="eval-add-btn" style="--btn-gradient:linear-gradient(135deg,#2563eb,#60a5fa);cursor:pointer;margin:0" id="btnImportNotes2">
-                        <i class="fas fa-file-upload"></i><span>Importer</span>
-                        <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importNotesExcel(this)" id="notesImportInput2">
-                    </label>
-                    <span id="bulletinCalcDate" style="font-size:.62rem;color:#64748b;margin-left:auto"></span>
-                </div>
-                <div id="bulletinSection" style="padding:20px">
-                    <div class="eval-empty-state">
-                        <div class="eval-empty-anim"><div class="eval-empty-circle" style="background:linear-gradient(135deg,#dbeafe,#eff6ff)"></div><i class="fas fa-file-upload" style="color:#3b82f6"></i></div>
-                        <h3>Importation des notes</h3>
-                        <p>Téléchargez le modèle, remplissez les notes, puis importez le fichier.</p>
-                    </div>
-                    <div id="bulletinNotesContainer" style="overflow:auto;max-height:calc(100vh - 380px);padding:10px">
-                    </div>
+        <!-- Unified toolbar -->
+        <div class="eval-content-card" style="border-radius:14px">
+            <div style="display:flex;flex-wrap:wrap;gap:8px;padding:10px 14px;background:rgba(248,250,252,.8);border-bottom:1px solid #e2e8f0;align-items:center">
+                <button class="eval-add-btn" onclick="saveAllNotes()" id="btnSaveNotes" disabled style="--btn-gradient:linear-gradient(135deg,#059669,#10b981)">
+                    <i class="fas fa-save"></i><span>Enregistrer</span>
+                </button>
+                <button class="eval-add-btn" onclick="downloadNotesTemplate()" id="btnDownloadNotesTemplate" disabled style="--btn-gradient:linear-gradient(135deg,#7c3aed,#a78bfa)">
+                    <i class="fas fa-file-excel"></i><span>Modèle Excel</span>
+                </button>
+                <label class="eval-add-btn" style="--btn-gradient:linear-gradient(135deg,#2563eb,#60a5fa);cursor:pointer;margin:0">
+                    <i class="fas fa-file-upload"></i><span>Importer</span>
+                    <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importNotesExcel(this)" id="notesImportInput">
+                </label>
+                <span style="font-size:.62rem;color:#64748b;margin-left:auto" id="notesSaveStatus"></span>
+            </div>
+            <div id="notesGridContainer" style="overflow:auto;max-height:calc(100vh - 280px)">
+                <div class="eval-empty-state">
+                    <div class="eval-empty-anim"><div class="eval-empty-circle" style="background:linear-gradient(135deg,#e0e7ff,#f0f1ff)"></div><i class="fas fa-clipboard-list" style="color:#6366f1"></i></div>
+                    <h3>Sélectionnez une classe et une période</h3>
+                    <p>La grille de saisie des notes s'affichera ici.</p>
                 </div>
             </div>
         </div>
@@ -1422,50 +1397,48 @@ async function saveComposition() {
 })();
 
 // ---- TAB SWITCH ----
-function switchNotesTab(tab) {
-    const tabSaisie = document.getElementById('notesTabSaisie');
-    const tabBulletin = document.getElementById('notesTabBulletin');
-    const contentSaisie = document.getElementById('notesTabContentSaisie');
-    const contentBulletin = document.getElementById('notesTabContentBulletin');
-
-    if (tab === 'saisie') {
-        contentSaisie.style.display = '';
-        contentBulletin.style.display = 'none';
-        tabSaisie.classList.add('active');
-        tabBulletin.classList.remove('active');
-    } else {
-        contentSaisie.style.display = 'none';
-        contentBulletin.style.display = '';
-        tabBulletin.classList.add('active');
-        tabSaisie.classList.remove('active');
-    }
-}
+// ============ NOTES PAR EVALUATION — CASCADING FILTERS ============
 
 function onNotesClasseChange() {
     const classeId = document.getElementById('notes-classe-select').value;
     const periodeSelect = document.getElementById('notes-periode-select');
-    
+    const coursSelect = document.getElementById('notes-cours-select');
+    const evalSelect = document.getElementById('notes-eval-select');
+
     periodeSelect.innerHTML = '<option value="">— Période —</option>';
     periodeSelect.disabled = true;
-    
+    coursSelect.innerHTML = '<option value="">— Tous les cours —</option>';
+    coursSelect.disabled = true;
+    evalSelect.innerHTML = '<option value="">— Toutes les évaluations —</option>';
+    evalSelect.disabled = true;
+    _notesGridData = null;
+    _notesDirty = {};
+    document.getElementById('btnSaveNotes').disabled = true;
+    document.getElementById('btnDownloadNotesTemplate').disabled = true;
+
     if (!classeId) return;
-    
-    // Peupler les répartitions (périodes/trimestres/semestres)
+
+    // Populate repartitions (periods)
     const reps = window._repartitionsData || [];
-    // Only show leaf-level repartitions for note entry
     const leafReps = reps.filter(function(r) { return r.is_leaf !== false; });
     if (leafReps.length === 0) {
         periodeSelect.innerHTML = '<option value="">Aucune répartition configurée</option>';
         return;
     }
-    
-    // Grouper par type
+
+    // Sort ascending by name number
+    leafReps.sort(function(a, b) {
+        var na = parseInt((a.nom || '').match(/(\d+)/)?.[1] || '999');
+        var nb = parseInt((b.nom || '').match(/(\d+)/)?.[1] || '999');
+        return na - nb;
+    });
+
     const grouped = {};
     leafReps.forEach(function(r) {
         if (!grouped[r.type]) grouped[r.type] = [];
         grouped[r.type].push(r);
     });
-    
+
     Object.keys(grouped).forEach(function(typeName) {
         const optgroup = document.createElement('optgroup');
         optgroup.label = typeName;
@@ -1478,46 +1451,73 @@ function onNotesClasseChange() {
         });
         periodeSelect.appendChild(optgroup);
     });
-    
+
     periodeSelect.disabled = false;
 
-    // Reset notes grid and cours dropdown when class changes
     var notesContainer = document.getElementById('notesGridContainer');
     if (notesContainer) {
         notesContainer.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#94a3b8"><i class="fas fa-clipboard-list" style="font-size:2rem;color:#6366f1;opacity:.5;display:block;margin-bottom:12px"></i><div style="font-weight:700;font-size:.85rem;color:#1e293b;margin-bottom:4px">S\u00e9lectionnez une p\u00e9riode</div></div>';
     }
-    var notesCours = document.getElementById('notes-cours-select');
-    if (notesCours) { notesCours.innerHTML = '<option value="">\u2014 Tous les cours \u2014</option>'; notesCours.disabled = true; }
-    _notesGridData = null;
-    _notesDirty = {};
-    var btnSave = document.getElementById('btnSaveNotes');
-    if (btnSave) btnSave.disabled = true;
 }
+
 function onNotesPeriodeChange() {
-    // When period changes, load the cours list AND the notes grid
     var classeId = document.getElementById('notes-classe-select').value;
     var periodeId = document.getElementById('notes-periode-select').value;
     var coursSelect = document.getElementById('notes-cours-select');
+    var evalSelect = document.getElementById('notes-eval-select');
+
     coursSelect.innerHTML = '<option value="">— Tous les cours —</option>';
     coursSelect.disabled = true;
+    evalSelect.innerHTML = '<option value="">— Toutes les évaluations —</option>';
+    evalSelect.disabled = true;
+
     if (!classeId || !periodeId) return;
-    // Fetch cours for dropdown (filter only), then load grid
-    fetch('/api/evaluations/cours/?classe_id=' + classeId)
-        .then(function(r){ return r.json(); })
-        .then(function(data){
-            if (data.success && data.cours && data.cours.length) {
-                data.cours.forEach(function(c){
-                    var opt = document.createElement('option');
-                    opt.value = c.id_cours_classe;
-                    opt.textContent = c.nom + ' (' + c.code + ')';
-                    coursSelect.appendChild(opt);
-                });
-                coursSelect.disabled = false;
-            }
-        })
-        .catch(function(e){ console.error('loadCours', e); });
-    // Load grid immediately with all courses
+
+    // Load grid with all evaluations for this period
     loadNotesGrid();
+}
+
+function onNotesCoursChange() {
+    var evalSelect = document.getElementById('notes-eval-select');
+    evalSelect.innerHTML = '<option value="">— Toutes les évaluations —</option>';
+    evalSelect.disabled = true;
+
+    // Re-populate eval dropdown based on selected cours (or all)
+    if (_notesGridData) {
+        _populateEvalDropdown(_notesGridData);
+        renderNotesGrid(_notesGridData);
+    }
+}
+
+function onNotesEvalChange() {
+    // Just re-render with the selected eval filter
+    if (_notesGridData) {
+        renderNotesGrid(_notesGridData);
+    }
+}
+
+function _populateEvalDropdown(data) {
+    var coursSelect = document.getElementById('notes-cours-select');
+    var evalSelect = document.getElementById('notes-eval-select');
+    var selectedCours = coursSelect.value;
+    var coursList = data.cours || [];
+
+    evalSelect.innerHTML = '<option value="">— Toutes les évaluations —</option>';
+
+    var filteredCours = selectedCours
+        ? coursList.filter(function(c) { return String(c.cours_id) === selectedCours; })
+        : coursList;
+
+    filteredCours.forEach(function(c) {
+        c.evaluations.forEach(function(ev) {
+            var opt = document.createElement('option');
+            opt.value = ev.id_evaluation;
+            opt.textContent = (c.cours_code ? c.cours_code + ' — ' : '') + ev.title + ' (/' + ev.max + ')';
+            evalSelect.appendChild(opt);
+        });
+    });
+
+    evalSelect.disabled = (evalSelect.options.length <= 1);
 }
 
 let _notesGridData = null;
@@ -1529,15 +1529,12 @@ async function loadNotesGrid() {
     const container = document.getElementById('notesGridContainer');
     const btnSave = document.getElementById('btnSaveNotes');
     const btnTemplate = document.getElementById('btnDownloadNotesTemplate');
-    const importInput = document.getElementById('notesImportInput');
 
     if (btnSave) btnSave.disabled = true;
     if (btnTemplate) btnTemplate.disabled = true;
-    if (importInput) importInput.disabled = true;
     _notesGridData = null;
     _notesDirty = {};
 
-    var coursFilterId = document.getElementById('notes-cours-select').value;
     if (!classeId || !periodeId) {
         container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#94a3b8"><i class="fas fa-clipboard-list" style="font-size:2rem;color:#6366f1;opacity:.5;display:block;margin-bottom:12px"></i><div style="font-weight:700;font-size:.85rem;color:#1e293b;margin-bottom:4px">S\u00e9lectionnez une classe et une p\u00e9riode</div></div>';
         return;
@@ -1553,50 +1550,38 @@ async function loadNotesGrid() {
             return;
         }
         _notesGridData = data;
+
+        // Populate Cours dropdown
+        const coursSelect = document.getElementById('notes-cours-select');
+        const prevCoursVal = coursSelect.value;
+        coursSelect.innerHTML = '<option value="">— Tous les cours —</option>';
+        (data.cours || []).forEach(function(c) {
+            var opt = document.createElement('option');
+            opt.value = c.cours_id;
+            opt.textContent = c.cours_nom + (c.cours_code ? ' (' + c.cours_code + ')' : '');
+            coursSelect.appendChild(opt);
+        });
+        coursSelect.disabled = false;
+        if (prevCoursVal) coursSelect.value = prevCoursVal;
+
+        // Populate Evaluation dropdown
+        _populateEvalDropdown(data);
+
         renderNotesGrid(data);
         if (btnSave) btnSave.disabled = false;
         if (btnTemplate) btnTemplate.disabled = false;
-        if (importInput) importInput.disabled = false;
-        const btnCalc = document.getElementById('btnCalculateNotes');
-        if (btnCalc) btnCalc.disabled = false;
     } catch(e) {
         container.innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626;font-size:.8rem"><i class="fas fa-exclamation-triangle me-1"></i>Erreur de connexion.</div>';
-    }
-}
-
-function onNotesCoursChange() {
-    var coursId = document.getElementById('notes-cours-select').value;
-    if (coursId) {
-        loadNotesGrid();
-    } else {
-        // "Tous les cours" selected — if we already have data, re-render, else prompt
-        if (_notesGridData) renderNotesGrid(_notesGridData);
-        else {
-            var container = document.getElementById('notesGridContainer');
-            if (container) container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#94a3b8"><i class="fas fa-clipboard-list" style="font-size:2rem;color:#6366f1;opacity:.5;display:block;margin-bottom:12px"></i><div style="font-weight:700;font-size:.85rem;color:#1e293b;margin-bottom:4px">S\u00e9lectionnez un cours</div></div>';
-        }
     }
 }
 
 function renderNotesGrid(data) {
     const container = document.getElementById('notesGridContainer');
     const coursSelect = document.getElementById('notes-cours-select');
+    const evalSelect = document.getElementById('notes-eval-select');
     const eleves = data.eleves || [];
     const coursList = data.cours || [];
     const notes = data.notes || {};
-    const bulletinMaxima = data.bulletin_maxima || 20;
-
-    // Populate Cours dropdown (keep selection if exists)
-    const prevCoursVal = coursSelect.value;
-    coursSelect.innerHTML = '<option value="">— Tous les cours —</option>';
-    coursList.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.cours_id;
-        opt.textContent = c.cours_nom + (c.cours_code ? ' (' + c.cours_code + ')' : '');
-        coursSelect.appendChild(opt);
-    });
-    coursSelect.disabled = false;
-    if (prevCoursVal) coursSelect.value = prevCoursVal;
 
     if (!eleves.length) {
         container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-user-slash me-1"></i>Aucun élève inscrit dans cette classe.</div>';
@@ -1607,38 +1592,51 @@ function renderNotesGrid(data) {
         return;
     }
 
-    // Filter by selected cours
+    // Filter by Cours
     const selectedCours = coursSelect.value;
     const filteredCours = selectedCours ? coursList.filter(c => String(c.cours_id) === selectedCours) : coursList;
 
-    // Flatten evaluations
+    // Filter by Evaluation
+    const selectedEval = evalSelect.value;
+
+    // Build filtered eval list
     let allEvals = [];
     filteredCours.forEach(c => {
-        c.evaluations.forEach(ev => {
+        let evals = c.evaluations;
+        if (selectedEval) {
+            evals = evals.filter(ev => String(ev.id_evaluation) === selectedEval);
+        }
+        evals.forEach(ev => {
             allEvals.push({...ev, cours_nom: c.cours_nom, cours_code: c.cours_code, cours_id: c.cours_id});
         });
     });
 
     if (!allEvals.length) {
-        container.innerHTML = '<div style="text-align:center;padding:40px;color:#f59e0b;font-size:.78rem"><i class="fas fa-exclamation-circle me-1"></i>Aucune évaluation pour ce cours dans cette période.</div>';
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#f59e0b;font-size:.78rem"><i class="fas fa-exclamation-circle me-1"></i>Aucune évaluation trouvée avec ces filtres.</div>';
         return;
     }
 
+    // Build filtered cours list for header grouping
+    let headerCours = [];
+    filteredCours.forEach(c => {
+        let evals = c.evaluations;
+        if (selectedEval) evals = evals.filter(ev => String(ev.id_evaluation) === selectedEval);
+        if (evals.length) headerCours.push({...c, evaluations: evals});
+    });
+
+    // Info bar
     let html = '<div style="font-size:.68rem;color:#64748b;padding:8px 14px;background:linear-gradient(135deg,#f0f1ff,#e0e7ff);border-bottom:1px solid #c7d2fe;display:flex;justify-content:space-between;align-items:center">' +
         '<span><i class="fas fa-info-circle me-1" style="color:#6366f1"></i>' + data.repartition_name + ' — ' + eleves.length + ' élève(s), ' + allEvals.length + ' évaluation(s)</span>' +
-        '<span style="color:#10b981;font-weight:700" id="notesSaveStatus"></span>' +
     '</div>';
 
     html += '<table style="width:100%;border-collapse:collapse;font-size:.72rem">';
 
-    // Header row 1: Course groups + Note Bulletin
+    // Header row 1: Course groups
     html += '<thead><tr style="position:sticky;top:0;z-index:3;background:linear-gradient(135deg,#1e1b4b,#312e81)">';
     html += '<th colspan="2" style="padding:8px 10px;color:#c7d2fe;font-size:.62rem;text-align:left;border-right:2px solid #4338ca;min-width:200px;position:sticky;left:0;z-index:4;background:linear-gradient(135deg,#1e1b4b,#312e81)">ÉLÈVE</th>';
-    filteredCours.forEach(c => {
+    headerCours.forEach(c => {
         html += `<th colspan="${c.evaluations.length}" style="padding:8px 10px;color:#fff;font-size:.64rem;text-align:center;border-right:2px solid #4338ca;font-weight:700;letter-spacing:.3px">${c.cours_nom}</th>`;
     });
-    // Note Bulletin header
-    html += `<th rowspan="2" style="padding:8px 6px;color:#fff;font-size:.58rem;text-align:center;font-weight:700;background:linear-gradient(135deg,#059669,#10b981);min-width:75px;border-left:3px solid #047857;letter-spacing:.3px">📊 NOTE<br>BULLETIN<br><span style="font-size:.48rem;opacity:.8">/${bulletinMaxima}</span></th>`;
     html += '</tr>';
 
     // Header row 2: Individual evaluations
@@ -1647,7 +1645,7 @@ function renderNotesGrid(data) {
     html += '<th style="padding:6px 8px;text-align:left;font-size:.58rem;color:#475569;font-weight:700;border-bottom:2px solid #c7d2fe;border-right:2px solid #c7d2fe;min-width:80px;position:sticky;left:120px;z-index:4;background:#f0f1ff">Prénom</th>';
     allEvals.forEach(ev => {
         const typeTag = ev.type_sigle ? `<span style="background:#f59e0b;color:#fff;padding:0 4px;border-radius:3px;font-size:.5rem;font-weight:700">${ev.type_sigle}</span> ` : '';
-        html += `<th style="padding:6px 4px;text-align:center;font-size:.56rem;color:#334155;font-weight:600;border-bottom:2px solid #c7d2fe;border-right:1px solid #e2e8f0;min-width:70px;max-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${ev.title} (/${ev.max})">${typeTag}${ev.title.substring(0,10)}<br><span style="color:#94a3b8">/${ev.max}</span></th>`;
+        html += `<th style="padding:6px 4px;text-align:center;font-size:.56rem;color:#334155;font-weight:600;border-bottom:2px solid #c7d2fe;border-right:1px solid #e2e8f0;min-width:70px;max-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${ev.title} (/${ev.max})">${typeTag}${ev.title.substring(0,12)}<br><span style="color:#94a3b8">/${ev.max}</span></th>`;
     });
     html += '</tr></thead><tbody>';
 
@@ -1658,79 +1656,27 @@ function renderNotesGrid(data) {
         html += `<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;border-right:1px solid #e2e8f0;font-weight:600;color:#1e293b;font-size:.7rem;position:sticky;left:0;z-index:1;background:${bg}">${el.nom}</td>`;
         html += `<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;border-right:2px solid #e0e7ff;color:#475569;font-size:.7rem;position:sticky;left:120px;z-index:1;background:${bg}">${el.prenom}</td>`;
 
-        let sumNotes = 0, sumMaxima = 0, hasAnyNote = false;
-
         allEvals.forEach(ev => {
             const key = `${el.id}_${ev.id_evaluation}`;
             const noteData = notes[key];
             const noteVal = noteData ? (noteData.note !== null ? noteData.note : '') : '';
             const idNote = noteData ? noteData.id_note : '';
 
-            if (noteVal !== '' && noteVal !== null) {
-                sumNotes += parseFloat(noteVal);
-                sumMaxima += parseFloat(ev.max);
-                hasAnyNote = true;
-            }
-
             html += `<td style="padding:2px 3px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;text-align:center">
                 <input type="number" class="note-input" data-eleve="${el.id}" data-eval="${ev.id_evaluation}" data-id-note="${idNote}" data-max="${ev.max}"
                     value="${noteVal}" min="0" max="${ev.max}" step="0.5"
                     style="width:54px;text-align:center;border:1.5px solid #e2e8f0;border-radius:6px;padding:4px 2px;font-size:.72rem;font-weight:600;color:#1e293b;outline:none;transition:all .15s"
                     onfocus="this.style.borderColor='#6366f1';this.style.boxShadow='0 0 0 3px rgba(99,102,241,.15)';this.select()"
-                    onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none';markNoteDirty(this);recalcBulletinCell(this)"
+                    onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none';markNoteDirty(this)"
                     onkeydown="noteKeyNav(event, this)">
             </td>`;
         });
 
-        // Auto-calculated Note Bulletin column
-        let bulletinNote = '—';
-        let bulletinStyle = 'color:#cbd5e1';
-        if (hasAnyNote && sumMaxima > 0) {
-            const calc = (sumNotes / sumMaxima) * bulletinMaxima;
-            bulletinNote = calc.toFixed(1);
-            const pct = (calc / bulletinMaxima) * 100;
-            if (pct >= 70) bulletinStyle = 'color:#059669;font-weight:700';
-            else if (pct >= 50) bulletinStyle = 'color:#d97706;font-weight:700';
-            else bulletinStyle = 'color:#dc2626;font-weight:700';
-        }
-        html += `<td class="bulletin-cell" data-eleve="${el.id}" style="padding:5px 6px;text-align:center;border-bottom:1px solid #f1f5f9;border-left:3px solid #d1fae5;background:linear-gradient(135deg,#ecfdf5,#f0fdf4);font-size:.78rem;${bulletinStyle}">${bulletinNote}</td>`;
         html += '</tr>';
     });
 
     html += '</tbody></table>';
     container.innerHTML = html;
-}
-
-// Recalculate a student's bulletin cell when a note changes
-function recalcBulletinCell(input) {
-    const eleveId = input.dataset.eleve;
-    const row = input.closest('tr');
-    if (!row) return;
-    const bulletinMaxima = (_notesGridData && _notesGridData.bulletin_maxima) || 20;
-    const inputs = row.querySelectorAll('.note-input');
-    let sumNotes = 0, sumMaxima = 0, hasAny = false;
-    inputs.forEach(inp => {
-        const val = parseFloat(inp.value);
-        if (!isNaN(val)) {
-            sumNotes += val;
-            sumMaxima += parseFloat(inp.dataset.max);
-            hasAny = true;
-        }
-    });
-    const cell = row.querySelector('.bulletin-cell');
-    if (!cell) return;
-    if (hasAny && sumMaxima > 0) {
-        const calc = (sumNotes / sumMaxima) * bulletinMaxima;
-        cell.textContent = calc.toFixed(1);
-        const pct = (calc / bulletinMaxima) * 100;
-        if (pct >= 70) { cell.style.color = '#059669'; cell.style.fontWeight = '700'; }
-        else if (pct >= 50) { cell.style.color = '#d97706'; cell.style.fontWeight = '700'; }
-        else { cell.style.color = '#dc2626'; cell.style.fontWeight = '700'; }
-    } else {
-        cell.textContent = '—';
-        cell.style.color = '#cbd5e1';
-        cell.style.fontWeight = '400';
-    }
 }
 
 function noteKeyNav(e, input) {
