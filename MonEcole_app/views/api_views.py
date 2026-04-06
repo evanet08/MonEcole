@@ -6329,12 +6329,37 @@ def dashboard_etablissement_view(request):
                         'code': ri.code,
                         'type': ri.type.nom if ri.type else '',
                         'type_code': ri.type.code if ri.type else '',
+                        'type_id': ri.type_id,
                         'ordre': ri.ordre,
                         'is_open': ri.is_active,
                         'is_leaf': ri.type_id not in parent_type_ids,
                         'debut': str(ri.date_debut or ''),
                         'fin': str(ri.date_fin or ''),
+                        'parent_instance_id': None,
+                        'parent_nom': None,
                     })
+
+                # Build parent→child mapping using hierarchy
+                # For each hierarchy (e.g. Trimestre→Période, nombre_enfants=2),
+                # assign each child period to its parent container by order
+                hierarchies = RepartitionHierarchie.objects.filter(is_active=True)
+                for hier in hierarchies:
+                    parent_items = sorted(
+                        [r for r in repartitions_notes if r['type_id'] == hier.type_parent_id],
+                        key=lambda x: x['ordre']
+                    )
+                    child_items = sorted(
+                        [r for r in repartitions_notes if r['type_id'] == hier.type_enfant_id],
+                        key=lambda x: x['ordre']
+                    )
+                    nb = hier.nombre_enfants
+                    for pi, parent in enumerate(parent_items):
+                        start = pi * nb
+                        end = start + nb
+                        for child in child_items[start:end]:
+                            child['parent_instance_id'] = parent['id_instance']
+                            child['parent_nom'] = parent['nom']
+
                 stats['n_trimestres_ouverts'] = sum(1 for r in repartitions_notes if r.get('is_open'))
             else:
                 # Personnalisé: lire les RepartitionConfigEtabAnnee
@@ -6364,12 +6389,34 @@ def dashboard_etablissement_view(request):
                         'code': rc.get('repartition__code', ''),
                         'type': rc.get('repartition__type__nom', ''),
                         'type_code': type_code,
+                        'type_id': type_id,
                         'ordre': rc.get('repartition__ordre', 0),
                         'is_open': bool(rc.get('is_open')),
                         'is_leaf': type_id not in parent_type_ids if type_id else True,
                         'debut': str(rc.get('debut', '') or ''),
                         'fin': str(rc.get('fin', '') or ''),
+                        'parent_instance_id': None,
+                        'parent_nom': None,
                     })
+
+                # Build parent→child mapping (same logic as synced mode)
+                hierarchies = RepartitionHierarchie.objects.filter(is_active=True)
+                for hier in hierarchies:
+                    parent_items = sorted(
+                        [r for r in repartitions_notes if r.get('type_id') == hier.type_parent_id],
+                        key=lambda x: x['ordre']
+                    )
+                    child_items = sorted(
+                        [r for r in repartitions_notes if r.get('type_id') == hier.type_enfant_id],
+                        key=lambda x: x['ordre']
+                    )
+                    nb = hier.nombre_enfants
+                    for pi, parent in enumerate(parent_items):
+                        start = pi * nb
+                        end = start + nb
+                        for child in child_items[start:end]:
+                            child['parent_instance_id'] = parent['id_instance']
+                            child['parent_nom'] = parent['nom']
 
             # Deduplicate by name for trimestres widget
             trim_seen = {}
@@ -9538,6 +9585,202 @@ def save_exam_notes(request):
             })
         finally:
             conn.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@require_http_methods(["GET"])
+def download_exam_template(request):
+    """
+    Génère un modèle Excel pour les notes d'examen (un cours par colonne),
+    pré-rempli avec les notes existantes.
+    Params: classe_id (EAC id), repartition_id (parent instance id)
+    """
+    try:
+        import openpyxl
+        from openpyxl.styles import PatternFill, Font, Border, Side, Protection, Alignment
+        from io import BytesIO
+
+        classe_id = request.GET.get('classe_id')
+        repartition_id = request.GET.get('repartition_id')
+
+        if not classe_id or not repartition_id:
+            return JsonResponse({'success': False, 'error': 'classe_id et repartition_id requis.'}, status=400)
+
+        user_id = request.session.get('user_id')
+        if not user_id:
+            return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        etab_id = etab.id_etablissement
+
+        config = _get_or_create_repartition_config(repartition_id, etab_id)
+        rep_type = config.repartition.type if config else None
+
+        # Find EX note type
+        from structure_app.models import RepartitionTypeNote
+        ex_rtn = RepartitionTypeNote.objects.filter(
+            repartition_type=rep_type,
+            note_type__sigle='EX',
+            is_active=True
+        ).select_related('note_type').first() if rep_type else None
+
+        if not ex_rtn:
+            return JsonResponse({'success': False, 'error': 'Type de note Examen non configuré.'}, status=404)
+
+        ex_note_type_id = ex_rtn.note_type.id_type_note
+        default_max = ex_rtn.ponderation_max or 20
+
+        conn = _get_spoke_connection()
+        try:
+            with conn.cursor() as cur:
+                # Get context from EAC
+                cur.execute("""
+                    SELECT ea.annee_id AS id_annee,
+                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
+                    FROM countryStructure.etablissements_annees_classes eac
+                    JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+                    WHERE eac.id = %s LIMIT 1
+                """, [classe_id])
+                ctx = cur.fetchone()
+
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                campus_row = cur.fetchone()
+                campus_id = campus_row['idCampus'] if campus_row else None
+
+                # Students
+                cur.execute("""
+                    SELECT DISTINCT e.id_eleve, e.nom, e.prenom
+                    FROM eleve_inscription ei
+                    JOIN eleve e ON e.id_eleve = ei.id_eleve_id
+                    WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
+                      AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.status = 1
+                    ORDER BY e.nom, e.prenom
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
+                eleves = cur.fetchall()
+
+                # Courses with maxima_exam
+                cur.execute("""
+                    SELECT cann.id_cours_annee, ca.cours AS cours_nom, ca.code_cours,
+                           cann.maxima_exam, cann.ordre
+                    FROM countryStructure.cours_annee cann
+                    JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
+                    JOIN countryStructure.etablissements_annees ea ON ea.annee_id = cann.annee_id
+                    JOIN countryStructure.etablissements_annees_classes eac ON eac.etablissement_annee_id = ea.id
+                    WHERE eac.id = %s AND ca.classe_id = eac.classe_id
+                    GROUP BY cann.cours_id
+                    ORDER BY cann.ordre, ca.cours
+                """, [classe_id])
+                cours_rows = cur.fetchall()
+
+                # Existing exam notes
+                existing_notes = {}
+                if config and cours_rows:
+                    cours_ids = [r['id_cours_annee'] for r in cours_rows]
+                    eleve_ids = [e['id_eleve'] for e in eleves]
+                    if cours_ids and eleve_ids:
+                        ph_c = ','.join(['%s'] * len(cours_ids))
+                        ph_e = ','.join(['%s'] * len(eleve_ids))
+                        cur.execute(f"""
+                            SELECT nb.id_eleve_id, nb.id_cours_annee, nb.note
+                            FROM note_bulletin nb
+                            WHERE nb.id_repartition_config = %s
+                              AND nb.id_note_type = %s
+                              AND nb.id_cours_annee IN ({ph_c})
+                              AND nb.id_eleve_id IN ({ph_e})
+                              AND nb.id_etablissement = %s
+                        """, [config.id, ex_note_type_id] + cours_ids + eleve_ids + [etab_id])
+                        for n in cur.fetchall():
+                            key = f"{n['id_eleve_id']}_{n['id_cours_annee']}"
+                            existing_notes[key] = float(n['note']) if n['note'] is not None else None
+        finally:
+            conn.close()
+
+        # Create Excel
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Examen Notes"
+
+        header_fill = PatternFill('solid', fgColor='7C3AED')
+        header_font = Font(bold=True, color='FFFFFF', size=10)
+        locked = Protection(locked=True)
+        unlocked = Protection(locked=False)
+        note_fill = PatternFill('solid', fgColor='F5F3FF')
+        thin_border = Border(
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin')
+        )
+
+        # Headers
+        headers = ['ID Élève', 'Nom', 'Prénom']
+        for c in cours_rows:
+            cname = c['cours_nom'] or '?'
+            max_ex = c['maxima_exam'] or default_max
+            headers.append(f"{cname[:20]} (/{max_ex})")
+
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=h)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', wrap_text=True)
+            cell.border = thin_border
+
+        # Data rows with pre-fill
+        for row, el in enumerate(eleves, 2):
+            ws.cell(row=row, column=1, value=el['id_eleve']).protection = locked
+            ws.cell(row=row, column=2, value=el['nom']).protection = locked
+            ws.cell(row=row, column=3, value=el['prenom']).protection = locked
+            for col_offset, c in enumerate(cours_rows):
+                key = f"{el['id_eleve']}_{c['id_cours_annee']}"
+                note_val = existing_notes.get(key)
+                cell = ws.cell(row=row, column=4 + col_offset, value=note_val if note_val is not None else '')
+                cell.protection = unlocked
+                cell.border = thin_border
+                if note_val is not None:
+                    cell.fill = note_fill
+
+        # Meta sheet
+        ws2 = wb.create_sheet('_meta')
+        ws2.cell(row=1, column=1, value='classe_id')
+        ws2.cell(row=1, column=2, value=int(classe_id))
+        ws2.cell(row=2, column=1, value='repartition_id')
+        ws2.cell(row=2, column=2, value=int(repartition_id))
+        ws2.cell(row=3, column=1, value='etab_id')
+        ws2.cell(row=3, column=2, value=etab_id)
+        ws2.cell(row=4, column=1, value='type')
+        ws2.cell(row=4, column=2, value='EXAM')
+        for i, c in enumerate(cours_rows):
+            ws2.cell(row=5 + i, column=1, value=f'cours_{i}')
+            ws2.cell(row=5 + i, column=2, value=c['id_cours_annee'])
+            ws2.cell(row=5 + i, column=3, value=c['maxima_exam'] or default_max)
+        ws2.sheet_state = 'hidden'
+
+        # Column widths
+        ws.column_dimensions['A'].width = 10
+        ws.column_dimensions['B'].width = 25
+        ws.column_dimensions['C'].width = 20
+        for i in range(len(cours_rows)):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(4 + i)].width = 22
+
+        ws.protection.enable()
+
+        rep_name = config.repartition.nom if config else 'Examen'
+        filename = f"Modele_Examen_{rep_name.replace(' ', '_')}.xlsx"
+
+        buffer = BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        response = HttpResponse(
+            content=buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
     except Exception as e:
         import traceback
         traceback.print_exc()

@@ -140,6 +140,7 @@ urlpatterns = [
     # Notes d'Examen — saisie directe
     path('api/notes/exam/grid/', api_views.get_exam_grid, name='get_exam_grid'),
     path('api/notes/exam/save/', api_views.save_exam_notes, name='save_exam_notes'),
+    path('api/notes/exam/template/', api_views.download_exam_template, name='download_exam_template'),
 
     # Délibérations
     path('api/evaluations/sessions/', api_views.get_evaluations_sessions, name='get_evaluations_sessions'),
