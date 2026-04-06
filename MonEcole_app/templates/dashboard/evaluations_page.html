@@ -2210,10 +2210,13 @@ async function importNotesExcel(input) {
     const formData = new FormData();
     formData.append('file', file);
 
+    // Choose the correct endpoint based on exam mode
+    const importUrl = _notesIsExam ? '/api/notes/exam/import/' : '/api/notes/import/';
+
     showToast('Importation en cours...', 'info');
 
     try {
-        const res = await fetch('/api/notes/import/', {
+        const res = await fetch(importUrl, {
             method: 'POST',
             headers: { 'X-CSRFToken': getCsrfToken() },
             body: formData
@@ -2225,7 +2228,14 @@ async function importNotesExcel(input) {
                 msg += ' ⚠️ ' + data.warnings.join('; ');
             }
             showToast(msg, 'success');
-            loadNotesGrid();
+            // Reload the correct grid
+            if (_notesIsExam) {
+                const periodeVal = document.getElementById('notes-periode-select').value;
+                const classeId = document.getElementById('notes-classe-select').value;
+                loadExamGrid(classeId, periodeVal.replace('exam_', ''));
+            } else {
+                loadNotesGrid();
+            }
         } else {
             showToast(data.error || 'Erreur d\'import.', 'error');
         }

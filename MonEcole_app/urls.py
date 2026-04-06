@@ -141,6 +141,7 @@ urlpatterns = [
     path('api/notes/exam/grid/', api_views.get_exam_grid, name='get_exam_grid'),
     path('api/notes/exam/save/', api_views.save_exam_notes, name='save_exam_notes'),
     path('api/notes/exam/template/', api_views.download_exam_template, name='download_exam_template'),
+    path('api/notes/exam/import/', api_views.import_exam_notes_excel, name='import_exam_notes_excel'),
 
     # Délibérations
     path('api/evaluations/sessions/', api_views.get_evaluations_sessions, name='get_evaluations_sessions'),

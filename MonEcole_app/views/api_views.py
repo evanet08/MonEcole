@@ -9098,6 +9098,155 @@ def import_notes_excel(request):
 
 
 # ============================================================
+# IMPORT EXAM NOTES FROM EXCEL
+# ============================================================
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def import_exam_notes_excel(request):
+    """Importe les notes d'examen depuis un fichier Excel (template d'examen avec cours_*)."""
+    try:
+        import openpyxl
+        from io import BytesIO
+
+        user_id = request.session.get('user_id')
+        if not user_id:
+            return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        etab_id = etab.id_etablissement
+
+        uploaded_file = request.FILES.get('file')
+        if not uploaded_file:
+            return JsonResponse({'success': False, 'error': 'Aucun fichier.'}, status=400)
+
+        file_bytes = uploaded_file.read()
+        wb_data = openpyxl.load_workbook(BytesIO(file_bytes), data_only=True)
+        wb_meta = openpyxl.load_workbook(BytesIO(file_bytes))
+
+        if '_meta' not in wb_meta.sheetnames:
+            return JsonResponse({'success': False, 'error': 'Fichier invalide: pas de métadonnées.'}, status=400)
+
+        meta = wb_meta['_meta']
+        classe_id = int(meta.cell(row=1, column=2).value)
+        repartition_id = int(meta.cell(row=2, column=2).value)
+
+        # Verify it's an exam template
+        file_type = meta.cell(row=4, column=2).value
+        if file_type != 'EXAM':
+            return JsonResponse({'success': False, 'error': "Ce fichier n'est pas un modèle d'examen."}, status=400)
+
+        # Read cours IDs + maxima from meta (cours_0, cours_1, ...)
+        cours_map = []
+        row = 5
+        while True:
+            key = meta.cell(row=row, column=1).value
+            if not key or not str(key).startswith('cours_'):
+                break
+            cours_map.append({
+                'id_cours_annee': int(meta.cell(row=row, column=2).value),
+                'max': float(meta.cell(row=row, column=3).value or 0)
+            })
+            row += 1
+
+        if not cours_map:
+            return JsonResponse({'success': False, 'error': 'Aucun cours dans le modèle.'}, status=400)
+
+        # Get config
+        config = _get_or_create_repartition_config(repartition_id, etab_id)
+        if not config:
+            return JsonResponse({'success': False, 'error': 'Configuration de répartition introuvable.'}, status=404)
+
+        from django.db import connections
+        rep_type_id = config.repartition.type_id
+
+        # Find EX note_type via raw SQL
+        conn_hub = connections['countryStructure'].cursor()
+        try:
+            conn_hub.execute("""
+                SELECT rtn.ponderation_max, nt.id_type_note
+                FROM repartition_type_notes rtn
+                JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                WHERE rtn.repartition_type_id = %s AND nt.sigle = 'EX' AND rtn.is_active = 1
+                LIMIT 1
+            """, [rep_type_id])
+            ex_row = conn_hub.fetchone()
+        finally:
+            conn_hub.close()
+
+        if not ex_row:
+            return JsonResponse({'success': False, 'error': 'Type de note Examen non configuré.'}, status=404)
+
+        ex_nt_id = ex_row[1]
+
+        # Read notes from main sheet
+        ws = wb_data.active
+        notes_to_save = []
+        errors = []
+
+        for row_idx in range(2, ws.max_row + 1):
+            eleve_id = ws.cell(row=row_idx, column=1).value
+            nom = ws.cell(row=row_idx, column=2).value
+            if not eleve_id:
+                continue
+            for col_idx, cm in enumerate(cours_map):
+                cell_val = ws.cell(row=row_idx, column=4 + col_idx).value
+                if cell_val is None or str(cell_val).strip() == '':
+                    continue
+                try:
+                    note_val = float(cell_val)
+                except (ValueError, TypeError):
+                    errors.append(f"Note invalide pour {nom} col {col_idx + 1}: '{cell_val}'")
+                    continue
+                if note_val < 0:
+                    errors.append(f"Note négative pour {nom}: {note_val}")
+                    continue
+                if note_val > cm['max'] and cm['max'] > 0:
+                    errors.append(f"Note {note_val} > max {cm['max']} pour {nom}")
+                    continue
+                notes_to_save.append({
+                    'eleve_id': int(eleve_id),
+                    'cours_annee_id': cm['id_cours_annee'],
+                    'note': note_val,
+                    'maxima': int(cm['max'])
+                })
+
+        if errors and not notes_to_save:
+            return JsonResponse({'success': False, 'error': 'Erreurs: ' + '; '.join(errors[:5])}, status=400)
+
+        # Save exam notes into note_bulletin
+        conn = _get_spoke_connection()
+        try:
+            saved = 0
+            with conn.cursor() as cur:
+                for nd in notes_to_save:
+                    cur.execute("""
+                        INSERT INTO note_bulletin
+                            (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
+                             note, maxima, source_type, date_calcul, id_etablissement)
+                        VALUES (%s, %s, %s, %s, %s, %s, 'SAISIE_DIRECTE', NOW(), %s)
+                        ON DUPLICATE KEY UPDATE
+                            note = VALUES(note), maxima = VALUES(maxima),
+                            source_type = 'SAISIE_DIRECTE',
+                            date_calcul = NOW(), updated_at = NOW()
+                    """, [nd['eleve_id'], nd['cours_annee_id'], config.id, ex_nt_id,
+                          nd['note'], nd['maxima'], etab_id])
+                    saved += 1
+            conn.commit()
+            result = {'success': True, 'saved': saved, 'message': f"{saved} note(s) d'examen importée(s)."}
+            if errors:
+                result['warnings'] = errors[:5]
+            return JsonResponse(result)
+        finally:
+            conn.close()
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ============================================================
 # NOTES BULLETIN — CALCUL & AFFICHAGE
 # ============================================================
 
