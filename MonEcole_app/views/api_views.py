@@ -9524,6 +9524,9 @@ def calculate_period_notes(request):
 
                     if parent_configs and child_configs:
                         ch_ph = ','.join(['%s'] * len(child_configs))
+                        # Parent TJ maxima = course's maxima_tj (authoritative source)
+                        p_max = cours_maxima_tj if cours_maxima_tj else parent_tj_info['max']
+
                         for pc_id in parent_configs:
                             for eleve_id in eleve_ids:
                                 # Sum child TJs for this cours
@@ -9536,8 +9539,14 @@ def calculate_period_notes(request):
                                       AND nb.id_repartition_config IN ({ch_ph})
                                 """, [eleve_id, cours_id, tj_nt_id] + child_configs)
                                 row = cur.fetchone()
-                                p_note = round(float(row['total']), 2) if row and row['total'] else None
-                                p_max = int(row['total_max']) if row and row['total_max'] else parent_tj_info['max']
+                                raw_total = float(row['total']) if row and row['total'] else None
+                                raw_max = float(row['total_max']) if row and row['total_max'] else None
+
+                                # Scale note to course maxima_tj
+                                if raw_total is not None and raw_max and raw_max > 0:
+                                    p_note = round((raw_total / raw_max) * p_max, 2)
+                                else:
+                                    p_note = None
 
                                 if p_note is not None:
                                     cur.execute("""
@@ -9690,9 +9699,11 @@ def calculate_notes_bulletin(request):
                 if not eleve_ids:
                     return JsonResponse({'success': False, 'error': 'Aucun élève inscrit.'}, status=404)
 
-                # Get cours for this class (with maxima_exam) — filtered by classe
+                # Get cours for this class (with maxima_exam + maxima_tj) — filtered by classe
                 cur.execute("""
-                    SELECT MIN(cann.id_cours_annee) AS id_cours_annee, MAX(cann.maxima_exam) AS maxima_exam
+                    SELECT MIN(cann.id_cours_annee) AS id_cours_annee,
+                           MAX(cann.maxima_exam) AS maxima_exam,
+                           MAX(cann.maxima_tj) AS maxima_tj
                     FROM countryStructure.cours_annee cann
                     JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
                     JOIN countryStructure.etablissements_annees ea ON ea.annee_id = cann.annee_id
@@ -9701,8 +9712,9 @@ def calculate_notes_bulletin(request):
                     GROUP BY cann.cours_id
                 """, [classe_id])
                 cours_rows = cur.fetchall()
-                # Dict: cours_id → maxima_exam
+                # Dict: cours_id → {maxima_exam, maxima_tj}
                 cours_maximas = {r['id_cours_annee']: r['maxima_exam'] for r in cours_rows}
+                cours_maximas_tj = {r['id_cours_annee']: r['maxima_tj'] for r in cours_rows}
                 cours_ids = list(cours_maximas.keys())
 
                 calculated = 0
@@ -9808,29 +9820,28 @@ def calculate_notes_bulletin(request):
                         child_placeholders = ','.join(['%s'] * len(child_configs))
 
                         for cours_id in cours_ids:
-                            for eleve_id in eleve_ids:
-                                if en.mode_calcul == 'SOMME':
-                                    cur.execute(f"""
-                                        SELECT COALESCE(SUM(nb.note), 0) AS total,
-                                               COALESCE(SUM(nb.maxima), 0) AS total_max
-                                        FROM note_bulletin nb
-                                        WHERE nb.id_eleve_id = %s AND nb.id_cours_annee = %s
-                                          AND nb.id_note_type = %s
-                                          AND nb.id_repartition_config IN ({child_placeholders})
-                                    """, [eleve_id, cours_id, nt_id] + child_configs)
-                                else:  # MOYENNE
-                                    cur.execute(f"""
-                                        SELECT COALESCE(AVG(nb.note), 0) AS total,
-                                               MAX(nb.maxima) AS total_max
-                                        FROM note_bulletin nb
-                                        WHERE nb.id_eleve_id = %s AND nb.id_cours_annee = %s
-                                          AND nb.id_note_type = %s
-                                          AND nb.id_repartition_config IN ({child_placeholders})
-                                    """, [eleve_id, cours_id, nt_id] + child_configs)
+                            # Authoritative TJ max from the course itself
+                            c_maxima_tj = cours_maximas_tj.get(cours_id)
+                            heritage_max = int(c_maxima_tj) if c_maxima_tj else default_max
 
+                            for eleve_id in eleve_ids:
+                                cur.execute(f"""
+                                    SELECT COALESCE(SUM(nb.note), 0) AS total,
+                                           COALESCE(SUM(nb.maxima), 0) AS total_max
+                                    FROM note_bulletin nb
+                                    WHERE nb.id_eleve_id = %s AND nb.id_cours_annee = %s
+                                      AND nb.id_note_type = %s
+                                      AND nb.id_repartition_config IN ({child_placeholders})
+                                """, [eleve_id, cours_id, nt_id] + child_configs)
                                 row = cur.fetchone()
-                                note_val = round(float(row['total']), 2) if row and row['total'] else None
-                                total_max_val = int(row['total_max']) if row and row['total_max'] else default_max
+                                raw_total = float(row['total']) if row and row['total'] else None
+                                raw_max = float(row['total_max']) if row and row['total_max'] else None
+
+                                # Scale to course's maxima_tj
+                                if raw_total is not None and raw_max and raw_max > 0:
+                                    note_val = round((raw_total / raw_max) * heritage_max, 2)
+                                else:
+                                    note_val = None
 
                                 if note_val is not None:
                                     cur.execute("""
@@ -9841,7 +9852,7 @@ def calculate_notes_bulletin(request):
                                         ON DUPLICATE KEY UPDATE
                                             note = VALUES(note), maxima = VALUES(maxima),
                                             date_calcul = NOW(), updated_at = NOW()
-                                    """, [eleve_id, cours_id, config.id, nt_id, note_val, total_max_val, etab_id])
+                                    """, [eleve_id, cours_id, config.id, nt_id, note_val, heritage_max, etab_id])
                                     calculated += 1
 
                     elif en.source_type == 'FORMULE':
