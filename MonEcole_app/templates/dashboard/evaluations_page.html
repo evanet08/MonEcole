@@ -1006,6 +1006,13 @@ function renderEvalGrid() {
             byPeriod[pKey].push(ev);
         });
 
+        // Sort periods ascending (extract number: "1ère" → 1, "2ème" → 2, etc.)
+        periodOrder.sort((a, b) => {
+            const na = parseInt(a.match(/(\d+)/)?.[1] || '999');
+            const nb = parseInt(b.match(/(\d+)/)?.[1] || '999');
+            return na - nb;
+        });
+
         periodOrder.forEach((pNom, pi) => {
             const pEvals = byPeriod[pNom];
             const pCount = pEvals.length;
@@ -1014,8 +1021,11 @@ function renderEvalGrid() {
             const pBodyDisplay = periodOrder.length === 1 ? '' : 'display:none;';
             const pChevron = periodOrder.length === 1 ? 'fa-chevron-up' : 'fa-chevron-down';
 
-            // Period sub-accordion header
-            html += `<div onclick="toggleEvalAccordion(this)" style="background:linear-gradient(135deg,#7c3aed15,#8b5cf615);border-bottom:1px solid #e2e8f0;padding:8px 16px 8px 28px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none" data-open="${pIsOpen}">`;
+            // Period sub-accordion — indented with left border
+            html += `<div style="margin-left:20px;border-left:3px solid #7c3aed40;${pi === 0 ? 'margin-top:4px;' : ''}">`;
+
+            // Period header
+            html += `<div onclick="toggleEvalAccordion(this)" style="background:linear-gradient(135deg,#7c3aed10,#8b5cf610);border-bottom:1px solid #ede9fe;padding:8px 14px 8px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none" data-open="${pIsOpen}">`;
             html += `<div style="display:flex;align-items:center;gap:8px">`;
             html += `<i class="fas fa-calendar-day" style="font-size:.65rem;color:#7c3aed;opacity:.7"></i>`;
             html += `<span style="font-weight:700;font-size:.74rem;color:#7c3aed">${pNom}</span>`;
@@ -1026,11 +1036,11 @@ function renderEvalGrid() {
             html += `<i class="fas ${pChevron}" style="font-size:.55rem;color:#7c3aed;transition:transform .2s"></i>`;
             html += `</div></div>`;
 
-            // Period body — evaluation table
-            html += `<div style="${pBodyDisplay}">`;
+            // Period body — evaluation table, further indented
+            html += `<div style="${pBodyDisplay}margin-left:16px;border-left:2px solid #e2e8f0;">`;
             html += '<table style="width:100%;border-collapse:collapse;font-size:.73rem">';
             html += '<thead><tr style="background:#f8fafc">' +
-                '<th style="padding:6px 12px 6px 28px;text-align:left;font-weight:600;color:#64748b;border-bottom:1px solid #e2e8f0;font-size:.68rem">Titre</th>' +
+                '<th style="padding:6px 12px 6px 14px;text-align:left;font-weight:600;color:#64748b;border-bottom:1px solid #e2e8f0;font-size:.68rem">Titre</th>' +
                 '<th style="padding:6px 6px;text-align:center;font-weight:600;color:#64748b;border-bottom:1px solid #e2e8f0;width:70px;font-size:.68rem">Type</th>' +
                 '<th style="padding:6px 6px;text-align:center;font-weight:600;color:#64748b;border-bottom:1px solid #e2e8f0;width:85px;font-size:.68rem">Date</th>' +
                 '<th style="padding:6px 6px;text-align:center;font-weight:600;color:#64748b;border-bottom:1px solid #e2e8f0;width:45px;font-size:.68rem">Max</th>' +
@@ -1046,8 +1056,8 @@ function renderEvalGrid() {
                     : '<span style="color:#cbd5e1;font-size:.6rem">\u2014</span>';
 
                 html += '<tr style="background:' + bg + ';transition:background .15s" onmouseover="this.style.background=\'#fffbeb\'" onmouseout="this.style.background=\'' + bg + '\'">';
-                html += '<td style="padding:6px 12px 6px 28px;border-bottom:1px solid #f1f5f9"><div style="font-weight:600;color:#1e293b;font-size:.73rem">' + ev.title + '</div>';
-                if (ev.contenu) html += '<div style="font-size:.6rem;color:#94a3b8;margin-top:1px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + ev.contenu + '</div>';
+                html += '<td style="padding:6px 12px 6px 14px;border-bottom:1px solid #f1f5f9"><div style="font-weight:600;color:#1e293b;font-size:.73rem">' + ev.title + '</div>';
+                if (ev.contenu) html += '<div style="font-size:.6rem;color:#94a3b8;margin-top:1px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + ev.contenu + '</div>';
                 html += '</td>';
                 html += '<td style="padding:6px 6px;text-align:center;border-bottom:1px solid #f1f5f9">' + typeLabel + '</td>';
                 html += '<td style="padding:6px 6px;text-align:center;border-bottom:1px solid #f1f5f9;font-weight:500;color:#475569">' + (ev.date_eval || '\u2014') + '</td>';
@@ -1058,7 +1068,7 @@ function renderEvalGrid() {
                 html += '<button onclick="deleteEvaluation(' + ev.id_evaluation + ')" style="border:none;background:#fef2f2;color:#dc2626;width:24px;height:24px;border-radius:6px;cursor:pointer;font-size:.55rem" title="Supprimer"><i class="fas fa-trash"></i></button>';
                 html += '</div></td></tr>';
             });
-            html += '</tbody></table></div>';
+            html += '</tbody></table></div></div>';
         });
 
         html += '</div></div>';
