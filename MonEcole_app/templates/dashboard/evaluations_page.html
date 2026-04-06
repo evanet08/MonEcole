@@ -6113,6 +6113,13 @@ function _render() {
             var tBg = ['#eef2ff','#eff6ff','#f0fdfa','#fffbeb'][pi%4];
 
             var colDefs = [];
+            // Per-course maxima from cours_annee
+            var crMaxTJ = cr.maxima_tj || (ntTJ ? ntTJ.max : 20);
+            var crMaxEX = cr.maxima_exam || (ntEX ? ntEX.max : 20);
+            var crMaxTOT = crMaxTJ + crMaxEX;
+            var nbKids = myKids.length || 1;
+            var crMaxNP = Math.round((crMaxTJ / nbKids) * 100) / 100;  // per-period TJ
+
             myKids.forEach(function(kid) {
                 var kidEvs = evs.filter(function(ev){return ev.config_id === kid.config_id && ev.cours_id === cr.id;});
                 kidEvs.forEach(function(ev) {
@@ -6120,7 +6127,7 @@ function _render() {
                 });
                 // Note Pondérée de la période (calculated from evaluations)
                 if (cntTJ) {
-                    colDefs.push({type:'pnote',label:'NP',subLabel:'/'+(cntTJ.max||'?'),configId:kid.config_id,ntId:cntTJ.id,max:cntTJ.max,periodeNom:kid.nom,coursId:cr.id,
+                    colDefs.push({type:'pnote',label:'NP',subLabel:'/'+crMaxNP,configId:kid.config_id,ntId:cntTJ.id,max:crMaxNP,periodeNom:kid.nom,coursId:cr.id,
                         evalList: kidEvs.map(function(ev){return {id:ev.id,nom:ev.nom,max:ev.max};})
                     });
                 }
@@ -6134,9 +6141,9 @@ function _render() {
                     colDefs.splice(insertPos + ei, 0, {type:'eval',label:ev.nom,subLabel:'/'+ev.max,evalId:ev.id,max:ev.max,periodeNom:'Examen',configId:par.config_id});
                 });
             }
-            if (ntTJ) colDefs.push({type:'tj',label:'TJ',subLabel:'/'+(ntTJ.max||'?'),configId:par.config_id,ntId:ntTJ.id,max:ntTJ.max});
-            if (ntEX) colDefs.push({type:'ex',label:'EX',subLabel:'/'+(ntEX.max||'?'),configId:par.config_id,ntId:ntEX.id,max:ntEX.max});
-            if (ntTOT) colDefs.push({type:'tot',label:'TOTAL',subLabel:'/'+(ntTOT.max||'?'),configId:par.config_id,ntId:ntTOT.id,max:ntTOT.max});
+            if (ntTJ) colDefs.push({type:'tj',label:'TJ',subLabel:'/'+crMaxTJ,configId:par.config_id,ntId:ntTJ.id,max:crMaxTJ});
+            if (ntEX) colDefs.push({type:'ex',label:'EX',subLabel:'/'+crMaxEX,configId:par.config_id,ntId:ntEX.id,max:crMaxEX});
+            if (ntTOT) colDefs.push({type:'tot',label:'TOTAL',subLabel:'/'+crMaxTOT,configId:par.config_id,ntId:ntTOT.id,max:crMaxTOT});
 
             html += '<div style="margin:6px 8px;border-radius:10px;overflow:hidden;border:1px solid '+tCol+'30">';
             html += '<div onclick="_tog(\''+tAid+'\')" style="background:'+tBg+';padding:8px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;border-bottom:1px solid '+tCol+'20">';
