@@ -9383,19 +9383,27 @@ def get_exam_grid(request):
         repartition_name = config.repartition.nom if config else ''
         rep_type = config.repartition.type if config else None
 
-        # Find the EX note_type for this repartition type
-        from structure_app.models import RepartitionTypeNote
-        ex_rtn = RepartitionTypeNote.objects.filter(
-            repartition_type=rep_type,
-            note_type__sigle='EX',
-            is_active=True
-        ).select_related('note_type').first() if rep_type else None
+        # Find the EX note_type for this repartition type via raw SQL
+        from django.db import connections
+        rep_type_id = config.repartition.type_id if config else None
+        conn_hub = connections['countryStructure'].cursor()
+        try:
+            conn_hub.execute("""
+                SELECT rtn.id, rtn.ponderation_max, nt.id_type_note
+                FROM repartition_type_notes rtn
+                JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                WHERE rtn.repartition_type_id = %s AND nt.sigle = 'EX' AND rtn.is_active = 1
+                LIMIT 1
+            """, [rep_type_id])
+            ex_row = conn_hub.fetchone()
+        finally:
+            conn_hub.close()
 
-        if not ex_rtn:
-            return JsonResponse({'success': False, 'error': f'Aucun type de note "Examen" configuré pour "{rep_type.nom if rep_type else "?"}".'}, status=404)
+        if not ex_row:
+            return JsonResponse({'success': False, 'error': 'Aucun type de note "Examen" configuré.'}, status=404)
 
-        ex_note_type_id = ex_rtn.note_type.id_type_note
-        default_max = ex_rtn.ponderation_max or 20
+        ex_note_type_id = ex_row[2]
+        default_max = ex_row[1] or 20
 
         conn = _get_spoke_connection()
         try:
@@ -9520,20 +9528,27 @@ def save_exam_notes(request):
         if not config:
             return JsonResponse({'success': False, 'error': 'Configuration de répartition introuvable.'}, status=404)
 
-        rep_type = config.repartition.type
+        from django.db import connections
+        rep_type_id = config.repartition.type_id
 
-        # Find EX note_type
-        from structure_app.models import RepartitionTypeNote
-        ex_rtn = RepartitionTypeNote.objects.filter(
-            repartition_type=rep_type,
-            note_type__sigle='EX',
-            is_active=True
-        ).select_related('note_type').first()
+        # Find EX note_type via raw SQL
+        conn_hub = connections['countryStructure'].cursor()
+        try:
+            conn_hub.execute("""
+                SELECT rtn.ponderation_max, nt.id_type_note
+                FROM repartition_type_notes rtn
+                JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                WHERE rtn.repartition_type_id = %s AND nt.sigle = 'EX' AND rtn.is_active = 1
+                LIMIT 1
+            """, [rep_type_id])
+            ex_row = conn_hub.fetchone()
+        finally:
+            conn_hub.close()
 
-        if not ex_rtn:
+        if not ex_row:
             return JsonResponse({'success': False, 'error': 'Type de note Examen non configuré.'}, status=404)
 
-        ex_nt_id = ex_rtn.note_type.id_type_note
+        ex_nt_id = ex_row[1]
 
         conn = _get_spoke_connection()
         try:
@@ -9562,7 +9577,7 @@ def save_exam_notes(request):
                     except (ValueError, TypeError):
                         continue
 
-                    maxima_val = int(maxima) if maxima else (ex_rtn.ponderation_max or 20)
+                    maxima_val = int(maxima) if maxima else (ex_row[0] or 20)
 
                     # Upsert
                     cur.execute("""
@@ -9617,21 +9632,28 @@ def download_exam_template(request):
         etab_id = etab.id_etablissement
 
         config = _get_or_create_repartition_config(repartition_id, etab_id)
-        rep_type = config.repartition.type if config else None
+        from django.db import connections
+        rep_type_id = config.repartition.type_id if config else None
 
-        # Find EX note type
-        from structure_app.models import RepartitionTypeNote
-        ex_rtn = RepartitionTypeNote.objects.filter(
-            repartition_type=rep_type,
-            note_type__sigle='EX',
-            is_active=True
-        ).select_related('note_type').first() if rep_type else None
+        # Find EX note type via raw SQL
+        conn_hub = connections['countryStructure'].cursor()
+        try:
+            conn_hub.execute("""
+                SELECT rtn.ponderation_max, nt.id_type_note
+                FROM repartition_type_notes rtn
+                JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                WHERE rtn.repartition_type_id = %s AND nt.sigle = 'EX' AND rtn.is_active = 1
+                LIMIT 1
+            """, [rep_type_id])
+            ex_row = conn_hub.fetchone()
+        finally:
+            conn_hub.close()
 
-        if not ex_rtn:
+        if not ex_row:
             return JsonResponse({'success': False, 'error': 'Type de note Examen non configuré.'}, status=404)
 
-        ex_note_type_id = ex_rtn.note_type.id_type_note
-        default_max = ex_rtn.ponderation_max or 20
+        ex_note_type_id = ex_row[1]
+        default_max = ex_row[0] or 20
 
         conn = _get_spoke_connection()
         try:
