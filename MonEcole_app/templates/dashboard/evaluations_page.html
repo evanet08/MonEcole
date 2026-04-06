@@ -369,9 +369,6 @@
         <button class="eval-pill" id="tabEvalComposition" onclick="switchEvalTab('composition')">
             <i class="fas fa-balance-scale"></i><span>Notes Pondérées</span>
         </button>
-        <button class="eval-pill" id="tabEvalExamens" onclick="switchEvalTab('examens')">
-            <i class="fas fa-file-signature"></i><span>Examens</span>
-        </button>
     </div>
 
     <!-- ====== TAB: TYPES (visible by default) ====== -->
@@ -588,51 +585,7 @@
         </div>
     </div>
 
-    <!-- ====== TAB: EXAMENS — SAISIE DIRECTE ====== -->
-    <div id="evalPanelExamens" style="display:none">
-        <div class="eval-filter-bar">
-            <div class="eval-filter-group">
-                <div class="eval-filter-item">
-                    <div class="eval-filter-icon" style="--accent-light:#fce7f3;--fi-color:#db2777"><i class="fas fa-graduation-cap"></i></div>
-                    <div class="eval-filter-field">
-                        <label>Classe</label>
-                        <select id="exam-classe-select" onchange="onExamClasseChange()">
-                            <option value="">— Sélectionner —</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="eval-filter-divider"></div>
-                <div class="eval-filter-item">
-                    <div class="eval-filter-icon" style="--accent-light:#fef3c7;--fi-color:#d97706"><i class="fas fa-calendar-week"></i></div>
-                    <div class="eval-filter-field">
-                        <label>Trimestre / Semestre</label>
-                        <select id="exam-repartition-select" onchange="loadExamGrid()" disabled>
-                            <option value="">— Répartition —</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <button class="eval-add-btn" onclick="saveExamNotes()" id="btnSaveExam" disabled style="--btn-gradient:linear-gradient(135deg,#db2777,#ec4899)">
-                <i class="fas fa-save"></i><span>Enregistrer Examens</span>
-            </button>
-        </div>
-        <div class="eval-content-card">
-            <div id="examGridContainer" style="overflow:auto;max-height:calc(100vh - 360px)">
-                <div class="eval-empty-state">
-                    <div class="eval-empty-anim"><div class="eval-empty-circle" style="background:linear-gradient(135deg,#fce7f3,#fbcfe8)"></div><i class="fas fa-file-signature" style="color:#db2777"></i></div>
-                    <h3>Saisie des examens</h3>
-                    <p>Sélectionnez une classe et un trimestre/semestre pour saisir directement les notes d'examen.</p>
-                    <div class="eval-empty-steps">
-                        <div class="eval-step"><span>1</span> Choisir la classe</div>
-                        <div class="eval-step-arrow"><i class="fas fa-chevron-right"></i></div>
-                        <div class="eval-step"><span>2</span> Choisir la répartition</div>
-                        <div class="eval-step-arrow"><i class="fas fa-chevron-right"></i></div>
-                        <div class="eval-step"><span>3</span> Saisir les notes</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+
 </div>
 
 <!-- Modal: Créer/Modifier Évaluation -->
@@ -767,12 +720,6 @@
         evalClasseSelect.appendChild(opt1);
         const opt2 = opt1.cloneNode(true);
         compClasseSelect.appendChild(opt2);
-        // Also populate the exam class selector
-        const examClasseSelect = document.getElementById('exam-classe-select');
-        if (examClasseSelect) {
-            const opt3 = opt1.cloneNode(true);
-            examClasseSelect.appendChild(opt3);
-        }
     });
 })();
 
@@ -785,8 +732,7 @@ function switchEvalTab(tab) {
         types:        { panel: 'evalPanelTypes',        btn: 'tabEvalTypes' },
         gestion:      { panel: 'evalPanelGestion',      btn: 'tabEvalGestion' },
         notesParEval: { panel: 'evalPanelNotesParEval', btn: 'tabEvalNotesParEval' },
-        composition:  { panel: 'evalPanelComposition',  btn: 'tabEvalComposition' },
-        examens:      { panel: 'evalPanelExamens',      btn: 'tabEvalExamens' }
+        composition:  { panel: 'evalPanelComposition',  btn: 'tabEvalComposition' }
     };
     Object.keys(tabMap).forEach(t => {
         const panel = document.getElementById(tabMap[t].panel);
@@ -5946,215 +5892,6 @@ function updateBullGenBtn(){
 }
 
 
-// ============================================================
-// EXAM NOTES — SAISIE DIRECTE PAR RÉPARTITION PRINCIPALE
-// ============================================================
-
-var _examTabGridData = null;  // stores the grid data returned by API (Exam tab)
-var _examSelectedClasse = '';
-var _examSelectedRepartition = '';
-
-async function onExamClasseChange() {
-    _examSelectedClasse = document.getElementById('exam-classe-select').value;
-    const repSel = document.getElementById('exam-repartition-select');
-    repSel.innerHTML = '<option value="">— Répartition —</option>';
-    repSel.disabled = true;
-    document.getElementById('btnSaveExam').disabled = true;
-    _examTabGridData = null;
-    document.getElementById('examGridContainer').innerHTML = '<div class="eval-empty-state"><div class="eval-empty-anim"><div class="eval-empty-circle" style="background:linear-gradient(135deg,#fce7f3,#fbcfe8)"></div><i class="fas fa-file-signature" style="color:#db2777"></i></div><h3>Saisie des examens</h3><p>Sélectionnez un trimestre/semestre pour saisir les notes.</p></div>';
-
-    if (!_examSelectedClasse) return;
-
-    try {
-        // Fetch repartitions filtered to only root types (Trimestre/Semestre, NOT Période)
-        const res = await fetch('/api/evaluations/repartitions/?classe_id=' + _examSelectedClasse);
-        const data = await res.json();
-        if (data.success && data.repartitions) {
-            // Filter: keep only root types (T=Trimestre, S=Semestre)
-            const rootTypes = data.repartitions.filter(r => r.type_code === 'T' || r.type_code === 'S');
-            rootTypes.forEach(r => {
-                const opt = document.createElement('option');
-                opt.value = r.repartition_id;
-                opt.textContent = r.nom;
-                opt.dataset.typeCode = r.type_code;
-                repSel.appendChild(opt);
-            });
-            repSel.disabled = rootTypes.length === 0;
-        }
-    } catch(e) { console.error('onExamClasseChange', e); }
-}
-
-async function loadExamGrid() {
-    _examSelectedRepartition = document.getElementById('exam-repartition-select').value;
-    const container = document.getElementById('examGridContainer');
-    document.getElementById('btnSaveExam').disabled = true;
-    _examTabGridData = null;
-
-    if (!_examSelectedClasse || !_examSelectedRepartition) {
-        container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-info-circle me-1"></i>Sélectionnez une classe et un trimestre/semestre.</div>';
-        return;
-    }
-
-    container.innerHTML = '<div style="text-align:center;padding:40px"><i class="fas fa-spinner fa-spin" style="color:#db2777;font-size:1.5rem"></i></div>';
-
-    try {
-        const res = await fetch(`/api/notes/exam/grid/?classe_id=${_examSelectedClasse}&repartition_id=${_examSelectedRepartition}`);
-        const data = await res.json();
-        if (data.success) {
-            _examTabGridData = data;
-            renderExamGrid();
-            document.getElementById('btnSaveExam').disabled = false;
-        } else {
-            container.innerHTML = `<div style="text-align:center;padding:40px;color:#f59e0b;font-size:.78rem"><i class="fas fa-exclamation-triangle me-1"></i>${data.error || 'Erreur.'}</div>`;
-        }
-    } catch(e) {
-        container.innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626;font-size:.78rem">Erreur de connexion.</div>';
-        console.error('loadExamGrid', e);
-    }
-}
-
-function renderExamGrid() {
-    const container = document.getElementById('examGridContainer');
-    if (!_examTabGridData || !_examTabGridData.eleves.length || !_examTabGridData.cours.length) {
-        container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-info-circle me-1"></i>Aucun élève ou cours configuré pour cette classe.</div>';
-        return;
-    }
-
-    const { eleves, cours, notes, repartition_name } = _examTabGridData;
-
-    let html = `<div style="padding:10px 14px;background:linear-gradient(135deg,#fdf2f8,#fce7f3);border-bottom:1px solid #fbcfe8;display:flex;align-items:center;gap:8px">
-        <i class="fas fa-file-signature" style="color:#db2777;font-size:.85rem"></i>
-        <span style="font-size:.82rem;font-weight:700;color:#9d174d">${repartition_name} — Notes d'Examen</span>
-        <span style="font-size:.65rem;color:#be185d;margin-left:auto">${eleves.length} élèves × ${cours.length} cours</span>
-    </div>`;
-
-    html += '<div style="overflow:auto">';
-    html += '<table style="width:100%;border-collapse:collapse;font-size:.72rem">';
-
-    // Header
-    html += '<thead><tr style="background:linear-gradient(135deg,#831843,#9d174d)">';
-    html += '<th style="padding:8px 10px;color:#fff;text-align:left;font-weight:700;font-size:.62rem;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;position:sticky;left:0;z-index:3;background:linear-gradient(135deg,#831843,#9d174d);min-width:40px;border-right:2px solid rgba(255,255,255,.2)">#</th>';
-    html += '<th style="padding:8px 10px;color:#fff;text-align:left;font-weight:700;font-size:.62rem;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;position:sticky;left:40px;z-index:3;background:linear-gradient(135deg,#831843,#9d174d);min-width:200px;border-right:2px solid rgba(255,255,255,.2)">Élève</th>';
-    cours.forEach(c => {
-        html += `<th style="padding:8px 6px;color:#fff;text-align:center;font-weight:600;font-size:.6rem;letter-spacing:.2px;white-space:nowrap;min-width:75px"
-            title="${c.cours_nom}">${c.code_cours || c.cours_nom.substring(0,10)}<br><span style="opacity:.7;font-size:.5rem">/${c.maxima_exam}</span></th>`;
-    });
-    html += '</tr></thead><tbody>';
-
-    // Rows
-    eleves.forEach((el, idx) => {
-        const bg = idx % 2 === 0 ? '#fff' : '#fdf2f8';
-        html += `<tr style="background:${bg};transition:background .15s" onmouseover="this.style.background='#fce7f3'" onmouseout="this.style.background='${bg}'">`;
-        html += `<td style="padding:5px 10px;border-bottom:1px solid #fce7f3;font-weight:600;color:#9d174d;text-align:center;position:sticky;left:0;z-index:1;background:${bg};border-right:2px solid #fce7f3">${idx + 1}</td>`;
-        html += `<td style="padding:5px 10px;border-bottom:1px solid #fce7f3;font-weight:600;color:#1e293b;white-space:nowrap;position:sticky;left:40px;z-index:1;background:${bg};border-right:2px solid #fce7f3">${el.nom} ${el.prenom}</td>`;
-
-        cours.forEach(c => {
-            const key = `${el.id}_${c.id_cours_annee}`;
-            const existingNote = notes[key];
-            const val = (existingNote !== undefined && existingNote !== null) ? existingNote : '';
-
-            html += `<td style="padding:2px 3px;border-bottom:1px solid #fce7f3;text-align:center">
-                <input type="number" step="0.5" min="0" max="${c.maxima_exam}"
-                    class="exam-note-input"
-                    data-eleve-id="${el.id}" data-cours-id="${c.id_cours_annee}" data-maxima="${c.maxima_exam}"
-                    value="${val}"
-                    style="width:58px;padding:4px 3px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:.72rem;font-weight:600;text-align:center;outline:none;transition:all .2s;background:#fff"
-                    onfocus="this.style.borderColor='#db2777';this.style.boxShadow='0 0 0 2px rgba(219,39,119,.15)'"
-                    onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none';validateExamInput(this)"
-                ></td>`;
-        });
-        html += '</tr>';
-    });
-
-    html += '</tbody></table></div>';
-    container.innerHTML = html;
-}
-
-function validateExamInput(input) {
-    const val = parseFloat(input.value);
-    const max = parseFloat(input.dataset.maxima);
-    if (input.value !== '' && (isNaN(val) || val < 0 || val > max)) {
-        input.style.borderColor = '#dc2626';
-        input.style.background = '#fef2f2';
-        showToast(`Note invalide : doit être entre 0 et ${max}`, 'error');
-    } else {
-        input.style.borderColor = '#e2e8f0';
-        input.style.background = '#fff';
-    }
-}
-
-async function saveExamNotes() {
-    if (!_examTabGridData || !_examSelectedClasse || !_examSelectedRepartition) {
-        showToast('Sélectionnez d\'abord une classe et un trimestre.', 'error');
-        return;
-    }
-
-    const inputs = document.querySelectorAll('.exam-note-input');
-    const notesArr = [];
-    let hasError = false;
-
-    inputs.forEach(inp => {
-        const val = inp.value.trim();
-        const max = parseFloat(inp.dataset.maxima);
-        const numVal = parseFloat(val);
-
-        if (val !== '' && (isNaN(numVal) || numVal < 0 || numVal > max)) {
-            hasError = true;
-            inp.style.borderColor = '#dc2626';
-            inp.style.background = '#fef2f2';
-        }
-
-        notesArr.push({
-            eleve_id: parseInt(inp.dataset.eleveId),
-            cours_annee_id: parseInt(inp.dataset.coursId),
-            note: val === '' ? null : numVal,
-            maxima: parseInt(inp.dataset.maxima)
-        });
-    });
-
-    if (hasError) {
-        showToast('Certaines notes sont invalides. Corrigez-les avant d\'enregistrer.', 'error');
-        return;
-    }
-
-    // Filter out completely empty notes (no change needed)
-    const toSave = notesArr.filter(n => n.note !== null || _examTabGridData.notes[`${n.eleve_id}_${n.cours_annee_id}`] !== undefined);
-
-    if (!toSave.length) {
-        showToast('Aucune note à enregistrer.', 'error');
-        return;
-    }
-
-    const btn = document.getElementById('btnSaveExam');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Enregistrement...';
-
-    try {
-        const res = await fetch('/api/notes/exam/save/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-            body: JSON.stringify({
-                classe_id: _examSelectedClasse,
-                repartition_id: _examSelectedRepartition,
-                notes: toSave
-            })
-        });
-        const data = await res.json();
-        if (data.success) {
-            showToast(data.message || `${data.saved} notes enregistrées !`, 'success');
-            // Reload grid to show saved state
-            await loadExamGrid();
-        } else {
-            showToast(data.error || 'Erreur lors de l\'enregistrement.', 'error');
-        }
-    } catch(e) {
-        showToast('Erreur de connexion.', 'error');
-        console.error('saveExamNotes', e);
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-save"></i><span>Enregistrer Examens</span>';
-    }
-}
 
 </script>
 {% endblock %}
