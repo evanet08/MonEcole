@@ -499,7 +499,7 @@
 
     <!-- ====== TAB: NOTES PAR EVALUATION ====== -->
     <div id="evalPanelNotesParEval" style="{% if active_section != 'notes' %}display:none{% endif %}">
-        <!-- Filter Bar: 4 cascading filters -->
+        <!-- Row 1: Fixed filters (Classe + Période) + Mode selector -->
         <div class="eval-filter-bar">
             <div class="eval-filter-group" style="flex-wrap:wrap">
                 <div class="eval-filter-item">
@@ -521,29 +521,49 @@
                         </select>
                     </div>
                 </div>
-                <div class="eval-filter-divider"></div>
-                <div class="eval-filter-item">
-                    <div class="eval-filter-icon" style="--fi-color:#0d9488"><i class="fas fa-book-open"></i></div>
-                    <div class="eval-filter-field">
-                        <label>Cours</label>
-                        <select id="notes-cours-select" onchange="onNotesCoursChange()" disabled>
-                            <option value="">— Tous les cours —</option>
-                        </select>
-                    </div>
+                <!-- Mode selector (hidden until period selected) -->
+                <div class="eval-filter-divider" id="notesModeDiv" style="display:none"></div>
+                <div id="notesModeSelector" style="display:none;align-items:center;gap:4px">
+                    <span style="font-size:.58rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-right:4px">Saisie</span>
+                    <button id="notesModePeriode" onclick="setNotesMode('periode')" class="eval-add-btn" style="--btn-gradient:linear-gradient(135deg,#d97706,#f59e0b);font-size:.62rem;padding:5px 12px;opacity:.5">
+                        <i class="fas fa-calendar-check"></i><span>Par Période</span>
+                    </button>
+                    <button id="notesModeCours" onclick="setNotesMode('cours')" class="eval-add-btn" style="--btn-gradient:linear-gradient(135deg,#0d9488,#14b8a6);font-size:.62rem;padding:5px 12px;opacity:.5">
+                        <i class="fas fa-book-open"></i><span>Par Cours</span>
+                    </button>
+                    <button id="notesModeEval" onclick="setNotesMode('eval')" class="eval-add-btn" style="--btn-gradient:linear-gradient(135deg,#7c3aed,#a78bfa);font-size:.62rem;padding:5px 12px;opacity:.5">
+                        <i class="fas fa-file-alt"></i><span>Par Évaluation</span>
+                    </button>
                 </div>
-                <div class="eval-filter-divider"></div>
-                <div class="eval-filter-item">
-                    <div class="eval-filter-icon" style="--fi-color:#7c3aed"><i class="fas fa-file-alt"></i></div>
-                    <div class="eval-filter-field">
-                        <label>Évaluation</label>
-                        <select id="notes-eval-select" onchange="onNotesEvalChange()" disabled>
-                            <option value="">— Toutes les évaluations —</option>
-                        </select>
+            </div>
+        </div>
+        <!-- Row 2: Contextual filters (hidden by default, shown per mode) -->
+        <div id="notesContextFilters" style="display:none">
+            <div class="eval-filter-bar" style="margin-top:-8px;padding-top:0">
+                <div class="eval-filter-group">
+                    <div class="eval-filter-item" id="notesCoursFilterWrap" style="display:none">
+                        <div class="eval-filter-icon" style="--fi-color:#0d9488"><i class="fas fa-book-open"></i></div>
+                        <div class="eval-filter-field">
+                            <label>Cours</label>
+                            <select id="notes-cours-select" onchange="onNotesCoursChange()" disabled>
+                                <option value="">— Sélectionner un cours —</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="eval-filter-divider" id="notesEvalDivider" style="display:none"></div>
+                    <div class="eval-filter-item" id="notesEvalFilterWrap" style="display:none">
+                        <div class="eval-filter-icon" style="--fi-color:#7c3aed"><i class="fas fa-file-alt"></i></div>
+                        <div class="eval-filter-field">
+                            <label>Évaluation</label>
+                            <select id="notes-eval-select" onchange="onNotesEvalChange()" disabled>
+                                <option value="">— Toutes les évaluations —</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- Unified toolbar -->
+        <!-- Unified toolbar + grid -->
         <div class="eval-content-card" style="border-radius:14px">
             <div style="display:flex;flex-wrap:wrap;gap:8px;padding:10px 14px;background:rgba(248,250,252,.8);border-bottom:1px solid #e2e8f0;align-items:center">
                 <button class="eval-add-btn" onclick="saveAllNotes()" id="btnSaveNotes" disabled style="--btn-gradient:linear-gradient(135deg,#059669,#10b981)">
@@ -1396,21 +1416,22 @@ async function saveComposition() {
     window._repartitionsData = JSON.parse('{{ repartitions_notes_json|escapejs }}');
 })();
 
-// ---- TAB SWITCH ----
-// ============ NOTES PAR EVALUATION — CASCADING FILTERS ============
+// ---- NOTES PAR EVALUATION — 3-MODE ARCHITECTURE ----
+// Modes: 'periode' (all), 'cours' (1 course, all evals), 'eval' (1 course, 1 eval)
 
+let _notesMode = null;   // 'periode' | 'cours' | 'eval'
 function onNotesClasseChange() {
     const classeId = document.getElementById('notes-classe-select').value;
     const periodeSelect = document.getElementById('notes-periode-select');
-    const coursSelect = document.getElementById('notes-cours-select');
-    const evalSelect = document.getElementById('notes-eval-select');
 
     periodeSelect.innerHTML = '<option value="">— Période —</option>';
     periodeSelect.disabled = true;
-    coursSelect.innerHTML = '<option value="">— Tous les cours —</option>';
-    coursSelect.disabled = true;
-    evalSelect.innerHTML = '<option value="">— Toutes les évaluations —</option>';
-    evalSelect.disabled = true;
+
+    // Hide mode selector and context filters
+    document.getElementById('notesModeDiv').style.display = 'none';
+    document.getElementById('notesModeSelector').style.display = 'none';
+    document.getElementById('notesContextFilters').style.display = 'none';
+    _notesMode = null;
     _notesGridData = null;
     _notesDirty = {};
     document.getElementById('btnSaveNotes').disabled = true;
@@ -1418,7 +1439,6 @@ function onNotesClasseChange() {
 
     if (!classeId) return;
 
-    // Populate repartitions (periods)
     const reps = window._repartitionsData || [];
     const leafReps = reps.filter(function(r) { return r.is_leaf !== false; });
     if (leafReps.length === 0) {
@@ -1426,7 +1446,6 @@ function onNotesClasseChange() {
         return;
     }
 
-    // Sort ascending by name number
     leafReps.sort(function(a, b) {
         var na = parseInt((a.nom || '').match(/(\d+)/)?.[1] || '999');
         var nb = parseInt((b.nom || '').match(/(\d+)/)?.[1] || '999');
@@ -1454,46 +1473,98 @@ function onNotesClasseChange() {
 
     periodeSelect.disabled = false;
 
-    var notesContainer = document.getElementById('notesGridContainer');
-    if (notesContainer) {
-        notesContainer.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#94a3b8"><i class="fas fa-clipboard-list" style="font-size:2rem;color:#6366f1;opacity:.5;display:block;margin-bottom:12px"></i><div style="font-weight:700;font-size:.85rem;color:#1e293b;margin-bottom:4px">S\u00e9lectionnez une p\u00e9riode</div></div>';
-    }
+    document.getElementById('notesGridContainer').innerHTML = '<div style="text-align:center;padding:60px 20px;color:#94a3b8"><i class="fas fa-clipboard-list" style="font-size:2rem;color:#6366f1;opacity:.5;display:block;margin-bottom:12px"></i><div style="font-weight:700;font-size:.85rem;color:#1e293b">S\u00e9lectionnez une p\u00e9riode</div></div>';
 }
 
 function onNotesPeriodeChange() {
     var classeId = document.getElementById('notes-classe-select').value;
     var periodeId = document.getElementById('notes-periode-select').value;
+
+    // Reset downstream
+    document.getElementById('notesContextFilters').style.display = 'none';
     var coursSelect = document.getElementById('notes-cours-select');
-    var evalSelect = document.getElementById('notes-eval-select');
-
-    coursSelect.innerHTML = '<option value="">— Tous les cours —</option>';
+    coursSelect.innerHTML = '<option value="">— Sélectionner un cours —</option>';
     coursSelect.disabled = true;
-    evalSelect.innerHTML = '<option value="">— Toutes les évaluations —</option>';
-    evalSelect.disabled = true;
-
-    if (!classeId || !periodeId) return;
-
-    // Load grid with all evaluations for this period
-    loadNotesGrid();
-}
-
-function onNotesCoursChange() {
     var evalSelect = document.getElementById('notes-eval-select');
     evalSelect.innerHTML = '<option value="">— Toutes les évaluations —</option>';
     evalSelect.disabled = true;
+    _notesMode = null;
 
-    // Re-populate eval dropdown based on selected cours (or all)
-    if (_notesGridData) {
-        _populateEvalDropdown(_notesGridData);
-        renderNotesGrid(_notesGridData);
+    if (!classeId || !periodeId) {
+        document.getElementById('notesModeDiv').style.display = 'none';
+        document.getElementById('notesModeSelector').style.display = 'none';
+        return;
+    }
+
+    // Show mode selector
+    document.getElementById('notesModeDiv').style.display = '';
+    document.getElementById('notesModeSelector').style.display = 'flex';
+
+    // Reset mode buttons
+    ['notesModePeriode','notesModeCours','notesModeEval'].forEach(function(id) {
+        document.getElementById(id).style.opacity = '0.5';
+        document.getElementById(id).style.transform = 'scale(1)';
+    });
+
+    // Load data in background (don't render yet, wait for mode selection)
+    loadNotesGrid(true);
+}
+
+function setNotesMode(mode) {
+    _notesMode = mode;
+    // Highlight active mode button
+    ['notesModePeriode','notesModeCours','notesModeEval'].forEach(function(id) {
+        document.getElementById(id).style.opacity = '0.5';
+        document.getElementById(id).style.transform = 'scale(1)';
+    });
+    var activeBtn = mode === 'periode' ? 'notesModePeriode' : mode === 'cours' ? 'notesModeCours' : 'notesModeEval';
+    document.getElementById(activeBtn).style.opacity = '1';
+    document.getElementById(activeBtn).style.transform = 'scale(1.08)';
+
+    // Show/hide contextual filters
+    var ctxFilters = document.getElementById('notesContextFilters');
+    var coursWrap = document.getElementById('notesCoursFilterWrap');
+    var evalWrap = document.getElementById('notesEvalFilterWrap');
+    var evalDiv = document.getElementById('notesEvalDivider');
+
+    if (mode === 'periode') {
+        ctxFilters.style.display = 'none';
+        if (_notesGridData) {
+            renderNotesGrid(_notesGridData);
+        } else {
+            loadNotesGrid(false);
+        }
+    } else if (mode === 'cours') {
+        ctxFilters.style.display = '';
+        coursWrap.style.display = '';
+        evalWrap.style.display = 'none';
+        evalDiv.style.display = 'none';
+        if (_notesGridData) _populateCoursDropdown(_notesGridData);
+        document.getElementById('notesGridContainer').innerHTML = '<div style="text-align:center;padding:50px 20px;color:#94a3b8"><i class="fas fa-book-open" style="font-size:2rem;color:#0d9488;opacity:.5;display:block;margin-bottom:12px"></i><div style="font-weight:700;font-size:.85rem;color:#1e293b">Sélectionnez un cours</div><div style="font-size:.72rem;color:#64748b;margin-top:3px">Toutes les évaluations du cours sélectionné seront affichées.</div></div>';
+    } else if (mode === 'eval') {
+        ctxFilters.style.display = '';
+        coursWrap.style.display = '';
+        evalWrap.style.display = '';
+        evalDiv.style.display = '';
+        if (_notesGridData) _populateCoursDropdown(_notesGridData);
+        document.getElementById('notes-eval-select').innerHTML = '<option value="">— Toutes les évaluations —</option>';
+        document.getElementById('notes-eval-select').disabled = true;
+        document.getElementById('notesGridContainer').innerHTML = '<div style="text-align:center;padding:50px 20px;color:#94a3b8"><i class="fas fa-file-alt" style="font-size:2rem;color:#7c3aed;opacity:.5;display:block;margin-bottom:12px"></i><div style="font-weight:700;font-size:.85rem;color:#1e293b">Sélectionnez un cours puis une évaluation</div></div>';
     }
 }
 
-function onNotesEvalChange() {
-    // Just re-render with the selected eval filter
-    if (_notesGridData) {
-        renderNotesGrid(_notesGridData);
-    }
+function _populateCoursDropdown(data) {
+    var coursSelect = document.getElementById('notes-cours-select');
+    var prevVal = coursSelect.value;
+    coursSelect.innerHTML = '<option value="">— Sélectionner un cours —</option>';
+    (data.cours || []).forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c.cours_id;
+        opt.textContent = c.cours_nom + (c.cours_code ? ' (' + c.cours_code + ')' : '');
+        coursSelect.appendChild(opt);
+    });
+    coursSelect.disabled = false;
+    if (prevVal) coursSelect.value = prevVal;
 }
 
 function _populateEvalDropdown(data) {
@@ -1512,7 +1583,7 @@ function _populateEvalDropdown(data) {
         c.evaluations.forEach(function(ev) {
             var opt = document.createElement('option');
             opt.value = ev.id_evaluation;
-            opt.textContent = (c.cours_code ? c.cours_code + ' — ' : '') + ev.title + ' (/' + ev.max + ')';
+            opt.textContent = ev.title + ' (/' + ev.max + ')';
             evalSelect.appendChild(opt);
         });
     });
@@ -1520,10 +1591,40 @@ function _populateEvalDropdown(data) {
     evalSelect.disabled = (evalSelect.options.length <= 1);
 }
 
+function onNotesCoursChange() {
+    var coursId = document.getElementById('notes-cours-select').value;
+    var evalSelect = document.getElementById('notes-eval-select');
+
+    if (_notesMode === 'eval') {
+        evalSelect.innerHTML = '<option value="">— Toutes les évaluations —</option>';
+        evalSelect.disabled = true;
+        if (coursId && _notesGridData) {
+            _populateEvalDropdown(_notesGridData);
+        }
+        if (!coursId) {
+            document.getElementById('notesGridContainer').innerHTML = '<div style="text-align:center;padding:50px;color:#94a3b8;font-size:.78rem"><i class="fas fa-hand-pointer me-1"></i>Sélectionnez un cours puis une évaluation.</div>';
+        }
+        return;
+    }
+
+    // Mode 'cours': render all evals for this course
+    if (coursId && _notesGridData) {
+        renderNotesGrid(_notesGridData);
+    } else {
+        document.getElementById('notesGridContainer').innerHTML = '<div style="text-align:center;padding:50px;color:#94a3b8;font-size:.78rem"><i class="fas fa-hand-pointer me-1"></i>Sélectionnez un cours.</div>';
+    }
+}
+
+function onNotesEvalChange() {
+    if (_notesGridData) {
+        renderNotesGrid(_notesGridData);
+    }
+}
+
 let _notesGridData = null;
 let _notesDirty = {};
 
-async function loadNotesGrid() {
+async function loadNotesGrid(silent) {
     const classeId = document.getElementById('notes-classe-select').value;
     const periodeId = document.getElementById('notes-periode-select').value;
     const container = document.getElementById('notesGridContainer');
@@ -1535,80 +1636,79 @@ async function loadNotesGrid() {
     _notesGridData = null;
     _notesDirty = {};
 
-    if (!classeId || !periodeId) {
-        container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#94a3b8"><i class="fas fa-clipboard-list" style="font-size:2rem;color:#6366f1;opacity:.5;display:block;margin-bottom:12px"></i><div style="font-weight:700;font-size:.85rem;color:#1e293b;margin-bottom:4px">S\u00e9lectionnez une classe et une p\u00e9riode</div></div>';
-        return;
+    if (!classeId || !periodeId) return;
+
+    if (!silent) {
+        container.innerHTML = '<div style="text-align:center;padding:40px"><i class="fas fa-spinner fa-spin" style="color:#6366f1;font-size:1.8rem"></i><div style="margin-top:10px;font-size:.75rem;color:#64748b">Chargement...</div></div>';
+    } else {
+        container.innerHTML = '<div style="text-align:center;padding:50px 20px;color:#94a3b8"><i class="fas fa-spinner fa-spin" style="color:#6366f1;font-size:1.4rem;display:block;margin-bottom:10px"></i><div style="font-weight:700;font-size:.82rem;color:#1e293b">Chargement des données...</div></div>';
     }
 
-    container.innerHTML = '<div style="text-align:center;padding:40px"><i class="fas fa-spinner fa-spin" style="color:#6366f1;font-size:1.8rem"></i><div style="margin-top:10px;font-size:.75rem;color:#64748b">Chargement de la grille...</div></div>';
-
     try {
-        const res = await fetch(`/api/notes/grid/?classe_id=${classeId}&repartition_id=${periodeId}`);
+        const res = await fetch('/api/notes/grid/?classe_id=' + classeId + '&repartition_id=' + periodeId);
         const data = await res.json();
         if (!data.success) {
-            container.innerHTML = `<div style="text-align:center;padding:40px;color:#dc2626;font-size:.8rem"><i class="fas fa-exclamation-triangle me-1"></i>${data.error || 'Erreur.'}</div>`;
+            container.innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626;font-size:.8rem"><i class="fas fa-exclamation-triangle me-1"></i>' + (data.error || 'Erreur.') + '</div>';
             return;
         }
         _notesGridData = data;
 
-        // Populate Cours dropdown
-        const coursSelect = document.getElementById('notes-cours-select');
-        const prevCoursVal = coursSelect.value;
-        coursSelect.innerHTML = '<option value="">— Tous les cours —</option>';
-        (data.cours || []).forEach(function(c) {
-            var opt = document.createElement('option');
-            opt.value = c.cours_id;
-            opt.textContent = c.cours_nom + (c.cours_code ? ' (' + c.cours_code + ')' : '');
-            coursSelect.appendChild(opt);
-        });
-        coursSelect.disabled = false;
-        if (prevCoursVal) coursSelect.value = prevCoursVal;
-
-        // Populate Evaluation dropdown
-        _populateEvalDropdown(data);
-
-        renderNotesGrid(data);
         if (btnSave) btnSave.disabled = false;
         if (btnTemplate) btnTemplate.disabled = false;
+
+        if (silent) {
+            var totalEvals = (data.cours||[]).reduce(function(s,c){return s+c.evaluations.length;},0);
+            container.innerHTML = '<div style="text-align:center;padding:50px 20px;color:#94a3b8"><i class="fas fa-check-circle" style="color:#10b981;font-size:1.8rem;display:block;margin-bottom:10px"></i><div style="font-weight:700;font-size:.82rem;color:#1e293b">' + (data.repartition_name || 'Données chargées') + '</div><div style="font-size:.68rem;color:#64748b;margin-top:4px">' + (data.eleves||[]).length + ' élève(s), ' + totalEvals + ' évaluation(s)<br>Choisissez un mode de saisie ci-dessus.</div></div>';
+        } else {
+            renderNotesGrid(data);
+        }
     } catch(e) {
         container.innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626;font-size:.8rem"><i class="fas fa-exclamation-triangle me-1"></i>Erreur de connexion.</div>';
     }
 }
 
 function renderNotesGrid(data) {
-    const container = document.getElementById('notesGridContainer');
-    const coursSelect = document.getElementById('notes-cours-select');
-    const evalSelect = document.getElementById('notes-eval-select');
-    const eleves = data.eleves || [];
-    const coursList = data.cours || [];
-    const notes = data.notes || {};
+    var container = document.getElementById('notesGridContainer');
+    var eleves = data.eleves || [];
+    var coursList = data.cours || [];
+    var notes = data.notes || {};
 
     if (!eleves.length) {
-        container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-user-slash me-1"></i>Aucun élève inscrit dans cette classe.</div>';
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-user-slash me-1"></i>Aucun élève inscrit.</div>';
         return;
     }
     if (!coursList.length) {
-        container.innerHTML = '<div style="text-align:center;padding:40px;color:#f59e0b;font-size:.78rem"><i class="fas fa-exclamation-circle me-1"></i>Aucune évaluation pour cette période. Créez d\'abord des évaluations depuis l\'onglet <strong>Planifier les Évaluations</strong> en leur assignant cette période.</div>';
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#f59e0b;font-size:.78rem"><i class="fas fa-exclamation-circle me-1"></i>Aucune évaluation pour cette période.</div>';
         return;
     }
 
-    // Filter by Cours
-    const selectedCours = coursSelect.value;
-    const filteredCours = selectedCours ? coursList.filter(c => String(c.cours_id) === selectedCours) : coursList;
+    // Apply mode-based filtering
+    var filteredCours = coursList;
+    var selectedCours = document.getElementById('notes-cours-select').value;
+    var selectedEval = document.getElementById('notes-eval-select').value;
 
-    // Filter by Evaluation
-    const selectedEval = evalSelect.value;
-
-    // Build filtered eval list
-    let allEvals = [];
-    filteredCours.forEach(c => {
-        let evals = c.evaluations;
-        if (selectedEval) {
-            evals = evals.filter(ev => String(ev.id_evaluation) === selectedEval);
+    if (_notesMode === 'cours' || _notesMode === 'eval') {
+        if (!selectedCours) {
+            container.innerHTML = '<div style="text-align:center;padding:50px;color:#94a3b8;font-size:.78rem"><i class="fas fa-hand-pointer me-1"></i>Sélectionnez un cours.</div>';
+            return;
         }
-        evals.forEach(ev => {
-            allEvals.push({...ev, cours_nom: c.cours_nom, cours_code: c.cours_code, cours_id: c.cours_id});
-        });
+        filteredCours = coursList.filter(function(c) { return String(c.cours_id) === selectedCours; });
+    }
+
+    // Build eval list
+    var allEvals = [];
+    var headerCours = [];
+    filteredCours.forEach(function(c) {
+        var evals = c.evaluations;
+        if (_notesMode === 'eval' && selectedEval) {
+            evals = evals.filter(function(ev) { return String(ev.id_evaluation) === selectedEval; });
+        }
+        if (evals.length) {
+            headerCours.push({cours_nom: c.cours_nom, cours_code: c.cours_code, cours_id: c.cours_id, evaluations: evals});
+            evals.forEach(function(ev) {
+                allEvals.push({id_evaluation: ev.id_evaluation, title: ev.title, max: ev.max, type_sigle: ev.type_sigle, cours_nom: c.cours_nom, cours_code: c.cours_code, cours_id: c.cours_id});
+            });
+        }
     });
 
     if (!allEvals.length) {
@@ -1616,17 +1716,11 @@ function renderNotesGrid(data) {
         return;
     }
 
-    // Build filtered cours list for header grouping
-    let headerCours = [];
-    filteredCours.forEach(c => {
-        let evals = c.evaluations;
-        if (selectedEval) evals = evals.filter(ev => String(ev.id_evaluation) === selectedEval);
-        if (evals.length) headerCours.push({...c, evaluations: evals});
-    });
+    var modeLabel = _notesMode === 'periode' ? 'Toute la période' : _notesMode === 'cours' ? 'Par cours' : 'Par évaluation';
 
-    // Info bar
-    let html = '<div style="font-size:.68rem;color:#64748b;padding:8px 14px;background:linear-gradient(135deg,#f0f1ff,#e0e7ff);border-bottom:1px solid #c7d2fe;display:flex;justify-content:space-between;align-items:center">' +
+    var html = '<div style="font-size:.68rem;color:#64748b;padding:8px 14px;background:linear-gradient(135deg,#f0f1ff,#e0e7ff);border-bottom:1px solid #c7d2fe;display:flex;justify-content:space-between;align-items:center">' +
         '<span><i class="fas fa-info-circle me-1" style="color:#6366f1"></i>' + data.repartition_name + ' — ' + eleves.length + ' élève(s), ' + allEvals.length + ' évaluation(s)</span>' +
+        '<span style="font-size:.58rem;background:rgba(99,102,241,.1);color:#6366f1;padding:2px 8px;border-radius:99px;font-weight:600">' + modeLabel + '</span>' +
     '</div>';
 
     html += '<table style="width:100%;border-collapse:collapse;font-size:.72rem">';
@@ -1634,8 +1728,8 @@ function renderNotesGrid(data) {
     // Header row 1: Course groups
     html += '<thead><tr style="position:sticky;top:0;z-index:3;background:linear-gradient(135deg,#1e1b4b,#312e81)">';
     html += '<th colspan="2" style="padding:8px 10px;color:#c7d2fe;font-size:.62rem;text-align:left;border-right:2px solid #4338ca;min-width:200px;position:sticky;left:0;z-index:4;background:linear-gradient(135deg,#1e1b4b,#312e81)">ÉLÈVE</th>';
-    headerCours.forEach(c => {
-        html += `<th colspan="${c.evaluations.length}" style="padding:8px 10px;color:#fff;font-size:.64rem;text-align:center;border-right:2px solid #4338ca;font-weight:700;letter-spacing:.3px">${c.cours_nom}</th>`;
+    headerCours.forEach(function(c) {
+        html += '<th colspan="' + c.evaluations.length + '" style="padding:8px 10px;color:#fff;font-size:.64rem;text-align:center;border-right:2px solid #4338ca;font-weight:700;letter-spacing:.3px">' + c.cours_nom + '</th>';
     });
     html += '</tr>';
 
@@ -1643,33 +1737,33 @@ function renderNotesGrid(data) {
     html += '<tr style="position:sticky;top:32px;z-index:3;background:#f0f1ff">';
     html += '<th style="padding:6px 8px;text-align:left;font-size:.58rem;color:#475569;font-weight:700;border-bottom:2px solid #c7d2fe;border-right:1px solid #e2e8f0;min-width:120px;position:sticky;left:0;z-index:4;background:#f0f1ff">Nom</th>';
     html += '<th style="padding:6px 8px;text-align:left;font-size:.58rem;color:#475569;font-weight:700;border-bottom:2px solid #c7d2fe;border-right:2px solid #c7d2fe;min-width:80px;position:sticky;left:120px;z-index:4;background:#f0f1ff">Prénom</th>';
-    allEvals.forEach(ev => {
-        const typeTag = ev.type_sigle ? `<span style="background:#f59e0b;color:#fff;padding:0 4px;border-radius:3px;font-size:.5rem;font-weight:700">${ev.type_sigle}</span> ` : '';
-        html += `<th style="padding:6px 4px;text-align:center;font-size:.56rem;color:#334155;font-weight:600;border-bottom:2px solid #c7d2fe;border-right:1px solid #e2e8f0;min-width:70px;max-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${ev.title} (/${ev.max})">${typeTag}${ev.title.substring(0,12)}<br><span style="color:#94a3b8">/${ev.max}</span></th>`;
+    allEvals.forEach(function(ev) {
+        var typeTag = ev.type_sigle ? '<span style="background:#f59e0b;color:#fff;padding:0 4px;border-radius:3px;font-size:.5rem;font-weight:700">' + ev.type_sigle + '</span> ' : '';
+        html += '<th style="padding:6px 4px;text-align:center;font-size:.56rem;color:#334155;font-weight:600;border-bottom:2px solid #c7d2fe;border-right:1px solid #e2e8f0;min-width:70px;max-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + ev.title + ' (/' + ev.max + ')">' + typeTag + ev.title.substring(0,12) + '<br><span style="color:#94a3b8">/' + ev.max + '</span></th>';
     });
     html += '</tr></thead><tbody>';
 
     // Data rows
-    eleves.forEach((el, ri) => {
-        const bg = ri % 2 === 0 ? '#fff' : '#fafbfc';
-        html += `<tr style="background:${bg}" data-eleve-id="${el.id}">`;
-        html += `<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;border-right:1px solid #e2e8f0;font-weight:600;color:#1e293b;font-size:.7rem;position:sticky;left:0;z-index:1;background:${bg}">${el.nom}</td>`;
-        html += `<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;border-right:2px solid #e0e7ff;color:#475569;font-size:.7rem;position:sticky;left:120px;z-index:1;background:${bg}">${el.prenom}</td>`;
+    eleves.forEach(function(el, ri) {
+        var bg = ri % 2 === 0 ? '#fff' : '#fafbfc';
+        html += '<tr style="background:' + bg + '" data-eleve-id="' + el.id + '">';
+        html += '<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;border-right:1px solid #e2e8f0;font-weight:600;color:#1e293b;font-size:.7rem;position:sticky;left:0;z-index:1;background:' + bg + '">' + el.nom + '</td>';
+        html += '<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;border-right:2px solid #e0e7ff;color:#475569;font-size:.7rem;position:sticky;left:120px;z-index:1;background:' + bg + '">' + el.prenom + '</td>';
 
-        allEvals.forEach(ev => {
-            const key = `${el.id}_${ev.id_evaluation}`;
-            const noteData = notes[key];
-            const noteVal = noteData ? (noteData.note !== null ? noteData.note : '') : '';
-            const idNote = noteData ? noteData.id_note : '';
+        allEvals.forEach(function(ev) {
+            var key = el.id + '_' + ev.id_evaluation;
+            var noteData = notes[key];
+            var noteVal = noteData ? (noteData.note !== null ? noteData.note : '') : '';
+            var idNote = noteData ? noteData.id_note : '';
 
-            html += `<td style="padding:2px 3px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;text-align:center">
-                <input type="number" class="note-input" data-eleve="${el.id}" data-eval="${ev.id_evaluation}" data-id-note="${idNote}" data-max="${ev.max}"
-                    value="${noteVal}" min="0" max="${ev.max}" step="0.5"
-                    style="width:54px;text-align:center;border:1.5px solid #e2e8f0;border-radius:6px;padding:4px 2px;font-size:.72rem;font-weight:600;color:#1e293b;outline:none;transition:all .15s"
-                    onfocus="this.style.borderColor='#6366f1';this.style.boxShadow='0 0 0 3px rgba(99,102,241,.15)';this.select()"
-                    onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none';markNoteDirty(this)"
-                    onkeydown="noteKeyNav(event, this)">
-            </td>`;
+            html += '<td style="padding:2px 3px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;text-align:center">' +
+                '<input type="number" class="note-input" data-eleve="' + el.id + '" data-eval="' + ev.id_evaluation + '" data-id-note="' + idNote + '" data-max="' + ev.max + '"' +
+                ' value="' + noteVal + '" min="0" max="' + ev.max + '" step="0.5"' +
+                ' style="width:54px;text-align:center;border:1.5px solid #e2e8f0;border-radius:6px;padding:4px 2px;font-size:.72rem;font-weight:600;color:#1e293b;outline:none;transition:all .15s"' +
+                ' onfocus="this.style.borderColor=\'#6366f1\';this.style.boxShadow=\'0 0 0 3px rgba(99,102,241,.15)\';this.select()"' +
+                ' onblur="this.style.borderColor=\'#e2e8f0\';this.style.boxShadow=\'none\';markNoteDirty(this)"' +
+                ' onkeydown="noteKeyNav(event, this)">' +
+            '</td>';
         });
 
         html += '</tr>';
@@ -1802,7 +1896,13 @@ function downloadNotesTemplate() {
     const classeId = document.getElementById('notes-classe-select').value;
     const periodeId = document.getElementById('notes-periode-select').value;
     if (!classeId || !periodeId) return;
-    window.location.href = `/api/notes/template/?classe_id=${classeId}&repartition_id=${periodeId}`;
+    var url = '/api/notes/template/?classe_id=' + classeId + '&repartition_id=' + periodeId;
+    // Pass current filters
+    var coursId = document.getElementById('notes-cours-select').value;
+    var evalId = document.getElementById('notes-eval-select').value;
+    if (coursId) url += '&cours_id=' + coursId;
+    if (evalId) url += '&eval_id=' + evalId;
+    window.location.href = url;
 }
 
 async function importNotesExcel(input) {

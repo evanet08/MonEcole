@@ -8721,6 +8721,8 @@ def download_notes_template(request):
 
         classe_id = request.GET.get('classe_id') or request.GET.get('id_classe_id')
         repartition_id = request.GET.get('repartition_id')
+        cours_id_filter = request.GET.get('cours_id', '')
+        eval_id_filter = request.GET.get('eval_id', '')
 
         if not classe_id or not repartition_id:
             return JsonResponse({'success': False, 'error': 'Paramètres requis.'}, status=400)
@@ -8763,17 +8765,30 @@ def download_notes_template(request):
                 eleves = cur.fetchall()
 
                 # Get evaluations for this period
-                cur.execute("""
+                eval_sql = """
                     SELECT ev.id_evaluation, ev.title, ev.ponderer_eval,
-                           ca.cours AS cours_nom
+                           ca.cours AS cours_nom, ev.id_cours_classe_id
                     FROM evaluation ev
                     LEFT JOIN countryStructure.cours_annee cann ON cann.id_cours_annee = ev.id_cours_classe_id
                     LEFT JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
                     WHERE ev.id_repartition_instance = %s
                       AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
                       AND ev.id_etablissement = %s
-                    ORDER BY ev.id_cours_classe_id, ev.date_eval
-                """, [repartition_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id])
+                """
+                eval_params = [repartition_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id]
+
+                # Apply optional cours filter
+                if cours_id_filter:
+                    eval_sql += " AND ev.id_cours_classe_id = %s"
+                    eval_params.append(cours_id_filter)  
+
+                # Apply optional single-eval filter
+                if eval_id_filter:
+                    eval_sql += " AND ev.id_evaluation = %s"
+                    eval_params.append(eval_id_filter)
+
+                eval_sql += " ORDER BY ev.id_cours_classe_id, ev.date_eval"
+                cur.execute(eval_sql, eval_params)
                 evals = cur.fetchall()
         finally:
             conn.close()
