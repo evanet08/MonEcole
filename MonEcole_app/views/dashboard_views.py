@@ -232,7 +232,7 @@ def _get_dashboard_context(request):
             if etab.is_calendar_synched:
                 ri_qs = RepartitionInstance.objects.filter(
                     annee=annee_active, pays=pays, is_active=True
-                ).select_related('type').order_by('type__nom', 'ordre')
+                ).select_related('type', 'parent').order_by('type__nom', 'ordre')
                 if allowed_type_ids:
                     ri_qs = ri_qs.filter(type_id__in=allowed_type_ids)
 
@@ -253,6 +253,8 @@ def _get_dashboard_context(request):
                         'type_code': ri.type.code if ri.type else '',
                         'ordre': ri.ordre, 'is_open': ri.is_active,
                         'is_leaf': ri.type_id not in parent_type_ids,
+                        'parent_instance_id': ri.parent_id if ri.parent_id else None,
+                        'parent_nom': ri.parent.nom if ri.parent else None,
                         'debut': str(ri.date_debut or ''), 'fin': str(ri.date_fin or ''),
                     })
                 stats['n_trimestres_ouverts'] = sum(1 for r in repartitions_notes if r.get('is_open'))
@@ -262,12 +264,13 @@ def _get_dashboard_context(request):
                 )
                 if allowed_type_ids:
                     rep_qs = rep_qs.filter(repartition__type_id__in=allowed_type_ids)
-                repartitions_raw = rep_qs.select_related('repartition__type').order_by(
+                repartitions_raw = rep_qs.select_related('repartition__type', 'repartition__parent').order_by(
                     'repartition__type__nom', 'repartition__ordre'
                 ).values(
                     'id', 'repartition__id_instance', 'repartition__nom', 'repartition__code',
                     'repartition__type__nom', 'repartition__type__code',
-                    'repartition__ordre', 'debut', 'fin', 'is_open'
+                    'repartition__ordre', 'debut', 'fin', 'is_open',
+                    'repartition__parent_id', 'repartition__parent__nom'
                 )
                 stats['n_trimestres_ouverts'] = sum(1 for r in repartitions_raw if r.get('is_open'))
                 for rc in repartitions_raw:
@@ -288,6 +291,8 @@ def _get_dashboard_context(request):
                         'ordre': rc.get('repartition__ordre', 0),
                         'is_open': bool(rc.get('is_open')),
                         'is_leaf': type_id not in parent_type_ids if type_id else True,
+                        'parent_instance_id': rc.get('repartition__parent_id'),
+                        'parent_nom': rc.get('repartition__parent__nom'),
                         'debut': str(rc.get('debut', '') or ''),
                         'fin': str(rc.get('fin', '') or ''),
                     })
