@@ -9357,7 +9357,7 @@ def calculate_period_notes(request):
 
                 # Find the TJ note_type for this period's repartition type
                 from django.db import connections
-                cur.execute("SELECT repartition_id FROM repartition_config_etab_annee WHERE id = %s", [config_id])
+                cur.execute("SELECT repartition_id FROM countryStructure.repartition_config_etab_annee WHERE id = %s", [config_id])
                 cfg_row = cur.fetchone()
                 if not cfg_row:
                     return JsonResponse({'success': False, 'error': 'Config introuvable.'}, status=404)
@@ -9373,13 +9373,38 @@ def calculate_period_notes(request):
                     rep_type_id = rt_row[0]
 
                     conn_hub.execute("""
-                        SELECT rtn.ponderation_max, nt.id_type_note
+                        SELECT rtn.ponderation_max, nt.id_type_note, nt.sigle
                         FROM repartition_type_notes rtn
                         JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
                         WHERE rtn.repartition_type_id = %s AND nt.sigle = 'TJ' AND rtn.is_active = 1
                         LIMIT 1
                     """, [rep_type_id])
                     tj_row = conn_hub.fetchone()
+
+                    # Also find the parent repartition type for auto-cascade
+                    conn_hub.execute("""
+                        SELECT rh.type_parent_id FROM repartition_hierarchie rh
+                        WHERE rh.type_enfant_id = %s LIMIT 1
+                    """, [rep_type_id])
+                    parent_type_row = conn_hub.fetchone()
+                    parent_type_id = parent_type_row[0] if parent_type_row else None
+
+                    # Get parent note types (TJ, TOTAL) for auto-cascade
+                    parent_tj_info = None
+                    parent_tot_info = None
+                    if parent_type_id:
+                        conn_hub.execute("""
+                            SELECT rtn.ponderation_max, nt.id_type_note, nt.sigle
+                            FROM repartition_type_notes rtn
+                            JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                            WHERE rtn.repartition_type_id = %s AND rtn.is_active = 1
+                            ORDER BY rtn.ordre
+                        """, [parent_type_id])
+                        for pr in conn_hub.fetchall():
+                            if pr[2] == 'TJ':
+                                parent_tj_info = {'max': pr[0], 'nt_id': pr[1]}
+                            elif pr[2] == 'TOTAL':
+                                parent_tot_info = {'max': pr[0], 'nt_id': pr[1]}
                 finally:
                     conn_hub.close()
 
@@ -9431,6 +9456,83 @@ def calculate_period_notes(request):
                                 date_calcul = NOW(), updated_at = NOW()
                         """, [eleve_id, cours_id, config_id, tj_nt_id, scaled, tj_max, etab_id])
                         calculated += 1
+
+                # === AUTO-CASCADE: update parent TJ (heritage) and TOTAL ===
+                if parent_tj_info and parent_type_id:
+                    # Find parent config(s) for this cours
+                    cur.execute("""
+                        SELECT rc.id AS parent_config_id
+                        FROM countryStructure.repartition_config_etab_annee rc
+                        JOIN countryStructure.repartitions r ON r.id = rc.repartition_id
+                        WHERE rc.etablissement_annee_id = (
+                            SELECT etablissement_annee_id FROM countryStructure.repartition_config_etab_annee WHERE id = %s
+                        ) AND r.type_id = %s AND rc.is_active = 1
+                    """, [config_id, parent_type_id])
+                    parent_configs = [r['parent_config_id'] for r in cur.fetchall()]
+
+                    # Find all child configs (siblings of current config)
+                    child_configs = []
+                    for pc_id in parent_configs:
+                        cur.execute("""
+                            SELECT rc.id FROM countryStructure.repartition_config_etab_annee rc
+                            JOIN countryStructure.repartitions r ON r.id = rc.repartition_id
+                            WHERE rc.etablissement_annee_id = (
+                                SELECT etablissement_annee_id FROM countryStructure.repartition_config_etab_annee WHERE id = %s
+                            ) AND r.type_id = %s AND rc.is_active = 1
+                        """, [config_id, rep_type_id])
+                        child_configs = [r['id'] for r in cur.fetchall()]
+
+                    if parent_configs and child_configs:
+                        ch_ph = ','.join(['%s'] * len(child_configs))
+                        for pc_id in parent_configs:
+                            for eleve_id in eleve_ids:
+                                # Sum child TJs for this cours
+                                cur.execute(f"""
+                                    SELECT COALESCE(SUM(nb.note), 0) AS total,
+                                           COALESCE(SUM(nb.maxima), 0) AS total_max
+                                    FROM note_bulletin nb
+                                    WHERE nb.id_eleve_id = %s AND nb.id_cours_annee = %s
+                                      AND nb.id_note_type = %s
+                                      AND nb.id_repartition_config IN ({ch_ph})
+                                """, [eleve_id, cours_id, tj_nt_id] + child_configs)
+                                row = cur.fetchone()
+                                p_note = round(float(row['total']), 2) if row and row['total'] else None
+                                p_max = int(row['total_max']) if row and row['total_max'] else parent_tj_info['max']
+
+                                if p_note is not None:
+                                    cur.execute("""
+                                        INSERT INTO note_bulletin
+                                            (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
+                                             note, maxima, source_type, date_calcul, id_etablissement)
+                                        VALUES (%s, %s, %s, %s, %s, %s, 'HERITAGE', NOW(), %s)
+                                        ON DUPLICATE KEY UPDATE
+                                            note = VALUES(note), maxima = VALUES(maxima),
+                                            date_calcul = NOW(), updated_at = NOW()
+                                    """, [eleve_id, cours_id, pc_id, parent_tj_info['nt_id'], p_note, p_max, etab_id])
+
+                                # Also compute TOTAL = TJ + EX at parent level
+                                if parent_tot_info:
+                                    cur.execute("""
+                                        SELECT COALESCE(SUM(nb.note), 0) AS total,
+                                               COALESCE(SUM(nb.maxima), 0) AS total_max
+                                        FROM note_bulletin nb
+                                        WHERE nb.id_eleve_id = %s AND nb.id_cours_annee = %s
+                                          AND nb.id_repartition_config = %s
+                                          AND nb.id_note_type != %s
+                                    """, [eleve_id, cours_id, pc_id, parent_tot_info['nt_id']])
+                                    trow = cur.fetchone()
+                                    t_note = round(float(trow['total']), 2) if trow and trow['total'] else None
+                                    t_max = int(trow['total_max']) if trow and trow['total_max'] else parent_tot_info['max']
+                                    if t_note is not None:
+                                        cur.execute("""
+                                            INSERT INTO note_bulletin
+                                                (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
+                                                 note, maxima, source_type, date_calcul, id_etablissement)
+                                            VALUES (%s, %s, %s, %s, %s, %s, 'FORMULE', NOW(), %s)
+                                            ON DUPLICATE KEY UPDATE
+                                                note = VALUES(note), maxima = VALUES(maxima),
+                                                date_calcul = NOW(), updated_at = NOW()
+                                        """, [eleve_id, cours_id, pc_id, parent_tot_info['nt_id'], t_note, t_max, etab_id])
 
                 conn.commit()
                 return JsonResponse({
