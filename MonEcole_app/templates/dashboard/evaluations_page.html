@@ -1469,6 +1469,24 @@ function onNotesClasseChange() {
         }
     });
 
+    // If ALL are orphans but we have parent containers, distribute evenly
+    if (Object.keys(parentGroups).length === 0 && orphans.length > 0 && parentReps.length > 0) {
+        var sortedParents = parentReps.slice().sort(function(a, b) { return (a.ordre || 0) - (b.ordre || 0); });
+        var perParent = Math.ceil(orphans.length / sortedParents.length);
+        sortedParents.forEach(function(p, pi) {
+            var group = { parent_nom: p.nom, children: [], parent_id: p.id_instance };
+            var start = pi * perParent;
+            var end = Math.min(start + perParent, orphans.length);
+            for (var i = start; i < end; i++) {
+                group.children.push(orphans[i]);
+            }
+            if (group.children.length > 0) {
+                parentGroups[p.id_instance] = group;
+            }
+        });
+        orphans = []; // all distributed
+    }
+
     // Sort parent groups by the first child's order
     var sortedGroups = Object.values(parentGroups).sort(function(a, b) {
         return (a.children[0] ? a.children[0].ordre : 0) - (b.children[0] ? b.children[0].ordre : 0);
@@ -1499,7 +1517,7 @@ function onNotesClasseChange() {
         periodeSelect.appendChild(optgroup);
     });
 
-    // Orphans (periods without parent)
+    // Orphans (periods without parent AND no parent containers available)
     if (orphans.length > 0) {
         var optgroup = document.createElement('optgroup');
         optgroup.label = 'Période';
