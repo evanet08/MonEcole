@@ -9357,7 +9357,7 @@ def calculate_period_notes(request):
 
                 # Find the TJ note_type for this period's repartition type
                 from django.db import connections
-                cur.execute("SELECT repartition_id FROM countryStructure.repartition_config_etab_annee WHERE id = %s", [config_id])
+                cur.execute("SELECT repartition_id FROM countryStructure.repartition_configs_etab_annee WHERE id = %s", [config_id])
                 cfg_row = cur.fetchone()
                 if not cfg_row:
                     return JsonResponse({'success': False, 'error': 'Config introuvable.'}, status=404)
@@ -9462,11 +9462,11 @@ def calculate_period_notes(request):
                     # Find parent config(s) for this cours
                     cur.execute("""
                         SELECT rc.id AS parent_config_id
-                        FROM countryStructure.repartition_config_etab_annee rc
+                        FROM countryStructure.repartition_configs_etab_annee rc
                         JOIN countryStructure.repartitions r ON r.id = rc.repartition_id
                         WHERE rc.etablissement_annee_id = (
-                            SELECT etablissement_annee_id FROM countryStructure.repartition_config_etab_annee WHERE id = %s
-                        ) AND r.type_id = %s AND rc.is_active = 1
+                            SELECT etablissement_annee_id FROM countryStructure.repartition_configs_etab_annee WHERE id = %s
+                        ) AND r.type_id = %s AND rc.is_open = 1
                     """, [config_id, parent_type_id])
                     parent_configs = [r['parent_config_id'] for r in cur.fetchall()]
 
@@ -9474,11 +9474,11 @@ def calculate_period_notes(request):
                     child_configs = []
                     for pc_id in parent_configs:
                         cur.execute("""
-                            SELECT rc.id FROM countryStructure.repartition_config_etab_annee rc
+                            SELECT rc.id FROM countryStructure.repartition_configs_etab_annee rc
                             JOIN countryStructure.repartitions r ON r.id = rc.repartition_id
                             WHERE rc.etablissement_annee_id = (
-                                SELECT etablissement_annee_id FROM countryStructure.repartition_config_etab_annee WHERE id = %s
-                            ) AND r.type_id = %s AND rc.is_active = 1
+                                SELECT etablissement_annee_id FROM countryStructure.repartition_configs_etab_annee WHERE id = %s
+                            ) AND r.type_id = %s AND rc.is_open = 1
                         """, [config_id, rep_type_id])
                         child_configs = [r['id'] for r in cur.fetchall()]
 
