@@ -7993,12 +7993,12 @@ def get_evaluation_cours(request):
 
 @require_http_methods(["GET"])
 def get_evaluations_list(request):
-    """Retourne les évaluations pour une classe/cours donné."""
+    """Retourne les évaluations pour une classe (optionnellement filtrées par cours)."""
     try:
         classe_id = request.GET.get('classe_id') or request.GET.get('id_classe_id')
-        cours_id = request.GET.get('cours_id')
-        if not classe_id or not cours_id:
-            return JsonResponse({'success': False, 'error': 'classe_id et cours_id requis.'}, status=400)
+        cours_id = request.GET.get('cours_id')  # Optional filter
+        if not classe_id:
+            return JsonResponse({'success': False, 'error': 'classe_id requis.'}, status=400)
 
         user_id = request.session.get('user_id')
         if not user_id:
@@ -8015,22 +8015,32 @@ def get_evaluations_list(request):
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
-                cur.execute("""
+                # Build optional cours filter
+                cours_filter = ""
+                params = [bk['classe_id'], bk['groupe'], bk['section_id'], etab_id]
+                if cours_id:
+                    cours_filter = "AND e.id_cours_classe_id = %s"
+                    params.append(cours_id)
+
+                cur.execute(f"""
                     SELECT e.id_evaluation, e.title, e.id_type_eval,
                            e.ponderer_eval, e.date_eval, e.date_soumission,
                            e.contenu_evaluation, e.document_url,
-                           e.id_repartition_instance,
+                           e.id_repartition_instance, e.id_cours_classe_id,
                            et.sigle AS type_sigle, et.nom AS type_nom,
                            ri.nom AS repartition_nom,
+                           ca.cours AS cours_nom, ca.code_cours AS cours_code,
                            (SELECT COUNT(*) FROM evaluation_repartition er WHERE er.id_evaluation = e.id_evaluation) AS assign_count
                     FROM evaluation e
                     LEFT JOIN countryStructure.evaluation_types et ON et.id_type_eval = e.id_type_eval
                     LEFT JOIN countryStructure.repartition_instances ri ON ri.id_instance = e.id_repartition_instance
+                    LEFT JOIN countryStructure.cours_annee cann ON cann.id_cours_annee = e.id_cours_classe_id
+                    LEFT JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
                     WHERE e.classe_id = %s AND e.groupe <=> %s AND e.section_id <=> %s
-                          AND e.id_cours_classe_id = %s
                           AND e.id_etablissement = %s
-                    ORDER BY e.date_eval DESC, e.id_evaluation DESC
-                """, [bk['classe_id'], bk['groupe'], bk['section_id'], cours_id, etab_id])
+                          {cours_filter}
+                    ORDER BY ca.cours ASC, e.date_eval DESC, e.id_evaluation DESC
+                """, params)
                 evals = []
                 for r in cur.fetchall():
                     evals.append({
@@ -8047,6 +8057,9 @@ def get_evaluations_list(request):
                         'is_assigned': r['assign_count'] > 0,
                         'id_repartition_instance': r['id_repartition_instance'],
                         'repartition_nom': r['repartition_nom'] or '',
+                        'cours_nom': r['cours_nom'] or '',
+                        'cours_code': r['cours_code'] or '',
+                        'id_cours_classe': r['id_cours_classe_id'],
                     })
             return JsonResponse({'success': True, 'evaluations': evals})
         finally:

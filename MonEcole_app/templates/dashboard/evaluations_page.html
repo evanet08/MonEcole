@@ -946,7 +946,7 @@ let _currentEvals = [];
 async function onEvalClasseChange() {
     const classeId = document.getElementById('eval-classe-select').value;
     const coursSelect = document.getElementById('eval-cours-select');
-    coursSelect.innerHTML = '<option value="">— Cours —</option>';
+    coursSelect.innerHTML = '<option value="">— Tous les cours —</option>';
     coursSelect.disabled = true;
     document.getElementById('btnAddEval').disabled = true;
     document.getElementById('evalStats').style.display = 'none';
@@ -965,6 +965,8 @@ async function onEvalClasseChange() {
             coursSelect.disabled = false;
         }
     } catch(e) { console.error(e); }
+    // Auto-load all evaluations for this class
+    loadEvaluations();
 }
 
 async function loadEvaluations() {
@@ -973,14 +975,16 @@ async function loadEvaluations() {
     const container = document.getElementById('evalGridContainer');
     document.getElementById('btnAddEval').disabled = !coursId;
 
-    if (!classeId || !coursId) {
-        container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-info-circle me-1"></i>Sélectionnez une classe et un cours.</div>';
+    if (!classeId) {
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-info-circle me-1"></i>Sélectionnez une classe.</div>';
         document.getElementById('evalStats').style.display = 'none';
         return;
     }
     container.innerHTML = '<div style="text-align:center;padding:30px"><i class="fas fa-spinner fa-spin" style="color:#f59e0b;font-size:1.5rem"></i></div>';
     try {
-        const res = await fetch(`/api/evaluations/list/?classe_id=${classeId}&cours_id=${coursId}`);
+        let url = `/api/evaluations/list/?classe_id=${classeId}`;
+        if (coursId) url += `&cours_id=${coursId}`;
+        const res = await fetch(url);
         const data = await res.json();
         if (data.success) {
             _currentEvals = data.evaluations;
@@ -994,7 +998,7 @@ function renderEvalGrid() {
     const stats = document.getElementById('evalStats');
 
     if (!_currentEvals.length) {
-        container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-file-alt me-1"></i>Aucune évaluation pour ce cours. Cliquez sur "Nouvelle Évaluation" pour commencer.</div>';
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-file-alt me-1"></i>Aucune évaluation trouvée.</div>';
         stats.style.display = 'none';
         return;
     }
@@ -1007,6 +1011,7 @@ function renderEvalGrid() {
     let html = '<table style="width:100%;border-collapse:collapse;font-size:.75rem">';
     html += '<thead><tr style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);position:sticky;top:0;z-index:2">' +
         '<th style="padding:10px 12px;text-align:left;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0">Titre</th>' +
+        '<th style="padding:10px 8px;text-align:center;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;width:130px">Cours</th>' +
         '<th style="padding:10px 8px;text-align:center;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;width:90px">Type</th>' +
         '<th style="padding:10px 8px;text-align:center;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;width:100px">Période</th>' +
         '<th style="padding:10px 8px;text-align:center;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;width:90px">Date</th>' +
@@ -1019,8 +1024,9 @@ function renderEvalGrid() {
         const bg = i % 2 === 0 ? '#fff' : '#fafbfc';
         const typeLabel = ev.type_sigle ? `<span style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:1px 8px;border-radius:20px;font-size:.58rem;font-weight:700">${ev.type_sigle}</span>` : '<span style="color:#cbd5e1">—</span>';
         const periodeLabel = ev.repartition_nom ? `<span style="background:linear-gradient(135deg,#7c3aed22,#8b5cf622);color:#7c3aed;padding:2px 8px;border-radius:6px;font-size:.58rem;font-weight:700">${ev.repartition_nom}</span>` : '<span style="color:#cbd5e1">—</span>';
+        const coursLabel = ev.cours_nom ? `<span style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;padding:2px 8px;border-radius:6px;font-size:.58rem;font-weight:600">${ev.cours_code || ev.cours_nom}</span>` : '<span style="color:#cbd5e1">—</span>';
         const docBtn = ev.document_url
-            ? `<button onclick="viewPdf('${ev.document_url}','${ev.title.replace(/'/g,"\\'")}')" style="border:none;background:#fef2f2;color:#dc2626;padding:3px 10px;border-radius:6px;font-size:.62rem;cursor:pointer;font-weight:600"><i class="fas fa-file-pdf me-1"></i>PDF</button>`
+            ? `<button onclick="viewPdf('${ev.document_url}','${ev.title.replace(/'/g,"\\\\'")}') " style="border:none;background:#fef2f2;color:#dc2626;padding:3px 10px;border-radius:6px;font-size:.62rem;cursor:pointer;font-weight:600"><i class="fas fa-file-pdf me-1"></i>PDF</button>`
             : '<span style="color:#cbd5e1;font-size:.62rem">—</span>';
 
         html += `<tr style="background:${bg};transition:background .15s" onmouseover="this.style.background='#fffbeb'" onmouseout="this.style.background='${bg}'">
@@ -1028,6 +1034,7 @@ function renderEvalGrid() {
                 <div style="font-weight:600;color:#1e293b">${ev.title}</div>
                 ${ev.contenu ? `<div style="font-size:.62rem;color:#94a3b8;margin-top:1px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ev.contenu}</div>` : ''}
             </td>
+            <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9">${coursLabel}</td>
             <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9">${typeLabel}</td>
             <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9">${periodeLabel}</td>
             <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;font-weight:500;color:#475569">${ev.date_eval || '—'}</td>
