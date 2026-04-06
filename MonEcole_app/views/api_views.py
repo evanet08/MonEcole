@@ -8790,6 +8790,23 @@ def download_notes_template(request):
                 eval_sql += " ORDER BY ev.id_cours_classe_id, ev.date_eval"
                 cur.execute(eval_sql, eval_params)
                 evals = cur.fetchall()
+
+                # ---- Load existing notes for these evaluations + students ----
+                existing_notes = {}
+                eval_ids = [e['id_evaluation'] for e in evals]
+                eleve_ids = [e['id_eleve'] for e in eleves]
+                if eval_ids and eleve_ids:
+                    placeholders_ev = ','.join(['%s'] * len(eval_ids))
+                    placeholders_el = ','.join(['%s'] * len(eleve_ids))
+                    cur.execute(f"""
+                        SELECT en.id_eleve_id, en.id_evaluation_id, en.note
+                        FROM eleve_note en
+                        WHERE en.id_evaluation_id IN ({placeholders_ev})
+                          AND en.id_eleve_id IN ({placeholders_el})
+                    """, eval_ids + eleve_ids)
+                    for n in cur.fetchall():
+                        key = f"{n['id_eleve_id']}_{n['id_evaluation_id']}"
+                        existing_notes[key] = float(n['note']) if n['note'] is not None else None
         finally:
             conn.close()
 
@@ -8802,6 +8819,7 @@ def download_notes_template(request):
         header_font = Font(bold=True, color='FFFFFF', size=10)
         locked = Protection(locked=True)
         unlocked = Protection(locked=False)
+        note_fill = PatternFill('solid', fgColor='F0FDF4')  # Light green for pre-filled notes
         thin_border = Border(
             left=Side(style='thin'), right=Side(style='thin'),
             top=Side(style='thin'), bottom=Side(style='thin')
@@ -8820,15 +8838,19 @@ def download_notes_template(request):
             cell.alignment = Alignment(horizontal='center', wrap_text=True)
             cell.border = thin_border
 
-        # Data rows
+        # Data rows — pre-fill with existing notes
         for row, el in enumerate(eleves, 2):
             ws.cell(row=row, column=1, value=el['id_eleve']).protection = locked
             ws.cell(row=row, column=2, value=el['nom']).protection = locked
             ws.cell(row=row, column=3, value=el['prenom']).protection = locked
-            for col in range(4, 4 + len(evals)):
-                cell = ws.cell(row=row, column=col, value='')
+            for col_offset, ev in enumerate(evals):
+                key = f"{el['id_eleve']}_{ev['id_evaluation']}"
+                note_val = existing_notes.get(key)
+                cell = ws.cell(row=row, column=4 + col_offset, value=note_val if note_val is not None else '')
                 cell.protection = unlocked
                 cell.border = thin_border
+                if note_val is not None:
+                    cell.fill = note_fill
 
         # Hidden metadata sheet
         ws2 = wb.create_sheet('_meta')
