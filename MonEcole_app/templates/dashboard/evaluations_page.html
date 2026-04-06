@@ -5940,7 +5940,7 @@ function _openCalcModal(coursId, coursNom, configId, periodeNom, evalsList) {
     h += '<tbody>';
     evalsList.forEach(function(ev) {
         h += '<tr style="border-bottom:1px solid #f1f5f9">';
-        h += '<td style="padding:5px;text-align:center"><input type="checkbox" checked id="cmc_'+ev.id+'" onchange="_recalcWeights()" style="accent-color:#7c3aed;cursor:pointer"></td>';
+        h += '<td style="padding:5px;text-align:center"><input type="checkbox" checked id="cmc_'+ev.id+'" onchange="_autoRedistribute()" style="accent-color:#7c3aed;cursor:pointer"></td>';
         h += '<td style="padding:5px;font-weight:500;color:#1e293b">'+ev.nom+'</td>';
         h += '<td style="padding:5px;text-align:center;color:#64748b">/'+ev.max+'</td>';
         h += '<td style="padding:5px;text-align:center"><input type="number" id="cmw_'+ev.id+'" value="'+defW+'" min="0" max="100" step="0.01" style="width:60px;padding:3px 4px;border:1px solid #d1d5db;border-radius:5px;font-size:.6rem;text-align:center;outline:none" onfocus="this.style.borderColor=\'#7c3aed\'" onblur="this.style.borderColor=\'#d1d5db\'"></td>';
@@ -5950,8 +5950,7 @@ function _openCalcModal(coursId, coursNom, configId, periodeNom, evalsList) {
 
     h += '<div style="margin-top:10px;display:flex;align-items:center;gap:8px;padding:6px 0">';
     h += '<span style="font-size:.55rem;color:#64748b">Total poids: </span>';
-    h += '<span id="cmTotalWeight" style="font-size:.6rem;font-weight:700;color:#7c3aed">'+Math.round(defW * n)+'%</span>';
-    h += '<button onclick="_recalcWeightsEqual()" style="margin-left:auto;background:#f1f5f9;border:1px solid #d1d5db;padding:3px 10px;border-radius:5px;font-size:.55rem;cursor:pointer;color:#475569"><i class="fas fa-balance-scale" style="margin-right:3px"></i>Répartir égal</button>';
+    h += '<span id="cmTotalWeight" style="font-size:.6rem;font-weight:700;color:#059669">100%</span>';
     h += '</div>';
 
     // Action buttons
@@ -5967,29 +5966,30 @@ function _openCalcModal(coursId, coursNom, configId, periodeNom, evalsList) {
     window._cmEvalIds = evalsList.map(function(e){return e.id;});
 }
 
-function _recalcWeights() {
-    var total = 0;
-    window._cmEvalIds.forEach(function(id) {
-        var cb = document.getElementById('cmc_'+id);
-        var w = document.getElementById('cmw_'+id);
-        if (cb && cb.checked) total += parseFloat(w.value) || 0;
-    });
-    var el = document.getElementById('cmTotalWeight');
-    if (el) { el.textContent = Math.round(total * 100) / 100 + '%'; el.style.color = Math.abs(total - 100) < 0.1 ? '#059669' : '#dc2626'; }
-}
-
-function _recalcWeightsEqual() {
+function _autoRedistribute() {
+    // Auto-redistribute equal weight among checked evaluations
     var checked = [];
     window._cmEvalIds.forEach(function(id) {
         var cb = document.getElementById('cmc_'+id);
         if (cb && cb.checked) checked.push(id);
     });
     var w = checked.length > 0 ? Math.round(10000 / checked.length) / 100 : 0;
-    checked.forEach(function(id) {
+    // Update all weights: checked get equal share, unchecked get 0
+    window._cmEvalIds.forEach(function(id) {
+        var cb = document.getElementById('cmc_'+id);
         var inp = document.getElementById('cmw_'+id);
-        if (inp) inp.value = w;
+        if (inp) {
+            if (cb && cb.checked) { inp.value = w; inp.style.color = '#1e293b'; }
+            else { inp.value = '0'; inp.style.color = '#d1d5db'; }
+        }
     });
-    _recalcWeights();
+    // Update total display
+    var el = document.getElementById('cmTotalWeight');
+    if (el) {
+        var total = checked.length > 0 ? Math.round(w * checked.length * 100) / 100 : 0;
+        el.textContent = total + '%';
+        el.style.color = Math.abs(total - 100) < 0.1 ? '#059669' : '#dc2626';
+    }
 }
 
 async function _doCalcPeriod(coursId, configId) {
