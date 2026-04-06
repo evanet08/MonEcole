@@ -6024,6 +6024,60 @@ async function _doCalcPeriod(coursId, configId) {
     }
 }
 
+// === Calculer Résultat: TJ (héritage) + EX → TOTAL ===
+function _openCalcResultat(repartitionId, parentNom, coursNom) {
+    var overlay = document.getElementById('calcResultatOverlay');
+    if (overlay) overlay.remove();
+    var h = '';
+    h += '<div id="calcResultatOverlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)">';
+    h += '<div style="background:#fff;border-radius:16px;width:420px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.3)">';
+    h += '<div style="background:linear-gradient(135deg,#059669,#10b981);padding:14px 20px;border-radius:16px 16px 0 0">';
+    h += '<div style="display:flex;align-items:center;gap:10px">';
+    h += '<i class="fas fa-calculator" style="color:#fff;font-size:1rem"></i>';
+    h += '<div><div style="color:#fff;font-size:.82rem;font-weight:700">Calculer Résultat — '+parentNom+'</div>';
+    h += '<div style="color:rgba(255,255,255,.6);font-size:.55rem">'+coursNom+'</div></div>';
+    h += '<i class="fas fa-times" onclick="document.getElementById(\'calcResultatOverlay\').remove()" style="color:#fff;margin-left:auto;cursor:pointer;font-size:1rem;padding:4px"></i>';
+    h += '</div></div>';
+    h += '<div style="padding:20px">';
+    h += '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;margin-bottom:16px">';
+    h += '<div style="font-size:.72rem;font-weight:700;color:#166534;margin-bottom:8px"><i class="fas fa-info-circle" style="margin-right:5px"></i>Ce calcul va :</div>';
+    h += '<ol style="margin:0;padding-left:18px;font-size:.65rem;color:#15803d;line-height:1.8">';
+    h += '<li><strong>TJ</strong> — Sommer les notes TJ des périodes enfants</li>';
+    h += '<li><strong>EX</strong> — Agréger les notes d\'examen saisies</li>';
+    h += '<li><strong>TOTAL</strong> — Additionner TJ + EX</li>';
+    h += '</ol></div>';
+    h += '<div style="display:flex;gap:8px;justify-content:flex-end">';
+    h += '<button onclick="document.getElementById(\'calcResultatOverlay\').remove()" style="padding:7px 16px;background:#f1f5f9;border:1px solid #d1d5db;border-radius:8px;font-size:.65rem;cursor:pointer;color:#475569">Annuler</button>';
+    h += '<button id="crCalcBtn" onclick="_doCalcResultat('+repartitionId+')" style="padding:7px 20px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;border-radius:8px;font-size:.65rem;cursor:pointer;font-weight:600"><i class="fas fa-calculator" style="margin-right:5px"></i>Calculer</button>';
+    h += '</div></div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', h);
+}
+
+async function _doCalcResultat(repartitionId) {
+    var btn = document.getElementById('crCalcBtn');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calcul…';
+    try {
+        var r = await fetch('/api/notes/bulletin/calculate/', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json', 'X-CSRFToken': getCsrfToken()},
+            body: JSON.stringify({classe_id: _compClasseId, repartition_id: repartitionId})
+        });
+        var d = await r.json();
+        if (d.success) {
+            showToast(d.calculated + ' note(s) calculée(s) (TJ + EX → Total)', 'success');
+            var ov = document.getElementById('calcResultatOverlay');
+            if (ov) ov.remove();
+            await _loadOv();
+        } else {
+            showToast(d.error || 'Erreur', 'error');
+            btn.disabled = false; btn.innerHTML = '<i class="fas fa-calculator" style="margin-right:5px"></i>Calculer';
+        }
+    } catch(e) {
+        showToast('Erreur connexion', 'error');
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-calculator" style="margin-right:5px"></i>Calculer';
+    }
+}
+
 function _render() {
     var c = document.getElementById('compContentContainer');
     if (!_compOv) return;
@@ -6102,10 +6156,12 @@ function _render() {
                 var groups = [], curGrp = null;
                 colDefs.forEach(function(cd) {
                     var gN = cd.type==='eval'||cd.type==='pnote' ? cd.periodeNom : 'Résultat';
-                    if (!curGrp || curGrp.name !== gN) { curGrp = {name:gN,span:1,evalList:null,configId:null,coursId:null}; groups.push(curGrp); }
+                    if (!curGrp || curGrp.name !== gN) { curGrp = {name:gN,span:1,evalList:null,configId:null,coursId:null,isResultat:false,parentConfigId:null,parentRepId:null}; groups.push(curGrp); }
                     else curGrp.span++;
                     // Capture eval info from ptj column for group header
                     if (cd.type==='pnote' && cd.evalList) { curGrp.evalList = cd.evalList; curGrp.configId = cd.configId; curGrp.coursId = cd.coursId; }
+                    // Capture parent config info for Résultat group
+                    if (cd.type==='tj' || cd.type==='ex' || cd.type==='tot') { curGrp.isResultat = true; curGrp.parentConfigId = cd.configId; curGrp.parentRepId = par.repartition_id; }
                 });
                 html += '<tr>';
                 html += '<th rowspan="2" style="padding:4px 5px;background:#1e1b4b;color:#fff;font-size:.42rem;text-align:center;min-width:22px;border-right:1px solid rgba(255,255,255,.15)">#</th>';
@@ -6118,6 +6174,11 @@ function _render() {
                         var cnEsc = cr.nom.replace(/'/g,'\\&#39;');
                         var pnEsc = g.name.replace(/'/g,'\\&#39;');
                         gearHtml = ' <i class="fas fa-calculator" onclick="event.stopPropagation();_openCalcModal('+g.coursId+',\''+cnEsc+'\','+g.configId+',\''+pnEsc+'\','+eListJSON+')" style="color:#fbbf24;cursor:pointer;font-size:.45rem;vertical-align:middle;margin-left:4px" title="Pondérer cette période"></i>';
+                    }
+                    if (g.isResultat && g.parentRepId) {
+                        var parNomEsc = par.nom.replace(/'/g,'\\&#39;');
+                        var crNomEsc = cr.nom.replace(/'/g,'\\&#39;');
+                        gearHtml = ' <i class="fas fa-calculator" onclick="event.stopPropagation();_openCalcResultat('+g.parentRepId+',\''+parNomEsc+'\',\''+crNomEsc+'\')" style="color:#fbbf24;cursor:pointer;font-size:.5rem;vertical-align:middle;margin-left:4px" title="Calculer TJ + EX → Total"></i>';
                     }
                     html += '<th colspan="'+g.span+'" style="padding:3px 2px;background:'+gbg+';color:#fff;font-size:.4rem;text-align:center;border-left:2px solid rgba(255,255,255,.2);border-right:2px solid rgba(255,255,255,.2);white-space:nowrap">'+g.name+gearHtml+'</th>';
                 });
