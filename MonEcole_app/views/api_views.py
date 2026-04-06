@@ -8617,14 +8617,22 @@ def get_notes_grid(request):
             bulletin_maxima = None
             if config and config.repartition:
                 try:
-                    from structure_app.models import RepartitionTypeNote, NoteType
-                    rtn = RepartitionTypeNote.objects.filter(
-                        repartition_type=config.repartition.type,
-                        note_type__sigle='TJ',
-                        source_type='EVALUATIONS'
-                    ).first()
-                    if rtn:
-                        bulletin_maxima = float(rtn.ponderation_max) if rtn.ponderation_max else 20
+                    from django.db import connections as _conns
+                    _hub_cur = _conns['countryStructure'].cursor()
+                    try:
+                        _hub_cur.execute("""
+                            SELECT rtn.ponderation_max
+                            FROM repartition_type_notes rtn
+                            JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                            WHERE rtn.repartition_type_id = %s AND nt.sigle = 'TJ'
+                              AND rtn.source_type = 'EVALUATIONS' AND rtn.is_active = 1
+                            LIMIT 1
+                        """, [config.repartition.type_id])
+                        _tj_row = _hub_cur.fetchone()
+                        if _tj_row:
+                            bulletin_maxima = float(_tj_row[0]) if _tj_row[0] else 20
+                    finally:
+                        _hub_cur.close()
                 except Exception:
                     bulletin_maxima = 20
 
@@ -9124,15 +9132,42 @@ def calculate_notes_bulletin(request):
             return JsonResponse({'success': False, 'error': 'Configuration de répartition introuvable.'}, status=404)
 
         rep_type = config.repartition.type
+        rep_type_id = config.repartition.type_id
 
-        # Get expected note types for this repartition type
-        from structure_app.models import RepartitionTypeNote
-        expected_notes = list(RepartitionTypeNote.objects.filter(
-            repartition_type=rep_type, is_active=True
-        ).select_related('note_type').order_by('ordre'))
+        # Get expected note types for this repartition type via raw SQL
+        from django.db import connections
+        conn_hub = connections['countryStructure'].cursor()
+        try:
+            conn_hub.execute("""
+                SELECT rtn.id, rtn.ponderation_max, rtn.source_type, rtn.mode_calcul, rtn.ordre,
+                       nt.id_type_note, nt.sigle, nt.nom
+                FROM repartition_type_notes rtn
+                JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                WHERE rtn.repartition_type_id = %s AND rtn.is_active = 1
+                ORDER BY rtn.ordre
+            """, [rep_type_id])
+            columns = [col[0] for col in conn_hub.description]
+            expected_notes_raw = [dict(zip(columns, row)) for row in conn_hub.fetchall()]
+        finally:
+            conn_hub.close()
 
-        if not expected_notes:
-            return JsonResponse({'success': False, 'error': f'Aucune note attendue configurée pour "{rep_type.nom}".'}, status=404)
+        if not expected_notes_raw:
+            return JsonResponse({'success': False, 'error': 'Aucune note attendue configurée pour ce type de répartition.'}, status=404)
+
+        # Build lightweight wrapper objects for compatibility with the rest of the function
+        class _NoteTypeProxy:
+            def __init__(self, row):
+                self.id_type_note = row['id_type_note']
+                self.sigle = row['sigle']
+                self.nom = row['nom']
+        class _ExpectedNote:
+            def __init__(self, row):
+                self.note_type = _NoteTypeProxy(row)
+                self.ponderation_max = row['ponderation_max']
+                self.source_type = row['source_type']
+                self.mode_calcul = row.get('mode_calcul', 'SOMME')
+                self.ordre = row['ordre']
+        expected_notes = [_ExpectedNote(r) for r in expected_notes_raw]
 
         conn = _get_spoke_connection()
         try:
@@ -9218,6 +9253,17 @@ def calculate_notes_bulletin(request):
                             # Get notes for each student
                             placeholders = ','.join(['%s'] * len(eval_ids))
                             for eleve_id in eleve_ids:
+                                # PROTECTION: skip if a SAISIE_DIRECTE note already exists
+                                # (user manually entered exam notes — don't overwrite)
+                                cur.execute("""
+                                    SELECT source_type FROM note_bulletin
+                                    WHERE id_eleve_id = %s AND id_cours_annee = %s
+                                      AND id_repartition_config = %s AND id_note_type = %s
+                                      AND source_type = 'SAISIE_DIRECTE'
+                                """, [eleve_id, cours_id, config.id, nt_id])
+                                if cur.fetchone():
+                                    continue  # Manually entered — preserve it
+
                                 cur.execute(f"""
                                     SELECT COALESCE(SUM(en.note), 0) AS total_note
                                     FROM eleve_note en
@@ -9245,18 +9291,26 @@ def calculate_notes_bulletin(request):
                     elif en.source_type == 'HERITAGE':
                         # Sum/Average from child repartitions
                         # Find child configs via hierarchy
-                        from structure_app.models import RepartitionHierarchie
-                        hierarchy = RepartitionHierarchie.objects.filter(
-                            type_parent=rep_type
-                        ).select_related('type_enfant').first()
+                        # Find child repartition type via hierarchy (raw SQL)
+                        conn_hub2 = connections['countryStructure'].cursor()
+                        try:
+                            conn_hub2.execute("""
+                                SELECT type_enfant_id FROM repartition_hierarchie
+                                WHERE type_parent_id = %s LIMIT 1
+                            """, [rep_type_id])
+                            hier_row = conn_hub2.fetchone()
+                        finally:
+                            conn_hub2.close()
 
-                        if not hierarchy:
+                        if not hier_row:
                             continue
+
+                        child_type_id = hier_row[0]
 
                         # Find child repartition configs
                         child_configs = list(RepartitionConfigEtabAnnee.objects.filter(
                             etablissement_annee=config.etablissement_annee,
-                            repartition__type=hierarchy.type_enfant,
+                            repartition__type_id=child_type_id,
                             is_active=True
                         ).values_list('id', flat=True))
 
@@ -9835,12 +9889,38 @@ def get_notes_bulletin(request):
             return JsonResponse({'success': False, 'error': 'Config introuvable.'}, status=404)
 
         rep_type = config.repartition.type
+        rep_type_id = config.repartition.type_id
 
-        # Get expected note types
-        from structure_app.models import RepartitionTypeNote
-        expected = list(RepartitionTypeNote.objects.filter(
-            repartition_type=rep_type, is_active=True, is_visible_bulletin=True
-        ).select_related('note_type').order_by('ordre'))
+        # Get expected note types via raw SQL
+        from django.db import connections
+        conn_hub = connections['countryStructure'].cursor()
+        try:
+            conn_hub.execute("""
+                SELECT rtn.id, rtn.ponderation_max, rtn.source_type, rtn.ordre,
+                       nt.id_type_note, nt.sigle, nt.nom
+                FROM repartition_type_notes rtn
+                JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                WHERE rtn.repartition_type_id = %s AND rtn.is_active = 1
+                  AND rtn.is_visible_bulletin = 1
+                ORDER BY rtn.ordre
+            """, [rep_type_id])
+            columns = [col[0] for col in conn_hub.description]
+            expected_raw = [dict(zip(columns, row)) for row in conn_hub.fetchall()]
+        finally:
+            conn_hub.close()
+
+        class _NT:
+            def __init__(self, r):
+                self.id_type_note = r['id_type_note']
+                self.sigle = r['sigle']
+                self.nom = r['nom']
+        class _RTN:
+            def __init__(self, r):
+                self.note_type = _NT(r)
+                self.ponderation_max = r['ponderation_max']
+                self.source_type = r['source_type']
+                self.ordre = r['ordre']
+        expected = [_RTN(r) for r in expected_raw]
 
         conn = _get_spoke_connection()
         try:
