@@ -232,13 +232,39 @@ def _get_dashboard_context(request):
             if etab.is_calendar_synched:
                 ri_qs = RepartitionInstance.objects.filter(
                     annee=annee_active, pays=pays, is_active=True
-                ).select_related('type', 'parent').order_by('type__nom', 'ordre')
+                ).select_related('type').order_by('type__nom', 'ordre')
                 if allowed_type_ids:
                     ri_qs = ri_qs.filter(type_id__in=allowed_type_ids)
 
+                # Build parent mapping: child instance → parent instance
+                # Using type hierarchy + instance ordering
+                parent_instances_by_type = {}  # parent_type_id → [instances ordered]
+                child_to_parent_type = {}      # child_type_id → (parent_type_id, nb_enfants)
+                for ptid, info in hierarchies_for_types.items():
+                    child_to_parent_type[info['child_type_id']] = (ptid, info['nb_enfants'])
+
+                all_instances = list(ri_qs)
+
+                # Group instances by type
+                instances_by_type = {}
+                for ri in all_instances:
+                    instances_by_type.setdefault(ri.type_id, []).append(ri)
+
+                # Build child→parent instance mapping
+                child_parent_map = {}  # child_instance_id → parent_instance
+                for child_type_id, (parent_type_id, nb_enfants) in child_to_parent_type.items():
+                    parent_insts = instances_by_type.get(parent_type_id, [])
+                    child_insts = instances_by_type.get(child_type_id, [])
+                    if parent_insts and child_insts:
+                        # Distribute children evenly across parents
+                        for ci, child in enumerate(child_insts):
+                            parent_idx = ci // nb_enfants if nb_enfants > 0 else 0
+                            if parent_idx < len(parent_insts):
+                                child_parent_map[child.id_instance] = parent_insts[parent_idx]
+
                 # Grouper par type et limiter par le nombre calculé
                 type_count_tracker = {}  # type_id → nombre ajouté
-                for ri in ri_qs:
+                for ri in all_instances:
                     tid = ri.type_id
                     current_count = type_count_tracker.get(tid, 0)
                     max_allowed = type_instance_limits.get(tid)
@@ -246,6 +272,7 @@ def _get_dashboard_context(request):
                     if max_allowed is not None and current_count >= max_allowed:
                         continue
                     type_count_tracker[tid] = current_count + 1
+                    parent_inst = child_parent_map.get(ri.id_instance)
                     repartitions_notes.append({
                         'id': ri.id_instance, 'id_instance': ri.id_instance,
                         'nom': ri.nom, 'code': ri.code,
@@ -253,8 +280,8 @@ def _get_dashboard_context(request):
                         'type_code': ri.type.code if ri.type else '',
                         'ordre': ri.ordre, 'is_open': ri.is_active,
                         'is_leaf': ri.type_id not in parent_type_ids,
-                        'parent_instance_id': ri.parent_id if ri.parent_id else None,
-                        'parent_nom': ri.parent.nom if ri.parent else None,
+                        'parent_instance_id': parent_inst.id_instance if parent_inst else None,
+                        'parent_nom': parent_inst.nom if parent_inst else None,
                         'debut': str(ri.date_debut or ''), 'fin': str(ri.date_fin or ''),
                     })
                 stats['n_trimestres_ouverts'] = sum(1 for r in repartitions_notes if r.get('is_open'))
@@ -264,23 +291,41 @@ def _get_dashboard_context(request):
                 )
                 if allowed_type_ids:
                     rep_qs = rep_qs.filter(repartition__type_id__in=allowed_type_ids)
-                repartitions_raw = rep_qs.select_related('repartition__type', 'repartition__parent').order_by(
+                repartitions_raw = rep_qs.select_related('repartition__type').order_by(
                     'repartition__type__nom', 'repartition__ordre'
                 ).values(
                     'id', 'repartition__id_instance', 'repartition__nom', 'repartition__code',
                     'repartition__type__nom', 'repartition__type__code',
-                    'repartition__ordre', 'debut', 'fin', 'is_open',
-                    'repartition__parent_id', 'repartition__parent__nom'
+                    'repartition__type_id',
+                    'repartition__ordre', 'debut', 'fin', 'is_open'
                 )
                 stats['n_trimestres_ouverts'] = sum(1 for r in repartitions_raw if r.get('is_open'))
-                for rc in repartitions_raw:
+
+                # Build parent mapping for non-synched path too
+                reps_list = list(repartitions_raw)
+                child_to_parent_type_ns = {}
+                for ptid, info in hierarchies_for_types.items():
+                    child_to_parent_type_ns[info['child_type_id']] = (ptid, info['nb_enfants'])
+
+                instances_by_type_ns = {}
+                for rc in reps_list:
+                    tid = rc.get('repartition__type_id')
+                    instances_by_type_ns.setdefault(tid, []).append(rc)
+
+                child_parent_map_ns = {}
+                for child_tid, (parent_tid, nb_enf) in child_to_parent_type_ns.items():
+                    p_insts = instances_by_type_ns.get(parent_tid, [])
+                    c_insts = instances_by_type_ns.get(child_tid, [])
+                    if p_insts and c_insts:
+                        for ci, child_rc in enumerate(c_insts):
+                            pi = ci // nb_enf if nb_enf > 0 else 0
+                            if pi < len(p_insts):
+                                child_parent_map_ns[child_rc.get('repartition__id_instance')] = p_insts[pi]
+
+                for rc in reps_list:
                     type_code = rc.get('repartition__type__code', '')
-                    type_id = None
-                    if type_code:
-                        rt = RepartitionType.objects.filter(
-                            code=type_code
-                        ).values_list('id_type', flat=True).first()
-                        type_id = rt
+                    type_id = rc.get('repartition__type_id')
+                    parent_rc = child_parent_map_ns.get(rc.get('repartition__id_instance'))
                     repartitions_notes.append({
                         'id': rc.get('id'),
                         'id_instance': rc.get('repartition__id_instance'),
@@ -291,8 +336,8 @@ def _get_dashboard_context(request):
                         'ordre': rc.get('repartition__ordre', 0),
                         'is_open': bool(rc.get('is_open')),
                         'is_leaf': type_id not in parent_type_ids if type_id else True,
-                        'parent_instance_id': rc.get('repartition__parent_id'),
-                        'parent_nom': rc.get('repartition__parent__nom'),
+                        'parent_instance_id': parent_rc.get('repartition__id_instance') if parent_rc else None,
+                        'parent_nom': parent_rc.get('repartition__nom') if parent_rc else None,
                         'debut': str(rc.get('debut', '') or ''),
                         'fin': str(rc.get('fin', '') or ''),
                     })
