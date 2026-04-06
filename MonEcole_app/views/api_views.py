@@ -10216,12 +10216,49 @@ def get_bulletin_overview(request):
                         WHERE nb.id_repartition_config IN ({ph}) AND nb.id_etablissement = %s
                     """, config_ids + [etab_id])
                     for n in cur.fetchall():
-                        # key: eleve_cours_config_notetype
                         key = f"{n['id_eleve_id']}_{n['id_cours_annee']}_{n['id_repartition_config']}_{n['id_note_type']}"
                         notes[key] = {
                             'note': float(n['note']) if n['note'] is not None else None,
                             'maxima': n['maxima'],
                         }
+
+                # Get evaluations linked to these configs
+                evaluations = []
+                eval_ids_all = []
+                if config_ids:
+                    ph2 = ','.join(['%s'] * len(config_ids))
+                    cur.execute(f"""
+                        SELECT ev.id_evaluation, ev.nom_evaluation, ev.ponderer_eval,
+                               ev.id_cours_classe_id AS cours_annee_id,
+                               er.id_repartition_config AS config_id
+                        FROM evaluation ev
+                        JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
+                        WHERE er.id_repartition_config IN ({ph2})
+                          AND ev.id_etablissement = %s
+                        ORDER BY ev.id_evaluation
+                    """, config_ids + [etab_id])
+                    for ev in cur.fetchall():
+                        evaluations.append({
+                            'id': ev['id_evaluation'],
+                            'nom': ev['nom_evaluation'],
+                            'max': ev['ponderer_eval'],
+                            'cours_id': ev['cours_annee_id'],
+                            'config_id': ev['config_id'],
+                        })
+                        eval_ids_all.append(ev['id_evaluation'])
+
+                # Get raw eleve_note for those evaluations
+                raw_notes = {}
+                if eval_ids_all:
+                    ph3 = ','.join(['%s'] * len(eval_ids_all))
+                    cur.execute(f"""
+                        SELECT en.id_eleve_id, en.id_evaluation_id, en.note
+                        FROM eleve_note en
+                        WHERE en.id_evaluation_id IN ({ph3})
+                    """, eval_ids_all)
+                    for rn in cur.fetchall():
+                        key = f"{rn['id_eleve_id']}_{rn['id_evaluation_id']}"
+                        raw_notes[key] = float(rn['note']) if rn['note'] is not None else None
         finally:
             conn.close()
 
@@ -10235,6 +10272,8 @@ def get_bulletin_overview(request):
             'repartitions': repartitions,
             'note_types_by_type': note_types_by_type,
             'notes': notes,
+            'evaluations': evaluations,
+            'raw_notes': raw_notes,
             'root_type_id': root_type_id,
             'child_type_id': child_type_id,
         })
