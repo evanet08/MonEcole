@@ -135,6 +135,7 @@ urlpatterns = [
     path('api/notes/template/', api_views.download_notes_template, name='download_notes_template'),
     path('api/notes/import/', api_views.import_notes_excel, name='import_notes_excel'),
     path('api/notes/bulletin/calculate/', api_views.calculate_notes_bulletin, name='calculate_notes_bulletin'),
+    path('api/notes/bulletin/calculate-period/', api_views.calculate_period_notes, name='calculate_period_notes'),
     path('api/notes/bulletin/get/', api_views.get_notes_bulletin, name='get_notes_bulletin'),
     path('api/notes/bulletin/overview/', api_views.get_bulletin_overview, name='get_bulletin_overview'),
 

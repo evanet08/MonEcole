@@ -9252,6 +9252,202 @@ def import_exam_notes_excel(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+def calculate_period_notes(request):
+    """
+    Calcule la note TJ d'une SEULE période pour UN cours.
+    Body JSON:
+      - classe_id: EAC id
+      - config_id: repartition_config id (période)
+      - cours_id: id_cours_annee
+      - evaluations: [{id, included, weight}] — weight in % (sum=100 for included)
+    Si evaluations absent: auto-equal pour toutes.
+    """
+    try:
+        user_id = request.session.get('user_id')
+        if not user_id:
+            return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        etab_id = etab.id_etablissement
+
+        data = json.loads(request.body)
+        classe_id = data.get('classe_id')
+        config_id = data.get('config_id')
+        cours_id = data.get('cours_id')
+        eval_config = data.get('evaluations')  # [{id, included, weight}] or None
+
+        if not classe_id or not config_id or not cours_id:
+            return JsonResponse({'success': False, 'error': 'classe_id, config_id et cours_id requis.'}, status=400)
+
+        conn = _get_spoke_connection()
+        try:
+            with conn.cursor() as cur:
+                # Get business keys
+                cur.execute("""
+                    SELECT ea.annee_id AS id_annee,
+                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
+                    FROM countryStructure.etablissements_annees_classes eac
+                    JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+                    WHERE eac.id = %s LIMIT 1
+                """, [classe_id])
+                ctx = cur.fetchone()
+                if not ctx:
+                    return JsonResponse({'success': False, 'error': 'Classe non trouvée.'}, status=404)
+
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                campus_row = cur.fetchone()
+                campus_id = campus_row['idCampus'] if campus_row else None
+
+                # Get enrolled students
+                cur.execute("""
+                    SELECT DISTINCT e.id_eleve
+                    FROM eleve_inscription ei JOIN eleve e ON e.id_eleve = ei.id_eleve_id
+                    WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
+                      AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s AND ei.status = 1
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
+                eleve_ids = [r['id_eleve'] for r in cur.fetchall()]
+                if not eleve_ids:
+                    return JsonResponse({'success': False, 'error': 'Aucun élève.'}, status=404)
+
+                # Get evaluations for this config + cours
+                cur.execute("""
+                    SELECT ev.id_evaluation, ev.title, ev.ponderer_eval
+                    FROM evaluation ev
+                    JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
+                    WHERE er.id_repartition_config = %s
+                      AND ev.id_cours_classe_id = %s
+                      AND ev.id_etablissement = %s
+                    ORDER BY ev.id_evaluation
+                """, [config_id, cours_id, etab_id])
+                db_evals = cur.fetchall()
+                if not db_evals:
+                    return JsonResponse({'success': False, 'error': 'Aucune évaluation trouvée.'}, status=404)
+
+                # Build weight map
+                if eval_config:
+                    # User provided config
+                    cfg_map = {int(e['id']): e for e in eval_config}
+                    included_evals = []
+                    for ev in db_evals:
+                        ec = cfg_map.get(ev['id_evaluation'])
+                        if ec and ec.get('included', True):
+                            included_evals.append({
+                                'id': ev['id_evaluation'],
+                                'max': ev['ponderer_eval'] or 0,
+                                'weight': float(ec.get('weight', 0))
+                            })
+                else:
+                    # Auto: all included, equal weight
+                    n = len(db_evals)
+                    included_evals = [{
+                        'id': ev['id_evaluation'],
+                        'max': ev['ponderer_eval'] or 0,
+                        'weight': round(100.0 / n, 2) if n > 0 else 0
+                    } for ev in db_evals]
+
+                if not included_evals:
+                    return JsonResponse({'success': False, 'error': 'Aucune évaluation incluse.'}, status=400)
+
+                # Normalize weights to sum=100
+                total_weight = sum(e['weight'] for e in included_evals)
+                if total_weight <= 0:
+                    total_weight = len(included_evals)
+                    for e in included_evals:
+                        e['weight'] = 100.0 / total_weight
+
+                # Find the TJ note_type for this period's repartition type
+                from django.db import connections
+                cur.execute("SELECT repartition_id FROM repartition_config_etab_annee WHERE id = %s", [config_id])
+                cfg_row = cur.fetchone()
+                if not cfg_row:
+                    return JsonResponse({'success': False, 'error': 'Config introuvable.'}, status=404)
+
+                conn_hub = connections['countryStructure'].cursor()
+                try:
+                    conn_hub.execute("""
+                        SELECT r.type_id FROM repartitions r WHERE r.id = %s
+                    """, [cfg_row['repartition_id']])
+                    rt_row = conn_hub.fetchone()
+                    if not rt_row:
+                        return JsonResponse({'success': False, 'error': 'Type répartition introuvable.'}, status=404)
+                    rep_type_id = rt_row[0]
+
+                    conn_hub.execute("""
+                        SELECT rtn.ponderation_max, nt.id_type_note
+                        FROM repartition_type_notes rtn
+                        JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                        WHERE rtn.repartition_type_id = %s AND nt.sigle = 'TJ' AND rtn.is_active = 1
+                        LIMIT 1
+                    """, [rep_type_id])
+                    tj_row = conn_hub.fetchone()
+                finally:
+                    conn_hub.close()
+
+                if not tj_row:
+                    return JsonResponse({'success': False, 'error': "Pas de note TJ configurée pour cette période."}, status=404)
+
+                tj_max = tj_row[0] or 20
+                tj_nt_id = tj_row[1]
+
+                # Calculate for each student
+                eval_ids = [e['id'] for e in included_evals]
+                placeholders = ','.join(['%s'] * len(eval_ids))
+                calculated = 0
+
+                for eleve_id in eleve_ids:
+                    # Get raw notes
+                    cur.execute(f"""
+                        SELECT en.id_evaluation_id, en.note
+                        FROM eleve_note en
+                        WHERE en.id_eleve_id = %s AND en.id_evaluation_id IN ({placeholders})
+                    """, [eleve_id] + eval_ids)
+                    raw_notes = {r['id_evaluation_id']: float(r['note']) if r['note'] is not None else None for r in cur.fetchall()}
+
+                    # Weighted calculation
+                    weighted_sum = 0
+                    weight_used = 0
+                    for ev in included_evals:
+                        note = raw_notes.get(ev['id'])
+                        if note is not None and ev['max'] > 0:
+                            # Note normalized to [0,1] then weighted
+                            normalized = note / ev['max']
+                            weighted_sum += normalized * ev['weight']
+                            weight_used += ev['weight']
+
+                    if weight_used > 0:
+                        # Scale to TJ max: (weighted_sum / weight_used) * tj_max
+                        scaled = round((weighted_sum / weight_used) * tj_max, 2)
+                    else:
+                        scaled = None
+
+                    if scaled is not None:
+                        cur.execute("""
+                            INSERT INTO note_bulletin
+                                (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
+                                 note, maxima, source_type, date_calcul, id_etablissement)
+                            VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', NOW(), %s)
+                            ON DUPLICATE KEY UPDATE
+                                note = VALUES(note), maxima = VALUES(maxima),
+                                date_calcul = NOW(), updated_at = NOW()
+                        """, [eleve_id, cours_id, config_id, tj_nt_id, scaled, tj_max, etab_id])
+                        calculated += 1
+
+                conn.commit()
+                return JsonResponse({
+                    'success': True,
+                    'calculated': calculated,
+                    'evals_used': len(included_evals),
+                    'tj_max': tj_max
+                })
+        finally:
+            conn.close()
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
 def calculate_notes_bulletin(request):
     """
     Calcule les notes du bulletin pour une classe/répartition.

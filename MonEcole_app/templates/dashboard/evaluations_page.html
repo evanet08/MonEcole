@@ -5869,7 +5869,7 @@ function updateBullGenBtn(){
     }
 }
 // ============================================================
-// NOTES PONDÉRÉES — Cours → Trim/Sem (tableau plat)
+// NOTES PONDÉRÉES — Cours → Trim/Sem (tableau plat + config par période)
 // ============================================================
 var _compClasseId = '', _compOv = null, _aid = 0;
 function _nid() { return 'np_' + (++_aid); }
@@ -5915,6 +5915,121 @@ async function calculateAllComposition() {
     await _loadOv();
 }
 
+// ==== Configuration modal pour calcul par période ====
+function _openCalcModal(coursId, coursNom, configId, periodeNom, evalsList) {
+    // evalsList: [{id, nom, max}]
+    var overlay = document.getElementById('calcModalOverlay');
+    if (overlay) overlay.remove();
+
+    var n = evalsList.length;
+    var defW = n > 0 ? Math.round(10000 / n) / 100 : 0;
+
+    var h = '';
+    h += '<div id="calcModalOverlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)">';
+    h += '<div style="background:#fff;border-radius:16px;width:520px;max-width:95vw;max-height:85vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">';
+
+    // Header
+    h += '<div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:14px 20px;border-radius:16px 16px 0 0">';
+    h += '<div style="display:flex;align-items:center;gap:10px">';
+    h += '<i class="fas fa-calculator" style="color:#fff;font-size:1rem"></i>';
+    h += '<div><div style="color:#fff;font-size:.82rem;font-weight:700">Calculer TJ — '+periodeNom+'</div>';
+    h += '<div style="color:rgba(255,255,255,.6);font-size:.55rem">'+coursNom+'</div></div>';
+    h += '<i class="fas fa-times" onclick="document.getElementById(\'calcModalOverlay\').remove()" style="color:#fff;margin-left:auto;cursor:pointer;font-size:1rem;padding:4px"></i>';
+    h += '</div></div>';
+
+    // Body
+    h += '<div style="padding:16px 20px">';
+    h += '<div style="font-size:.65rem;color:#64748b;margin-bottom:10px">Cochez les évaluations à inclure et ajustez leur poids (%) :</div>';
+
+    h += '<table style="width:100%;border-collapse:collapse;font-size:.62rem">';
+    h += '<thead><tr style="background:#f1f5f9"><th style="padding:6px;text-align:center;width:30px">✓</th><th style="padding:6px;text-align:left">Évaluation</th><th style="padding:6px;text-align:center;width:60px">Max</th><th style="padding:6px;text-align:center;width:80px">Poids %</th></tr></thead>';
+    h += '<tbody>';
+    evalsList.forEach(function(ev) {
+        h += '<tr style="border-bottom:1px solid #f1f5f9">';
+        h += '<td style="padding:5px;text-align:center"><input type="checkbox" checked id="cmc_'+ev.id+'" onchange="_recalcWeights()" style="accent-color:#7c3aed;cursor:pointer"></td>';
+        h += '<td style="padding:5px;font-weight:500;color:#1e293b">'+ev.nom+'</td>';
+        h += '<td style="padding:5px;text-align:center;color:#64748b">/'+ev.max+'</td>';
+        h += '<td style="padding:5px;text-align:center"><input type="number" id="cmw_'+ev.id+'" value="'+defW+'" min="0" max="100" step="0.01" style="width:60px;padding:3px 4px;border:1px solid #d1d5db;border-radius:5px;font-size:.6rem;text-align:center;outline:none" onfocus="this.style.borderColor=\'#7c3aed\'" onblur="this.style.borderColor=\'#d1d5db\'"></td>';
+        h += '</tr>';
+    });
+    h += '</tbody></table>';
+
+    h += '<div style="margin-top:10px;display:flex;align-items:center;gap:8px;padding:6px 0">';
+    h += '<span style="font-size:.55rem;color:#64748b">Total poids: </span>';
+    h += '<span id="cmTotalWeight" style="font-size:.6rem;font-weight:700;color:#7c3aed">'+Math.round(defW * n)+'%</span>';
+    h += '<button onclick="_recalcWeightsEqual()" style="margin-left:auto;background:#f1f5f9;border:1px solid #d1d5db;padding:3px 10px;border-radius:5px;font-size:.55rem;cursor:pointer;color:#475569"><i class="fas fa-balance-scale" style="margin-right:3px"></i>Répartir égal</button>';
+    h += '</div>';
+
+    // Action buttons
+    h += '<div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">';
+    h += '<button onclick="document.getElementById(\'calcModalOverlay\').remove()" style="padding:7px 16px;background:#f1f5f9;border:1px solid #d1d5db;border-radius:8px;font-size:.62rem;cursor:pointer;color:#475569">Annuler</button>';
+    h += '<button id="cmCalcBtn" onclick="_doCalcPeriod('+coursId+','+configId+')" style="padding:7px 20px;background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;border:none;border-radius:8px;font-size:.62rem;cursor:pointer;font-weight:600"><i class="fas fa-calculator" style="margin-right:5px"></i>Calculer</button>';
+    h += '</div>';
+    h += '</div></div></div>';
+
+    document.body.insertAdjacentHTML('beforeend', h);
+
+    // Store eval ids for later
+    window._cmEvalIds = evalsList.map(function(e){return e.id;});
+}
+
+function _recalcWeights() {
+    var total = 0;
+    window._cmEvalIds.forEach(function(id) {
+        var cb = document.getElementById('cmc_'+id);
+        var w = document.getElementById('cmw_'+id);
+        if (cb && cb.checked) total += parseFloat(w.value) || 0;
+    });
+    var el = document.getElementById('cmTotalWeight');
+    if (el) { el.textContent = Math.round(total * 100) / 100 + '%'; el.style.color = Math.abs(total - 100) < 0.1 ? '#059669' : '#dc2626'; }
+}
+
+function _recalcWeightsEqual() {
+    var checked = [];
+    window._cmEvalIds.forEach(function(id) {
+        var cb = document.getElementById('cmc_'+id);
+        if (cb && cb.checked) checked.push(id);
+    });
+    var w = checked.length > 0 ? Math.round(10000 / checked.length) / 100 : 0;
+    checked.forEach(function(id) {
+        var inp = document.getElementById('cmw_'+id);
+        if (inp) inp.value = w;
+    });
+    _recalcWeights();
+}
+
+async function _doCalcPeriod(coursId, configId) {
+    var btn = document.getElementById('cmCalcBtn');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calcul…';
+
+    var evalsCfg = [];
+    window._cmEvalIds.forEach(function(id) {
+        var cb = document.getElementById('cmc_'+id);
+        var w = document.getElementById('cmw_'+id);
+        evalsCfg.push({id: id, included: cb ? cb.checked : true, weight: parseFloat(w ? w.value : 0)});
+    });
+
+    try {
+        var r = await fetch('/api/notes/bulletin/calculate-period/', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json', 'X-CSRFToken': getCsrfToken()},
+            body: JSON.stringify({classe_id: _compClasseId, config_id: configId, cours_id: coursId, evaluations: evalsCfg})
+        });
+        var d = await r.json();
+        if (d.success) {
+            showToast(d.calculated + ' note(s) TJ calculée(s)', 'success');
+            document.getElementById('calcModalOverlay').remove();
+            await _loadOv();
+        } else {
+            showToast(d.error || 'Erreur', 'error');
+            btn.disabled = false; btn.innerHTML = '<i class="fas fa-calculator" style="margin-right:5px"></i>Calculer';
+        }
+    } catch(e) {
+        showToast('Erreur connexion', 'error');
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-calculator" style="margin-right:5px"></i>Calculer';
+    }
+}
+
 function _render() {
     var c = document.getElementById('compContentContainer');
     if (!_compOv) return;
@@ -5933,7 +6048,6 @@ function _render() {
     var html = '';
     var cols = ['#7c3aed','#2563eb','#0d9488','#d97706','#dc2626','#0369a1','#4f46e5','#059669','#c2410c','#7e22ce','#1d4ed8','#15803d'];
 
-    // === COURS ACCORDIONS ===
     cours.forEach(function(cr, ci) {
         var cAid = _nid(), col = cols[ci % cols.length];
         html += '<div style="margin-bottom:6px;border-radius:12px;overflow:hidden;border:2px solid '+col+'25;background:#fff">';
@@ -5944,138 +6058,112 @@ function _render() {
         html += '</div>';
         html += '<div id="'+cAid+'" style="display:none;padding:0">';
 
-        // === TRIMESTRE/SEMESTRE ===
         parents.forEach(function(par, pi) {
             var tAid = _nid();
             var myKids = children.filter(function(ch){return ch.parent_config_id === par.config_id;});
             var tCol = ['#6366f1','#3b82f6','#14b8a6','#f59e0b'][pi%4];
             var tBg = ['#eef2ff','#eff6ff','#f0fdfa','#fffbeb'][pi%4];
 
-            // Build column structure for this trimestre:
-            // For each période: [eval1, eval2, ..., TJ_période]
-            // Then: TJ_global, EX, TOTAL
-            var colDefs = []; // {type:'eval'|'ptj'|'tj'|'ex'|'tot', label, subLabel, evalId, configId, ntId, max, periodeNom}
+            var colDefs = [];
             myKids.forEach(function(kid) {
                 var kidEvs = evs.filter(function(ev){return ev.config_id === kid.config_id && ev.cours_id === cr.id;});
                 kidEvs.forEach(function(ev) {
-                    colDefs.push({type:'eval', label:ev.nom, subLabel:'/'+ev.max, evalId:ev.id, max:ev.max, periodeNom:kid.nom, configId:kid.config_id});
+                    colDefs.push({type:'eval',label:ev.nom,subLabel:'/'+ev.max,evalId:ev.id,max:ev.max,periodeNom:kid.nom,configId:kid.config_id});
                 });
+                // TJ column with calc button
                 if (cntTJ) {
-                    colDefs.push({type:'ptj', label:'TJ '+kid.nom, subLabel:'/'+(cntTJ.max||'?'), configId:kid.config_id, ntId:cntTJ.id, max:cntTJ.max, periodeNom:kid.nom});
+                    colDefs.push({type:'ptj',label:'TJ',subLabel:'/'+(cntTJ.max||'?'),configId:kid.config_id,ntId:cntTJ.id,max:cntTJ.max,periodeNom:kid.nom,coursId:cr.id,
+                        evalList: kidEvs.map(function(ev){return {id:ev.id,nom:ev.nom,max:ev.max};})
+                    });
                 }
             });
-            if (ntTJ) colDefs.push({type:'tj', label:'TJ', subLabel:'/'+(ntTJ.max||'?'), configId:par.config_id, ntId:ntTJ.id, max:ntTJ.max});
-            if (ntEX) colDefs.push({type:'ex', label:'EX', subLabel:'/'+(ntEX.max||'?'), configId:par.config_id, ntId:ntEX.id, max:ntEX.max});
-            if (ntTOT) colDefs.push({type:'tot', label:'TOTAL', subLabel:'/'+(ntTOT.max||'?'), configId:par.config_id, ntId:ntTOT.id, max:ntTOT.max});
-
             // Exam evals at parent level
             var parEvs = evs.filter(function(ev){return ev.config_id === par.config_id && ev.cours_id === cr.id;});
             if (parEvs.length) {
-                // Insert exam evals before TJ
                 var insertPos = colDefs.length;
                 for (var x = 0; x < colDefs.length; x++) { if (colDefs[x].type === 'tj') { insertPos = x; break; } }
                 parEvs.forEach(function(ev, ei) {
-                    colDefs.splice(insertPos + ei, 0, {type:'eval', label:ev.nom, subLabel:'/'+ev.max, evalId:ev.id, max:ev.max, periodeNom:'Examen', configId:par.config_id});
+                    colDefs.splice(insertPos + ei, 0, {type:'eval',label:ev.nom,subLabel:'/'+ev.max,evalId:ev.id,max:ev.max,periodeNom:'Examen',configId:par.config_id});
                 });
             }
+            if (ntTJ) colDefs.push({type:'tj',label:'TJ',subLabel:'/'+(ntTJ.max||'?'),configId:par.config_id,ntId:ntTJ.id,max:ntTJ.max});
+            if (ntEX) colDefs.push({type:'ex',label:'EX',subLabel:'/'+(ntEX.max||'?'),configId:par.config_id,ntId:ntEX.id,max:ntEX.max});
+            if (ntTOT) colDefs.push({type:'tot',label:'TOTAL',subLabel:'/'+(ntTOT.max||'?'),configId:par.config_id,ntId:ntTOT.id,max:ntTOT.max});
 
             html += '<div style="margin:6px 8px;border-radius:10px;overflow:hidden;border:1px solid '+tCol+'30">';
             html += '<div onclick="_tog(\''+tAid+'\')" style="background:'+tBg+';padding:8px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;border-bottom:1px solid '+tCol+'20">';
             html += '<i id="i_'+tAid+'" class="fas fa-chevron-right" style="color:'+tCol+';font-size:.65rem;min-width:12px"></i>';
             html += '<i class="fas fa-calendar-alt" style="color:'+tCol+';font-size:.7rem"></i>';
             html += '<span style="color:'+tCol+';font-size:.75rem;font-weight:700">'+par.nom+'</span>';
-            html += '<span style="color:#94a3b8;font-size:.45rem;margin-left:6px">'+myKids.length+' période(s) · '+colDefs.length+' colonnes</span>';
+            html += '<span style="color:#94a3b8;font-size:.45rem;margin-left:6px">'+myKids.length+' période(s)</span>';
             html += '</div>';
             html += '<div id="'+tAid+'" style="display:none;background:#fff;overflow:auto;padding:4px">';
 
             if (!colDefs.length) {
-                html += '<div style="text-align:center;padding:12px;color:#94a3b8;font-size:.6rem">Aucune donnée configurée.</div>';
+                html += '<div style="text-align:center;padding:12px;color:#94a3b8;font-size:.6rem">Aucune donnée.</div>';
             } else {
-                // Build table
                 html += '<table style="width:100%;border-collapse:collapse;font-size:.56rem">';
-
-                // Header row 1: group by période
                 html += '<thead>';
-                // Compute spans for grouping
-                var groups = [];
-                var curGroup = null;
+                // Group spans
+                var groups = [], curGrp = null;
                 colDefs.forEach(function(cd) {
-                    var gName = cd.type === 'eval' || cd.type === 'ptj' ? cd.periodeNom : (cd.type === 'tj' ? 'Résultat' : (cd.type === 'ex' ? 'Résultat' : 'Résultat'));
-                    if (!curGroup || curGroup.name !== gName) {
-                        curGroup = {name: gName, span: 1};
-                        groups.push(curGroup);
-                    } else {
-                        curGroup.span++;
-                    }
+                    var gN = cd.type==='eval'||cd.type==='ptj' ? cd.periodeNom : 'Résultat';
+                    if (!curGrp || curGrp.name !== gN) { curGrp = {name:gN,span:1}; groups.push(curGrp); }
+                    else curGrp.span++;
                 });
-
-                var grpColors = {'Résultat':'#1e1b4b'};
                 html += '<tr>';
                 html += '<th rowspan="2" style="padding:4px 5px;background:#1e1b4b;color:#fff;font-size:.42rem;text-align:center;min-width:22px;border-right:1px solid rgba(255,255,255,.15)">#</th>';
-                html += '<th rowspan="2" style="padding:4px 5px;background:#1e1b4b;color:#fff;font-size:.42rem;text-align:left;min-width:110px;border-right:1px solid rgba(255,255,255,.15);white-space:nowrap">Élève</th>';
+                html += '<th rowspan="2" style="padding:4px 5px;background:#1e1b4b;color:#fff;font-size:.42rem;text-align:left;min-width:110px;border-right:1px solid rgba(255,255,255,.15)">Élève</th>';
                 groups.forEach(function(g) {
-                    var gbg = g.name === 'Résultat' ? '#1e1b4b' : tCol;
-                    html += '<th colspan="'+g.span+'" style="padding:3px 2px;background:'+gbg+';color:#fff;font-size:.4rem;text-align:center;border-left:2px solid rgba(255,255,255,.2);border-right:2px solid rgba(255,255,255,.2);white-space:nowrap;letter-spacing:.3px">'+g.name+'</th>';
+                    var gbg = g.name==='Résultat' ? '#1e1b4b' : tCol;
+                    html += '<th colspan="'+g.span+'" style="padding:3px 2px;background:'+gbg+';color:#fff;font-size:.4rem;text-align:center;border-left:2px solid rgba(255,255,255,.2);border-right:2px solid rgba(255,255,255,.2);white-space:nowrap">'+g.name+'</th>';
                 });
-                html += '</tr>';
-
-                // Header row 2: individual columns
-                html += '<tr>';
-                colDefs.forEach(function(cd, idx) {
-                    var bg, fg;
-                    if (cd.type === 'eval') { bg = '#fef9c3'; fg = '#92400e'; }
-                    else if (cd.type === 'ptj') { bg = '#ccfbf1'; fg = '#0d9488'; }
-                    else if (cd.type === 'tj') { bg = '#dcfce7'; fg = '#166534'; }
-                    else if (cd.type === 'ex') { bg = '#ede9fe'; fg = '#7c3aed'; }
-                    else { bg = '#dbeafe'; fg = '#1e40af'; }
-                    html += '<th style="padding:2px 1px;background:'+bg+';color:'+fg+';font-size:.38rem;text-align:center;white-space:nowrap;border-right:1px solid #e2e8f0;font-weight:700">'+cd.label+'<br><span style="font-weight:400;color:#94a3b8;font-size:.34rem">'+cd.subLabel+'</span></th>';
+                html += '</tr><tr>';
+                colDefs.forEach(function(cd) {
+                    var bg,fg;
+                    if (cd.type==='eval') { bg='#fef9c3'; fg='#92400e'; }
+                    else if (cd.type==='ptj') { bg='#ccfbf1'; fg='#0d9488'; }
+                    else if (cd.type==='tj') { bg='#dcfce7'; fg='#166534'; }
+                    else if (cd.type==='ex') { bg='#ede9fe'; fg='#7c3aed'; }
+                    else { bg='#dbeafe'; fg='#1e40af'; }
+                    var extra = '';
+                    if (cd.type === 'ptj' && cd.evalList && cd.evalList.length) {
+                        // Add calc button
+                        var eListJSON = JSON.stringify(cd.evalList).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+                        var cnEsc = cr.nom.replace(/'/g,'\\&#39;');
+                        extra = ' <i class="fas fa-cog" onclick="event.stopPropagation();_openCalcModal('+cd.coursId+',\''+cnEsc+'\','+cd.configId+',\''+cd.periodeNom.replace(/'/g,'\\&#39;')+'\','+eListJSON+')" style="color:'+fg+';cursor:pointer;font-size:.4rem;vertical-align:middle" title="Configurer le calcul"></i>';
+                    }
+                    html += '<th style="padding:2px 1px;background:'+bg+';color:'+fg+';font-size:.38rem;text-align:center;white-space:nowrap;border-right:1px solid #e2e8f0;font-weight:700">'+cd.label+extra+'<br><span style="font-weight:400;color:#94a3b8;font-size:.34rem">'+cd.subLabel+'</span></th>';
                 });
                 html += '</tr></thead><tbody>';
 
-                // Data rows
                 el.forEach(function(s, si) {
-                    var bg = si % 2 === 0 ? '#fff' : '#f8fafc';
+                    var bg = si%2===0 ? '#fff' : '#f8fafc';
                     html += '<tr style="background:'+bg+'" onmouseover="this.style.background=\'#f0f1ff\'" onmouseout="this.style.background=\''+bg+'\'">';
                     html += '<td style="padding:1px 3px;border-bottom:1px solid #f1f5f9;text-align:center;color:#94a3b8;font-size:.44rem;border-right:1px solid #f1f5f9">'+(si+1)+'</td>';
                     html += '<td style="padding:1px 3px;border-bottom:1px solid #f1f5f9;font-size:.5rem;color:#334155;white-space:nowrap;border-right:1px solid #f1f5f9;font-weight:500">'+s.nom+' '+s.prenom+'</td>';
-
                     colDefs.forEach(function(cd) {
                         var v = null, mx = cd.max || 0;
-                        if (cd.type === 'eval') {
-                            var rk = s.id + '_' + cd.evalId;
-                            v = raw[rk];
-                        } else {
-                            // bulletin note
-                            var nk = s.id + '_' + cr.id + '_' + cd.configId + '_' + cd.ntId;
-                            var nd = notes[nk];
-                            v = nd && nd.note !== null && nd.note !== undefined ? nd.note : null;
+                        if (cd.type==='eval') { v = raw[s.id+'_'+cd.evalId]; }
+                        else { var nd = notes[s.id+'_'+cr.id+'_'+cd.configId+'_'+cd.ntId]; v = nd && nd.note!==null && nd.note!==undefined ? nd.note : null; }
+                        var color='#1e293b', cbg='';
+                        if (v!==null && v!==undefined) {
+                            if (cd.type==='tot') { color='#1e40af'; cbg='background:#eff6ff;'; }
+                            else if (cd.type==='tj') { color='#166534'; cbg='background:#f0fdf4;'; }
+                            else if (cd.type==='ex') { color='#7c3aed'; cbg='background:#faf5ff;'; }
+                            else { var pct=mx>0?v/mx:0; if(pct<0.5){color='#dc2626';cbg='background:#fef2f2;';}else if(pct>=0.8){color='#059669';cbg='background:#ecfdf5;';} }
                         }
-                        var color = '#1e293b', cbg = '';
-                        if (v !== null && v !== undefined) {
-                            if (cd.type === 'tot') { color = '#1e40af'; cbg = 'background:#eff6ff;'; }
-                            else if (cd.type === 'tj') { color = '#166534'; cbg = 'background:#f0fdf4;'; }
-                            else if (cd.type === 'ex') { color = '#7c3aed'; cbg = 'background:#faf5ff;'; }
-                            else {
-                                var pct = mx > 0 ? v / mx : 0;
-                                if (pct < 0.5) { color = '#dc2626'; cbg = 'background:#fef2f2;'; }
-                                else if (pct >= 0.8) { color = '#059669'; cbg = 'background:#ecfdf5;'; }
-                            }
-                        }
-                        var fw = (cd.type === 'tot' || cd.type === 'tj' || cd.type === 'ex' || cd.type === 'ptj') ? '700' : '500';
-                        var brR = '';
-                        html += '<td style="padding:1px 1px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:'+fw+';font-size:.5rem;color:'+color+';'+cbg+'border-right:1px solid #f1f5f9">'+(v !== null && v !== undefined ? v : '<span style="color:#e2e8f0">—</span>')+'</td>';
+                        var fw = cd.type==='eval' ? '500' : '700';
+                        html += '<td style="padding:1px 1px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:'+fw+';font-size:.5rem;color:'+color+';'+cbg+'border-right:1px solid #f1f5f9">'+(v!==null&&v!==undefined?v:'<span style="color:#e2e8f0">—</span>')+'</td>';
                     });
                     html += '</tr>';
                 });
                 html += '</tbody></table>';
             }
-
-            html += '</div></div>'; // end trimestre
+            html += '</div></div>';
         });
-
-        html += '</div></div>'; // end cours
+        html += '</div></div>';
     });
-
     c.innerHTML = html;
 }
 
