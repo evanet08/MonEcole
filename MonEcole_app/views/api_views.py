@@ -10014,6 +10014,237 @@ def download_exam_template(request):
 
 
 @require_http_methods(["GET"])
+def get_bulletin_overview(request):
+    """
+    Retourne TOUTES les notes de bulletin pour une classe, toutes répartitions confondues.
+    Utilisé par la vue accordéon de Notes Pondérées.
+    Retourne: élèves, cours, répartitions hiérarchiques, note_types par type, notes.
+    """
+    try:
+        classe_id = request.GET.get('classe_id')
+        if not classe_id:
+            return JsonResponse({'success': False, 'error': 'classe_id requis.'}, status=400)
+
+        user_id = request.session.get('user_id')
+        if not user_id:
+            return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        etab_id = etab.id_etablissement
+
+        annee = Annee.objects.filter(isOpen=True).first()
+        if not annee:
+            return JsonResponse({'success': False, 'error': 'Pas d\'année ouverte.'})
+
+        ea = EtablissementAnnee.objects.filter(
+            etablissement_id=etab_id, annee=annee
+        ).first()
+        if not ea:
+            return JsonResponse({'success': False, 'error': 'Config étab-année introuvable.'})
+
+        # Resolve cycle for the class
+        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).select_related('classe').first()
+        if not eac:
+            return JsonResponse({'success': False, 'error': 'Classe introuvable.'})
+
+        cycle_id = getattr(eac.classe, 'cycle_id', None) or getattr(eac, 'cycle_id', None)
+
+        # Get root type + hierarchy for this cycle
+        root_type_id = None
+        child_type_id = None
+        root_count = 0
+        child_count_per_root = 0
+        allowed_type_ids = set()
+
+        if cycle_id:
+            cycle_config = RepartitionConfigCycle.objects.filter(
+                cycle_id=cycle_id, is_active=True
+            ).first()
+            if cycle_config:
+                root_type_id = cycle_config.type_racine_id
+                root_count = cycle_config.nombre_au_niveau_racine
+                allowed_type_ids.add(root_type_id)
+
+                hierarchies = RepartitionHierarchie.objects.filter(
+                    type_parent_id=root_type_id, is_active=True
+                )
+                for h in hierarchies:
+                    child_type_id = h.type_enfant_id
+                    child_count_per_root = h.nombre_enfants
+                    allowed_type_ids.add(child_type_id)
+
+        # Get all repartition configs for this etab/annee filtered by allowed types
+        configs = RepartitionConfigEtabAnnee.objects.filter(
+            etablissement_annee=ea
+        ).select_related('repartition', 'repartition__type')
+
+        if allowed_type_ids:
+            configs = configs.filter(repartition__type_id__in=allowed_type_ids)
+
+        # Build repartitions list with parent-child mapping
+        repartitions = []
+        parent_reps = []
+        child_reps = []
+
+        for cfg in configs.order_by('repartition__type_id', 'repartition__ordre'):
+            rep = cfg.repartition
+            type_id = rep.type_id
+            is_parent = (type_id == root_type_id)
+
+            rep_data = {
+                'config_id': cfg.id,
+                'repartition_id': rep.id_instance,
+                'nom': rep.nom,
+                'code': rep.code,
+                'type_id': type_id,
+                'type_code': rep.type.code if rep.type else '',
+                'type_nom': rep.type.nom if rep.type else '',
+                'ordre': rep.ordre,
+                'is_parent': is_parent,
+                'is_open': cfg.is_open,
+                'parent_config_id': None,
+            }
+
+            if is_parent:
+                parent_reps.append(rep_data)
+            else:
+                child_reps.append(rep_data)
+            repartitions.append(rep_data)
+
+        # Assign children to parents by order
+        if parent_reps and child_reps and child_count_per_root > 0:
+            for ci, child in enumerate(child_reps):
+                pi = ci // child_count_per_root
+                if pi < len(parent_reps):
+                    child['parent_config_id'] = parent_reps[pi]['config_id']
+
+        # Limit by expected count
+        if root_count > 0:
+            parent_reps = parent_reps[:root_count]
+            total_children = root_count * child_count_per_root
+            child_reps = child_reps[:total_children]
+            allowed_config_ids = set(r['config_id'] for r in parent_reps + child_reps)
+            repartitions = [r for r in repartitions if r['config_id'] in allowed_config_ids]
+
+        # Get note_types per repartition type
+        from django.db import connections
+        note_types_by_type = {}
+        if allowed_type_ids:
+            conn_hub = connections['countryStructure'].cursor()
+            try:
+                type_placeholders = ','.join(['%s'] * len(allowed_type_ids))
+                conn_hub.execute(f"""
+                    SELECT rtn.repartition_type_id, rtn.ponderation_max, rtn.source_type,
+                           rtn.mode_calcul, rtn.ordre,
+                           nt.id_type_note, nt.sigle, nt.nom
+                    FROM repartition_type_notes rtn
+                    JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                    WHERE rtn.repartition_type_id IN ({type_placeholders})
+                      AND rtn.is_active = 1
+                    ORDER BY rtn.repartition_type_id, rtn.ordre
+                """, list(allowed_type_ids))
+                columns = [col[0] for col in conn_hub.description]
+                for row in conn_hub.fetchall():
+                    r = dict(zip(columns, row))
+                    tid = r['repartition_type_id']
+                    note_types_by_type.setdefault(tid, []).append({
+                        'id': r['id_type_note'],
+                        'sigle': r['sigle'],
+                        'nom': r['nom'],
+                        'max': r['ponderation_max'],
+                        'source': r['source_type'],
+                        'ordre': r['ordre'],
+                    })
+            finally:
+                conn_hub.close()
+
+        # Get students + cours via spoke
+        conn = _get_spoke_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT ea2.annee_id AS id_annee,
+                           eac2.classe_id AS bk_classe, eac2.groupe AS bk_groupe, eac2.section_id AS bk_section
+                    FROM countryStructure.etablissements_annees_classes eac2
+                    JOIN countryStructure.etablissements_annees ea2 ON ea2.id = eac2.etablissement_annee_id
+                    WHERE eac2.id = %s LIMIT 1
+                """, [classe_id])
+                ctx = cur.fetchone()
+                if not ctx:
+                    return JsonResponse({'success': False, 'error': 'Contexte classe introuvable.'})
+
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                campus_row = cur.fetchone()
+                campus_id = campus_row['idCampus'] if campus_row else None
+
+                # Students
+                cur.execute("""
+                    SELECT DISTINCT e.id_eleve, e.nom, e.prenom
+                    FROM eleve_inscription ei
+                    JOIN eleve e ON e.id_eleve = ei.id_eleve_id
+                    WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
+                      AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.status = 1
+                    ORDER BY e.nom, e.prenom
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
+                eleves = [dict(r) for r in cur.fetchall()]
+
+                # Courses
+                cur.execute("""
+                    SELECT MIN(cann.id_cours_annee) AS id_cours_annee, ca.cours AS cours_nom, ca.code_cours,
+                           MAX(cann.maxima_exam) AS maxima_exam, MAX(cann.maxima_tj) AS maxima_tj,
+                           MAX(cann.maxima_periode) AS maxima_periode
+                    FROM countryStructure.cours_annee cann
+                    JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
+                    JOIN countryStructure.etablissements_annees ea3 ON ea3.annee_id = cann.annee_id
+                    JOIN countryStructure.etablissements_annees_classes eac3 ON eac3.etablissement_annee_id = ea3.id
+                    WHERE eac3.id = %s AND ca.classe_id = eac3.classe_id
+                    GROUP BY cann.cours_id, ca.cours, ca.code_cours
+                    ORDER BY ca.cours
+                """, [classe_id])
+                cours = [dict(c) for c in cur.fetchall()]
+
+                # Get ALL note_bulletin for all configs of this class
+                config_ids = [r['config_id'] for r in repartitions]
+                notes = {}
+                if config_ids:
+                    ph = ','.join(['%s'] * len(config_ids))
+                    cur.execute(f"""
+                        SELECT nb.id_eleve_id, nb.id_cours_annee, nb.id_repartition_config,
+                               nb.id_note_type, nb.note, nb.maxima
+                        FROM note_bulletin nb
+                        WHERE nb.id_repartition_config IN ({ph}) AND nb.id_etablissement = %s
+                    """, config_ids + [etab_id])
+                    for n in cur.fetchall():
+                        # key: eleve_cours_config_notetype
+                        key = f"{n['id_eleve_id']}_{n['id_cours_annee']}_{n['id_repartition_config']}_{n['id_note_type']}"
+                        notes[key] = {
+                            'note': float(n['note']) if n['note'] is not None else None,
+                            'maxima': n['maxima'],
+                        }
+        finally:
+            conn.close()
+
+        return JsonResponse({
+            'success': True,
+            'classe_nom': str(eac.classe) if eac.classe else '',
+            'eleves': [{'id': e['id_eleve'], 'nom': e['nom'], 'prenom': e['prenom']} for e in eleves],
+            'cours': [{'id': c['id_cours_annee'], 'nom': c['cours_nom'], 'code': c['code_cours'],
+                       'maxima_exam': c['maxima_exam'], 'maxima_tj': c['maxima_tj'],
+                       'maxima_periode': c['maxima_periode']} for c in cours],
+            'repartitions': repartitions,
+            'note_types_by_type': note_types_by_type,
+            'notes': notes,
+            'root_type_id': root_type_id,
+            'child_type_id': child_type_id,
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@require_http_methods(["GET"])
 def get_notes_bulletin(request):
     """
     Récupère les notes de bulletin calculées pour affichage.
