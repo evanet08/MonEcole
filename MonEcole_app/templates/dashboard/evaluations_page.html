@@ -6064,9 +6064,9 @@ function _render() {
                 kidEvs.forEach(function(ev) {
                     colDefs.push({type:'eval',label:ev.nom,subLabel:'/'+ev.max,evalId:ev.id,max:ev.max,periodeNom:kid.nom,configId:kid.config_id});
                 });
-                // TJ column with calc button
+                // Note Pondérée de la période (calculated from evaluations)
                 if (cntTJ) {
-                    colDefs.push({type:'ptj',label:'TJ',subLabel:'/'+(cntTJ.max||'?'),configId:kid.config_id,ntId:cntTJ.id,max:cntTJ.max,periodeNom:kid.nom,coursId:cr.id,
+                    colDefs.push({type:'pnote',label:'NP',subLabel:'/'+(cntTJ.max||'?'),configId:kid.config_id,ntId:cntTJ.id,max:cntTJ.max,periodeNom:kid.nom,coursId:cr.id,
                         evalList: kidEvs.map(function(ev){return {id:ev.id,nom:ev.nom,max:ev.max};})
                     });
                 }
@@ -6101,11 +6101,11 @@ function _render() {
                 // Group spans
                 var groups = [], curGrp = null;
                 colDefs.forEach(function(cd) {
-                    var gN = cd.type==='eval'||cd.type==='ptj' ? cd.periodeNom : 'Résultat';
+                    var gN = cd.type==='eval'||cd.type==='pnote' ? cd.periodeNom : 'Résultat';
                     if (!curGrp || curGrp.name !== gN) { curGrp = {name:gN,span:1,evalList:null,configId:null,coursId:null}; groups.push(curGrp); }
                     else curGrp.span++;
                     // Capture eval info from ptj column for group header
-                    if (cd.type==='ptj' && cd.evalList) { curGrp.evalList = cd.evalList; curGrp.configId = cd.configId; curGrp.coursId = cd.coursId; }
+                    if (cd.type==='pnote' && cd.evalList) { curGrp.evalList = cd.evalList; curGrp.configId = cd.configId; curGrp.coursId = cd.coursId; }
                 });
                 html += '<tr>';
                 html += '<th rowspan="2" style="padding:4px 5px;background:#1e1b4b;color:#fff;font-size:.42rem;text-align:center;min-width:22px;border-right:1px solid rgba(255,255,255,.15)">#</th>';
@@ -6125,7 +6125,7 @@ function _render() {
                 colDefs.forEach(function(cd) {
                     var bg,fg;
                     if (cd.type==='eval') { bg='#fef9c3'; fg='#92400e'; }
-                    else if (cd.type==='ptj') { bg='#ccfbf1'; fg='#0d9488'; }
+                    else if (cd.type==='pnote') { bg='#fed7aa'; fg='#c2410c'; }
                     else if (cd.type==='tj') { bg='#dcfce7'; fg='#166534'; }
                     else if (cd.type==='ex') { bg='#ede9fe'; fg='#7c3aed'; }
                     else { bg='#dbeafe'; fg='#1e40af'; }
@@ -6146,11 +6146,13 @@ function _render() {
                         if (v!==null && v!==undefined) {
                             if (cd.type==='tot') { color='#1e40af'; cbg='background:#eff6ff;'; }
                             else if (cd.type==='tj') { color='#166534'; cbg='background:#f0fdf4;'; }
+                            else if (cd.type==='pnote') { color='#c2410c'; cbg='background:#fff7ed;'; }
                             else if (cd.type==='ex') { color='#7c3aed'; cbg='background:#faf5ff;'; }
                             else { var pct=mx>0?v/mx:0; if(pct<0.5){color='#dc2626';cbg='background:#fef2f2;';}else if(pct>=0.8){color='#059669';cbg='background:#ecfdf5;';} }
                         }
-                        var fw = cd.type==='eval' ? '500' : '700';
-                        html += '<td style="padding:1px 1px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:'+fw+';font-size:.5rem;color:'+color+';'+cbg+'border-right:1px solid #f1f5f9">'+(v!==null&&v!==undefined?v:'<span style="color:#e2e8f0">—</span>')+'</td>';
+                        var fw = (cd.type==='eval') ? '500' : '700';
+                        var bdR = (cd.type==='pnote') ? 'border-right:2px solid #f97316;' : 'border-right:1px solid #f1f5f9;';
+                        html += '<td style="padding:1px 1px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:'+fw+';font-size:.5rem;color:'+color+';'+cbg+bdR+'">'+( v!==null&&v!==undefined?v:'<span style="color:#e2e8f0">—</span>')+'</td>';
                     });
                     html += '</tr>';
                 });

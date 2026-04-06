@@ -10520,11 +10520,13 @@ def get_bulletin_overview(request):
                             'maxima': n['maxima'],
                         }
 
-                # Get evaluations linked to these configs
+                # Get evaluations linked to these configs (filtered by this class's courses)
                 evaluations = []
                 eval_ids_all = []
-                if config_ids:
+                cours_ids_list = [c['id_cours_annee'] for c in cours]
+                if config_ids and cours_ids_list:
                     ph2 = ','.join(['%s'] * len(config_ids))
+                    ph_cours = ','.join(['%s'] * len(cours_ids_list))
                     cur.execute(f"""
                         SELECT ev.id_evaluation, ev.title, ev.ponderer_eval,
                                ev.id_cours_classe_id AS cours_annee_id,
@@ -10533,8 +10535,9 @@ def get_bulletin_overview(request):
                         JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
                         WHERE er.id_repartition_config IN ({ph2})
                           AND ev.id_etablissement = %s
+                          AND ev.id_cours_classe_id IN ({ph_cours})
                         ORDER BY ev.id_evaluation
-                    """, config_ids + [etab_id])
+                    """, config_ids + [etab_id] + cours_ids_list)
                     for ev in cur.fetchall():
                         evaluations.append({
                             'id': ev['id_evaluation'],
