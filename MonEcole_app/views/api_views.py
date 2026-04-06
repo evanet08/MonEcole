@@ -10228,7 +10228,7 @@ def get_bulletin_overview(request):
                 if config_ids:
                     ph2 = ','.join(['%s'] * len(config_ids))
                     cur.execute(f"""
-                        SELECT ev.id_evaluation, ev.nom_evaluation, ev.ponderer_eval,
+                        SELECT ev.id_evaluation, ev.title, ev.ponderer_eval,
                                ev.id_cours_classe_id AS cours_annee_id,
                                er.id_repartition_config AS config_id
                         FROM evaluation ev
@@ -10240,7 +10240,7 @@ def get_bulletin_overview(request):
                     for ev in cur.fetchall():
                         evaluations.append({
                             'id': ev['id_evaluation'],
-                            'nom': ev['nom_evaluation'],
+                            'nom': ev['title'],
                             'max': ev['ponderer_eval'],
                             'cours_id': ev['cours_annee_id'],
                             'config_id': ev['config_id'],
