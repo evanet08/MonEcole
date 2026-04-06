@@ -998,7 +998,7 @@ function renderEvalGrid() {
     const stats = document.getElementById('evalStats');
 
     if (!_currentEvals.length) {
-        container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-file-alt me-1"></i>Aucune évaluation trouvée.</div>';
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-file-alt me-1"></i>Aucune \u00e9valuation trouv\u00e9e.</div>';
         stats.style.display = 'none';
         return;
     }
@@ -1008,48 +1008,92 @@ function renderEvalGrid() {
     document.getElementById('evalCountWithDoc').textContent = _currentEvals.filter(e => e.document_url).length;
     document.getElementById('evalCountAssigned').textContent = _currentEvals.filter(e => e.is_assigned).length;
 
-    let html = '<table style="width:100%;border-collapse:collapse;font-size:.75rem">';
-    html += '<thead><tr style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);position:sticky;top:0;z-index:2">' +
-        '<th style="padding:10px 12px;text-align:left;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0">Titre</th>' +
-        '<th style="padding:10px 8px;text-align:center;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;width:130px">Cours</th>' +
-        '<th style="padding:10px 8px;text-align:center;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;width:90px">Type</th>' +
-        '<th style="padding:10px 8px;text-align:center;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;width:100px">Période</th>' +
-        '<th style="padding:10px 8px;text-align:center;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;width:90px">Date</th>' +
-        '<th style="padding:10px 8px;text-align:center;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;width:60px">Max</th>' +
-        '<th style="padding:10px 8px;text-align:center;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;width:70px">Doc</th>' +
-        '<th style="padding:10px 8px;text-align:center;font-weight:700;color:#475569;border-bottom:2px solid #e2e8f0;width:100px">Actions</th>' +
-        '</tr></thead><tbody>';
-
-    _currentEvals.forEach((ev, i) => {
-        const bg = i % 2 === 0 ? '#fff' : '#fafbfc';
-        const typeLabel = ev.type_sigle ? `<span style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:1px 8px;border-radius:20px;font-size:.58rem;font-weight:700">${ev.type_sigle}</span>` : '<span style="color:#cbd5e1">—</span>';
-        const periodeLabel = ev.repartition_nom ? `<span style="background:linear-gradient(135deg,#7c3aed22,#8b5cf622);color:#7c3aed;padding:2px 8px;border-radius:6px;font-size:.58rem;font-weight:700">${ev.repartition_nom}</span>` : '<span style="color:#cbd5e1">—</span>';
-        const coursLabel = ev.cours_nom ? `<span style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;padding:2px 8px;border-radius:6px;font-size:.58rem;font-weight:600">${ev.cours_code || ev.cours_nom}</span>` : '<span style="color:#cbd5e1">—</span>';
-        const docBtn = ev.document_url
-            ? `<button onclick="viewPdf('${ev.document_url}','${ev.title.replace(/'/g,"\\\\'")}') " style="border:none;background:#fef2f2;color:#dc2626;padding:3px 10px;border-radius:6px;font-size:.62rem;cursor:pointer;font-weight:600"><i class="fas fa-file-pdf me-1"></i>PDF</button>`
-            : '<span style="color:#cbd5e1;font-size:.62rem">—</span>';
-
-        html += `<tr style="background:${bg};transition:background .15s" onmouseover="this.style.background='#fffbeb'" onmouseout="this.style.background='${bg}'">
-            <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9">
-                <div style="font-weight:600;color:#1e293b">${ev.title}</div>
-                ${ev.contenu ? `<div style="font-size:.62rem;color:#94a3b8;margin-top:1px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ev.contenu}</div>` : ''}
-            </td>
-            <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9">${coursLabel}</td>
-            <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9">${typeLabel}</td>
-            <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9">${periodeLabel}</td>
-            <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9;font-weight:500;color:#475569">${ev.date_eval || '—'}</td>
-            <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9"><span style="font-weight:700;color:#ea580c">${ev.ponderer_eval || '—'}</span></td>
-            <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9">${docBtn}</td>
-            <td style="padding:8px;text-align:center;border-bottom:1px solid #f1f5f9">
-                <div style="display:flex;gap:3px;justify-content:center">
-                    <button onclick="editEvaluation(${ev.id_evaluation})" style="border:none;background:#eef2ff;color:#4338ca;width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:.6rem" title="Modifier"><i class="fas fa-pen"></i></button>
-                    <button onclick="deleteEvaluation(${ev.id_evaluation})" style="border:none;background:#fef2f2;color:#dc2626;width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:.6rem" title="Supprimer"><i class="fas fa-trash"></i></button>
-                </div>
-            </td>
-        </tr>`;
+    // Group by cours
+    const grouped = {};
+    const coursOrder = [];
+    _currentEvals.forEach(ev => {
+        const key = ev.cours_nom || 'Sans cours';
+        if (!grouped[key]) { grouped[key] = { code: ev.cours_code || '', evals: [] }; coursOrder.push(key); }
+        grouped[key].evals.push(ev);
     });
-    html += '</tbody></table>';
+
+    let html = '';
+    coursOrder.forEach((coursNom, ci) => {
+        const group = grouped[coursNom];
+        const count = group.evals.length;
+        const docCount = group.evals.filter(e => e.document_url).length;
+        const isOpen = coursOrder.length === 1 ? 'true' : 'false';
+        const bodyDisplay = coursOrder.length === 1 ? '' : 'display:none;';
+        const chevron = coursOrder.length === 1 ? 'fa-chevron-up' : 'fa-chevron-down';
+
+        html += `<div style="margin-bottom:8px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04)">`;
+        // Accordion header
+        html += `<div onclick="toggleEvalAccordion(this)" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;padding:10px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none" data-open="${isOpen}">`;
+        html += `<div style="display:flex;align-items:center;gap:10px">`;
+        html += `<i class="fas fa-book" style="font-size:.75rem;opacity:.8"></i>`;
+        html += `<span style="font-weight:700;font-size:.82rem">${coursNom}</span>`;
+        if (group.code) html += `<span style="background:rgba(255,255,255,.2);padding:1px 8px;border-radius:10px;font-size:.6rem;font-weight:600">${group.code}</span>`;
+        html += `</div>`;
+        html += `<div style="display:flex;align-items:center;gap:12px">`;
+        html += `<span style="background:rgba(255,255,255,.2);padding:2px 10px;border-radius:10px;font-size:.62rem;font-weight:600">${count} \u00e9val${count > 1 ? 's' : ''}</span>`;
+        if (docCount) html += `<span style="background:rgba(255,255,255,.15);padding:2px 8px;border-radius:10px;font-size:.6rem"><i class="fas fa-file-pdf me-1"></i>${docCount} doc${docCount > 1 ? 's' : ''}</span>`;
+        html += `<i class="fas ${chevron}" style="font-size:.65rem;transition:transform .2s"></i>`;
+        html += `</div></div>`;
+
+        // Accordion body
+        html += `<div style="${bodyDisplay}">`;
+        html += '<table style="width:100%;border-collapse:collapse;font-size:.73rem">';
+        html += '<thead><tr style="background:#f8fafc">' +
+            '<th style="padding:7px 12px;text-align:left;font-weight:600;color:#64748b;border-bottom:1px solid #e2e8f0">Titre</th>' +
+            '<th style="padding:7px 6px;text-align:center;font-weight:600;color:#64748b;border-bottom:1px solid #e2e8f0;width:75px">Type</th>' +
+            '<th style="padding:7px 6px;text-align:center;font-weight:600;color:#64748b;border-bottom:1px solid #e2e8f0;width:95px">P\u00e9riode</th>' +
+            '<th style="padding:7px 6px;text-align:center;font-weight:600;color:#64748b;border-bottom:1px solid #e2e8f0;width:85px">Date</th>' +
+            '<th style="padding:7px 6px;text-align:center;font-weight:600;color:#64748b;border-bottom:1px solid #e2e8f0;width:50px">Max</th>' +
+            '<th style="padding:7px 6px;text-align:center;font-weight:600;color:#64748b;border-bottom:1px solid #e2e8f0;width:60px">Doc</th>' +
+            '<th style="padding:7px 6px;text-align:center;font-weight:600;color:#64748b;border-bottom:1px solid #e2e8f0;width:85px">Actions</th>' +
+            '</tr></thead><tbody>';
+
+        group.evals.forEach((ev, i) => {
+            const bg = i % 2 === 0 ? '#fff' : '#fafbfc';
+            const typeLabel = ev.type_sigle ? '<span style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:1px 7px;border-radius:20px;font-size:.56rem;font-weight:700">' + ev.type_sigle + '</span>' : '<span style="color:#cbd5e1">\u2014</span>';
+            const periodeLabel = ev.repartition_nom ? '<span style="background:linear-gradient(135deg,#7c3aed22,#8b5cf622);color:#7c3aed;padding:2px 7px;border-radius:6px;font-size:.56rem;font-weight:700">' + ev.repartition_nom + '</span>' : '<span style="color:#cbd5e1">\u2014</span>';
+            const safeTitle = (ev.title || '').replace(/'/g, "\\'");
+            const docBtn = ev.document_url
+                ? '<a href="' + ev.document_url + '" target="_blank" style="border:none;background:#fef2f2;color:#dc2626;padding:3px 8px;border-radius:6px;font-size:.6rem;cursor:pointer;font-weight:600;text-decoration:none;display:inline-block"><i class="fas fa-file-pdf me-1"></i>PDF</a>'
+                : '<span style="color:#cbd5e1;font-size:.6rem">\u2014</span>';
+
+            html += '<tr style="background:' + bg + ';transition:background .15s" onmouseover="this.style.background=\'#fffbeb\'" onmouseout="this.style.background=\'' + bg + '\'">';
+            html += '<td style="padding:7px 12px;border-bottom:1px solid #f1f5f9"><div style="font-weight:600;color:#1e293b;font-size:.73rem">' + ev.title + '</div>';
+            if (ev.contenu) html += '<div style="font-size:.6rem;color:#94a3b8;margin-top:1px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + ev.contenu + '</div>';
+            html += '</td>';
+            html += '<td style="padding:7px 6px;text-align:center;border-bottom:1px solid #f1f5f9">' + typeLabel + '</td>';
+            html += '<td style="padding:7px 6px;text-align:center;border-bottom:1px solid #f1f5f9">' + periodeLabel + '</td>';
+            html += '<td style="padding:7px 6px;text-align:center;border-bottom:1px solid #f1f5f9;font-weight:500;color:#475569">' + (ev.date_eval || '\u2014') + '</td>';
+            html += '<td style="padding:7px 6px;text-align:center;border-bottom:1px solid #f1f5f9"><span style="font-weight:700;color:#ea580c">' + (ev.ponderer_eval || '\u2014') + '</span></td>';
+            html += '<td style="padding:7px 6px;text-align:center;border-bottom:1px solid #f1f5f9">' + docBtn + '</td>';
+            html += '<td style="padding:7px 6px;text-align:center;border-bottom:1px solid #f1f5f9"><div style="display:flex;gap:3px;justify-content:center">';
+            html += '<button onclick="editEvaluation(' + ev.id_evaluation + ')" style="border:none;background:#eef2ff;color:#4338ca;width:24px;height:24px;border-radius:6px;cursor:pointer;font-size:.55rem" title="Modifier"><i class="fas fa-pen"></i></button>';
+            html += '<button onclick="deleteEvaluation(' + ev.id_evaluation + ')" style="border:none;background:#fef2f2;color:#dc2626;width:24px;height:24px;border-radius:6px;cursor:pointer;font-size:.55rem" title="Supprimer"><i class="fas fa-trash"></i></button>';
+            html += '</div></td></tr>';
+        });
+        html += '</tbody></table></div></div>';
+    });
     container.innerHTML = html;
+}
+
+function toggleEvalAccordion(header) {
+    const body = header.nextElementSibling;
+    const chevron = header.querySelector('.fa-chevron-down, .fa-chevron-up');
+    const isOpen = header.dataset.open === 'true';
+    if (isOpen) {
+        body.style.display = 'none';
+        header.dataset.open = 'false';
+        if (chevron) { chevron.classList.remove('fa-chevron-up'); chevron.classList.add('fa-chevron-down'); }
+    } else {
+        body.style.display = '';
+        header.dataset.open = 'true';
+        if (chevron) { chevron.classList.remove('fa-chevron-down'); chevron.classList.add('fa-chevron-up'); }
+    }
 }
 
 function openEvalModal() {
@@ -1185,10 +1229,8 @@ async function deleteEvaluation(id) {
 }
 
 function viewPdf(url, title) {
-    document.getElementById('pdfViewerTitle').innerHTML = `<i class="fas fa-file-pdf me-2" style="color:#ef4444"></i>${title}`;
-    document.getElementById('pdfViewerFrame').src = url;
-    document.getElementById('pdfDownloadBtn').href = url;
-    new bootstrap.Modal(document.getElementById('pdfViewerModal')).show();
+    // Open PDF in new tab to avoid X-Frame-Options issues
+    window.open(url, '_blank');
 }
 
 // ---- Composition ----
