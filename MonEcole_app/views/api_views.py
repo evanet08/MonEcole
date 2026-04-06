@@ -9365,7 +9365,7 @@ def calculate_period_notes(request):
                 conn_hub = connections['countryStructure'].cursor()
                 try:
                     conn_hub.execute("""
-                        SELECT r.type_id FROM repartitions r WHERE r.id = %s
+                        SELECT r.type_id FROM repartition_instances r WHERE r.id_instance = %s
                     """, [cfg_row['repartition_id']])
                     rt_row = conn_hub.fetchone()
                     if not rt_row:
@@ -9383,7 +9383,7 @@ def calculate_period_notes(request):
 
                     # Also find the parent repartition type for auto-cascade
                     conn_hub.execute("""
-                        SELECT rh.type_parent_id FROM repartition_hierarchie rh
+                        SELECT rh.type_parent_id FROM repartition_hierarchies rh
                         WHERE rh.type_enfant_id = %s LIMIT 1
                     """, [rep_type_id])
                     parent_type_row = conn_hub.fetchone()
@@ -9463,7 +9463,7 @@ def calculate_period_notes(request):
                     cur.execute("""
                         SELECT rc.id AS parent_config_id
                         FROM countryStructure.repartition_configs_etab_annee rc
-                        JOIN countryStructure.repartitions r ON r.id = rc.repartition_id
+                        JOIN countryStructure.repartition_instances r ON r.id_instance = rc.repartition_id
                         WHERE rc.etablissement_annee_id = (
                             SELECT etablissement_annee_id FROM countryStructure.repartition_configs_etab_annee WHERE id = %s
                         ) AND r.type_id = %s AND rc.is_open = 1
@@ -9475,7 +9475,7 @@ def calculate_period_notes(request):
                     for pc_id in parent_configs:
                         cur.execute("""
                             SELECT rc.id FROM countryStructure.repartition_configs_etab_annee rc
-                            JOIN countryStructure.repartitions r ON r.id = rc.repartition_id
+                            JOIN countryStructure.repartition_instances r ON r.id_instance = rc.repartition_id
                             WHERE rc.etablissement_annee_id = (
                                 SELECT etablissement_annee_id FROM countryStructure.repartition_configs_etab_annee WHERE id = %s
                             ) AND r.type_id = %s AND rc.is_open = 1
@@ -9743,7 +9743,7 @@ def calculate_notes_bulletin(request):
                         conn_hub2 = connections['countryStructure'].cursor()
                         try:
                             conn_hub2.execute("""
-                                SELECT type_enfant_id FROM repartition_hierarchie
+                                SELECT type_enfant_id FROM repartition_hierarchies
                                 WHERE type_parent_id = %s LIMIT 1
                             """, [rep_type_id])
                             hier_row = conn_hub2.fetchone()
