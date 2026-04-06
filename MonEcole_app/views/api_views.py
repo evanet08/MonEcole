@@ -9759,7 +9759,7 @@ def calculate_notes_bulletin(request):
                         child_configs = list(RepartitionConfigEtabAnnee.objects.filter(
                             etablissement_annee=config.etablissement_annee,
                             repartition__type_id=child_type_id,
-                            is_active=True
+                            is_open=True
                         ).values_list('id', flat=True))
 
                         if not child_configs:
