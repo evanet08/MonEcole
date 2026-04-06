@@ -465,30 +465,27 @@
                         </select>
                     </div>
                 </div>
-                <div class="eval-filter-divider"></div>
-                <div class="eval-filter-item">
-                    <div class="eval-filter-icon" style="--fi-color:#0d9488"><i class="fas fa-book-open"></i></div>
-                    <div class="eval-filter-field">
-                        <label>Cours</label>
-                        <select id="comp-cours-select" onchange="loadComposition()" disabled>
-                            <option value="">— Cours —</option>
-                        </select>
-                    </div>
-                </div>
             </div>
-            <button class="eval-add-btn" onclick="saveComposition()" id="btnSaveComposition" disabled style="--btn-gradient:linear-gradient(135deg,#059669,#10b981)">
-                <i class="fas fa-save"></i><span>Enregistrer</span>
-            </button>
-        </div>
-        <div id="compIntervalInfo" style="display:none;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #93c5fd;border-radius:12px;padding:10px 18px;margin-bottom:12px;font-size:.74rem;color:#1e40af;font-weight:600;display:flex;align-items:center;gap:8px">
-            <i class="fas fa-calendar-alt" style="opacity:.7"></i> Intervalle : <span id="compIntervalDates">—</span>
+            <div style="display:flex;align-items:center;gap:6px">
+                <button class="eval-add-btn" onclick="calculateComposition()" id="btnCalcComposition" disabled style="--btn-gradient:linear-gradient(135deg,#7c3aed,#a78bfa)">
+                    <i class="fas fa-calculator"></i><span>Calculer</span>
+                </button>
+                <span id="compCalcStatus" style="font-size:.62rem;color:#64748b"></span>
+            </div>
         </div>
         <div class="eval-content-card">
-            <div id="compContentContainer" style="overflow:auto;max-height:calc(100vh - 380px)">
+            <div id="compContentContainer" style="overflow:auto;max-height:calc(100vh - 340px)">
                 <div class="eval-empty-state">
                     <div class="eval-empty-anim"><div class="eval-empty-circle"></div><i class="fas fa-balance-scale"></i></div>
                     <h3>Notes Pondérées</h3>
-                    <p>Sélectionnez une classe, une répartition et un cours pour affecter les évaluations à la période.</p>
+                    <p>Sélectionnez une classe et un trimestre/semestre pour calculer et visualiser les notes pondérées du bulletin.</p>
+                    <div class="eval-empty-steps">
+                        <div class="eval-step"><span>1</span> Choisir la classe</div>
+                        <div class="eval-step-arrow"><i class="fas fa-chevron-right"></i></div>
+                        <div class="eval-step"><span>2</span> Choisir la répartition</div>
+                        <div class="eval-step-arrow"><i class="fas fa-chevron-right"></i></div>
+                        <div class="eval-step"><span>3</span> Calculer les notes</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -5890,8 +5887,210 @@ function updateBullGenBtn(){
         btn.classList.add('disabled');
     }
 }
+// ============================================================
+// NOTES PONDÉRÉES — CALCUL & VISUALISATION
+// ============================================================
 
+var _compClasseId = '';
+var _compRepartitionId = '';
+var _compData = null;
 
+async function onCompClasseChange() {
+    _compClasseId = document.getElementById('comp-classe-select').value;
+    const repSel = document.getElementById('comp-repartition-select');
+    repSel.innerHTML = '<option value="">— Répartition —</option>';
+    repSel.disabled = true;
+    document.getElementById('btnCalcComposition').disabled = true;
+    _compData = null;
+    document.getElementById('compContentContainer').innerHTML = '<div class="eval-empty-state"><div class="eval-empty-anim"><div class="eval-empty-circle"></div><i class="fas fa-balance-scale"></i></div><h3>Notes Pondérées</h3><p>Sélectionnez un trimestre/semestre pour calculer les notes.</p></div>';
+
+    if (!_compClasseId) return;
+
+    try {
+        const res = await fetch('/api/evaluations/repartitions/?classe_id=' + _compClasseId);
+        const data = await res.json();
+        if (data.success && data.repartitions) {
+            // Keep only root types (T=Trimestre, S=Semestre)
+            const rootReps = data.repartitions.filter(r => r.type_code === 'T' || r.type_code === 'S');
+            rootReps.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r.repartition_id;
+                opt.textContent = r.nom;
+                repSel.appendChild(opt);
+            });
+            repSel.disabled = rootReps.length === 0;
+        }
+    } catch(e) { console.error('onCompClasseChange', e); }
+}
+
+async function onCompRepartitionChange() {
+    _compRepartitionId = document.getElementById('comp-repartition-select').value;
+    document.getElementById('btnCalcComposition').disabled = !_compRepartitionId;
+    _compData = null;
+
+    if (!_compClasseId || !_compRepartitionId) {
+        document.getElementById('compContentContainer').innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-info-circle me-1"></i>Sélectionnez une classe et une répartition.</div>';
+        return;
+    }
+
+    // Load existing bulletin notes
+    await loadCompositionGrid();
+}
+
+async function loadCompositionGrid() {
+    const container = document.getElementById('compContentContainer');
+    container.innerHTML = '<div style="text-align:center;padding:40px"><i class="fas fa-spinner fa-spin" style="color:#7c3aed;font-size:1.5rem"></i></div>';
+
+    try {
+        const res = await fetch(`/api/notes/bulletin/get/?classe_id=${_compClasseId}&repartition_id=${_compRepartitionId}`);
+        const data = await res.json();
+        if (data.success) {
+            _compData = data;
+            renderCompositionGrid();
+        } else {
+            container.innerHTML = `<div style="text-align:center;padding:40px;color:#f59e0b;font-size:.78rem"><i class="fas fa-exclamation-triangle me-1"></i>${data.error || 'Erreur.'}</div>`;
+        }
+    } catch(e) {
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626;font-size:.78rem">Erreur de connexion.</div>';
+        console.error('loadCompositionGrid', e);
+    }
+}
+
+async function calculateComposition() {
+    if (!_compClasseId || !_compRepartitionId) {
+        showToast('Sélectionnez une classe et une répartition.', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('btnCalcComposition');
+    const status = document.getElementById('compCalcStatus');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Calcul...</span>';
+    status.textContent = '';
+
+    try {
+        const res = await fetch('/api/notes/bulletin/calculate/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+            body: JSON.stringify({
+                classe_id: _compClasseId,
+                repartition_id: _compRepartitionId
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message || 'Calcul terminé !', 'success');
+            status.textContent = `✓ ${data.calculated} note(s) calculée(s)`;
+            status.style.color = '#059669';
+            // Reload the grid with new data
+            await loadCompositionGrid();
+        } else {
+            showToast(data.error || 'Erreur de calcul.', 'error');
+            status.textContent = '✗ Erreur';
+            status.style.color = '#dc2626';
+        }
+    } catch(e) {
+        showToast('Erreur de connexion.', 'error');
+        console.error('calculateComposition', e);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-calculator"></i><span>Calculer</span>';
+    }
+}
+
+function renderCompositionGrid() {
+    const container = document.getElementById('compContentContainer');
+    if (!_compData) return;
+
+    const { eleves, cours, note_types, notes, repartition_name, repartition_type } = _compData;
+
+    if (!eleves || !eleves.length) {
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-info-circle me-1"></i>Aucun élève inscrit dans cette classe.</div>';
+        return;
+    }
+    if (!cours || !cours.length) {
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-info-circle me-1"></i>Aucun cours configuré.</div>';
+        return;
+    }
+
+    // note_types array: [{id, sigle, nom, max, source, ordre}, ...]
+    const ntList = (note_types || []).sort((a, b) => a.ordre - b.ordre);
+
+    // Color map for note types
+    const ntColors = { 'TJ': '#0d9488', 'EX': '#7c3aed', 'TOTAL': '#1e40af' };
+    const ntBg = { 'TJ': '#ccfbf1', 'EX': '#ede9fe', 'TOTAL': '#dbeafe' };
+
+    // Header banner
+    let html = `<div style="padding:10px 14px;background:linear-gradient(135deg,#eff6ff,#e0e7ff);border-bottom:1px solid #c7d2fe;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <i class="fas fa-balance-scale" style="color:#6366f1;font-size:.85rem"></i>
+        <span style="font-size:.82rem;font-weight:700;color:#312e81">${repartition_name} — Notes Pondérées</span>
+        <span style="font-size:.6rem;color:#6366f1;margin-left:auto">${eleves.length} élèves × ${cours.length} cours × ${ntList.length} types</span>
+    </div>`;
+
+    html += '<div style="overflow:auto">';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:.68rem">';
+
+    // ---- HEADER ROW 1: Cours names spanning across note types ----
+    html += '<thead>';
+    html += '<tr style="background:linear-gradient(135deg,#1e1b4b,#312e81)">';
+    html += '<th rowspan="2" style="padding:8px 10px;color:#fff;text-align:left;font-weight:700;font-size:.6rem;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;position:sticky;left:0;z-index:4;background:linear-gradient(135deg,#1e1b4b,#312e81);min-width:30px;border-right:2px solid rgba(255,255,255,.15)">#</th>';
+    html += '<th rowspan="2" style="padding:8px 10px;color:#fff;text-align:left;font-weight:700;font-size:.6rem;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;position:sticky;left:30px;z-index:4;background:linear-gradient(135deg,#1e1b4b,#312e81);min-width:160px;border-right:2px solid rgba(255,255,255,.15)">Élève</th>';
+
+    cours.forEach(c => {
+        const span = ntList.length || 1;
+        html += `<th colspan="${span}" style="padding:6px 4px;color:#fff;text-align:center;font-weight:700;font-size:.58rem;letter-spacing:.3px;white-space:nowrap;border-left:2px solid rgba(255,255,255,.15);border-right:2px solid rgba(255,255,255,.15)" title="${c.nom}">${c.code || c.nom.substring(0, 8)}</th>`;
+    });
+    html += '</tr>';
+
+    // ---- HEADER ROW 2: Note types per cours ----
+    html += '<tr style="background:linear-gradient(135deg,#312e81,#3730a3)">';
+    cours.forEach(() => {
+        ntList.forEach((nt, ni) => {
+            const col = ntColors[nt.sigle] || '#6366f1';
+            const borderL = ni === 0 ? 'border-left:2px solid rgba(255,255,255,.15);' : '';
+            const borderR = ni === ntList.length - 1 ? 'border-right:2px solid rgba(255,255,255,.15);' : '';
+            html += `<th style="padding:4px 2px;text-align:center;font-size:.52rem;font-weight:600;letter-spacing:.2px;white-space:nowrap;${borderL}${borderR}"><span style="color:${col};background:rgba(255,255,255,.15);padding:1px 5px;border-radius:4px">${nt.sigle}</span><br><span style="color:rgba(255,255,255,.5);font-size:.45rem">/${nt.max}</span></th>`;
+        });
+    });
+    html += '</tr></thead>';
+
+    // ---- BODY ----
+    html += '<tbody>';
+    eleves.forEach((el, idx) => {
+        const bg = idx % 2 === 0 ? '#fff' : '#f8fafc';
+        html += `<tr style="background:${bg};transition:background .15s" onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='${bg}'">`;
+        html += `<td style="padding:4px 8px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#6366f1;text-align:center;position:sticky;left:0;z-index:1;background:${bg};border-right:2px solid #e2e8f0;font-size:.64rem">${idx + 1}</td>`;
+        html += `<td style="padding:4px 8px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#1e293b;white-space:nowrap;position:sticky;left:30px;z-index:1;background:${bg};border-right:2px solid #e2e8f0;font-size:.66rem">${el.nom} ${el.prenom}</td>`;
+
+        cours.forEach(c => {
+            ntList.forEach((nt, ni) => {
+                const key = `${el.id}_${c.id}_${nt.id}`;
+                const noteData = notes[key];
+                const val = noteData && noteData.note !== null && noteData.note !== undefined ? noteData.note : '';
+                const max = nt.max || 0;
+                const borderL = ni === 0 ? 'border-left:2px solid #e2e8f0;' : '';
+                const borderR = ni === ntList.length - 1 ? 'border-right:2px solid #e2e8f0;' : '';
+
+                let cellBg = '';
+                let cellColor = '#1e293b';
+                if (val !== '' && nt.sigle === 'TOTAL') {
+                    cellBg = 'background:#eff6ff;';
+                    cellColor = '#1e40af';
+                } else if (val !== '') {
+                    const pct = max > 0 ? (val / max) : 0;
+                    if (pct < 0.5) { cellBg = 'background:#fef2f2;'; cellColor = '#dc2626'; }
+                    else if (pct >= 0.8) { cellBg = 'background:#ecfdf5;'; cellColor = '#059669'; }
+                }
+
+                html += `<td style="padding:3px 2px;border-bottom:1px solid #e2e8f0;text-align:center;font-weight:600;font-size:.66rem;${borderL}${borderR}${cellBg}color:${cellColor}">${val !== '' ? val : '<span style="color:#cbd5e1">—</span>'}</td>`;
+            });
+        });
+        html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
 
 </script>
 {% endblock %}
