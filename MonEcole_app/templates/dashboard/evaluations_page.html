@@ -1488,38 +1488,40 @@ function onNotesPeriodeChange() {
     var evalSelect = document.getElementById('notes-eval-select');
     evalSelect.innerHTML = '<option value="">— Toutes les évaluations —</option>';
     evalSelect.disabled = true;
-    _notesMode = null;
+
+    // Hide mode buttons until grid renders
+    document.getElementById('notesModeDiv').style.display = 'none';
+    document.getElementById('notesModeSelector').style.display = 'none';
 
     if (!classeId || !periodeId) {
-        document.getElementById('notesModeDiv').style.display = 'none';
-        document.getElementById('notesModeSelector').style.display = 'none';
+        _notesMode = null;
         return;
     }
 
-    // Show mode selector
+    // Default mode = 'periode': load and render immediately
+    _notesMode = 'periode';
+    loadNotesGrid(false);
+}
+
+function _showModeButtons() {
     document.getElementById('notesModeDiv').style.display = '';
     document.getElementById('notesModeSelector').style.display = 'flex';
+    _highlightActiveMode();
+}
 
-    // Reset mode buttons
+function _highlightActiveMode() {
     ['notesModePeriode','notesModeCours','notesModeEval'].forEach(function(id) {
         document.getElementById(id).style.opacity = '0.5';
         document.getElementById(id).style.transform = 'scale(1)';
     });
-
-    // Load data in background (don't render yet, wait for mode selection)
-    loadNotesGrid(true);
+    var activeBtn = _notesMode === 'periode' ? 'notesModePeriode' : _notesMode === 'cours' ? 'notesModeCours' : 'notesModeEval';
+    document.getElementById(activeBtn).style.opacity = '1';
+    document.getElementById(activeBtn).style.transform = 'scale(1.08)';
 }
 
 function setNotesMode(mode) {
     _notesMode = mode;
-    // Highlight active mode button
-    ['notesModePeriode','notesModeCours','notesModeEval'].forEach(function(id) {
-        document.getElementById(id).style.opacity = '0.5';
-        document.getElementById(id).style.transform = 'scale(1)';
-    });
-    var activeBtn = mode === 'periode' ? 'notesModePeriode' : mode === 'cours' ? 'notesModeCours' : 'notesModeEval';
-    document.getElementById(activeBtn).style.opacity = '1';
-    document.getElementById(activeBtn).style.transform = 'scale(1.08)';
+    _highlightActiveMode();
 
     // Show/hide contextual filters
     var ctxFilters = document.getElementById('notesContextFilters');
@@ -1540,16 +1542,25 @@ function setNotesMode(mode) {
         evalWrap.style.display = 'none';
         evalDiv.style.display = 'none';
         if (_notesGridData) _populateCoursDropdown(_notesGridData);
+        // Reset cours selection
+        document.getElementById('notes-cours-select').value = '';
         document.getElementById('notesGridContainer').innerHTML = '<div style="text-align:center;padding:50px 20px;color:#94a3b8"><i class="fas fa-book-open" style="font-size:2rem;color:#0d9488;opacity:.5;display:block;margin-bottom:12px"></i><div style="font-weight:700;font-size:.85rem;color:#1e293b">Sélectionnez un cours</div><div style="font-size:.72rem;color:#64748b;margin-top:3px">Toutes les évaluations du cours sélectionné seront affichées.</div></div>';
+        // Hide mode buttons until a course is selected
+        document.getElementById('notesModeDiv').style.display = 'none';
+        document.getElementById('notesModeSelector').style.display = 'none';
     } else if (mode === 'eval') {
         ctxFilters.style.display = '';
         coursWrap.style.display = '';
         evalWrap.style.display = '';
         evalDiv.style.display = '';
         if (_notesGridData) _populateCoursDropdown(_notesGridData);
+        document.getElementById('notes-cours-select').value = '';
         document.getElementById('notes-eval-select').innerHTML = '<option value="">— Toutes les évaluations —</option>';
         document.getElementById('notes-eval-select').disabled = true;
         document.getElementById('notesGridContainer').innerHTML = '<div style="text-align:center;padding:50px 20px;color:#94a3b8"><i class="fas fa-file-alt" style="font-size:2rem;color:#7c3aed;opacity:.5;display:block;margin-bottom:12px"></i><div style="font-weight:700;font-size:.85rem;color:#1e293b">Sélectionnez un cours puis une évaluation</div></div>';
+        // Hide mode buttons until evaluation is selected
+        document.getElementById('notesModeDiv').style.display = 'none';
+        document.getElementById('notesModeSelector').style.display = 'none';
     }
 }
 
@@ -1602,6 +1613,8 @@ function onNotesCoursChange() {
             _populateEvalDropdown(_notesGridData);
         }
         if (!coursId) {
+            document.getElementById('notesModeDiv').style.display = 'none';
+            document.getElementById('notesModeSelector').style.display = 'none';
             document.getElementById('notesGridContainer').innerHTML = '<div style="text-align:center;padding:50px;color:#94a3b8;font-size:.78rem"><i class="fas fa-hand-pointer me-1"></i>Sélectionnez un cours puis une évaluation.</div>';
         }
         return;
@@ -1610,14 +1623,21 @@ function onNotesCoursChange() {
     // Mode 'cours': render all evals for this course
     if (coursId && _notesGridData) {
         renderNotesGrid(_notesGridData);
+        _showModeButtons();
     } else {
+        document.getElementById('notesModeDiv').style.display = 'none';
+        document.getElementById('notesModeSelector').style.display = 'none';
         document.getElementById('notesGridContainer').innerHTML = '<div style="text-align:center;padding:50px;color:#94a3b8;font-size:.78rem"><i class="fas fa-hand-pointer me-1"></i>Sélectionnez un cours.</div>';
     }
 }
 
 function onNotesEvalChange() {
+    var evalId = document.getElementById('notes-eval-select').value;
     if (_notesGridData) {
         renderNotesGrid(_notesGridData);
+        if (evalId) {
+            _showModeButtons();
+        }
     }
 }
 
@@ -1638,11 +1658,7 @@ async function loadNotesGrid(silent) {
 
     if (!classeId || !periodeId) return;
 
-    if (!silent) {
-        container.innerHTML = '<div style="text-align:center;padding:40px"><i class="fas fa-spinner fa-spin" style="color:#6366f1;font-size:1.8rem"></i><div style="margin-top:10px;font-size:.75rem;color:#64748b">Chargement...</div></div>';
-    } else {
-        container.innerHTML = '<div style="text-align:center;padding:50px 20px;color:#94a3b8"><i class="fas fa-spinner fa-spin" style="color:#6366f1;font-size:1.4rem;display:block;margin-bottom:10px"></i><div style="font-weight:700;font-size:.82rem;color:#1e293b">Chargement des données...</div></div>';
-    }
+    container.innerHTML = '<div style="text-align:center;padding:40px"><i class="fas fa-spinner fa-spin" style="color:#6366f1;font-size:1.8rem"></i><div style="margin-top:10px;font-size:.75rem;color:#64748b">Chargement...</div></div>';
 
     try {
         const res = await fetch('/api/notes/grid/?classe_id=' + classeId + '&repartition_id=' + periodeId);
@@ -1656,11 +1672,14 @@ async function loadNotesGrid(silent) {
         if (btnSave) btnSave.disabled = false;
         if (btnTemplate) btnTemplate.disabled = false;
 
-        if (silent) {
-            var totalEvals = (data.cours||[]).reduce(function(s,c){return s+c.evaluations.length;},0);
-            container.innerHTML = '<div style="text-align:center;padding:50px 20px;color:#94a3b8"><i class="fas fa-check-circle" style="color:#10b981;font-size:1.8rem;display:block;margin-bottom:10px"></i><div style="font-weight:700;font-size:.82rem;color:#1e293b">' + (data.repartition_name || 'Données chargées') + '</div><div style="font-size:.68rem;color:#64748b;margin-top:4px">' + (data.eleves||[]).length + ' élève(s), ' + totalEvals + ' évaluation(s)<br>Choisissez un mode de saisie ci-dessus.</div></div>';
-        } else {
-            renderNotesGrid(data);
+        // Populate cours dropdown for later use
+        _populateCoursDropdown(data);
+
+        renderNotesGrid(data);
+
+        // Show mode buttons after grid renders (for 'periode' default mode)
+        if (_notesMode === 'periode') {
+            _showModeButtons();
         }
     } catch(e) {
         container.innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626;font-size:.8rem"><i class="fas fa-exclamation-triangle me-1"></i>Erreur de connexion.</div>';
@@ -1879,8 +1898,8 @@ async function saveAllNotes() {
                     setTimeout(() => { inp.style.background = '#fff'; }, 800);
                 }
             });
-            // Reload to get updated id_note values
-            loadNotesGrid();
+            // Reload to get updated id_note values (preserve current mode)
+            loadNotesGrid(false);
         } else {
             showToast(data.error || 'Erreur.', 'error');
         }
