@@ -5940,9 +5940,9 @@ function updateBullGenBtn(){
 // EXAM NOTES — SAISIE DIRECTE PAR RÉPARTITION PRINCIPALE
 // ============================================================
 
-let _examGridData = null;  // stores the grid data returned by API
-let _examSelectedClasse = '';
-let _examSelectedRepartition = '';
+var _examTabGridData = null;  // stores the grid data returned by API (Exam tab)
+var _examSelectedClasse = '';
+var _examSelectedRepartition = '';
 
 async function onExamClasseChange() {
     _examSelectedClasse = document.getElementById('exam-classe-select').value;
@@ -5950,7 +5950,7 @@ async function onExamClasseChange() {
     repSel.innerHTML = '<option value="">— Répartition —</option>';
     repSel.disabled = true;
     document.getElementById('btnSaveExam').disabled = true;
-    _examGridData = null;
+    _examTabGridData = null;
     document.getElementById('examGridContainer').innerHTML = '<div class="eval-empty-state"><div class="eval-empty-anim"><div class="eval-empty-circle" style="background:linear-gradient(135deg,#fce7f3,#fbcfe8)"></div><i class="fas fa-file-signature" style="color:#db2777"></i></div><h3>Saisie des examens</h3><p>Sélectionnez un trimestre/semestre pour saisir les notes.</p></div>';
 
     if (!_examSelectedClasse) return;
@@ -5978,7 +5978,7 @@ async function loadExamGrid() {
     _examSelectedRepartition = document.getElementById('exam-repartition-select').value;
     const container = document.getElementById('examGridContainer');
     document.getElementById('btnSaveExam').disabled = true;
-    _examGridData = null;
+    _examTabGridData = null;
 
     if (!_examSelectedClasse || !_examSelectedRepartition) {
         container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-info-circle me-1"></i>Sélectionnez une classe et un trimestre/semestre.</div>';
@@ -5991,7 +5991,7 @@ async function loadExamGrid() {
         const res = await fetch(`/api/notes/exam/grid/?classe_id=${_examSelectedClasse}&repartition_id=${_examSelectedRepartition}`);
         const data = await res.json();
         if (data.success) {
-            _examGridData = data;
+            _examTabGridData = data;
             renderExamGrid();
             document.getElementById('btnSaveExam').disabled = false;
         } else {
@@ -6005,12 +6005,12 @@ async function loadExamGrid() {
 
 function renderExamGrid() {
     const container = document.getElementById('examGridContainer');
-    if (!_examGridData || !_examGridData.eleves.length || !_examGridData.cours.length) {
+    if (!_examTabGridData || !_examTabGridData.eleves.length || !_examTabGridData.cours.length) {
         container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-info-circle me-1"></i>Aucun élève ou cours configuré pour cette classe.</div>';
         return;
     }
 
-    const { eleves, cours, notes, repartition_name } = _examGridData;
+    const { eleves, cours, notes, repartition_name } = _examTabGridData;
 
     let html = `<div style="padding:10px 14px;background:linear-gradient(135deg,#fdf2f8,#fce7f3);border-bottom:1px solid #fbcfe8;display:flex;align-items:center;gap:8px">
         <i class="fas fa-file-signature" style="color:#db2777;font-size:.85rem"></i>
@@ -6074,7 +6074,7 @@ function validateExamInput(input) {
 }
 
 async function saveExamNotes() {
-    if (!_examGridData || !_examSelectedClasse || !_examSelectedRepartition) {
+    if (!_examTabGridData || !_examSelectedClasse || !_examSelectedRepartition) {
         showToast('Sélectionnez d\'abord une classe et un trimestre.', 'error');
         return;
     }
@@ -6108,7 +6108,7 @@ async function saveExamNotes() {
     }
 
     // Filter out completely empty notes (no change needed)
-    const toSave = notesArr.filter(n => n.note !== null || _examGridData.notes[`${n.eleve_id}_${n.cours_annee_id}`] !== undefined);
+    const toSave = notesArr.filter(n => n.note !== null || _examTabGridData.notes[`${n.eleve_id}_${n.cours_annee_id}`] !== undefined);
 
     if (!toSave.length) {
         showToast('Aucune note à enregistrer.', 'error');
