@@ -250,7 +250,7 @@ try:
         # Get all active EACs with their etab info
         hub_cur.execute("""
             SELECT eac.id AS eac_id, ea.id AS etab_annee_id, ea.etablissement_id AS etab_id,
-                   c.classe AS classe_nom
+                   c.nom AS classe_nom
             FROM etablissements_annees_classes eac
             JOIN etablissements_annees ea ON ea.id = eac.etablissement_annee_id
             JOIN classes c ON c.id_classe = eac.classe_id
