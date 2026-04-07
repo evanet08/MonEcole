@@ -11075,11 +11075,13 @@ def get_notes_bulletin(request):
                 cours = cur.fetchall()
 
                 # Get all note_bulletin entries for this config
+                # ORDER BY id_note_bulletin so latest entry (highest id) overwrites older duplicates in dict
                 cur.execute("""
                     SELECT nb.id_eleve_id, nb.id_cours_annee, nb.id_note_type,
                            nb.note, nb.maxima, nb.source_type, nb.date_calcul
                     FROM note_bulletin nb
                     WHERE nb.id_repartition_config = %s AND nb.id_etablissement = %s
+                    ORDER BY nb.id_note_bulletin ASC
                 """, [config.id, etab_id])
                 notes_raw = cur.fetchall()
 

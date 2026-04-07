@@ -657,12 +657,13 @@ def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
     etab_id = campus.id_etablissement if campus else 1
 
     # TJ notes from note_bulletin (type=1, source=EVALUATIONS for periods)
+    # order_by id_note_bulletin ASC so latest entry overwrites older duplicates
     notes_qs = NoteBulletin.objects.filter(
         id_eleve_id=id_eleve,
         id_etablissement=etab_id,
         id_note_type=1,  # TJ
         id_cours_annee__in=cours_annee_to_cours.keys(),
-    )
+    ).order_by('id_note_bulletin')
 
     notes_par_cours = defaultdict(dict)
     for nb in notes_qs:
@@ -716,12 +717,13 @@ def get_student_exam_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe):
     etab_id = campus.id_etablissement if campus else 1
 
     # EX notes from note_bulletin (type=2)
+    # order_by id_note_bulletin ASC so latest entry overwrites older duplicates
     notes_qs = NoteBulletin.objects.filter(
         id_eleve_id=id_eleve,
         id_etablissement=etab_id,
         id_note_type=2,  # EX
         id_cours_annee__in=cours_annee_to_cours.keys(),
-    )
+    ).order_by('id_note_bulletin')
 
     notes_par_cours = defaultdict(dict)
     for nb in notes_qs:
@@ -925,12 +927,13 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
     etab_id = campus.id_etablissement if campus else 1
 
     # TJ notes from note_bulletin (type=1)
+    # order_by id_note_bulletin ASC so latest entry (highest id) overwrites older duplicates
     notes_qs = NoteBulletin.objects.filter(
         id_eleve_id=id_eleve,
         id_etablissement=etab_id,
         id_note_type=1,  # TJ
         id_cours_annee__in=cours_annee_to_cours.keys(),
-    )
+    ).order_by('id_note_bulletin')
 
     notes_par_cours = defaultdict(dict)
     for nb in notes_qs:

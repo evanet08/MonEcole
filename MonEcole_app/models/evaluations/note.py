@@ -255,6 +255,9 @@ class NoteBulletin(models.Model):
 
     class Meta:
         db_table = 'note_bulletin'
+        unique_together = [
+            ('id_eleve', 'id_cours_annee', 'id_repartition_config', 'id_note_type'),
+        ]
 
     def __str__(self):
         return f"Eleve {self.id_eleve_id} - Cours {self.id_cours_annee} - Type {self.id_note_type} = {self.note}"
