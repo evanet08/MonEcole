@@ -128,8 +128,22 @@ def create_header(elements, logo_path, emblem_path, style_title, style_center, e
             photo_file_path = eleve.imageUrl.path
             if os.path.exists(photo_file_path):
                 photo_square = Image(photo_file_path, width=14*mm, height=17*mm)
-        except Exception:
-            pass
+        except (ValueError, Exception):
+            # Fallback: imageUrl may store '/media/Photos/...' (absolute) — resolve manually
+            try:
+                from django.conf import settings as _settings
+                raw_url = str(eleve.imageUrl)
+                # Strip leading /media/ if present
+                if raw_url.startswith('/media/'):
+                    raw_url = raw_url[len('/media/'):]
+                media_root = getattr(_settings, 'MEDIA_ROOT', '')
+                if not media_root:
+                    media_root = os.path.join(_settings.BASE_DIR, 'media')
+                photo_file_path = os.path.join(str(media_root), raw_url)
+                if os.path.exists(photo_file_path):
+                    photo_square = Image(photo_file_path, width=14*mm, height=17*mm)
+            except Exception:
+                pass
     header_title_style = ParagraphStyle('HeaderTitle', fontSize=8, leading=10, alignment=1, fontName='Times-Bold')
     header_data = [
         [logo, Paragraph("<font color='black'><b>REPUBLIQUE DEMOCRATIQUE DU CONGO<br/>MINISTERE DE L'EDUCATION NATIONALE ET NOUVELLE CITOYENNETE</b></font>", header_title_style), emblem, photo_square]
@@ -154,7 +168,7 @@ def create_line2_left(elements, style_normal, id_campus=None):
     matricule = ""
     if id_campus:
         try:
-            campus = Campus.objects.get(id_campus=id_campus)
+            campus = Campus.objects.get(idCampus=id_campus)
             if campus.id_etablissement:
                 from django.db import connections
                 with connections['countryStructure'].cursor() as cursor:
