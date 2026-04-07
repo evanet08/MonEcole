@@ -175,7 +175,7 @@ def create_line2_left(elements, style_normal, id_campus=None):
     code_squares_table = Table(matricule_cells, colWidths=[3*mm]*nb_cases, rowHeights=4*mm)
     code_squares_table.setStyle(TableStyle([
         ('GRID', (0,0), (-1,-1), 0.5, colors.black),
-        ('FONTNAME', (0,0), (-1,-1), 'Helvetica-Bold'),
+        ('FONTNAME', (0,0), (-1,-1), 'Times-Bold'),
         ('FONTSIZE', (0,0), (-1,-1), 8),
         ('LEADING', (0,0), (-1,-1), 11),
         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
