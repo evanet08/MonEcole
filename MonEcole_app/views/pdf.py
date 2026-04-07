@@ -278,7 +278,7 @@ def generer_bulletin_pdf(request):
                     emblem_path = institution.logo_ministere.path if institution.logo_ministere else None
                     check_image_paths(logo_path, emblem_path)
 
-                    create_header(elements, logo_path, emblem_path, style_title, style_center)
+                    create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=eleve)
                     create_nid_section(elements, style_normal)
                     left_table = create_line2_left(elements, style_normal)
                     right_table = create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
@@ -317,7 +317,7 @@ def generer_bulletin_pdf(request):
                     emblem_path = institution.logo_ministere.path if institution.logo_ministere else None
                     check_image_paths(logo_path, emblem_path)
 
-                    create_header(elements, logo_path, emblem_path, style_title, style_center)
+                    create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=eleve)
                     create_nid_section(elements, style_normal)
                     left_table = create_line2_left(elements, style_normal)
                     right_table = create_line2_right(elements, eleve, style_normal, id_classe)
@@ -421,7 +421,7 @@ def generer_bulletin_pdf(request):
                         emblem_path = institution.logo_ministere.path if institution.logo_ministere else None
                         check_image_paths(logo_path, emblem_path)
 
-                        create_header(elements, logo_path, emblem_path, style_title, style_center)
+                        create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=eleve)
                         create_nid_section(elements, style_normal)
                         left_table = create_line2_left(elements, style_normal)
                         right_table = create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
@@ -459,7 +459,7 @@ def generer_bulletin_pdf(request):
                         emblem_path = institution.logo_ministere.path if institution.logo_ministere else None
                         check_image_paths(logo_path, emblem_path)
 
-                        create_header(elements, logo_path, emblem_path, style_title, style_center)
+                        create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=eleve)
                         create_nid_section(elements, style_normal)
                         left_table = create_line2_left(elements, style_normal)
                         right_table = create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)

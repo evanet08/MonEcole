@@ -86,10 +86,10 @@ def get_trimestres(id_annee, id_campus, id_cycle, id_classe):
 
 def get_styles():
     styles = getSampleStyleSheet()
-    style_normal = ParagraphStyle(name='NormalSmall', fontSize=4.5, leading=6, alignment=0)  
-    style_center = ParagraphStyle(name='CenterSmall', fontSize=4.5, leading=6, alignment=1)  
-    style_title = ParagraphStyle(name='TitleSmall', fontSize=8, leading=9, alignment=1)
-    style_right = ParagraphStyle(name='RightSmall', fontSize=7, leading=8, alignment=2, fontName='Helvetica-Oblique') 
+    style_normal = ParagraphStyle(name='NormalSmall', fontSize=4.5, leading=6, alignment=0, fontName='Times-Roman')  
+    style_center = ParagraphStyle(name='CenterSmall', fontSize=4.5, leading=6, alignment=1, fontName='Times-Roman')  
+    style_title = ParagraphStyle(name='TitleSmall', fontSize=8, leading=9, alignment=1, fontName='Times-Bold')
+    style_right = ParagraphStyle(name='RightSmall', fontSize=7, leading=8, alignment=2, fontName='Times-Italic') 
     return styles, style_normal, style_center, style_title, style_right
 
 def check_image_paths(logo_path, emblem_path):
@@ -98,22 +98,43 @@ def check_image_paths(logo_path, emblem_path):
     if emblem_path and not os.path.exists(emblem_path):
         raise ValueError(f"Fichier emblème introuvable : {emblem_path}")
 
+def _resolve_logo_paths(logo_path, emblem_path):
+    """Fallback: si les logos Institution/Pays ne sont pas trouvés, chercher à la racine du projet."""
+    from django.conf import settings
+    base = getattr(settings, 'BASE_DIR', '')
+    if not logo_path or not os.path.exists(logo_path):
+        fallback = os.path.join(base, 'logoRDC')
+        if os.path.exists(fallback):
+            logo_path = fallback
+        else:
+            fallback2 = os.path.join(base, 'logoRDC.png')
+            if os.path.exists(fallback2):
+                logo_path = fallback2
+    if not emblem_path or not os.path.exists(emblem_path):
+        fallback = os.path.join(base, 'logoMinistere.png')
+        if os.path.exists(fallback):
+            emblem_path = fallback
+    return logo_path, emblem_path
+
 def create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=None):
-    logo = Image(logo_path, width=12*mm, height=12*mm) if logo_path and os.path.exists(logo_path) else Paragraph("", style_center)
-    emblem = Image(emblem_path, width=12*mm, height=12*mm) if emblem_path and os.path.exists(emblem_path) else Paragraph("", style_center)
+    logo_path, emblem_path = _resolve_logo_paths(logo_path, emblem_path)
+    logo = Image(logo_path, width=15*mm, height=12*mm) if logo_path and os.path.exists(logo_path) else Paragraph("", style_center)
+    emblem = Image(emblem_path, width=14*mm, height=14*mm) if emblem_path and os.path.exists(emblem_path) else Paragraph("", style_center)
     # Student photo
-    photo_square = Paragraph("Photo", style_center)
+    photo_style = ParagraphStyle('PhotoPlaceholder', fontSize=6, leading=8, alignment=1, fontName='Times-Roman')
+    photo_square = Paragraph("Photo", photo_style)
     if eleve and hasattr(eleve, 'imageUrl') and eleve.imageUrl:
         try:
             photo_file_path = eleve.imageUrl.path
             if os.path.exists(photo_file_path):
-                photo_square = Image(photo_file_path, width=12*mm, height=15*mm)
+                photo_square = Image(photo_file_path, width=14*mm, height=17*mm)
         except Exception:
             pass
+    header_title_style = ParagraphStyle('HeaderTitle', fontSize=8, leading=10, alignment=1, fontName='Times-Bold')
     header_data = [
-        [logo, Paragraph("<font color='black'><b>REPUBLIQUE DEMOCRATIQUE DU CONGO<br/>MINISTERE DE L'EDUCATION NATIONALE ET NOUVELLE CITOYENNETE</b></font>", style_title), emblem, photo_square]
+        [logo, Paragraph("<font color='black'><b>REPUBLIQUE DEMOCRATIQUE DU CONGO<br/>MINISTERE DE L'EDUCATION NATIONALE ET NOUVELLE CITOYENNETE</b></font>", header_title_style), emblem, photo_square]
     ]
-    header_table = Table(header_data, colWidths=[20*mm, 140*mm, 20*mm, 15*mm], hAlign='LEFT')
+    header_table = Table(header_data, colWidths=[18*mm, 140*mm, 18*mm, 18*mm], hAlign='LEFT')
     header_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -122,7 +143,6 @@ def create_header(elements, logo_path, emblem_path, style_title, style_center, e
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('BOX', (3, 0), (3, 0), 0.5, colors.black),
-        ('ALIGN', (3, 0), (3, 0), 'RIGHT'),
     ]))
     elements.append(header_table)
     elements.append(Spacer(1, 0.5*mm))
