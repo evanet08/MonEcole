@@ -12602,7 +12602,7 @@ def cancel_deliberation(request):
             'id_etablissement': etab.id_etablissement,
         }
         if eac:
-            base_filter['classe_id'] = eac.classe_id
+            base_filter['id_classe_id'] = eac.classe_id
             base_filter['groupe'] = eac.groupe
             base_filter['section_id'] = eac.section_id
 

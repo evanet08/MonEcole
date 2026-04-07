@@ -849,7 +849,7 @@ def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_
         "id_annee_id": id_annee,
         "idCampus_id": id_campus,
         "id_cycle_id": id_cycle,
-        "classe_id": bk_classe_id,
+        "id_classe_id": bk_classe_id,
         "groupe": bk_groupe,
         "section_id": bk_section_id,
         "id_eleve_id": id_eleve,
