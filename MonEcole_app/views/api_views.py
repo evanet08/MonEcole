@@ -8458,30 +8458,37 @@ def assign_evaluations(request):
 
 def _get_or_create_repartition_config(repartition_id, etab_id):
     """
-    Ensures a RepartitionConfigEtabAnnee exists for the given repartition instance.
-    In synched calendar mode, the UI shows RepartitionInstance directly but the
-    notes APIs need a RepartitionConfigEtabAnnee entry to work.
-    Auto-creates one if missing.
+    Ensures a RepartitionConfigEtabAnnee exists for the given repartition instance
+    AND the current establishment. Without the etab filter, multi-tenant setups
+    could return a config from a different establishment, causing config_id mismatches
+    when reading notes back on the bulletin.
     """
-    config = RepartitionConfigEtabAnnee.objects.filter(
-        repartition_id=repartition_id
-    ).select_related('repartition', 'repartition__type').first()
-
-    if config:
-        return config
-
-    # Config doesn't exist — auto-provision from the RepartitionInstance
+    # Find the EtablissementAnnee for this etab first
     try:
         ri = RepartitionInstance.objects.select_related('type').get(id_instance=repartition_id)
     except RepartitionInstance.DoesNotExist:
-        return None
+        # Fallback: try without etab filter (single-tenant)
+        config = RepartitionConfigEtabAnnee.objects.filter(
+            repartition_id=repartition_id
+        ).select_related('repartition', 'repartition__type').first()
+        return config
 
-    # Find the EtablissementAnnee for this etab + the instance's year
     etab_annee = EtablissementAnnee.objects.filter(
         etablissement_id=etab_id,
         annee=ri.annee
     ).first()
 
+    if etab_annee:
+        # Filter by BOTH repartition AND establishment to get the correct config_id
+        config = RepartitionConfigEtabAnnee.objects.filter(
+            repartition_id=repartition_id,
+            etablissement_annee_id=etab_annee.id
+        ).select_related('repartition', 'repartition__type').first()
+
+        if config:
+            return config
+
+    # Config doesn't exist — auto-provision
     if not etab_annee:
         return None
 
@@ -9897,6 +9904,337 @@ def calculate_notes_bulletin(request):
                 'success': True,
                 'calculated': calculated,
                 'message': f'{calculated} note(s) de bulletin calculée(s).'
+            })
+        finally:
+            conn.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ============================================================
+# SYNC ALL NOTES → note_bulletin (GLOBAL)
+# ============================================================
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def sync_all_notes_bulletin(request):
+    """
+    Synchronise TOUTES les notes d'une classe vers note_bulletin.
+    Parcourt toutes les répartitions (périodes enfants d'abord, puis parents).
+    Pour chaque période+cours+élève :
+      - Calcule TJ pondéré depuis eleve_note (évaluations brutes)
+      - Écrit dans note_bulletin
+    Pour chaque parent (trimestre/semestre) :
+      - Cascade TJ des enfants → TJ parent (HERITAGE)
+      - Conserve les EX existants (SAISIE_DIRECTE)
+      - Calcule TOTAL = TJ + EX (FORMULE)
+    Body JSON: { classe_id: EAC id }
+    """
+    try:
+        user_id = request.session.get('user_id')
+        if not user_id:
+            return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        etab_id = etab.id_etablissement
+
+        data = json.loads(request.body)
+        classe_id = data.get('classe_id')
+        if not classe_id:
+            return JsonResponse({'success': False, 'error': 'classe_id requis.'}, status=400)
+
+        from django.db import connections
+
+        conn = _get_spoke_connection()
+        try:
+            with conn.cursor() as cur:
+                # 1. Get business keys from EAC
+                cur.execute("""
+                    SELECT ea.annee_id AS id_annee, ea.id AS etab_annee_id,
+                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
+                    FROM countryStructure.etablissements_annees_classes eac
+                    JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+                    WHERE eac.id = %s LIMIT 1
+                """, [classe_id])
+                ctx = cur.fetchone()
+                if not ctx:
+                    return JsonResponse({'success': False, 'error': 'Classe non trouvée.'}, status=404)
+
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                campus_row = cur.fetchone()
+                campus_id = campus_row['idCampus'] if campus_row else None
+
+                # 2. Get enrolled students
+                cur.execute("""
+                    SELECT DISTINCT e.id_eleve
+                    FROM eleve_inscription ei JOIN eleve e ON e.id_eleve = ei.id_eleve_id
+                    WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
+                      AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s AND ei.status = 1
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
+                eleve_ids = [r['id_eleve'] for r in cur.fetchall()]
+                if not eleve_ids:
+                    return JsonResponse({'success': False, 'error': 'Aucun élève inscrit.'}, status=404)
+
+                # 3. Get all cours_annee for this class
+                cur.execute("""
+                    SELECT cann.id_cours_annee, cann.maxima_exam, cann.maxima_tj, cann.maxima_periode
+                    FROM countryStructure.cours_annee cann
+                    JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
+                    WHERE ca.classe_id = %s
+                """, [ctx['bk_classe']])
+                cours_rows = cur.fetchall()
+                cours_ids = [r['id_cours_annee'] for r in cours_rows]
+                cours_maximas_tj = {r['id_cours_annee']: r['maxima_tj'] for r in cours_rows}
+                cours_maximas_exam = {r['id_cours_annee']: r['maxima_exam'] for r in cours_rows}
+
+                if not cours_ids:
+                    return JsonResponse({'success': False, 'error': 'Aucun cours trouvé.'}, status=404)
+
+                # 4. Get ALL repartition configs for this establishment/year
+                #    Split into children (has_parent=1, i.e. periods) and parents (has_parent=0, i.e. trimesters/semesters)
+                cur.execute("""
+                    SELECT rc.id AS config_id, rc.repartition_id, rc.parent_id, rc.has_parent,
+                           r.type_id, r.code, r.nom, r.taux_participation
+                    FROM countryStructure.repartition_configs_etab_annee rc
+                    JOIN countryStructure.repartition_instances r ON r.id_instance = rc.repartition_id
+                    WHERE rc.etablissement_annee_id = %s AND rc.is_open = 1
+                    ORDER BY rc.has_parent ASC, r.ordre ASC
+                """, [ctx['etab_annee_id']])
+                all_configs = cur.fetchall()
+
+                child_configs = [c for c in all_configs if c['has_parent']]
+                parent_configs = [c for c in all_configs if not c['has_parent']]
+
+                # 5. For each repartition type, get note_types (TJ, EX, TOTAL)
+                type_ids = set(c['type_id'] for c in all_configs)
+                note_types_by_rep_type = {}
+                conn_hub = connections['countryStructure'].cursor()
+                try:
+                    for tid in type_ids:
+                        conn_hub.execute("""
+                            SELECT rtn.ponderation_max, rtn.source_type, nt.id_type_note, nt.sigle
+                            FROM repartition_type_notes rtn
+                            JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                            WHERE rtn.repartition_type_id = %s AND rtn.is_active = 1
+                            ORDER BY rtn.ordre
+                        """, [tid])
+                        cols = [c[0] for c in conn_hub.description]
+                        note_types_by_rep_type[tid] = [dict(zip(cols, r)) for r in conn_hub.fetchall()]
+                finally:
+                    conn_hub.close()
+
+                calculated = 0
+
+                # ============================================
+                # PHASE 1: Process CHILDREN (periods → TJ)
+                # ============================================
+                for cfg in child_configs:
+                    config_id = cfg['config_id']
+                    rep_type_id = cfg['type_id']
+                    nts = note_types_by_rep_type.get(rep_type_id, [])
+                    tj_nt = next((n for n in nts if n['sigle'] == 'TJ'), None)
+                    if not tj_nt:
+                        continue
+
+                    tj_nt_id = tj_nt['id_type_note']
+                    taux = float(cfg['taux_participation']) if cfg['taux_participation'] else 100.0
+
+                    # Get total taux for all siblings (same type, same etab_annee)
+                    cur.execute("""
+                        SELECT COALESCE(SUM(r.taux_participation), 0) AS total_taux
+                        FROM countryStructure.repartition_configs_etab_annee rc
+                        JOIN countryStructure.repartition_instances r ON r.id_instance = rc.repartition_id
+                        WHERE rc.etablissement_annee_id = %s AND r.type_id = %s AND rc.is_open = 1
+                    """, [ctx['etab_annee_id'], rep_type_id])
+                    sum_row = cur.fetchone()
+                    total_taux = float(sum_row['total_taux']) if sum_row and sum_row['total_taux'] else taux
+
+                    for cours_id in cours_ids:
+                        c_maxima_tj = cours_maximas_tj.get(cours_id)
+                        if c_maxima_tj and total_taux > 0:
+                            period_max = round(float(c_maxima_tj) * (taux / total_taux), 2)
+                        else:
+                            period_max = tj_nt['ponderation_max'] or 20
+
+                        # Get evaluations assigned to this config+cours
+                        cur.execute("""
+                            SELECT ev.id_evaluation, ev.ponderer_eval
+                            FROM evaluation ev
+                            JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
+                            WHERE er.id_repartition_config = %s
+                              AND ev.id_cours_classe_id = %s
+                              AND ev.id_etablissement = %s
+                        """, [config_id, cours_id, etab_id])
+                        evals = cur.fetchall()
+
+                        if not evals:
+                            continue
+
+                        eval_ids = [e['id_evaluation'] for e in evals]
+                        total_max_evals = sum(e['ponderer_eval'] or 0 for e in evals)
+                        if total_max_evals == 0:
+                            continue
+
+                        placeholders = ','.join(['%s'] * len(eval_ids))
+
+                        for eleve_id in eleve_ids:
+                            # Skip if SAISIE_DIRECTE already exists
+                            cur.execute("""
+                                SELECT source_type FROM note_bulletin
+                                WHERE id_eleve_id = %s AND id_cours_annee = %s
+                                  AND id_repartition_config = %s AND id_note_type = %s
+                                  AND source_type = 'SAISIE_DIRECTE'
+                            """, [eleve_id, cours_id, config_id, tj_nt_id])
+                            if cur.fetchone():
+                                continue
+
+                            # Sum raw grades from eleve_note
+                            cur.execute(f"""
+                                SELECT COALESCE(SUM(en.note), 0) AS total_note
+                                FROM eleve_note en
+                                WHERE en.id_eleve_id = %s
+                                  AND en.id_evaluation_id IN ({placeholders})
+                            """, [eleve_id] + eval_ids)
+                            row = cur.fetchone()
+                            raw_total = float(row['total_note']) if row else 0
+
+                            # Scale to period max
+                            scaled = round((raw_total / total_max_evals) * period_max, 2)
+
+                            cur.execute("""
+                                INSERT INTO note_bulletin
+                                    (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
+                                     note, maxima, source_type, date_calcul, id_etablissement)
+                                VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', NOW(), %s)
+                                ON DUPLICATE KEY UPDATE
+                                    note = VALUES(note), maxima = VALUES(maxima),
+                                    date_calcul = NOW(), updated_at = NOW()
+                            """, [eleve_id, cours_id, config_id, tj_nt_id, scaled, period_max, etab_id])
+                            calculated += 1
+
+                # ============================================
+                # PHASE 2: Process PARENTS (trimestres/semestres → HERITAGE + FORMULE)
+                # ============================================
+                for cfg in parent_configs:
+                    config_id = cfg['config_id']
+                    rep_type_id = cfg['type_id']
+                    nts = note_types_by_rep_type.get(rep_type_id, [])
+
+                    tj_nt = next((n for n in nts if n['sigle'] == 'TJ'), None)
+                    ex_nt = next((n for n in nts if n['sigle'] == 'EX'), None)
+                    tot_nt = next((n for n in nts if n['sigle'] in ('TOTAL', 'TOT')), None)
+
+                    # Find child config IDs for this parent
+                    child_cfg_ids = [c['config_id'] for c in child_configs if c['parent_id'] == config_id]
+                    if not child_cfg_ids:
+                        # Try matching by type hierarchy
+                        conn_hub2 = connections['countryStructure'].cursor()
+                        try:
+                            conn_hub2.execute("""
+                                SELECT type_enfant_id FROM repartition_hierarchies
+                                WHERE type_parent_id = %s LIMIT 1
+                            """, [rep_type_id])
+                            hier_row = conn_hub2.fetchone()
+                        finally:
+                            conn_hub2.close()
+                        if hier_row:
+                            child_type_id = hier_row[0]
+                            child_cfg_ids = [c['config_id'] for c in child_configs if c['type_id'] == child_type_id]
+
+                    # --- TJ HERITAGE: sum child TJs → parent TJ ---
+                    if tj_nt and child_cfg_ids:
+                        tj_nt_id = tj_nt['id_type_note']
+                        # Find the child TJ note_type_id (might be different type)
+                        child_type_ids = set(c['type_id'] for c in child_configs if c['config_id'] in child_cfg_ids)
+                        child_tj_nt_id = tj_nt_id  # default same
+                        for ct_id in child_type_ids:
+                            child_nts = note_types_by_rep_type.get(ct_id, [])
+                            child_tj = next((n for n in child_nts if n['sigle'] == 'TJ'), None)
+                            if child_tj:
+                                child_tj_nt_id = child_tj['id_type_note']
+                                break
+
+                        ch_ph = ','.join(['%s'] * len(child_cfg_ids))
+
+                        for cours_id in cours_ids:
+                            c_maxima_tj = cours_maximas_tj.get(cours_id)
+                            heritage_max = int(c_maxima_tj) if c_maxima_tj else (tj_nt['ponderation_max'] or 20)
+
+                            for eleve_id in eleve_ids:
+                                cur.execute(f"""
+                                    SELECT COALESCE(SUM(nb.note), 0) AS total,
+                                           COALESCE(SUM(nb.maxima), 0) AS total_max
+                                    FROM note_bulletin nb
+                                    WHERE nb.id_eleve_id = %s AND nb.id_cours_annee = %s
+                                      AND nb.id_note_type = %s
+                                      AND nb.id_repartition_config IN ({ch_ph})
+                                """, [eleve_id, cours_id, child_tj_nt_id] + child_cfg_ids)
+                                row = cur.fetchone()
+                                raw_total = float(row['total']) if row and row['total'] else None
+                                raw_max = float(row['total_max']) if row and row['total_max'] else None
+
+                                if raw_total is not None and raw_max and raw_max > 0:
+                                    note_val = round((raw_total / raw_max) * heritage_max, 2)
+                                else:
+                                    note_val = None
+
+                                if note_val is not None:
+                                    cur.execute("""
+                                        INSERT INTO note_bulletin
+                                            (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
+                                             note, maxima, source_type, date_calcul, id_etablissement)
+                                        VALUES (%s, %s, %s, %s, %s, %s, 'HERITAGE', NOW(), %s)
+                                        ON DUPLICATE KEY UPDATE
+                                            note = VALUES(note), maxima = VALUES(maxima),
+                                            date_calcul = NOW(), updated_at = NOW()
+                                    """, [eleve_id, cours_id, config_id, tj_nt_id, note_val, heritage_max, etab_id])
+                                    calculated += 1
+
+                    # --- TOTAL FORMULE: TJ + EX = TOTAL ---
+                    if tot_nt:
+                        tot_nt_id = tot_nt['id_type_note']
+                        other_nt_ids = [n['id_type_note'] for n in nts
+                                        if n['sigle'] != 'TOTAL' and n['sigle'] != 'TOT'
+                                        and n['id_type_note'] != tot_nt_id]
+                        if other_nt_ids:
+                            other_ph = ','.join(['%s'] * len(other_nt_ids))
+                            for cours_id in cours_ids:
+                                for eleve_id in eleve_ids:
+                                    cur.execute(f"""
+                                        SELECT COALESCE(SUM(nb.note), 0) AS total,
+                                               COALESCE(SUM(nb.maxima), 0) AS total_max
+                                        FROM note_bulletin nb
+                                        WHERE nb.id_eleve_id = %s AND nb.id_cours_annee = %s
+                                          AND nb.id_repartition_config = %s
+                                          AND nb.id_note_type IN ({other_ph})
+                                    """, [eleve_id, cours_id, config_id] + other_nt_ids)
+                                    row = cur.fetchone()
+                                    note_val = round(float(row['total']), 2) if row and row['total'] else None
+                                    total_max_val = int(row['total_max']) if row and row['total_max'] else (tot_nt['ponderation_max'] or 40)
+
+                                    if note_val is not None and note_val > 0:
+                                        cur.execute("""
+                                            INSERT INTO note_bulletin
+                                                (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
+                                                 note, maxima, source_type, date_calcul, id_etablissement)
+                                            VALUES (%s, %s, %s, %s, %s, %s, 'FORMULE', NOW(), %s)
+                                            ON DUPLICATE KEY UPDATE
+                                                note = VALUES(note), maxima = VALUES(maxima),
+                                                date_calcul = NOW(), updated_at = NOW()
+                                        """, [eleve_id, cours_id, config_id, tot_nt_id, note_val, total_max_val, etab_id])
+                                        calculated += 1
+
+            conn.commit()
+            return JsonResponse({
+                'success': True,
+                'calculated': calculated,
+                'students': len(eleve_ids),
+                'courses': len(cours_ids),
+                'child_configs': len(child_configs),
+                'parent_configs': len(parent_configs),
+                'message': f'{calculated} note(s) synchronisées dans note_bulletin.'
             })
         finally:
             conn.close()

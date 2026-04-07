@@ -14,7 +14,7 @@ from MonEcole_app.models import Campus,Annee_trimestre,EtablissementAnneeClasse,
 from .structure_primaire import (get_styles,check_image_paths,
                                  create_header,create_nid_section,
                                  create_line2_left,get_cours_classe_rdc,
-                                 get_student_notes_rdc,get_student_period_notes,
+                                 get_student_period_notes,
                                  get_student_exam_notes,Deliberation_examen_resultat,
                                  Deliberation_periodique_resultat,
                                  Deliberation_trimistrielle_resultat,
@@ -447,18 +447,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
 
             for col in range(1, 20):
                 if col in [2, 3, 9, 10]:
-                    col_to_code = {
-                        2: "P1", 3: "P2",
-                        9: "P3", 10: "P4"
-                    }
-                    code = col_to_code[col]
-                    note_data = notes_cours_periodes.get(code, None)
-                    if note_data and isinstance(note_data, dict):
-                        note_val = note_data.get('valeur', '-')
-                    elif note_data is not None:
-                        note_val = note_data
-                    else:
-                        note_val = "-"
+                    note_val = notes_cours_periodes.get(col, "-")
                     row.append(Paragraph(str(note_val), style_center))
 
                 elif col in [1, 8]:

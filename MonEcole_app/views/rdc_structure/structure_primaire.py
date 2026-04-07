@@ -540,7 +540,69 @@ def _get_periode_to_col(eac):
     col_positions = [2, 3, 9, 10, 16, 17]
     return {code: col_positions[i] for i, code in enumerate(period_codes) if i < len(col_positions)}
 
+
+def _get_bulletin_context(eac):
+    """
+    Construit les mappings nécessaires pour lire note_bulletin :
+    - cours_annee_to_cours: {id_cours_annee: id_cours_id}
+    - config_to_rep: {id_repartition_config: repartition_id}
+    - rep_to_code: {repartition_id: code}  (P1, P2, S1, S2, T1, etc.)
+    """
+    from django.db import connections
+    import logging
+    logger = logging.getLogger(__name__)
+
+    etab_annee_id = eac.etablissement_annee_id
+
+    # 1. cours_annee → id_cours (Hub)
+    cours_annee_to_cours = {}
+    try:
+        with connections['countryStructure'].cursor() as cur:
+            cur.execute("""
+                SELECT ca.id_cours_annee, ca.id_cours_id
+                FROM cours_annee ca
+                WHERE ca.id_cours_id IN (
+                    SELECT id_cours FROM cours WHERE classe_id = %s
+                )
+            """, [eac.classe_id])
+            for row in cur.fetchall():
+                cours_annee_to_cours[row[0]] = row[1]
+    except Exception as e:
+        logger.warning(f"[_get_bulletin_context] cours_annee query failed: {e}")
+
+    # 2. repartition_config → repartition_id (Hub)
+    config_to_rep = {}
+    try:
+        with connections['countryStructure'].cursor() as cur:
+            cur.execute("""
+                SELECT id, repartition_id
+                FROM repartition_configs_etab_annee
+                WHERE etablissement_annee_id = %s
+            """, [etab_annee_id])
+            for row in cur.fetchall():
+                config_to_rep[row[0]] = row[1]
+    except Exception as e:
+        logger.warning(f"[_get_bulletin_context] config query failed: {e}")
+
+    # 3. repartition_id → code (Hub)
+    rep_to_code = {}
+    if config_to_rep:
+        from MonEcole_app.models.country_structure import RepartitionInstance
+        rep_ids = set(config_to_rep.values())
+        for ri in RepartitionInstance.objects.filter(id_instance__in=rep_ids):
+            rep_to_code[ri.id_instance] = ri.code
+
+    return cours_annee_to_cours, config_to_rep, rep_to_code
+
+
 def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
+    """
+    Retourne les notes TJ par cours depuis note_bulletin, indexées par code de période.
+    Source: note_bulletin WHERE id_note_type=1 AND source_type IN ('EVALUATIONS','HERITAGE')
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
     try:
         eac = EtablissementAnneeClasse.objects.select_related('classe', 'etablissement_annee').get(id=id_classe)
     except EtablissementAnneeClasse.DoesNotExist:
@@ -550,121 +612,94 @@ def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
     if not periode_to_col:
         return defaultdict(dict)
 
-    notes_qs = Eleve_note.objects.filter(
+    cours_annee_to_cours, config_to_rep, rep_to_code = _get_bulletin_context(eac)
+    if not cours_annee_to_cours:
+        logger.warning(f"[get_student_notes_rdc] No cours_annee mapping for classe_id={eac.classe_id}")
+        return defaultdict(dict)
+
+    from MonEcole_app.models.evaluations.note import NoteBulletin
+    from MonEcole_app.models.campus import Campus
+    campus = Campus.objects.filter(idCampus=id_campus).first()
+    etab_id = campus.id_etablissement if campus else 1
+
+    # TJ notes from note_bulletin (type=1, source=EVALUATIONS for periods)
+    notes_qs = NoteBulletin.objects.filter(
         id_eleve_id=id_eleve,
-        id_annee_id=id_annee,
-        idCampus_id=id_campus,
-        id_classe_id=eac.classe_id,
-        groupe=eac.groupe,
-        section_id=eac.section_id,
-        id_evaluation__id_type_eval=1,  # TJ (via evaluation.id_type_eval)
+        id_etablissement=etab_id,
+        id_note_type=1,  # TJ
+        id_cours_annee__in=cours_annee_to_cours.keys(),
     )
 
-    # Prefetch RepartitionInstance names (Hub) to avoid cross-DB JOIN
-    from MonEcole_app.models.country_structure import RepartitionInstance
-    rep_ids = set(notes_qs.values_list('id_repartition_instance', flat=True))
-    rep_ids.discard(None)
-    rep_map = {}
-    if rep_ids:
-        rep_map = dict(RepartitionInstance.objects.filter(id_instance__in=rep_ids).values_list('id_instance', 'code'))
-
-    regroupement = defaultdict(lambda: defaultdict(list)) 
-
-    for note in notes_qs:
-        cours_id  = note.id_cours_id
-        try:
-            periode_nom = rep_map.get(note.id_repartition_instance_id, None)
-            if not periode_nom:
-                continue
-        except (AttributeError, Exception):
-            continue
-
-        if periode_nom not in periode_to_col:
-            continue 
-
-        valeur = note.note
-        if valeur is not None:
-            regroupement[cours_id][periode_nom].append(valeur)
-
     notes_par_cours = defaultdict(dict)
+    for nb in notes_qs:
+        cours_id = cours_annee_to_cours.get(nb.id_cours_annee)
+        if not cours_id:
+            continue
+        config_id = nb.id_repartition_config
+        rep_id = config_to_rep.get(config_id)
+        if not rep_id:
+            continue
+        code = rep_to_code.get(rep_id)
+        if not code or code not in periode_to_col:
+            continue
+        col = periode_to_col[code]
+        val = nb.note
+        if val is not None:
+            val_r = round(float(val), 1)
+            valeur_affichee = str(int(val_r)) if val_r == int(val_r) else f"{val_r:.1f}"
+        else:
+            valeur_affichee = "-"
+        notes_par_cours[cours_id][code] = {
+            'valeur': valeur_affichee,
+            'colonne': col
+        }
 
-    for cours_id, periodes in regroupement.items():
-        for periode_nom, liste_notes in periodes.items():
-            if not liste_notes:
-                continue
-
-      
-            moyenne = sum(liste_notes) / len(liste_notes)
-
-      
-            moyenne_arrondie = round(moyenne, 1)
-
-            if moyenne_arrondie.is_integer():
-                valeur_affichee = str(int(moyenne_arrondie))
-            else:
-                valeur_affichee = f"{moyenne_arrondie:.1f}"
-
-            col = periode_to_col[periode_nom]
-            notes_par_cours[cours_id][periode_nom] = {
-                'valeur': valeur_affichee,
-                'colonne': col
-            }
-
+    logger.warning(f"[get_student_notes_rdc] note_bulletin: found TJ for {len(notes_par_cours)} cours")
     return notes_par_cours
 
 
 def get_student_exam_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe):
     """
-    Retourne les notes d'examen par cours, indexées par config_id (repartition_configs_etab_annee.id).
-    Le template accède aux notes via trimestres_data[i][0] qui est le config_id.
+    Retourne les notes d'examen par cours depuis note_bulletin.
+    Source: note_bulletin WHERE id_note_type=2 (EX)
+    Indexées par config_id pour compatibilité avec le template existant.
     """
     import logging
     logger = logging.getLogger(__name__)
-    
+
     try:
-        eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
+        eac = EtablissementAnneeClasse.objects.select_related('classe', 'etablissement_annee').get(id=id_classe)
     except EtablissementAnneeClasse.DoesNotExist:
         return defaultdict(dict)
 
-    notes_qs = Eleve_note.objects.filter(
+    cours_annee_to_cours, config_to_rep, rep_to_code = _get_bulletin_context(eac)
+    if not cours_annee_to_cours:
+        return defaultdict(dict)
+
+    from MonEcole_app.models.evaluations.note import NoteBulletin
+    from MonEcole_app.models.campus import Campus
+    campus = Campus.objects.filter(idCampus=id_campus).first()
+    etab_id = campus.id_etablissement if campus else 1
+
+    # EX notes from note_bulletin (type=2)
+    notes_qs = NoteBulletin.objects.filter(
         id_eleve_id=id_eleve,
-        id_annee_id=id_annee,
-        idCampus_id=id_campus,
-        id_classe_id=eac.classe_id,
-        groupe=eac.groupe,
-        section_id=eac.section_id,
-        id_evaluation__id_type_eval=2  # Examen (via evaluation.id_type_eval)
+        id_etablissement=etab_id,
+        id_note_type=2,  # EX
+        id_cours_annee__in=cours_annee_to_cours.keys(),
     )
-
-    # Build mapping: repartition_instance_id -> config_id
-    # repartition_configs_etab_annee maps repartition_id to its config ID
-    from MonEcole_app.models.annee import Annee_trimestre
-    etab_annee_id = eac.etablissement_annee_id
-    
-    # Get all configs for this etab_annee: {repartition_id: config_id}
-    rep_to_config = dict(
-        Annee_trimestre.objects.filter(
-            etablissement_annee_id=etab_annee_id
-        ).values_list('repartition_id', 'id_trimestre')
-    )
-
-    logger.warning(f"[get_student_exam_notes] rep_to_config={rep_to_config}, notes_count={notes_qs.count()}")
 
     notes_par_cours = defaultdict(dict)
+    for nb in notes_qs:
+        cours_id = cours_annee_to_cours.get(nb.id_cours_annee)
+        if not cours_id:
+            continue
+        config_id = nb.id_repartition_config
+        notes_par_cours[cours_id][config_id] = (
+            float(nb.note) if nb.note is not None else "-"
+        )
 
-    for note in notes_qs:
-        cours_id = note.id_cours_id
-        rep_instance_id = note.id_repartition_instance_id
-        
-        # Map the repartition instance to the config ID
-        config_id = rep_to_config.get(rep_instance_id)
-        
-        if config_id is not None:
-            notes_par_cours[cours_id][config_id] = (
-                note.note if note.note is not None else "-"
-            )
-
-    logger.warning(f"[get_student_exam_notes] Found exam notes for {len(notes_par_cours)} cours")
+    logger.warning(f"[get_student_exam_notes] note_bulletin: found EX for {len(notes_par_cours)} cours")
     return notes_par_cours
 
 
@@ -828,54 +863,68 @@ def calculer_pourcentages(table_data, style_center):
  
 def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe):
     """
-    Retourne les notes TJ par cours, indexées par code de période (P1, P2, P3, P4).
+    Retourne les notes TJ par cours depuis note_bulletin,
+    indexées par position de colonne (2, 3, 9, 10, 16, 17).
+    Source: note_bulletin WHERE id_note_type = TJ (type 1)
     """
     import logging
     logger = logging.getLogger(__name__)
 
     try:
-        eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
+        eac = EtablissementAnneeClasse.objects.select_related('classe', 'etablissement_annee').get(id=id_classe)
     except EtablissementAnneeClasse.DoesNotExist:
         return defaultdict(dict)
 
-    # Codes de période valides — déterminés dynamiquement depuis la config
     periode_to_col = _get_periode_to_col(eac)
-    valid_codes = set(periode_to_col.keys())
-    if not valid_codes:
+    if not periode_to_col:
+        logger.warning(f"[get_student_period_notes] No periode_to_col mapping")
         return defaultdict(dict)
 
-    notes_qs = Eleve_note.objects.filter(
+    cours_annee_to_cours, config_to_rep, rep_to_code = _get_bulletin_context(eac)
+    if not cours_annee_to_cours:
+        logger.warning(f"[get_student_period_notes] No cours_annee mapping")
+        return defaultdict(dict)
+
+    from MonEcole_app.models.evaluations.note import NoteBulletin
+    from MonEcole_app.models.campus import Campus
+    campus = Campus.objects.filter(idCampus=id_campus).first()
+    etab_id = campus.id_etablissement if campus else 1
+
+    # TJ notes from note_bulletin (type=1)
+    notes_qs = NoteBulletin.objects.filter(
         id_eleve_id=id_eleve,
-        id_annee_id=id_annee,
-        idCampus_id=id_campus,
-        id_classe_id=eac.classe_id,
-        groupe=eac.groupe,
-        section_id=eac.section_id,
-        id_evaluation__id_type_eval=1  # TJ (via evaluation.id_type_eval)
+        id_etablissement=etab_id,
+        id_note_type=1,  # TJ
+        id_cours_annee__in=cours_annee_to_cours.keys(),
     )
 
-    # Prefetch RepartitionInstance codes (Hub) to avoid cross-DB JOIN
-    from MonEcole_app.models.country_structure import RepartitionInstance
-    rep_ids = set(notes_qs.values_list('id_repartition_instance', flat=True))
-    rep_ids.discard(None)
-    rep_map = {}
-    if rep_ids:
-        rep_map = dict(RepartitionInstance.objects.filter(id_instance__in=rep_ids).values_list('id_instance', 'code'))
-
-    logger.warning(f"[get_student_period_notes] classe={eac.classe.classe}, notes_count={notes_qs.count()}, rep_ids={rep_ids}, rep_map={rep_map}")
-
     notes_par_cours = defaultdict(dict)
-
-    for note in notes_qs:
-        cours_id = note.id_cours_id
-        code = rep_map.get(note.id_repartition_instance_id)
-        if not code or code not in valid_codes:
+    for nb in notes_qs:
+        cours_id = cours_annee_to_cours.get(nb.id_cours_annee)
+        if not cours_id:
             continue
-            
-        valeur = note.note if note.note is not None else "-"
-        notes_par_cours[cours_id][code] = valeur
+        config_id = nb.id_repartition_config
+        rep_id = config_to_rep.get(config_id)
+        if not rep_id:
+            continue
+        code = rep_to_code.get(rep_id)
+        if not code:
+            continue
 
-    logger.warning(f"[get_student_period_notes] Found notes for {len(notes_par_cours)} cours")
+        # Map code to column position
+        col = periode_to_col.get(code)
+        if col is None:
+            continue
+
+        val = nb.note
+        if val is not None:
+            val_f = round(float(val), 1)
+            valeur = str(int(val_f)) if val_f == int(val_f) else f"{val_f:.1f}"
+        else:
+            valeur = "-"
+        notes_par_cours[cours_id][col] = valeur
+
+    logger.warning(f"[get_student_period_notes] note_bulletin: found TJ for {len(notes_par_cours)} cours, periode_to_col={periode_to_col}")
     return notes_par_cours
 
 
@@ -1069,13 +1118,7 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
                 elif col == 23:               
                     row.append(Paragraph("-", style_center))
                 elif col in [2, 3, 9, 10, 16, 17]: 
-                    col_to_sigle = {
-                        2: "1e P", 3: "2e P",
-                        9: "3e P", 10: "4e P",
-                        16: "5e P", 17: "6e P"
-                    }
-                    sigle = col_to_sigle[col]
-                    note_val = notes_cours_periodes.get(sigle, "-")
+                    note_val = notes_cours_periodes.get(col, "-")
                     row.append(Paragraph(str(note_val), style_center))
                 else:
                     row.append(Paragraph("-", style_center))
@@ -1131,37 +1174,80 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
         ('SPAN', (15, 0), (21, 0)),
         ('SPAN', (22, 0), (23, 0)),
     ])
-    # --- Fusionner les cellules non-applicables (colspan) au lieu de fond noir ---
-    # Ligne 42 (MAXIMA GENERAUX) : fusionner les colonnes inapplicables
-    # Ligne 43 (POURCENTAGE) : idem
-    # Lignes 44-45 (PLACE / CONDUITE) : fusion horizontale plus large
-    
-    # Ligne 42 & 43 : colonnes individuelles à vider (pas de SPAN, juste vider le contenu)
-    for ligne_num in [42, 43]:
-        ligne_index = ligne_num - 1
-        if 0 <= ligne_index < len(table_data):
-            for col_num in [2, 5, 7, 9, 12, 14, 16, 19, 21, 23]:
-                col_index = col_num - 1
-                if 0 <= col_index < len(table_data[ligne_index]):
-                    table_data[ligne_index][col_index] = Paragraph("", style_center)
+    gris_fonce = colors.Color(red=0.2, green=0.2, blue=0.2)  
+    cases_a_hachurer = [
+        # Ligne 42
+        (42, 2),
+        (42, 5),
+        (42, 7),
+        (42, 9),
+        (42, 12),
+        (42, 14),
+        (42, 16),
+        (42, 19),
+        (42, 21),
+        (42, 23),
 
-    # Lignes 44-45 : fusionner les blocs de colonnes inapplicables
-    for ligne_num in [44, 45]:
-        ligne_index = ligne_num - 1
-        if 0 <= ligne_index < len(table_data):
-            # Fusionner cols 2-8 (indices 1-7), 9-15 (indices 8-14), 16-24 (indices 15-23)
-            table_style.add('SPAN', (1, ligne_index), (7, ligne_index))
-            table_style.add('SPAN', (8, ligne_index), (14, ligne_index))
-            table_style.add('SPAN', (15, ligne_index), (22, ligne_index))
-            for col_idx in range(1, 23):
-                if col_idx < len(table_data[ligne_index]):
-                    table_data[ligne_index][col_idx] = Paragraph("", style_center)
+        # Ligne 43
+        (43, 2),
+        (43, 5),
+        (43, 7),
+        (43, 9),
+        (43, 12),
+        (43, 14),
+        (43, 16),
+        (43, 19),
+        (43, 21),
+        (43, 23),
 
+        # Ligne 44
+        (44, 2),
+        (44, 5),
+        (44, 6),
+        (44, 7),
+        (44, 8),
+        (44, 9),
+        (44, 12),
+        (44, 13),
+        (44, 14),
+        (44, 15),
+        (44, 16),
+        (44, 19),
+        (44, 20),
+        (44, 21),
+        (44, 22),
+        (44, 23),
+
+        # Ligne 45
+        (45, 2),
+        (45, 5),
+        (45, 6),
+        (45, 7),
+        (45, 8),
+        (45, 9),
+        (45, 12),
+        (45, 13),
+        (45, 14),
+        (45, 15),
+        (45, 16),
+        (45, 19),
+        (45, 20),
+        (45, 21),
+        (45, 22),
+        (45, 23),
+        (45, 24)
+    ]
+    for ligne_num, col_num in cases_a_hachurer:
+        ligne_index = ligne_num - 1  
+        col_index = col_num - 1      
+        if 0 <= ligne_index < len(table_data) and 0 <= col_index < len(table_data[ligne_index]):
+            table_style.add('BACKGROUND', (col_index, ligne_index), (col_index, ligne_index), gris_fonce)
     lignes_a_fusionner = [3, 8, 12, 19, 22, 25, 29, 33, 37, 40]
     for ligne_num in lignes_a_fusionner:
         index_ligne = ligne_num - 1
         if 0 <= index_ligne < len(table_data):
-            table_style.add('SPAN', (0, index_ligne), (-1, index_ligne))    
+            table_style.add('SPAN', (0, index_ligne), (-1, index_ligne))
+            table_style.add('BACKGROUND', (0, index_ligne), (-1, index_ligne), colors.lightblue)    
     table.setStyle(table_style)
     elements.append(table)
     elements.append(Spacer(1, 0.5*mm))

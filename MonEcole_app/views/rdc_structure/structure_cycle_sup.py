@@ -157,11 +157,11 @@ def ajouter_cours_groupes_dans_table(
             id_cpc = cpc.id_cours_id
             notes_periode = notes_periodes.get(id_cpc, {})
             notes_ex     = notes_exam.get(id_cpc, {})
-            p1      = notes_periode.get("1e P", "-")
-            p2      = notes_periode.get("2e P", "-")
+            p1      = notes_periode.get(2, "-")
+            p2      = notes_periode.get(3, "-")
             exam_s1 = notes_ex.get(trimestres_data[0][0], "-") if trimestres_data and len(trimestres_data) > 0 else "-"
-            p3      = notes_periode.get("3e P", "-")
-            p4      = notes_periode.get("4e P", "-")
+            p3      = notes_periode.get(9, "-")
+            p4      = notes_periode.get(10, "-")
             exam_s2 = notes_ex.get(trimestres_data[1][0], "-") if trimestres_data and len(trimestres_data) > 1 else "-"
 
             def to_float(val):

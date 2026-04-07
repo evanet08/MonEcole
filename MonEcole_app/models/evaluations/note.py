@@ -225,3 +225,36 @@ class Deliberation_repechage_resultat(models.Model):
 
     def __str__(self):
         return f"{self.id_eleve}"
+
+
+class NoteBulletin(models.Model):
+    """
+    Source unique pour toutes les notes du bulletin.
+    Contient les TJ (source_type=EVALUATIONS), EX (SAISIE_DIRECTE),
+    TOT.SEM (FORMULE), et héritages (HERITAGE).
+    """
+    SOURCE_CHOICES = [
+        ('EVALUATIONS', 'Évaluations agrégées'),
+        ('SAISIE_DIRECTE', 'Saisie directe'),
+        ('HERITAGE', 'Hérité'),
+        ('FORMULE', 'Formule'),
+        ('CALCULE', 'Calculé'),
+    ]
+    id_note_bulletin = models.AutoField(primary_key=True)
+    id_eleve = models.ForeignKey('Eleve', on_delete=models.CASCADE, db_column='id_eleve_id')
+    id_cours_annee = models.IntegerField()  # FK vers cours_annee (Hub)
+    id_repartition_config = models.IntegerField()  # FK vers repartition_configs_etab_annee (Hub)
+    id_note_type = models.IntegerField()  # 1=TJ, 2=EX, 5=TOT.SEM, etc.
+    note = models.DecimalField(decimal_places=2, max_digits=6, null=True, blank=True)
+    maxima = models.IntegerField(default=20)
+    source_type = models.CharField(max_length=15, default='CALCULE', choices=SOURCE_CHOICES)
+    date_calcul = models.DateTimeField(null=True, blank=True)
+    id_etablissement = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'note_bulletin'
+
+    def __str__(self):
+        return f"Eleve {self.id_eleve_id} - Cours {self.id_cours_annee} - Type {self.id_note_type} = {self.note}"
