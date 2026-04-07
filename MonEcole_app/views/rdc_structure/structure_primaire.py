@@ -554,7 +554,7 @@ def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
         id_eleve_id=id_eleve,
         id_annee_id=id_annee,
         idCampus_id=id_campus,
-        id_cycle_id=id_cycle,
+
         id_classe_id=eac.classe_id,
         groupe=eac.groupe,
         section_id=eac.section_id,
@@ -631,7 +631,7 @@ def get_student_exam_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe):
         id_eleve_id=id_eleve,
         id_annee_id=id_annee,
         idCampus_id=id_campus,
-        id_cycle_id=id_cycle,
+
         id_classe_id=eac.classe_id,
         groupe=eac.groupe,
         section_id=eac.section_id,
@@ -850,7 +850,7 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
         id_eleve_id=id_eleve,
         id_annee_id=id_annee,
         idCampus_id=id_campus,
-        id_cycle_id=id_cycle,
+
         id_classe_id=eac.classe_id,
         groupe=eac.groupe,
         section_id=eac.section_id,
