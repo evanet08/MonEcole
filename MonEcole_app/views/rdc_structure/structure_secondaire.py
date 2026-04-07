@@ -573,25 +573,25 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
 
     num_rows = len(table_data)
 
-    # Appliquer SPAN/BACKGROUND dynamiquement pour les lignes de domaine
+    # Appliquer SPAN dynamiquement pour les lignes de domaine (sans background)
     for row_idx in range(3, num_rows):
         row = table_data[row_idx]
         if len(row) > 0 and isinstance(row[0], Paragraph):
             texte = row[0].text or ""
-            # Lignes de domaine (en gras, pas Sous Total ni MAXIMA ni POURCENTAGE)
+            # Lignes de domaine (en gras, pas Sous Total ni MAXIMA etc.)
             if "<b>" in texte and "Sous Total" not in texte and "MAXIMA" not in texte and "POURCENTAGE" not in texte and "PLACE" not in texte and "CONDUITE" not in texte and "APPLICATION" not in texte and "SIGNATURE" not in texte:
                 table_style.add('SPAN', (0, row_idx), (-1, row_idx))
-                table_style.add('BACKGROUND', (0, row_idx), (-1, row_idx), colors.lightblue)
 
-    # Colonne hachurée (col 17)
-    gris_fonce = colors.Color(red=0.15, green=0.15, blue=0.15)
+    # Colonne hachurée (col 17) — fusionnée vide au lieu de background noir
     col_hachuree = 17 
-    for row_idx in range(num_rows - 1):
-        table_style.add('BACKGROUND', (col_hachuree, row_idx), (col_hachuree, row_idx), gris_fonce)
+    for row_idx in range(3, num_rows):
         if col_hachuree < len(table_data[row_idx]):
             table_data[row_idx][col_hachuree] = None
+    # Fusionner verticalement la colonne 17 en un seul SPAN vide
+    if num_rows > 3:
+        table_style.add('SPAN', (col_hachuree, 3), (col_hachuree, num_rows - 1))
             
-    # Hachurer les lignes finales (MAXIMA, POURCENTAGE, etc.) - dynamiquement
+    # Lignes finales (MAXIMA, POURCENTAGE, etc.) — fusionner les colonnes non-utilisées
     maxima_idx = None
     for idx, row in enumerate(table_data):
         if len(row) > 0 and isinstance(row[0], Paragraph) and "MAXIMA GENEREAUX" in (row[0].text or ""):
@@ -599,24 +599,24 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
             break
 
     if maxima_idx is not None:
-        colonnes_a_hachurer_1 = [1, 4, 6, 8, 11, 13]
+        # Colonnes structurelles (Max, Max Exam, Tot Sem) — fusionner en SPAN vide
+        colonnes_struct = [1, 4, 6, 8, 11, 13]
         for row_idx in range(maxima_idx, min(maxima_idx + 4, num_rows)):
-            for col_idx in colonnes_a_hachurer_1:
+            for col_idx in colonnes_struct:
                 if col_idx < len(table_data[row_idx]):
-                    table_style.add('BACKGROUND', (col_idx, row_idx), (col_idx, row_idx), gris_fonce)
+                    table_data[row_idx][col_idx] = None
 
-        colonnes_a_hachurer_2 = [5, 7, 12, 14]
+        colonnes_struct_2 = [5, 7, 12, 14]
         for row_idx in range(maxima_idx + 2, min(maxima_idx + 4, num_rows)):
-            for col_idx in colonnes_a_hachurer_2:
+            for col_idx in colonnes_struct_2:
                 if row_idx < num_rows and col_idx < len(table_data[row_idx]):
-                    table_style.add('BACKGROUND', (col_idx, row_idx), (col_idx, row_idx), gris_fonce)
+                    table_data[row_idx][col_idx] = None
 
-    # Zone signature en bas à droite - dynamiquement
+    # Zone signature en bas à droite
     signature_start = num_rows - 6 if num_rows > 6 else num_rows - 1
     signature_end = num_rows - 1
     if signature_start >= 0 and signature_end < num_rows and signature_start < signature_end:
         table_style.add('SPAN', (18, signature_start), (19, signature_end))
-        table_style.add('BACKGROUND', (18, signature_start), (19, signature_end), colors.white)
         table_style.add('BOX', (18, signature_start), (19, signature_end), 0.5, colors.black)
 
     texte_visible = (
