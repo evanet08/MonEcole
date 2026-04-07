@@ -554,11 +554,10 @@ def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
         id_eleve_id=id_eleve,
         id_annee_id=id_annee,
         idCampus_id=id_campus,
-
         id_classe_id=eac.classe_id,
         groupe=eac.groupe,
         section_id=eac.section_id,
-        id_type_note__sigle="T.J",
+        id_evaluation__id_type_eval=1,  # TJ (via evaluation.id_type_eval)
     )
 
     # Prefetch RepartitionInstance names (Hub) to avoid cross-DB JOIN
@@ -631,11 +630,10 @@ def get_student_exam_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe):
         id_eleve_id=id_eleve,
         id_annee_id=id_annee,
         idCampus_id=id_campus,
-
         id_classe_id=eac.classe_id,
         groupe=eac.groupe,
         section_id=eac.section_id,
-        id_type_note__sigle="EX"
+        id_evaluation__id_type_eval=2  # Examen (via evaluation.id_type_eval)
     )
 
     # Build mapping: repartition_instance_id -> config_id
@@ -850,11 +848,10 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
         id_eleve_id=id_eleve,
         id_annee_id=id_annee,
         idCampus_id=id_campus,
-
         id_classe_id=eac.classe_id,
         groupe=eac.groupe,
         section_id=eac.section_id,
-        id_type_note__sigle="T.J"
+        id_evaluation__id_type_eval=1  # TJ (via evaluation.id_type_eval)
     )
 
     # Prefetch RepartitionInstance codes (Hub) to avoid cross-DB JOIN
@@ -1134,80 +1131,37 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
         ('SPAN', (15, 0), (21, 0)),
         ('SPAN', (22, 0), (23, 0)),
     ])
-    gris_fonce = colors.Color(red=0.2, green=0.2, blue=0.2)  
-    cases_a_hachurer = [
-        # Ligne 42
-        (42, 2),
-        (42, 5),
-        (42, 7),
-        (42, 9),
-        (42, 12),
-        (42, 14),
-        (42, 16),
-        (42, 19),
-        (42, 21),
-        (42, 23),
+    # --- Fusionner les cellules non-applicables (colspan) au lieu de fond noir ---
+    # Ligne 42 (MAXIMA GENERAUX) : fusionner les colonnes inapplicables
+    # Ligne 43 (POURCENTAGE) : idem
+    # Lignes 44-45 (PLACE / CONDUITE) : fusion horizontale plus large
+    
+    # Ligne 42 & 43 : colonnes individuelles à vider (pas de SPAN, juste vider le contenu)
+    for ligne_num in [42, 43]:
+        ligne_index = ligne_num - 1
+        if 0 <= ligne_index < len(table_data):
+            for col_num in [2, 5, 7, 9, 12, 14, 16, 19, 21, 23]:
+                col_index = col_num - 1
+                if 0 <= col_index < len(table_data[ligne_index]):
+                    table_data[ligne_index][col_index] = Paragraph("", style_center)
 
-        # Ligne 43
-        (43, 2),
-        (43, 5),
-        (43, 7),
-        (43, 9),
-        (43, 12),
-        (43, 14),
-        (43, 16),
-        (43, 19),
-        (43, 21),
-        (43, 23),
+    # Lignes 44-45 : fusionner les blocs de colonnes inapplicables
+    for ligne_num in [44, 45]:
+        ligne_index = ligne_num - 1
+        if 0 <= ligne_index < len(table_data):
+            # Fusionner cols 2-8 (indices 1-7), 9-15 (indices 8-14), 16-24 (indices 15-23)
+            table_style.add('SPAN', (1, ligne_index), (7, ligne_index))
+            table_style.add('SPAN', (8, ligne_index), (14, ligne_index))
+            table_style.add('SPAN', (15, ligne_index), (22, ligne_index))
+            for col_idx in range(1, 23):
+                if col_idx < len(table_data[ligne_index]):
+                    table_data[ligne_index][col_idx] = Paragraph("", style_center)
 
-        # Ligne 44
-        (44, 2),
-        (44, 5),
-        (44, 6),
-        (44, 7),
-        (44, 8),
-        (44, 9),
-        (44, 12),
-        (44, 13),
-        (44, 14),
-        (44, 15),
-        (44, 16),
-        (44, 19),
-        (44, 20),
-        (44, 21),
-        (44, 22),
-        (44, 23),
-
-        # Ligne 45
-        (45, 2),
-        (45, 5),
-        (45, 6),
-        (45, 7),
-        (45, 8),
-        (45, 9),
-        (45, 12),
-        (45, 13),
-        (45, 14),
-        (45, 15),
-        (45, 16),
-        (45, 19),
-        (45, 20),
-        (45, 21),
-        (45, 22),
-        (45, 23),
-        (45, 24)
-    ]
-    for ligne_num, col_num in cases_a_hachurer:
-        ligne_index = ligne_num - 1  
-        col_index = col_num - 1      
-        if 0 <= ligne_index < len(table_data) and 0 <= col_index < len(table_data[ligne_index]):
-            table_style.add('BACKGROUND', (col_index, ligne_index), (col_index, ligne_index), gris_fonce)
     lignes_a_fusionner = [3, 8, 12, 19, 22, 25, 29, 33, 37, 40]
     for ligne_num in lignes_a_fusionner:
         index_ligne = ligne_num - 1
         if 0 <= index_ligne < len(table_data):
-            table_style.add('SPAN', (0, index_ligne), (-1, index_ligne))
-            table_style.add('BACKGROUND', (0, index_ligne), (-1, index_ligne), colors.lightblue)    
+            table_style.add('SPAN', (0, index_ligne), (-1, index_ligne))    
     table.setStyle(table_style)
     elements.append(table)
     elements.append(Spacer(1, 0.5*mm))
