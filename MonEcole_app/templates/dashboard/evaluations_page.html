@@ -2474,7 +2474,30 @@ function switchDelibTab(tab) {
     if (repWrap) repWrap.style.display = (['periode','trimestre'].indexOf(tab)>=0) ? '' : 'none';
     if (sesWrap) sesWrap.style.display = (['annee','repechage'].indexOf(tab)>=0) ? '' : 'none';
     _filterDelibRepartitions();
+    // Reset results and status when switching tabs
+    _resetDelibResults();
 }
+
+function _resetDelibResults() {
+    var container = document.getElementById('delibResultsContainer');
+    if (container) {
+        container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#94a3b8">' +
+            '<div style="width:90px;height:90px;border-radius:24px;background:linear-gradient(135deg,#fff7ed,#fed7aa);margin:0 auto 18px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(249,115,22,.1)">' +
+            '<i class="fas fa-gavel" style="font-size:2.2rem;color:#f97316;opacity:.6"></i></div>' +
+            '<div style="font-weight:800;font-size:.92rem;color:#1e293b;margin-bottom:6px">S\u00e9lectionnez une r\u00e9partition et lancez</div>' +
+            '<div style="font-size:.72rem;color:#94a3b8;max-width:350px;margin:0 auto">Les r\u00e9sultats appara\u00eetront ici apr\u00e8s la d\u00e9lib\u00e9ration.</div></div>';
+    }
+    var badge = document.getElementById('delibStatusBadge');
+    if (badge) badge.style.display = 'none';
+}
+
+// Attach onchange to repartition and session selects
+(function() {
+    var repSel = document.getElementById('delib-repartition-select');
+    var sesSel = document.getElementById('delib-session-select');
+    if (repSel) repSel.addEventListener('change', function() { _resetDelibResults(); });
+    if (sesSel) sesSel.addEventListener('change', function() { _resetDelibResults(); });
+})()
 
 async function onDelibClasseChange() {
     var classeId = document.getElementById('delib-classe-select').value;
