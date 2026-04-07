@@ -12572,6 +12572,7 @@ def cancel_deliberation(request):
         data = json.loads(request.body)
         classe_id = data.get('classe_id') or data.get('id_classe_id')
         delib_type = data.get('type')
+        repartition_id = data.get('repartition_id')
 
         etab, err = _get_tenant_etab(request)
         if err:
@@ -12581,23 +12582,31 @@ def cancel_deliberation(request):
         if not annee:
             return JsonResponse({'success': False, 'error': 'Aucune année en cours.'}, status=400)
 
+        # Resolve EAC → business keys for class filtering
+        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).first() if classe_id else None
+        base_filter = {
+            'id_annee': annee,
+            'id_etablissement': etab.id_etablissement,
+        }
+        if eac:
+            base_filter['classe_id'] = eac.classe_id
+            base_filter['groupe'] = eac.groupe
+            base_filter['section_id'] = eac.section_id
+
         deleted = 0
 
         if delib_type == 'annee':
-            deleted, _ = Deliberation_annuelle_resultat.objects.filter(
-                id_annee=annee,
-                id_etablissement=etab.id_etablissement
-            ).delete()
+            deleted, _ = Deliberation_annuelle_resultat.objects.filter(**base_filter).delete()
         elif delib_type == 'trimestre':
-            deleted, _ = Deliberation_trimistrielle_resultat.objects.filter(
-                id_annee=annee,
-                id_etablissement=etab.id_etablissement
-            ).delete()
+            f = dict(base_filter)
+            if repartition_id:
+                f['id_trimestre_id'] = int(repartition_id)
+            deleted, _ = Deliberation_trimistrielle_resultat.objects.filter(**f).delete()
         elif delib_type == 'periode':
-            deleted, _ = Deliberation_periodique_resultat.objects.filter(
-                id_annee=annee,
-                id_etablissement=etab.id_etablissement
-            ).delete()
+            f = dict(base_filter)
+            if repartition_id:
+                f['id_periode_id'] = int(repartition_id)
+            deleted, _ = Deliberation_periodique_resultat.objects.filter(**f).delete()
 
         return JsonResponse({
             'success': True,

@@ -835,11 +835,23 @@ def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_
     sem1_rep_id = semestres_data[0][2] if len(semestres_data[0]) > 2 else semestres_data[0][0]
     sem2_rep_id = semestres_data[1][2] if len(semestres_data[1]) > 2 else semestres_data[1][0]
     
+    # Resolve EAC → business keys
+    from MonEcole_app.models.country_structure import EtablissementAnneeClasse as _EAC
+    try:
+        _eac = _EAC.objects.get(id=id_classe)
+        bk_classe_id = _eac.classe_id
+        bk_groupe = _eac.groupe
+        bk_section_id = _eac.section_id
+    except _EAC.DoesNotExist:
+        return "-"
+
     filtre_base = {
         "id_annee_id": id_annee,
         "idCampus_id": id_campus,
         "id_cycle_id": id_cycle,
-        "classe_id": id_classe,
+        "classe_id": bk_classe_id,
+        "groupe": bk_groupe,
+        "section_id": bk_section_id,
         "id_eleve_id": id_eleve,
     }
 

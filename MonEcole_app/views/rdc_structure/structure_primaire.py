@@ -537,7 +537,9 @@ def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
         id_annee_id=id_annee,
         idCampus_id=id_campus,
         id_cycle_id=id_cycle,
-        id_classe_id=id_classe,
+        id_classe_id=eac.classe_id,
+        groupe=eac.groupe,
+        section_id=eac.section_id,
         id_type_note__sigle="T.J",
     )
 
@@ -612,7 +614,9 @@ def get_student_exam_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe):
         id_annee_id=id_annee,
         idCampus_id=id_campus,
         id_cycle_id=id_cycle,
-        id_classe_id=id_classe,
+        id_classe_id=eac.classe_id,
+        groupe=eac.groupe,
+        section_id=eac.section_id,
         id_type_note__sigle="EX"
     )
 
@@ -832,7 +836,9 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
         id_annee_id=id_annee,
         idCampus_id=id_campus,
         id_cycle_id=id_cycle,
-        id_classe_id=id_classe,
+        id_classe_id=eac.classe_id,
+        groupe=eac.groupe,
+        section_id=eac.section_id,
         id_type_note__sigle="T.J"
     )
 
@@ -864,6 +870,15 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
 
 
 def get_place_for_column(id_annee, id_campus, id_cycle, id_classe, id_eleve, col):
+
+    # Resolve EAC → business keys
+    try:
+        eac = EtablissementAnneeClasse.objects.get(id=id_classe)
+        bk_classe_id = eac.classe_id
+        bk_groupe = eac.groupe
+        bk_section_id = eac.section_id
+    except EtablissementAnneeClasse.DoesNotExist:
+        return "-"
 
     trimestres_data = get_trimestres(id_annee, id_campus, id_cycle, id_classe)
 
@@ -902,12 +917,14 @@ def get_place_for_column(id_annee, id_campus, id_cycle, id_classe, id_eleve, col
 
     type_case, model, trimestre_id, periode_label = mapping[col]
 
-    # filtre commun
+    # filtre commun — use business keys
     filtre = {
         "id_annee_id": id_annee,
         "idCampus_id": id_campus,
         "id_cycle_id": id_cycle,
-        "classe_id": id_classe,
+        "classe_id": bk_classe_id,
+        "groupe": bk_groupe,
+        "section_id": bk_section_id,
         "id_eleve_id": id_eleve,
         "id_trimestre_id": trimestre_id,
     }

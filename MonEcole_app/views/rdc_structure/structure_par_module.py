@@ -66,12 +66,21 @@ def create_bulletin_content_cycle_superieur(elements, style_normal, style_center
         spaceAfter=0
     )
 
-    # Récupération + tri global par ordre_cours
+    # Résolution EAC → business keys
+    from MonEcole_app.models.country_structure import EtablissementAnneeClasse
+    from MonEcole_app.models.enseignmnts.matiere import Cours
+
+    try:
+        eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=classe_id)
+        hub_classe_id = eac.classe_id
+    except EtablissementAnneeClasse.DoesNotExist:
+        return elements
+
+    cours_ids = list(Cours.objects.filter(classe_id=hub_classe_id).values_list('id_cours', flat=True))
+
     cours_qs = Cours_par_classe.objects.filter(
-        id_annee=annee_id,
-        id_campus=campus_id,
-        id_cycle=cycle_id,
-        id_classe=classe_id
+        id_cours_id__in=cours_ids,
+        id_annee_id=annee_id,
     ).select_related('id_cours').order_by('ordre_cours')
 
     # Tous les cours (pour colonne 0)

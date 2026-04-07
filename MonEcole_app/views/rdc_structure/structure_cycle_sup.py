@@ -40,13 +40,29 @@ def regrouper_cours_par_tp_tpe(cours):
 
 
 def recuperer_cours_obligatoires(id_annee, id_campus, id_cycle, id_classe):
+    """
+    Récupère les cours obligatoires d'une classe.
+    id_classe = EAC ID → résolu en Hub classe_id via Cours.
+    """
+    from MonEcole_app.models.country_structure import EtablissementAnneeClasse
+    from MonEcole_app.models.enseignmnts.matiere import Cours
+
+    try:
+        eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
+        hub_classe_id = eac.classe_id
+    except EtablissementAnneeClasse.DoesNotExist:
+        return []
+
+    # Hub: Cours liés à cette classe
+    cours_ids = list(Cours.objects.filter(classe_id=hub_classe_id).values_list('id_cours', flat=True))
+    if not cours_ids:
+        return []
+
     qs = Cours_par_classe.objects.filter(
+        id_cours_id__in=cours_ids,
         id_annee_id=id_annee,
-        idCampus_id=id_campus,
-        id_cycle_id=id_cycle,
-        id_classe_id=id_classe,
         is_obligatory=True
-    )
+    ).select_related('id_cours')
 
     cours = []
     for c in qs:
@@ -129,9 +145,6 @@ def ajouter_cours_groupes_dans_table(
             cpc = Cours_par_classe.objects.filter(
                 id_cours__cours=nom_cours.strip(),
                 id_annee_id=id_annee,
-                idCampus_id=id_campus,
-                id_cycle_id=id_cycle,
-                classe_id=id_classe,
                 is_obligatory=True
             ).first()
 
@@ -501,6 +514,15 @@ def get_place_secondaire_superieur(
     id_annee, id_campus, id_cycle,
     id_classe, id_eleve, id_semestre, col
 ):
+    from MonEcole_app.models.country_structure import EtablissementAnneeClasse
+    try:
+        eac = EtablissementAnneeClasse.objects.get(id=id_classe)
+        bk_classe_id = eac.classe_id
+        bk_groupe = eac.groupe
+        bk_section_id = eac.section_id
+    except EtablissementAnneeClasse.DoesNotExist:
+        return "-"
+
     semestres_data = get_semestres(id_annee, id_campus, id_cycle, id_classe)
     if not semestres_data or len(semestres_data) < 2:
         return "-"
@@ -510,7 +532,9 @@ def get_place_secondaire_superieur(
         "id_annee_id": id_annee,
         "idCampus_id": id_campus,
         "id_cycle_id": id_cycle,
-        "classe_id": id_classe,
+        "classe_id": bk_classe_id,
+        "groupe": bk_groupe,
+        "section_id": bk_section_id,
         "id_eleve_id": id_eleve,
         "id_trimestre_id": id_semestre,
     }

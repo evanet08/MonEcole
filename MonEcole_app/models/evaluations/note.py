@@ -37,14 +37,10 @@ class Deliberation_annuelle_finalite(models.Model):
 class Deliberation_annuelle_condition(models.Model):
     id_decision = models.AutoField(primary_key=True)  
     id_annee = models.ForeignKey("Annee", on_delete=models.DO_NOTHING, null=False, db_constraint=False)
-    idCampus_id = models.IntegerField(null=False, db_column='idCampus_id')  # Spoke → IntegerField
+    id_campus = models.IntegerField(null=False, db_column='id_campus_id')
     id_cycle = models.ForeignKey(Cycle, on_delete=models.DO_NOTHING, null=False, db_constraint=False)
     id_classe = models.ForeignKey('Classe', on_delete=models.DO_NOTHING, null=False,
-                                  db_column='classe_id', db_constraint=False)
-    groupe = models.CharField(max_length=5, null=True, blank=True)
-    section = models.ForeignKey('MonEcole_app.Section', on_delete=models.SET_NULL,
-                                null=True, blank=True, db_column='section_id',
-                                db_constraint=False)
+                                  db_column='id_classe_id', db_constraint=False)
     id_mention = models.ForeignKey(Mention, on_delete=models.DO_NOTHING, null=False, db_constraint=False)
     max_echecs_acceptable = models.IntegerField(null=True, blank=True) 
     seuil_profondeur_echec = models.IntegerField(null=True, blank=True) 
