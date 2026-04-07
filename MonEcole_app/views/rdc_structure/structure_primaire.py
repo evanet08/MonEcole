@@ -509,27 +509,45 @@ def calculer_somme_pts_obt_maxima(table_data, style_center):
     mg_row[21] = Paragraph(format_note(somme_col_21), style_center)
     mg_row[23] = Paragraph(format_note(somme_col_23), style_center)
 
+def _get_periode_to_col(eac):
+    """Détermine dynamiquement le mapping période→colonne depuis la config de répartition."""
+    from MonEcole_app.models.country_structure import RepartitionInstance
+    # Récupérer TOUS les repartition_ids de la config pour cet établissement/année
+    from django.db import connections
+    try:
+        with connections['countryStructure'].cursor() as cur:
+            cur.execute("""
+                SELECT DISTINCT repartition_id 
+                FROM repartition_configs_etab_annee 
+                WHERE etablissement_annee_id = %s
+            """, [eac.etablissement_annee_id])
+            config_rep_ids = [row[0] for row in cur.fetchall()]
+    except Exception:
+        config_rep_ids = []
+    
+    if not config_rep_ids:
+        # Fallback: utiliser les repartition_instance existants dans les notes
+        config_rep_ids = list(range(1, 20))
+    
+    # Résoudre les codes des RepartitionInstance — filtrer seulement les codes "P*"
+    period_codes = []
+    for ri in RepartitionInstance.objects.filter(id_instance__in=config_rep_ids):
+        if ri.code and ri.code.startswith('P'):
+            period_codes.append(ri.code)
+    period_codes = sorted(set(period_codes))
+    
+    # Mapping colonnes : P1→2, P2→3 | P3→9, P4→10 | P5→16, P6→17
+    col_positions = [2, 3, 9, 10, 16, 17]
+    return {code: col_positions[i] for i, code in enumerate(period_codes) if i < len(col_positions)}
+
 def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
     try:
-        eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
+        eac = EtablissementAnneeClasse.objects.select_related('classe', 'etablissement_annee').get(id=id_classe)
     except EtablissementAnneeClasse.DoesNotExist:
         return defaultdict(dict)
 
-    nom_classe = eac.classe.classe.strip()
-
-    if nom_classe in ['1ère Année', '1er Langue', '1er SC', '1er Eco', '1ère Primaire', '2ème Primaire', '3ème Primaire', '4ème Primaire', '5ème Primaire', '6ème Primaire']:
-        periode_to_col = {
-            "P1": 2, "P2": 3,
-            "P3": 9, "P4": 10,
-            "P5": 16, "P6": 17
-        }
-    elif nom_classe in ['7ème A E.B', '8ème A E.B', '7ème', '8ème']:
-        periode_to_col = {
-            "P1": 2, "P2": 3,
-            "P3": 9, "P4": 10
-        }
-    else:
-        
+    periode_to_col = _get_periode_to_col(eac)
+    if not periode_to_col:
         return defaultdict(dict)
 
     notes_qs = Eleve_note.objects.filter(
@@ -822,13 +840,10 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
     except EtablissementAnneeClasse.DoesNotExist:
         return defaultdict(dict)
 
-    # Codes de période valides selon le type de classe
-    nom_classe = eac.classe.classe.strip()
-    if nom_classe in ['1ère Année', '1er Langue', '1er SC', '1er Eco', '1ère Primaire', '2ème Primaire', '3ème Primaire', '4ème Primaire', '5ème Primaire', '6ème Primaire']:
-        valid_codes = {"P1", "P2", "P3", "P4", "P5", "P6"}
-    elif nom_classe in ['7ème A E.B', '8ème A E.B', '7ème', '8ème', '4ème construction', '2ème Niveau Eléctricité Industrielle', '2sc MTP', '2ème LANGUE', '2ème Eco', '2ème BCT', '3ème MPT', '3ème BCT', '3ème ECO']:
-        valid_codes = {"P1", "P2", "P3", "P4"}
-    else:
+    # Codes de période valides — déterminés dynamiquement depuis la config
+    periode_to_col = _get_periode_to_col(eac)
+    valid_codes = set(periode_to_col.keys())
+    if not valid_codes:
         return defaultdict(dict)
 
     notes_qs = Eleve_note.objects.filter(
@@ -850,7 +865,7 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
     if rep_ids:
         rep_map = dict(RepartitionInstance.objects.filter(id_instance__in=rep_ids).values_list('id_instance', 'code'))
 
-    logger.warning(f"[get_student_period_notes] classe={nom_classe}, notes_count={notes_qs.count()}, rep_ids={rep_ids}, rep_map={rep_map}")
+    logger.warning(f"[get_student_period_notes] classe={eac.classe.classe}, notes_count={notes_qs.count()}, rep_ids={rep_ids}, rep_map={rep_map}")
 
     notes_par_cours = defaultdict(dict)
 
