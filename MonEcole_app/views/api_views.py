@@ -12373,14 +12373,27 @@ def execute_deliberation(request):
 
         # Build repartition filter based on delib_type
         #   - 'periode': filter by exact repartition_id (P1, P2, P3, P4...)
-        #   - 'trimestre': filter by the trimestre/semestre repartition_id (S1, S2, T1, T2, T3)
+        #   - 'trimestre': find ALL child period repartitions under this trimestre
         #   - 'annee': ALL repartitions 
         #   - 'repechage': session repêchage
         rep_filter = ""
         rep_params = []
-        if delib_type in ('periode', 'trimestre') and repartition_id:
+        if delib_type == 'periode' and repartition_id:
             rep_filter = "AND en.id_repartition_instance = %s"
             rep_params = [int(repartition_id)]
+        elif delib_type == 'trimestre' and repartition_id:
+            # Le repartition_id est le id du trimestre (repartition_configs_etab_annee.id)
+            # On doit trouver toutes les périodes enfants et leurs repartition_id
+            from MonEcole_app.models.annee import Annee_periode
+            child_rep_ids = list(
+                Annee_periode.objects.filter(
+                    id_trimestre_annee_id=int(repartition_id)
+                ).values_list('repartition_id', flat=True)
+            )
+            if child_rep_ids:
+                placeholders = ','.join(['%s'] * len(child_rep_ids))
+                rep_filter = f"AND en.id_repartition_instance IN ({placeholders})"
+                rep_params = [int(r) for r in child_rep_ids]
 
         import sys
         print(f"[DELIB DEBUG] type={delib_type}, repartition_id={repartition_id}, rep_filter={rep_filter}, rep_params={rep_params}", file=sys.stderr)
@@ -12667,31 +12680,32 @@ def get_deliberated_classes(request):
         )
 
         # Classes avec résultats (n'importe quel type de délibération)
+        # On utilise des tuples (classe_id, groupe, section_id) pour distinguer les groupes
         delib_classes = set()
 
         # Trimestrielle
-        for r in Deliberation_trimistrielle_resultat.objects.filter(
+        for vals in Deliberation_trimistrielle_resultat.objects.filter(
             id_annee=annee, id_etablissement=etab.id_etablissement
-        ).values_list('id_classe_id', flat=True).distinct():
-            delib_classes.add(r)
+        ).values_list('id_classe_id', 'groupe', 'section_id').distinct():
+            delib_classes.add(vals)
 
         # Annuelle
-        for r in Deliberation_annuelle_resultat.objects.filter(
+        for vals in Deliberation_annuelle_resultat.objects.filter(
             id_annee=annee, id_etablissement=etab.id_etablissement
-        ).values_list('id_classe_id', flat=True).distinct():
-            delib_classes.add(r)
+        ).values_list('id_classe_id', 'groupe', 'section_id').distinct():
+            delib_classes.add(vals)
 
         # Périodique
-        for r in Deliberation_periodique_resultat.objects.filter(
+        for vals in Deliberation_periodique_resultat.objects.filter(
             id_annee=annee, id_etablissement=etab.id_etablissement
-        ).values_list('id_classe_id', flat=True).distinct():
-            delib_classes.add(r)
+        ).values_list('id_classe_id', 'groupe', 'section_id').distinct():
+            delib_classes.add(vals)
 
         classes = []
         for eac in eacs:
             hub_classe_id = eac.classe_id
             model_info = bcm_map.get(hub_classe_id, None)
-            is_deliberated = hub_classe_id in delib_classes
+            is_deliberated = (hub_classe_id, eac.groupe, eac.section_id) in delib_classes
 
             # Compter les élèves inscrits
             from django.db import connection
