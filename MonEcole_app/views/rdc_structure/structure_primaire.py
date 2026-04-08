@@ -593,9 +593,9 @@ def _get_bulletin_context(eac):
     try:
         with connections['countryStructure'].cursor() as cur:
             cur.execute("""
-                SELECT ca.id_cours_annee, ca.id_cours_id
+                SELECT ca.id_cours_annee, ca.cours_id
                 FROM cours_annee ca
-                WHERE ca.id_cours_id IN (
+                WHERE ca.cours_id IN (
                     SELECT id_cours FROM cours WHERE classe_id = %s
                 )
             """, [eac.classe_id])
