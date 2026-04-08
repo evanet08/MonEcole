@@ -5979,7 +5979,7 @@ function _openCalcModal(coursId, coursNom, configId, periodeNom, evalsList) {
     // Action buttons
     h += '<div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">';
     h += '<button onclick="document.getElementById(\'calcModalOverlay\').remove()" style="padding:7px 16px;background:#f1f5f9;border:1px solid #d1d5db;border-radius:8px;font-size:.62rem;cursor:pointer;color:#475569">Annuler</button>';
-    h += '<button id="cmCalcBtn" onclick="_doCalcPeriod('+coursId+','+configId+')" style="padding:7px 20px;background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;border:none;border-radius:8px;font-size:.62rem;cursor:pointer;font-weight:600"><i class="fas fa-calculator" style="margin-right:5px"></i>Calculer</button>';
+    h += '<button id="cmCalcBtn" onclick="_doCalcPeriodSingle('+coursId+','+configId+')" style="padding:7px 20px;background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;border:none;border-radius:8px;font-size:.62rem;cursor:pointer;font-weight:600"><i class="fas fa-calculator" style="margin-right:5px"></i>Calculer</button>';
     h += '</div>';
     h += '</div></div></div>';
 
@@ -6015,17 +6015,15 @@ function _autoRedistribute() {
     }
 }
 
-async function _doCalcPeriod(coursId, configId) {
+async function _doCalcPeriodSingle(coursId, configId) {
     var btn = document.getElementById('cmCalcBtn');
-    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calcul…';
-
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calcul\u2026';
     var evalsCfg = [];
     window._cmEvalIds.forEach(function(id) {
         var cb = document.getElementById('cmc_'+id);
         var w = document.getElementById('cmw_'+id);
         evalsCfg.push({id: id, included: cb ? cb.checked : true, weight: parseFloat(w ? w.value : 0)});
     });
-
     try {
         var r = await fetch('/api/notes/bulletin/calculate-period/', {
             method: 'POST',
@@ -6034,7 +6032,7 @@ async function _doCalcPeriod(coursId, configId) {
         });
         var d = await r.json();
         if (d.success) {
-            showToast(d.calculated + ' note(s) TJ calculée(s)', 'success');
+            showToast(d.calculated + ' note(s) TJ calcul\u00e9e(s)', 'success');
             document.getElementById('calcModalOverlay').remove();
             await _loadOv();
         } else {
@@ -6047,84 +6045,127 @@ async function _doCalcPeriod(coursId, configId) {
     }
 }
 
-// === Calculer TJ Batch — Popup par cours × semestre ===
-function _openCalcBatchModal(coursId, coursNom, parentConfigId, parentNom) {
+// === Calculer TJ — Full Course Modal (all parents/periods) ===
+function _openCoursCalcModal(coursId, coursNom) {
     var overlay = document.getElementById('batchModalOverlay');
     if (overlay) overlay.remove();
     if (!_compOv) return;
-
     var reps = _compOv.repartitions || [];
     var evs = _compOv.evaluations || [];
-    // Find child periods for this parent
-    var children = reps.filter(function(r){return !r.is_parent && r.parent_config_id;});
-    // Determine which parent this belongs to
-    var par = reps.find(function(r){return r.config_id === parentConfigId;});
-    if (!par) return;
-    var myKids = children.filter(function(ch){return ch.parent_config_id === par.config_id;}).sort(function(a,b){return a.ordre-b.ordre;});
+    var notesData = _compOv.notes || {};
+    var parents = reps.filter(function(r){return r.is_parent;}).sort(function(a,b){return a.ordre-b.ordre;});
+    var children = reps.filter(function(r){return !r.is_parent && r.parent_config_id;}).sort(function(a,b){return a.ordre-b.ordre;});
+    window._batchPeriodData = [];
+    window._batchParentData = [];
+
+    // Try to load existing calc_details from notes (first student with TJ notes)
+    var existingWeights = {};
+    try {
+        var eleves = _compOv.eleves || [];
+        if (eleves.length > 0) {
+            var firstEleve = eleves[0].id;
+            var eNotes = notesData[firstEleve] || {};
+            Object.keys(eNotes).forEach(function(key) {
+                var n = eNotes[key];
+                if (n && n.calc_details) {
+                    try {
+                        var cd = typeof n.calc_details === 'string' ? JSON.parse(n.calc_details) : n.calc_details;
+                        if (cd && cd.evaluations) {
+                            var cfgId = parseInt(key.split('_')[0]);
+                            if (!existingWeights[cfgId]) existingWeights[cfgId] = {};
+                            cd.evaluations.forEach(function(ev) { existingWeights[cfgId][ev.id] = ev.weight; });
+                        }
+                    } catch(e) {}
+                }
+            });
+        }
+    } catch(e) {}
 
     var h = '';
-    h += '<div id="batchModalOverlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">';
-    h += '<div style="background:#fff;border-radius:16px;width:600px;max-width:95vw;max-height:88vh;overflow:auto;box-shadow:0 24px 80px rgba(0,0,0,.35)">';
-
-    // Header
-    h += '<div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:14px 20px;border-radius:16px 16px 0 0">';
+    h += '<div id="batchModalOverlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="if(event.target===this)this.remove()">';
+    h += '<div style="background:#fff;border-radius:16px;width:680px;max-width:95vw;max-height:90vh;overflow:auto;box-shadow:0 24px 80px rgba(0,0,0,.35)">';
+    h += '<div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:14px 20px;border-radius:16px 16px 0 0;position:sticky;top:0;z-index:10">';
     h += '<div style="display:flex;align-items:center;gap:10px">';
     h += '<i class="fas fa-bolt" style="color:#fbbf24;font-size:1.1rem"></i>';
-    h += '<div><div style="color:#fff;font-size:.82rem;font-weight:700">Calculer TJ — '+parentNom+'</div>';
-    h += '<div style="color:rgba(255,255,255,.6);font-size:.55rem">'+coursNom+'</div></div>';
+    h += '<div><div style="color:#fff;font-size:.85rem;font-weight:700">Calculer TJ \u2014 '+coursNom+'</div>';
+    h += '<div style="color:rgba(255,255,255,.55);font-size:.5rem">S\u00e9lectionnez les \u00e9valuations et g\u00e9rez les poids par p\u00e9riode</div></div>';
     h += '<i class="fas fa-times" onclick="document.getElementById(\'batchModalOverlay\').remove()" style="color:#fff;margin-left:auto;cursor:pointer;font-size:1.1rem;padding:4px"></i>';
     h += '</div></div>';
-
-    // Body — periods
     h += '<div style="padding:16px 20px">';
-    window._batchPeriodData = [];
 
-    if (!myKids.length) {
-        h += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:.7rem">Aucune p\u00e9riode trouv\u00e9e.</div>';
-    } else {
+    var semColors = ['#6366f1','#0ea5e9','#14b8a6','#f59e0b','#ef4444','#8b5cf6'];
+    var pColors = ['#818cf8','#38bdf8','#2dd4bf','#fbbf24','#f87171','#a78bfa'];
+    var hasAnySemWithEvals = false;
+
+    parents.forEach(function(par, pi) {
+        var myKids = children.filter(function(ch){return ch.parent_config_id === par.config_id;}).sort(function(a,b){return a.ordre-b.ordre;});
+        var semHasEvals = false;
+        var semPeriodData = [];
+        myKids.forEach(function(kid) {
+            var kidEvs = evs.filter(function(ev){return ev.config_id === kid.config_id && ev.cours_id === coursId;});
+            if (kidEvs.length) semHasEvals = true;
+            semPeriodData.push({config_id: kid.config_id, nom: kid.nom, taux: kid.taux_participation||100, evals: kidEvs, parent_config_id: par.config_id});
+        });
+        if (!semHasEvals) return;
+        hasAnySemWithEvals = true;
+        var sCol = semColors[pi % semColors.length];
+        window._batchParentData.push({config_id: par.config_id, nom: par.nom, periods: semPeriodData});
+        window._batchPeriodData = window._batchPeriodData.concat(semPeriodData);
+
+        h += '<div style="margin-bottom:14px;border:2px solid '+sCol+'30;border-radius:12px;overflow:hidden">';
+        h += '<div style="background:linear-gradient(135deg,'+sCol+'18,'+sCol+'08);padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:2px solid '+sCol+'20">';
+        h += '<i class="fas fa-calendar-alt" style="color:'+sCol+';font-size:.8rem"></i>';
+        h += '<span style="color:'+sCol+';font-size:.78rem;font-weight:700">'+par.nom+'</span>';
+        h += '<span style="background:'+sCol+'18;color:'+sCol+';padding:2px 8px;border-radius:12px;font-size:.42rem;font-weight:600">'+myKids.length+' p\u00e9riode(s)</span>';
+        h += '<button id="bSem_'+par.config_id+'" onclick="_doCalcSemester('+coursId+','+par.config_id+')" style="margin-left:auto;background:linear-gradient(135deg,'+sCol+','+sCol+'bb);color:#fff;border:none;border-radius:7px;padding:4px 10px;font-size:.5rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:4px;transition:all .2s" onmouseover="this.style.transform=\'scale(1.04)\'" onmouseout="this.style.transform=\'scale(1)\'">';
+        h += '<i class="fas fa-layer-group" style="font-size:.45rem"></i>Calculer '+par.nom+'</button>';
+        h += '</div>';
+        h += '<div style="padding:8px 10px">';
         myKids.forEach(function(kid, ki) {
             var kidEvs = evs.filter(function(ev){return ev.config_id === kid.config_id && ev.cours_id === coursId;});
             var taux = kid.taux_participation || 100;
-            var pColors = ['#6366f1','#0ea5e9','#14b8a6','#f59e0b','#ef4444','#8b5cf6'];
             var pCol = pColors[ki % pColors.length];
-
-            // Store period data for submission
-            window._batchPeriodData.push({config_id: kid.config_id, nom: kid.nom, taux: taux, evals: kidEvs});
-
-            h += '<div style="margin-bottom:12px;border:1px solid '+pCol+'30;border-radius:10px;overflow:hidden">';
-            // Period header
-            h += '<div style="background:'+pCol+'12;padding:8px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid '+pCol+'20">';
-            h += '<i class="fas fa-calendar-day" style="color:'+pCol+';font-size:.7rem"></i>';
-            h += '<span style="color:'+pCol+';font-size:.72rem;font-weight:700">'+kid.nom+'</span>';
-            h += '<span style="background:'+pCol+'18;color:'+pCol+';padding:2px 8px;border-radius:12px;font-size:.48rem;font-weight:600;margin-left:auto">Taux: '+taux+'%</span>';
+            h += '<div style="margin-bottom:8px;border:1px solid '+pCol+'25;border-radius:8px;overflow:hidden">';
+            h += '<div style="background:'+pCol+'0a;padding:6px 12px;display:flex;align-items:center;gap:6px;border-bottom:1px solid '+pCol+'15">';
+            h += '<i class="fas fa-calendar-day" style="color:'+pCol+';font-size:.6rem"></i>';
+            h += '<span style="color:'+pCol+';font-size:.65rem;font-weight:600">'+kid.nom+'</span>';
+            h += '<span style="background:'+pCol+'15;color:'+pCol+';padding:1px 6px;border-radius:10px;font-size:.4rem;font-weight:600">Taux: '+taux+'%</span>';
+            h += '<button id="bPer_'+kid.config_id+'" onclick="_doCalcPeriodBatch('+coursId+','+par.config_id+','+kid.config_id+')" style="margin-left:auto;background:'+pCol+'15;color:'+pCol+';border:1px solid '+pCol+'30;border-radius:6px;padding:2px 8px;font-size:.42rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:3px;transition:all .2s" onmouseover="this.style.background=\''+pCol+'25\'" onmouseout="this.style.background=\''+pCol+'15\'">';
+            h += '<i class="fas fa-play" style="font-size:.35rem"></i>Calculer</button>';
             h += '</div>';
-
-            // Evaluations table
             if (!kidEvs.length) {
-                h += '<div style="text-align:center;padding:10px;color:#cbd5e1;font-size:.6rem;font-style:italic">Aucune \u00e9valuation</div>';
+                h += '<div style="text-align:center;padding:6px;color:#cbd5e1;font-size:.5rem;font-style:italic">Aucune \u00e9valuation</div>';
             } else {
-                var defW = Math.round(10000 / kidEvs.length) / 100;
-                h += '<table style="width:100%;border-collapse:collapse;font-size:.6rem">';
-                h += '<thead><tr style="background:#f8fafc"><th style="padding:5px;text-align:center;width:30px">\u2713</th><th style="padding:5px;text-align:left">\u00c9valuation</th><th style="padding:5px;text-align:center;width:50px">Max</th><th style="padding:5px;text-align:center;width:75px">Poids %</th></tr></thead>';
+                var nEvals = kidEvs.length;
+                h += '<table style="width:100%;border-collapse:collapse;font-size:.55rem">';
+                h += '<thead><tr style="background:#f8fafc"><th style="padding:4px;text-align:center;width:26px">\u2713</th><th style="padding:4px;text-align:left">\u00c9valuation</th><th style="padding:4px;text-align:center;width:44px">Max</th><th style="padding:4px;text-align:center;width:68px">Poids %</th></tr></thead>';
                 h += '<tbody>';
                 kidEvs.forEach(function(ev) {
+                    var existW = existingWeights[kid.config_id] && existingWeights[kid.config_id][ev.id];
+                    var defW = existW !== undefined ? existW : Math.round(10000 / nEvals) / 100;
                     h += '<tr style="border-bottom:1px solid #f1f5f9">';
-                    h += '<td style="padding:4px;text-align:center"><input type="checkbox" checked id="bmc_'+kid.config_id+'_'+ev.id+'" onchange="_batchAutoRedist('+kid.config_id+')" style="accent-color:'+pCol+';cursor:pointer"></td>';
-                    h += '<td style="padding:4px;font-weight:500;color:#1e293b">'+ev.nom+'</td>';
-                    h += '<td style="padding:4px;text-align:center;color:#64748b">/'+ev.max+'</td>';
-                    h += '<td style="padding:4px;text-align:center"><input type="number" id="bmw_'+kid.config_id+'_'+ev.id+'" value="'+defW+'" min="0" max="100" step="0.01" style="width:58px;padding:2px 4px;border:1px solid #d1d5db;border-radius:5px;font-size:.58rem;text-align:center"></td>';
+                    h += '<td style="padding:3px;text-align:center"><input type="checkbox" checked id="bmc_'+kid.config_id+'_'+ev.id+'" onchange="_batchAutoRedist('+kid.config_id+')" style="accent-color:'+pCol+';cursor:pointer;transform:scale(.9)"></td>';
+                    h += '<td style="padding:3px;font-weight:500;color:#1e293b">'+ev.nom+'</td>';
+                    h += '<td style="padding:3px;text-align:center;color:#64748b">/'+ev.max+'</td>';
+                    h += '<td style="padding:3px;text-align:center"><input type="number" id="bmw_'+kid.config_id+'_'+ev.id+'" value="'+defW+'" min="0" max="100" step="0.01" style="width:54px;padding:1px 3px;border:1px solid #d1d5db;border-radius:4px;font-size:.52rem;text-align:center"></td>';
                     h += '</tr>';
                 });
                 h += '</tbody></table>';
             }
             h += '</div>';
         });
-    }
+        h += '</div></div>';
+    });
 
-    // Action buttons
-    h += '<div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end;padding-bottom:4px">';
-    h += '<button onclick="document.getElementById(\'batchModalOverlay\').remove()" style="padding:7px 16px;background:#f1f5f9;border:1px solid #d1d5db;border-radius:8px;font-size:.62rem;cursor:pointer;color:#475569">Annuler</button>';
-    h += '<button id="batchSubmitBtn" onclick="_doCalcBatchSubmit('+coursId+','+parentConfigId+')" style="padding:7px 20px;background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;border:none;border-radius:8px;font-size:.62rem;cursor:pointer;font-weight:600"><i class="fas fa-bolt" style="margin-right:5px"></i>Calculer TJ</button>';
+    if (!hasAnySemWithEvals) {
+        h += '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:.7rem"><i class="fas fa-info-circle" style="margin-right:6px"></i>Aucune \u00e9valuation pour ce cours.</div>';
+    }
+    h += '<div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end;padding-bottom:4px;flex-wrap:wrap">';
+    h += '<button onclick="document.getElementById(\'batchModalOverlay\').remove()" style="padding:7px 14px;background:#f1f5f9;border:1px solid #d1d5db;border-radius:8px;font-size:.58rem;cursor:pointer;color:#475569">Annuler</button>';
+    if (hasAnySemWithEvals) {
+        h += '<button id="batchAllBtn" onclick="_doCalcAllParents('+coursId+')" style="padding:7px 18px;background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;border:none;border-radius:8px;font-size:.58rem;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:5px;box-shadow:0 2px 10px rgba(124,58,237,.3)">';
+        h += '<i class="fas fa-bolt"></i>Calculer TOUT</button>';
+    }
     h += '</div>';
     h += '</div></div></div>';
     document.body.insertAdjacentHTML('beforeend', h);
@@ -6150,22 +6191,25 @@ function _batchAutoRedist(configId) {
     });
 }
 
-async function _doCalcBatchSubmit(coursId, parentConfigId) {
-    var btn = document.getElementById('batchSubmitBtn');
-    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calcul\u2026';
-
-    // Collect per-period evaluation configs
-    var periodsConfig = [];
+function _collectPeriodsConfig(configIds) {
+    var cfg = [];
     (window._batchPeriodData || []).forEach(function(pd) {
+        if (configIds.indexOf(pd.config_id) === -1) return;
         var evalsCfg = [];
         pd.evals.forEach(function(ev) {
             var cb = document.getElementById('bmc_'+pd.config_id+'_'+ev.id);
             var w = document.getElementById('bmw_'+pd.config_id+'_'+ev.id);
             evalsCfg.push({id: ev.id, included: cb ? cb.checked : true, weight: parseFloat(w ? w.value : 0)});
         });
-        periodsConfig.push({config_id: pd.config_id, evaluations: evalsCfg});
+        cfg.push({config_id: pd.config_id, evaluations: evalsCfg});
     });
+    return cfg;
+}
 
+async function _callBatchCalc(coursId, parentConfigId, periodsConfig, btnId) {
+    var btn = document.getElementById(btnId);
+    var origHtml = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calcul\u2026'; }
     try {
         var r = await fetch('/api/notes/bulletin/calculate-period-batch/', {
             method: 'POST',
@@ -6174,18 +6218,58 @@ async function _doCalcBatchSubmit(coursId, parentConfigId) {
         });
         var d = await r.json();
         if (d.success) {
-            var details = (d.periods || []).map(function(p){return p.nom+': '+p.calculated}).join(', ');
-            showToast(d.calculated + ' note(s) TJ calcul\u00e9e(s) ('+details+')', 'success');
-            document.getElementById('batchModalOverlay').remove();
-            await _loadOv();
+            var nm = (d.periods||[]).map(function(p){return p.nom+': '+p.calculated;}).join(', ');
+            showToast(d.calculated + ' note(s) TJ ('+nm+')', 'success');
+            if (btn) { btn.innerHTML = '<i class="fas fa-check"></i> OK'; btn.style.background = '#10b981'; }
+            return true;
         } else {
             showToast(d.error || 'Erreur', 'error');
-            btn.disabled = false; btn.innerHTML = '<i class="fas fa-bolt" style="margin-right:5px"></i>Calculer TJ';
+            if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+            return false;
         }
     } catch(e) {
-        showToast('Erreur connexion: ' + e.message, 'error');
-        btn.disabled = false; btn.innerHTML = '<i class="fas fa-bolt" style="margin-right:5px"></i>Calculer TJ';
+        showToast('Erreur: ' + e.message, 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+        return false;
     }
+}
+
+async function _doCalcPeriodBatch(coursId, parentConfigId, periodConfigId) {
+    var pcfg = _collectPeriodsConfig([periodConfigId]);
+    var ok = await _callBatchCalc(coursId, parentConfigId, pcfg, 'bPer_'+periodConfigId);
+    if (ok) await _loadOv();
+}
+
+async function _doCalcSemester(coursId, parentConfigId) {
+    var periods = (window._batchPeriodData||[]).filter(function(p){return p.parent_config_id === parentConfigId;});
+    var ids = periods.map(function(p){return p.config_id;});
+    var pcfg = _collectPeriodsConfig(ids);
+    var ok = await _callBatchCalc(coursId, parentConfigId, pcfg, 'bSem_'+parentConfigId);
+    if (ok) await _loadOv();
+}
+
+async function _doCalcAllParents(coursId) {
+    var btn = document.getElementById('batchAllBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calcul\u2026'; }
+    var total = 0;
+    for (var i = 0; i < (window._batchParentData||[]).length; i++) {
+        var par = window._batchParentData[i];
+        var ids = par.periods.map(function(p){return p.config_id;});
+        var pcfg = _collectPeriodsConfig(ids);
+        if (pcfg.length === 0) continue;
+        try {
+            var r = await fetch('/api/notes/bulletin/calculate-period-batch/', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json', 'X-CSRFToken': getCsrfToken()},
+                body: JSON.stringify({classe_id: _compClasseId, parent_config_id: par.config_id, cours_id: coursId, periods_config: pcfg})
+            });
+            var d = await r.json();
+            if (d.success) total += d.calculated;
+        } catch(e) { /* continue */ }
+    }
+    showToast(total + ' note(s) TJ calcul\u00e9e(s) au total', 'success');
+    document.getElementById('batchModalOverlay').remove();
+    await _loadOv();
 }
 
 // === Calculer Résultat: TJ (héritage) + EX → TOTAL ===
@@ -6267,6 +6351,9 @@ function _render() {
         html += '<i id="i_'+cAid+'" class="fas fa-chevron-right" style="color:#fff;font-size:.75rem;min-width:14px"></i>';
         html += '<i class="fas fa-book" style="color:rgba(255,255,255,.7);font-size:.85rem"></i>';
         html += '<span style="color:#fff;font-size:.82rem;font-weight:700">'+cr.nom+'</span>';
+        var crNomEsc = cr.nom.replace(/'/g,"\\'");
+        html += '<button onclick="event.stopPropagation();_openCoursCalcModal('+cr.id+',\''+crNomEsc+'\')" style="margin-left:auto;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:4px 12px;font-size:.52rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:5px;backdrop-filter:blur(4px);transition:all .2s" onmouseover="this.style.background=\'rgba(255,255,255,.35)\'" onmouseout="this.style.background=\'rgba(255,255,255,.2)\'">';
+        html += '<i class="fas fa-bolt" style="font-size:.5rem;color:#fbbf24"></i><span>Calculer TJ</span></button>';
         html += '</div>';
         html += '<div id="'+cAid+'" style="display:none;padding:0">';
 
@@ -6286,8 +6373,9 @@ function _render() {
 
             myKids.forEach(function(kid) {
                 var kidEvs = evs.filter(function(ev){return ev.config_id === kid.config_id && ev.cours_id === cr.id;});
+                var kidTaux = kid.taux_participation || 100;
                 kidEvs.forEach(function(ev) {
-                    colDefs.push({type:'eval',label:ev.nom,subLabel:'/'+ev.max,evalId:ev.id,max:ev.max,periodeNom:kid.nom,configId:kid.config_id});
+                    colDefs.push({type:'eval',label:ev.nom,subLabel:'('+kidTaux+'%) /'+ev.max,evalId:ev.id,max:ev.max,periodeNom:kid.nom,configId:kid.config_id});
                 });
                 // Note Pondérée de la période (calculated from evaluations)
                 if (cntTJ) {
@@ -6314,10 +6402,7 @@ function _render() {
             html += '<i id="i_'+tAid+'" class="fas fa-chevron-right" style="color:'+tCol+';font-size:.65rem;min-width:12px"></i>';
             html += '<i class="fas fa-calendar-alt" style="color:'+tCol+';font-size:.7rem"></i>';
             html += '<span style="color:'+tCol+';font-size:.75rem;font-weight:700">'+par.nom+'</span>';
-            html += '<span style="color:#94a3b8;font-size:.45rem;margin-left:6px">'+myKids.length+' période(s)</span>';
-            var crEsc = cr.nom.replace(/'/g,"\\'"); var parEsc = par.nom.replace(/'/g,"\\'");
-            html += '<button onclick="event.stopPropagation();_openCalcBatchModal('+cr.id+',\''+crEsc+'\','+par.config_id+',\''+parEsc+'\')" style="margin-left:auto;background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:.55rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:5px;box-shadow:0 2px 8px rgba(124,58,237,.3);transition:all .2s" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">';
-            html += '<i class="fas fa-bolt" style="font-size:.5rem"></i><span>Calculer TJ</span></button>';
+            html += '<span style="color:#94a3b8;font-size:.45rem;margin-left:6px">'+myKids.length+' p\u00e9riode(s)</span>';
             html += '</div>';
             html += '<div id="'+tAid+'" style="display:none;background:#fff;overflow:auto;padding:4px">';
 
