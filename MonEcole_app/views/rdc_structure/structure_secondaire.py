@@ -464,12 +464,18 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                     note_ex = exam_notes.get(col, "-")
                     row.append(Paragraph(str(note_ex), style_center))
                 elif col == 6: 
-                    val_tot_sem_t1 = float(val_exam_t1) * 2
-                    row.append(Paragraph(str(val_tot_sem_t1), style_center))
+                    # Max TOT.SEM = Max TJ (ponderation) + Max Exam
+                    pond_val = float(ponderation) if ponderation != "-" else 0.0
+                    val_tot_sem_t1 = pond_val + float(val_exam_t1)
+                    display_tot_sem = str(int(val_tot_sem_t1)) if val_tot_sem_t1 == int(val_tot_sem_t1) else str(val_tot_sem_t1)
+                    row.append(Paragraph(display_tot_sem, style_center))
 
                 elif col == 13: 
-                    val_tot_sem_t2 = float(val_exam_t2) * 2
-                    row.append(Paragraph(str(val_tot_sem_t2), style_center))
+                    # Max TOT.SEM = Max TJ (ponderation) + Max Exam
+                    pond_val = float(ponderation) if ponderation != "-" else 0.0
+                    val_tot_sem_t2 = pond_val + float(val_exam_t2)
+                    display_tot_sem = str(int(val_tot_sem_t2)) if val_tot_sem_t2 == int(val_tot_sem_t2) else str(val_tot_sem_t2)
+                    row.append(Paragraph(display_tot_sem, style_center))
 
                 elif col == 7:  
                     tot_s1 = 0.0
