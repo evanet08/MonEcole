@@ -156,15 +156,15 @@ def create_header(elements, logo_path, emblem_path, style_title, style_center, e
         ('RIGHTPADDING', (-1, -1), (-1, -1), 0),  
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('BOX', (3, 0), (3, 0), 0.5, colors.black),
     ]))
     elements.append(header_table)
     elements.append(Spacer(1, 0.5*mm))
 
 
 def create_line2_left(elements, style_normal, id_campus=None):
+    """Left info section with proper 3-column alignment: Label | : | Value."""
     
-    # Récupérer la matricule de l'établissement via campus → countryStructure
+    # Retrieve matricule
     matricule = ""
     if id_campus:
         try:
@@ -182,16 +182,15 @@ def create_line2_left(elements, style_normal, id_campus=None):
         except Exception:
             pass
 
-    # Créer les cases dynamiquement selon la taille de la matricule
+    # Matricule boxes (detached, bold)
     nb_cases = len(matricule) if matricule else 10
     matricule_cells = [list(matricule)] if matricule else [[''] * nb_cases]
-    
-    code_squares_table = Table(matricule_cells, colWidths=[3*mm]*nb_cases, rowHeights=4*mm)
+    code_squares_table = Table(matricule_cells, colWidths=[3.5*mm]*nb_cases, rowHeights=4.5*mm)
     code_squares_table.setStyle(TableStyle([
-        ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+        ('BOX', (0,0), (-1,-1), 0, colors.white),
+        ('INNERGRID', (0,0), (-1,-1), 0, colors.white),
         ('FONTNAME', (0,0), (-1,-1), 'Times-Bold'),
         ('FONTSIZE', (0,0), (-1,-1), 8),
-        ('LEADING', (0,0), (-1,-1), 11),
         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('TOPPADDING', (0,0), (-1,-1), 0),
@@ -199,18 +198,33 @@ def create_line2_left(elements, style_normal, id_campus=None):
         ('LEFTPADDING', (0,0), (-1,-1), 0),
         ('RIGHTPADDING', (0,0), (-1,-1), 0),
     ]))
+    for i in range(nb_cases):
+        code_squares_table.setStyle(TableStyle([
+            ('BOX', (i,0), (i,0), 0.5, colors.black),
+        ]))
+
+    # Distinct styles for labels and values
+    lbl_style = ParagraphStyle(name='InfoLabel', fontSize=6, leading=8, alignment=0, fontName='Helvetica-Bold')
+    val_style = ParagraphStyle(name='InfoValue', fontSize=6, leading=8, alignment=0, fontName='Times-Roman')
+    colon_style = ParagraphStyle(name='InfoColon', fontSize=6, leading=8, alignment=1, fontName='Helvetica-Bold')
+
     left_data = [
-        [Paragraph(f"<font color='black'><b>PROVINCE :</b></font>", style_normal), Paragraph("SUD-KIVU", style_normal)],
-        [Paragraph(f"<font color='black'><b>VILLE :</b></font>", style_normal), Paragraph("BUKAVU", style_normal)],
-        [Paragraph(f"<font color='black'><b>COMMUNE :</b></font>", style_normal), Paragraph("D'IBANDA", style_normal)],
-        [Paragraph(f"<font color='black'><b>EP :</b></font>", style_normal), Paragraph("1 College Alfajiri Bukavu", style_normal)],
-        [Paragraph(f"<font color='black'><b>Matricule :</b></font>", style_normal), code_squares_table]
+        [Paragraph("PROVINCE", lbl_style), Paragraph(":", colon_style), Paragraph("SUD-KIVU", val_style)],
+        [Paragraph("VILLE", lbl_style), Paragraph(":", colon_style), Paragraph("BUKAVU", val_style)],
+        [Paragraph("COMMUNE", lbl_style), Paragraph(":", colon_style), Paragraph("D'IBANDA", val_style)],
+        [Paragraph("EP", lbl_style), Paragraph(":", colon_style), Paragraph("1 College Alfajiri Bukavu", val_style)],
+        [Paragraph("Matricule", lbl_style), Paragraph(":", colon_style), code_squares_table],
     ]
-    left_table_vertical = Table(left_data, colWidths=[30*mm, 80*mm], rowHeights=[4*mm]*5)
+    left_table_vertical = Table(left_data, colWidths=[22*mm, 4*mm, 80*mm], rowHeights=[5*mm]*4 + [6.5*mm])
     left_table_vertical.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+        ('ALIGN', (2, 0), (2, -1), 'LEFT'),
         ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 1),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
     ]))
     return left_table_vertical  
 
@@ -282,28 +296,73 @@ def create_nid_section(elements, style_normal, eleve=None, id_campus=None):
     elements.append(Spacer(1, 1*mm))
 
 
-def create_line2_right(elements, eleve, style_normal,id_classe):
+def create_line2_right(elements, eleve, style_normal, id_classe):
+    """Right info section with proper 3-column alignment: Label | : | Value."""
     try:
         eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
         classe_name = eac.classe.classe.strip()
-        
     except:
         return HttpResponse('<script>history.back();</script>', status=404)
     
-    nperm_squares = [[None] * 13]
-    nperm_squares_table = Table(nperm_squares, colWidths=[3*mm]*13, rowHeights=4*mm)
-    nperm_squares_table.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.black)]))
+    # N.PERM = numero_serie from eleve table — detached boxes
+    nperm_str = str(eleve.numero_serie).strip() if hasattr(eleve, 'numero_serie') and eleve.numero_serie else ''
+    nb_cases = len(nperm_str) if nperm_str else 13
+    nperm_cells = [list(nperm_str)] if nperm_str else [[None] * nb_cases]
+    nperm_squares_table = Table(nperm_cells, colWidths=[3.5*mm]*nb_cases, rowHeights=4.5*mm)
+    nperm_squares_table.setStyle(TableStyle([
+        ('BOX', (0,0), (-1,-1), 0, colors.white),
+        ('INNERGRID', (0,0), (-1,-1), 0, colors.white),
+        ('FONTNAME', (0,0), (-1,-1), 'Times-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 8),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 0),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+        ('LEFTPADDING', (0,0), (-1,-1), 0),
+        ('RIGHTPADDING', (0,0), (-1,-1), 0),
+    ]))
+    for i in range(nb_cases):
+        nperm_squares_table.setStyle(TableStyle([
+            ('BOX', (i,0), (i,0), 0.5, colors.black),
+        ]))
+
+    # Distinct styles for labels and values
+    lbl_style = ParagraphStyle(name='InfoLabelRP', fontSize=6, leading=8, alignment=0, fontName='Helvetica-Bold')
+    val_style = ParagraphStyle(name='InfoValueRP', fontSize=6, leading=8, alignment=0, fontName='Times-Roman')
+    colon_style = ParagraphStyle(name='InfoColonRP', fontSize=6, leading=8, alignment=1, fontName='Helvetica-Bold')
+
+    lieu = getattr(eleve, 'naissance_commune', None) or getattr(eleve, 'Lieu_naissance', None) or '..........'
+
     right_data = [
-        [Paragraph(f"<font color='black'><b>ELEVE  : {eleve.nom} {eleve.prenom}</b></font>", style_normal), Paragraph(f"<font color='black'><b>SEXE : {eleve.genre}</b></font>", style_normal)],
-        [Paragraph(f"<font color='black'><b>Ne(e) A : {getattr(eleve, 'Lieu_naissance', '..........')}</b></font>", style_normal), Paragraph(f"<font color='black'><b>DATE NAISSANCE: {eleve.date_naissance}</b></font>", style_normal)],
-        [Paragraph(f"<font color='black'><b>CLASSE : {classe_name}</b></font>", style_normal), None],
-        [Paragraph(f"<font color='black'><b>N.PERM :</b></font>", style_normal), nperm_squares_table]
+        [Paragraph("ELEVE", lbl_style), Paragraph(":", colon_style),
+         Paragraph(f"{eleve.nom} {eleve.prenom}", val_style),
+         Paragraph("SEXE", lbl_style), Paragraph(":", colon_style),
+         Paragraph(f"{eleve.genre}", val_style)],
+        [Paragraph("Ne(e) A", lbl_style), Paragraph(":", colon_style),
+         Paragraph(f"{lieu}", val_style),
+         Paragraph("DATE NAISSANCE", lbl_style), Paragraph(":", colon_style),
+         Paragraph(f"{eleve.date_naissance}", val_style)],
+        [Paragraph("CLASSE", lbl_style), Paragraph(":", colon_style),
+         Paragraph(f"{classe_name}", val_style),
+         None, None, None],
+        [Paragraph("N.PERM", lbl_style), Paragraph(":", colon_style),
+         nperm_squares_table,
+         None, None, None],
     ]
-    right_table = Table(right_data, colWidths=[50*mm, 50*mm])
+    right_table = Table(right_data, colWidths=[20*mm, 3*mm, 30*mm, 22*mm, 3*mm, 22*mm])
     right_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+        ('ALIGN', (2, 0), (2, -1), 'LEFT'),
+        ('ALIGN', (3, 0), (3, -1), 'LEFT'),
+        ('ALIGN', (4, 0), (4, -1), 'CENTER'),
+        ('ALIGN', (5, 0), (5, -1), 'LEFT'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 1),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 1),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('SPAN', (2, 3), (5, 3)),  # N.PERM value spans remaining columns
     ]))
     return right_table  
 
@@ -1376,7 +1435,7 @@ def create_footer(elements, style_normal, style_center, id_classe=None):
 
     style_footer = ParagraphStyle(name='FooterText', fontSize=4, leading=5, alignment=0, fontName='Times-Roman')
     style_footer_center = ParagraphStyle(name='FooterCenter', fontSize=4, leading=5, alignment=1, fontName='Times-Roman')
-    style_footer_right = ParagraphStyle(name='FooterRight', fontSize=4, leading=5, alignment=2, fontName='Times-Roman')
+    style_footer_right = ParagraphStyle(name='FooterRight', fontSize=4, leading=5, alignment=0, fontName='Times-Roman')
     style_footer_bold = ParagraphStyle(name='FooterBold', fontSize=4, leading=5, alignment=0, fontName='Times-Bold')
 
     import datetime

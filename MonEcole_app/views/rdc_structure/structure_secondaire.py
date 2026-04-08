@@ -79,23 +79,24 @@ def get_semestres(id_annee, id_campus, id_cycle, id_classe):
 
 
 
-def create_line2_right__secondaire_rdc(elements, eleve,id_classe, style_normal):
+def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal):
+    """Right info section with proper 3-column alignment: Label | : | Value."""
     try:
         eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
         classe_name = eac.classe.classe.strip()
     except:
         return HttpResponse('<script>history.back();</script>', status=404)
 
-    # N.PERM = numero_serie from eleve table
+    # N.PERM = numero_serie from eleve table — detached boxes
     nperm_str = str(eleve.numero_serie).strip() if eleve.numero_serie else ''
     nb_cases = len(nperm_str) if nperm_str else 13
     nperm_cells = [list(nperm_str)] if nperm_str else [[None] * nb_cases]
-    nperm_squares_table = Table(nperm_cells, colWidths=[3*mm]*nb_cases, rowHeights=4*mm)
+    nperm_squares_table = Table(nperm_cells, colWidths=[3.5*mm]*nb_cases, rowHeights=4.5*mm)
     nperm_squares_table.setStyle(TableStyle([
-        ('GRID', (0,0), (-1,-1), 0.5, colors.black),
-        ('FONTNAME', (0,0), (-1,-1), 'Helvetica-Bold'),
+        ('BOX', (0,0), (-1,-1), 0, colors.white),
+        ('INNERGRID', (0,0), (-1,-1), 0, colors.white),
+        ('FONTNAME', (0,0), (-1,-1), 'Times-Bold'),
         ('FONTSIZE', (0,0), (-1,-1), 8),
-        ('LEADING', (0,0), (-1,-1), 11),
         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('TOPPADDING', (0,0), (-1,-1), 0),
@@ -103,17 +104,49 @@ def create_line2_right__secondaire_rdc(elements, eleve,id_classe, style_normal):
         ('LEFTPADDING', (0,0), (-1,-1), 0),
         ('RIGHTPADDING', (0,0), (-1,-1), 0),
     ]))
+    for i in range(nb_cases):
+        nperm_squares_table.setStyle(TableStyle([
+            ('BOX', (i,0), (i,0), 0.5, colors.black),
+        ]))
+
+    # Distinct styles for labels and values
+    lbl_style = ParagraphStyle(name='InfoLabelR', fontSize=6, leading=8, alignment=0, fontName='Helvetica-Bold')
+    val_style = ParagraphStyle(name='InfoValueR', fontSize=6, leading=8, alignment=0, fontName='Times-Roman')
+    colon_style = ParagraphStyle(name='InfoColonR', fontSize=6, leading=8, alignment=1, fontName='Helvetica-Bold')
+
+    # Lieu de naissance
+    lieu = getattr(eleve, 'naissance_commune', None) or getattr(eleve, 'Lieu_naissance', None) or '..........'
+
     right_data = [
-        [Paragraph(f"<font color='black'><b>ELEVE  : {eleve.nom} {eleve.prenom}</b></font>", style_normal), Paragraph(f"<font color='black'><b>SEXE : {eleve.genre}</b></font>", style_normal)],
-        [Paragraph(f"<font color='black'><b>Ne(e) A : {getattr(eleve, 'Lieu_naissance', '..........')}</b></font>", style_normal), Paragraph(f"<font color='black'><b>DATE NAISSANCE: {eleve.date_naissance}</b></font>", style_normal)],
-        [Paragraph(f"<font color='black'><b>CLASSE : {classe_name}</b></font>", style_normal), None],
-        [Paragraph(f"<font color='black'><b>N.PERM :</b></font>", style_normal), nperm_squares_table]
+        [Paragraph("ELEVE", lbl_style), Paragraph(":", colon_style),
+         Paragraph(f"{eleve.nom} {eleve.prenom}", val_style),
+         Paragraph("SEXE", lbl_style), Paragraph(":", colon_style),
+         Paragraph(f"{eleve.genre}", val_style)],
+        [Paragraph("Ne(e) A", lbl_style), Paragraph(":", colon_style),
+         Paragraph(f"{lieu}", val_style),
+         Paragraph("DATE NAISSANCE", lbl_style), Paragraph(":", colon_style),
+         Paragraph(f"{eleve.date_naissance}", val_style)],
+        [Paragraph("CLASSE", lbl_style), Paragraph(":", colon_style),
+         Paragraph(f"{classe_name}", val_style),
+         None, None, None],
+        [Paragraph("N.PERM", lbl_style), Paragraph(":", colon_style),
+         nperm_squares_table,
+         None, None, None],
     ]
-    right_table = Table(right_data, colWidths=[50*mm, 50*mm])
+    right_table = Table(right_data, colWidths=[20*mm, 3*mm, 30*mm, 22*mm, 3*mm, 22*mm])
     right_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+        ('ALIGN', (2, 0), (2, -1), 'LEFT'),
+        ('ALIGN', (3, 0), (3, -1), 'LEFT'),
+        ('ALIGN', (4, 0), (4, -1), 'CENTER'),
+        ('ALIGN', (5, 0), (5, -1), 'LEFT'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 1),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 1),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('SPAN', (2, 3), (5, 3)),  # N.PERM value spans remaining columns
     ]))
     return right_table 
 
@@ -304,8 +337,16 @@ def calculer_pourcentages_secondaire(table_data, style_center):
                 return 0.0
         return 0.0
 
-    max_per_sem1 = get_val(max_gen_idx, 1)
-    max_per_sem2 = get_val(max_gen_idx, 8)
+    # Max TJ par semestre (colonne 1 et 8)
+    max_tj_sem1 = get_val(max_gen_idx, 1)
+    max_tj_sem2 = get_val(max_gen_idx, 8)
+
+    # Pondération par période = Max TJ / nombre de périodes (2 par semestre)
+    max_per_p1 = max_tj_sem1 / 2 if max_tj_sem1 > 0 else 0
+    max_per_p2 = max_tj_sem1 / 2 if max_tj_sem1 > 0 else 0
+    max_per_p3 = max_tj_sem2 / 2 if max_tj_sem2 > 0 else 0
+    max_per_p4 = max_tj_sem2 / 2 if max_tj_sem2 > 0 else 0
+
     max_exam_sem1 = get_val(max_gen_idx, 4)
     max_exam_sem2 = get_val(max_gen_idx, 11)
     max_tot_sem1 = get_val(max_gen_idx, 6)
@@ -324,12 +365,13 @@ def calculer_pourcentages_secondaire(table_data, style_center):
     while len(pourcentage_row) < 20:
         pourcentage_row.append(None)
         
-    pourcentage_row[2] = Paragraph(f"{calcul_pourcentage(note_1er_p, max_per_sem1)}%", style_center)
-    pourcentage_row[3] = Paragraph(f"{calcul_pourcentage(note_2eme_p, max_per_sem1)}%", style_center)
+    # Périodes: pourcentage sur la pondération (max par période)
+    pourcentage_row[2] = Paragraph(f"{calcul_pourcentage(note_1er_p, max_per_p1)}%", style_center)
+    pourcentage_row[3] = Paragraph(f"{calcul_pourcentage(note_2eme_p, max_per_p2)}%", style_center)
     pourcentage_row[5] = Paragraph(f"{calcul_pourcentage(note_exam_sem1, max_exam_sem1)}%", style_center)
     pourcentage_row[7] = Paragraph(f"{calcul_pourcentage(tot_sem1, max_tot_sem1)}%", style_center)
-    pourcentage_row[9] = Paragraph(f"{calcul_pourcentage(note_3e_p, max_per_sem2)}%", style_center)
-    pourcentage_row[10] = Paragraph(f"{calcul_pourcentage(note_4eme_p, max_per_sem2)}%", style_center)
+    pourcentage_row[9] = Paragraph(f"{calcul_pourcentage(note_3e_p, max_per_p3)}%", style_center)
+    pourcentage_row[10] = Paragraph(f"{calcul_pourcentage(note_4eme_p, max_per_p4)}%", style_center)
     pourcentage_row[12] = Paragraph(f"{calcul_pourcentage(note_exam_sem2, max_exam_sem2)}%", style_center)
     pourcentage_row[14] = Paragraph(f"{calcul_pourcentage(tot_sem2, max_tot_sem2)}%", style_center)
 
@@ -683,7 +725,7 @@ def create_footer__secondaire_rdc(elements, style_normal, style_center, classe_i
 
     style_footer = ParagraphStyle(name='FooterTextSec', fontSize=4, leading=5, alignment=0, fontName='Times-Roman')
     style_footer_center = ParagraphStyle(name='FooterCenterSec', fontSize=4, leading=5, alignment=1, fontName='Times-Roman')
-    style_footer_right = ParagraphStyle(name='FooterRightSec', fontSize=4, leading=5, alignment=2, fontName='Times-Roman')
+    style_footer_right = ParagraphStyle(name='FooterRightSec', fontSize=4, leading=5, alignment=0, fontName='Times-Roman')
 
     import datetime
     date_str = datetime.date.today().strftime('%d/%m/%Y')
