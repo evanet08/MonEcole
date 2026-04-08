@@ -6083,15 +6083,15 @@ function _openCoursCalcModal(coursId, coursNom) {
 
     var h = '';
     h += '<div id="batchModalOverlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="if(event.target===this)this.remove()">';
-    h += '<div style="background:#fff;border-radius:16px;width:680px;max-width:95vw;max-height:90vh;overflow:auto;box-shadow:0 24px 80px rgba(0,0,0,.35)">';
-    h += '<div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:14px 20px;border-radius:16px 16px 0 0;position:sticky;top:0;z-index:10">';
-    h += '<div style="display:flex;align-items:center;gap:10px">';
-    h += '<i class="fas fa-bolt" style="color:#fbbf24;font-size:1.1rem"></i>';
-    h += '<div><div style="color:#fff;font-size:.85rem;font-weight:700">Calculer TJ \u2014 '+coursNom+'</div>';
-    h += '<div style="color:rgba(255,255,255,.55);font-size:.5rem">S\u00e9lectionnez les \u00e9valuations et g\u00e9rez les poids par p\u00e9riode</div></div>';
-    h += '<i class="fas fa-times" onclick="document.getElementById(\'batchModalOverlay\').remove()" style="color:#fff;margin-left:auto;cursor:pointer;font-size:1.1rem;padding:4px"></i>';
+    h += '<div style="background:#fff;border-radius:12px;width:620px;max-width:95vw;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35)">';
+    h += '<div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:8px 14px;border-radius:12px 12px 0 0;position:sticky;top:0;z-index:10">';
+    h += '<div style="display:flex;align-items:center;gap:7px">';
+    h += '<i class="fas fa-bolt" style="color:#fbbf24;font-size:.85rem"></i>';
+    h += '<div><div style="color:#fff;font-size:.72rem;font-weight:700">Calculer TJ \u2014 '+coursNom+'</div>';
+    h += '<div style="color:rgba(255,255,255,.5);font-size:.42rem">Poids par p\u00e9riode</div></div>';
+    h += '<i class="fas fa-times" onclick="document.getElementById(\'batchModalOverlay\').remove()" style="color:#fff;margin-left:auto;cursor:pointer;font-size:.9rem;padding:2px"></i>';
     h += '</div></div>';
-    h += '<div style="padding:16px 20px">';
+    h += '<div style="padding:8px 10px">';
 
     var semColors = ['#6366f1','#0ea5e9','#14b8a6','#f59e0b','#ef4444','#8b5cf6'];
     var pColors = ['#818cf8','#38bdf8','#2dd4bf','#fbbf24','#f87171','#a78bfa'];
@@ -6112,42 +6112,42 @@ function _openCoursCalcModal(coursId, coursNom) {
         window._batchParentData.push({config_id: par.config_id, nom: par.nom, periods: semPeriodData});
         window._batchPeriodData = window._batchPeriodData.concat(semPeriodData);
 
-        h += '<div style="margin-bottom:14px;border:2px solid '+sCol+'30;border-radius:12px;overflow:hidden">';
-        h += '<div style="background:linear-gradient(135deg,'+sCol+'18,'+sCol+'08);padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:2px solid '+sCol+'20">';
-        h += '<i class="fas fa-calendar-alt" style="color:'+sCol+';font-size:.8rem"></i>';
-        h += '<span style="color:'+sCol+';font-size:.78rem;font-weight:700">'+par.nom+'</span>';
-        h += '<span style="background:'+sCol+'18;color:'+sCol+';padding:2px 8px;border-radius:12px;font-size:.42rem;font-weight:600">'+myKids.length+' p\u00e9riode(s)</span>';
-        h += '<button id="bSem_'+par.config_id+'" onclick="_doCalcSemester('+coursId+','+par.config_id+')" style="margin-left:auto;background:linear-gradient(135deg,'+sCol+','+sCol+'bb);color:#fff;border:none;border-radius:7px;padding:4px 10px;font-size:.5rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:4px;transition:all .2s" onmouseover="this.style.transform=\'scale(1.04)\'" onmouseout="this.style.transform=\'scale(1)\'">';
-        h += '<i class="fas fa-layer-group" style="font-size:.45rem"></i>Calculer '+par.nom+'</button>';
+        h += '<div style="margin-bottom:6px;border:1.5px solid '+sCol+'30;border-radius:8px;overflow:hidden">';
+        h += '<div style="background:linear-gradient(135deg,'+sCol+'15,'+sCol+'08);padding:5px 10px;display:flex;align-items:center;gap:6px;border-bottom:1.5px solid '+sCol+'18">';
+        h += '<i class="fas fa-calendar-alt" style="color:'+sCol+';font-size:.65rem"></i>';
+        h += '<span style="color:'+sCol+';font-size:.65rem;font-weight:700">'+par.nom+'</span>';
+        h += '<span style="background:'+sCol+'15;color:'+sCol+';padding:1px 5px;border-radius:8px;font-size:.38rem;font-weight:600">'+myKids.length+' p\u00e9r.</span>';
+        h += '<button id="bSem_'+par.config_id+'" onclick="_doCalcSemester('+coursId+','+par.config_id+')" style="margin-left:auto;background:linear-gradient(135deg,'+sCol+','+sCol+'bb);color:#fff;border:none;border-radius:5px;padding:2px 7px;font-size:.42rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:3px" onmouseover="this.style.transform=\'scale(1.03)\'" onmouseout="this.style.transform=\'scale(1)\'">';
+        h += '<i class="fas fa-layer-group" style="font-size:.38rem"></i>Calculer</button>';
         h += '</div>';
-        h += '<div style="padding:8px 10px">';
+        h += '<div style="padding:3px 6px">';
         myKids.forEach(function(kid, ki) {
             var kidEvs = evs.filter(function(ev){return ev.config_id === kid.config_id && ev.cours_id === coursId;});
             var taux = kid.taux_participation || 100;
             var pCol = pColors[ki % pColors.length];
-            h += '<div style="margin-bottom:8px;border:1px solid '+pCol+'25;border-radius:8px;overflow:hidden">';
-            h += '<div style="background:'+pCol+'0a;padding:6px 12px;display:flex;align-items:center;gap:6px;border-bottom:1px solid '+pCol+'15">';
-            h += '<i class="fas fa-calendar-day" style="color:'+pCol+';font-size:.6rem"></i>';
-            h += '<span style="color:'+pCol+';font-size:.65rem;font-weight:600">'+kid.nom+'</span>';
-            h += '<span style="background:'+pCol+'15;color:'+pCol+';padding:1px 6px;border-radius:10px;font-size:.4rem;font-weight:600">Taux: '+taux+'%</span>';
-            h += '<button id="bPer_'+kid.config_id+'" onclick="_doCalcPeriodBatch('+coursId+','+par.config_id+','+kid.config_id+')" style="margin-left:auto;background:'+pCol+'15;color:'+pCol+';border:1px solid '+pCol+'30;border-radius:6px;padding:2px 8px;font-size:.42rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:3px;transition:all .2s" onmouseover="this.style.background=\''+pCol+'25\'" onmouseout="this.style.background=\''+pCol+'15\'">';
-            h += '<i class="fas fa-play" style="font-size:.35rem"></i>Calculer</button>';
+            h += '<div style="margin-bottom:3px;border:1px solid '+pCol+'20;border-radius:5px;overflow:hidden">';
+            h += '<div style="background:'+pCol+'08;padding:3px 8px;display:flex;align-items:center;gap:4px;border-bottom:1px solid '+pCol+'12">';
+            h += '<i class="fas fa-calendar-day" style="color:'+pCol+';font-size:.5rem"></i>';
+            h += '<span style="color:'+pCol+';font-size:.55rem;font-weight:600">'+kid.nom+'</span>';
+            h += '<span style="background:'+pCol+'12;color:'+pCol+';padding:0 4px;border-radius:6px;font-size:.36rem;font-weight:600">'+taux+'%</span>';
+            h += '<button id="bPer_'+kid.config_id+'" onclick="_doCalcPeriodBatch('+coursId+','+par.config_id+','+kid.config_id+')" style="margin-left:auto;background:'+pCol+'12;color:'+pCol+';border:1px solid '+pCol+'25;border-radius:4px;padding:1px 5px;font-size:.38rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:2px" onmouseover="this.style.background=\''+pCol+'20\'" onmouseout="this.style.background=\''+pCol+'12\'">';
+            h += '<i class="fas fa-play" style="font-size:.3rem"></i>Calc.</button>';
             h += '</div>';
             if (!kidEvs.length) {
-                h += '<div style="text-align:center;padding:6px;color:#cbd5e1;font-size:.5rem;font-style:italic">Aucune \u00e9valuation</div>';
+                h += '<div style="text-align:center;padding:3px;color:#cbd5e1;font-size:.42rem;font-style:italic">Aucune \u00e9val.</div>';
             } else {
                 var nEvals = kidEvs.length;
-                h += '<table style="width:100%;border-collapse:collapse;font-size:.55rem">';
-                h += '<thead><tr style="background:#f8fafc"><th style="padding:4px;text-align:center;width:26px">\u2713</th><th style="padding:4px;text-align:left">\u00c9valuation</th><th style="padding:4px;text-align:center;width:44px">Max</th><th style="padding:4px;text-align:center;width:68px">Poids %</th></tr></thead>';
+                h += '<table style="width:100%;border-collapse:collapse;font-size:.5rem">';
+                h += '<thead><tr style="background:#f8fafc"><th style="padding:1px 2px;text-align:center;width:22px">\u2713</th><th style="padding:1px 2px;text-align:left">\u00c9val.</th><th style="padding:1px 2px;text-align:center;width:36px">Max</th><th style="padding:1px 2px;text-align:center;width:56px">Poids%</th></tr></thead>';
                 h += '<tbody>';
                 kidEvs.forEach(function(ev) {
                     var existW = existingWeights[kid.config_id] && existingWeights[kid.config_id][ev.id];
                     var defW = existW !== undefined ? existW : Math.round(10000 / nEvals) / 100;
                     h += '<tr style="border-bottom:1px solid #f1f5f9">';
-                    h += '<td style="padding:3px;text-align:center"><input type="checkbox" checked id="bmc_'+kid.config_id+'_'+ev.id+'" onchange="_batchAutoRedist('+kid.config_id+')" style="accent-color:'+pCol+';cursor:pointer;transform:scale(.9)"></td>';
-                    h += '<td style="padding:3px;font-weight:500;color:#1e293b">'+ev.nom+'</td>';
-                    h += '<td style="padding:3px;text-align:center;color:#64748b">/'+ev.max+'</td>';
-                    h += '<td style="padding:3px;text-align:center"><input type="number" id="bmw_'+kid.config_id+'_'+ev.id+'" value="'+defW+'" min="0" max="100" step="0.01" style="width:54px;padding:1px 3px;border:1px solid #d1d5db;border-radius:4px;font-size:.52rem;text-align:center"></td>';
+                    h += '<td style="padding:1px;text-align:center"><input type="checkbox" checked id="bmc_'+kid.config_id+'_'+ev.id+'" onchange="_batchAutoRedist('+kid.config_id+')" style="accent-color:'+pCol+';cursor:pointer;transform:scale(.8)"></td>';
+                    h += '<td style="padding:1px 2px;font-weight:500;color:#1e293b">'+ev.nom+'</td>';
+                    h += '<td style="padding:1px;text-align:center;color:#64748b">/'+ev.max+'</td>';
+                    h += '<td style="padding:1px;text-align:center"><input type="number" id="bmw_'+kid.config_id+'_'+ev.id+'" value="'+defW+'" min="0" max="100" step="0.01" style="width:48px;padding:0 2px;border:1px solid #d1d5db;border-radius:3px;font-size:.48rem;text-align:center"></td>';
                     h += '</tr>';
                 });
                 h += '</tbody></table>';
@@ -6160,11 +6160,11 @@ function _openCoursCalcModal(coursId, coursNom) {
     if (!hasAnySemWithEvals) {
         h += '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:.7rem"><i class="fas fa-info-circle" style="margin-right:6px"></i>Aucune \u00e9valuation pour ce cours.</div>';
     }
-    h += '<div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end;padding-bottom:4px;flex-wrap:wrap">';
-    h += '<button onclick="document.getElementById(\'batchModalOverlay\').remove()" style="padding:7px 14px;background:#f1f5f9;border:1px solid #d1d5db;border-radius:8px;font-size:.58rem;cursor:pointer;color:#475569">Annuler</button>';
+    h += '<div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end;padding-bottom:2px">';
+    h += '<button onclick="document.getElementById(\'batchModalOverlay\').remove()" style="padding:4px 10px;background:#f1f5f9;border:1px solid #d1d5db;border-radius:6px;font-size:.5rem;cursor:pointer;color:#475569">Annuler</button>';
     if (hasAnySemWithEvals) {
-        h += '<button id="batchAllBtn" onclick="_doCalcAllParents('+coursId+')" style="padding:7px 18px;background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;border:none;border-radius:8px;font-size:.58rem;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:5px;box-shadow:0 2px 10px rgba(124,58,237,.3)">';
-        h += '<i class="fas fa-bolt"></i>Calculer TOUT</button>';
+        h += '<button id="batchAllBtn" onclick="_doCalcAllParents('+coursId+')" style="padding:4px 12px;background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;border:none;border-radius:6px;font-size:.5rem;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(124,58,237,.25)">';
+        h += '<i class="fas fa-bolt" style="font-size:.42rem"></i>Calculer TOUT</button>';
     }
     h += '</div>';
     h += '</div></div></div>';
