@@ -111,25 +111,55 @@ def generer_bulletin_pdf(request):
             bk_groupe = None
             bk_section_id = None
 
-    # Trier les élèves par classement annuel (1er → dernier)
+    # Trier les élèves par classement (1er → dernier)
+    # Cascade: annuelle → trimestrielle → periodique
     try:
-        from MonEcole_app.models.evaluations.note import Deliberation_annuelle_resultat
+        from MonEcole_app.models.evaluations.note import (
+            Deliberation_annuelle_resultat,
+            Deliberation_trimistrielle_resultat,
+            Deliberation_periodique_resultat,
+        )
         import re
         rank_map = {}
-        delib_qs = Deliberation_annuelle_resultat.objects.filter(
-            id_classe_id=bk_classe_id,
-            groupe=bk_groupe,
-            section_id=bk_section_id,
-            id_eleve_id__in=id_eleves
-        ).values_list('id_eleve_id', 'place')
-        for eleve_id, place in delib_qs:
-            # Extract numeric rank from "25ème", "1er", etc.
+
+        base_filter = {
+            'id_classe_id': bk_classe_id,
+            'groupe': bk_groupe,
+            'section_id': bk_section_id,
+            'id_eleve_id__in': id_eleves,
+        }
+
+        # 1. Essayer délibération annuelle
+        for eleve_id, place in Deliberation_annuelle_resultat.objects.filter(
+            **base_filter
+        ).values_list('id_eleve_id', 'place'):
             match = re.search(r'(\d+)', place or '')
             if match:
                 rank_map[eleve_id] = int(match.group(1))
+
+        # 2. Si pas de résultats annuels, essayer trimestrielle (plus récente)
+        if not rank_map:
+            for eleve_id, place in Deliberation_trimistrielle_resultat.objects.filter(
+                **base_filter
+            ).order_by('-id_trimestre_id').values_list('id_eleve_id', 'place'):
+                if eleve_id not in rank_map:
+                    match = re.search(r'(\d+)', place or '')
+                    if match:
+                        rank_map[eleve_id] = int(match.group(1))
+
+        # 3. Si toujours rien, essayer périodique (plus récente)
+        if not rank_map:
+            for eleve_id, place in Deliberation_periodique_resultat.objects.filter(
+                **base_filter
+            ).order_by('-id_periode_id').values_list('id_eleve_id', 'place'):
+                if eleve_id not in rank_map:
+                    match = re.search(r'(\d+)', place or '')
+                    if match:
+                        rank_map[eleve_id] = int(match.group(1))
+
         # Sort: ranked students first (by rank), then unranked
         id_eleves.sort(key=lambda eid: rank_map.get(eid, 99999))
-        logger.warning(f"[BULLETIN PDF] Sorted by rank: {[(eid, rank_map.get(eid, '?')) for eid in id_eleves[:5]]}...")
+        logger.warning(f"[BULLETIN PDF] Sorted by rank ({len(rank_map)} ranked): {[(eid, rank_map.get(eid, '?')) for eid in id_eleves[:5]]}...")
     except Exception as e:
         logger.warning(f"[BULLETIN PDF] Could not sort by rank: {e}")
 
