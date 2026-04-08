@@ -13095,54 +13095,137 @@ def execute_deliberation(request):
         if not eleves:
             return JsonResponse({'success': False, 'error': 'Aucun élève inscrit dans cette classe.'}, status=400)
 
-        # Build repartition filter based on delib_type
-        #   - 'periode': filter by exact repartition_id (P1, P2, P3, P4...)
-        #   - 'trimestre': find ALL child period repartitions under this trimestre
-        #   - 'annee': ALL repartitions 
-        #   - 'repechage': session repêchage
-        rep_filter = ""
-        rep_params = []
+        # ─── Build the list of repartition_config IDs and note_type based on delib_type ───
+        from django.db import connections
+        etab_annee_id = eac.etablissement_annee_id
+
+        # 1. Get all cours_annee IDs for this class (Hub)
+        with connections['countryStructure'].cursor() as hub_cur:
+            hub_cur.execute("""
+                SELECT ca.id_cours_annee
+                FROM cours_annee ca
+                WHERE ca.id_cours_id IN (
+                    SELECT id_cours FROM cours WHERE classe_id = %s
+                )
+            """, [eac.classe_id])
+            cours_annee_ids = [row[0] for row in hub_cur.fetchall()]
+
+        if not cours_annee_ids:
+            return JsonResponse({'success': False, 'error': 'Aucun cours configuré pour cette classe.'}, status=400)
+
+        # 2. Determine which config_ids and note_types to query based on delib_type
+        config_ids = []
+        note_types = []
+
         if delib_type == 'periode' and repartition_id:
-            rep_filter = "AND en.id_repartition_instance = %s"
-            rep_params = [int(repartition_id)]
+            # Period deliberation: sum TJ (type=1) for this single period config
+            config_ids = [int(repartition_id)]
+            note_types = [1]  # TJ only
+
         elif delib_type == 'trimestre' and repartition_id:
-            # Le repartition_id est le id du trimestre (repartition_configs_etab_annee.id)
-            # On doit trouver toutes les périodes enfants et leurs repartition_id
-            from MonEcole_app.models.annee import Annee_periode
-            child_rep_ids = list(
-                Annee_periode.objects.filter(
-                    id_trimestre_annee_id=int(repartition_id)
-                ).values_list('repartition_id', flat=True)
-            )
-            if child_rep_ids:
-                placeholders = ','.join(['%s'] * len(child_rep_ids))
-                rep_filter = f"AND en.id_repartition_instance IN ({placeholders})"
-                rep_params = [int(r) for r in child_rep_ids]
+            # Trimester/Semester deliberation: 
+            # Find ALL child period configs under this parent config
+            # Sum TJ (type=1) of all child periods + EX (type=2) on parent
+            with connections['countryStructure'].cursor() as hub_cur:
+                # Get parent type
+                hub_cur.execute("""
+                    SELECT r.type_id FROM repartition_configs_etab_annee rc
+                    JOIN repartition_instances r ON r.id_instance = rc.repartition_id
+                    WHERE rc.id = %s
+                """, [int(repartition_id)])
+                parent_row = hub_cur.fetchone()
+                if parent_row:
+                    parent_type_id = parent_row[0]
+                    # Get child type
+                    hub_cur.execute("""
+                        SELECT type_enfant_id FROM repartition_hierarchies
+                        WHERE type_parent_id = %s AND is_active = 1 LIMIT 1
+                    """, [parent_type_id])
+                    child_type_row = hub_cur.fetchone()
+                    if child_type_row:
+                        child_type_id = child_type_row[0]
+                        # Get ALL child configs for this etab_annee
+                        hub_cur.execute("""
+                            SELECT rc.id FROM repartition_configs_etab_annee rc
+                            JOIN repartition_instances r ON r.id_instance = rc.repartition_id
+                            WHERE rc.etablissement_annee_id = %s AND r.type_id = %s
+                            ORDER BY r.ordre
+                        """, [etab_annee_id, child_type_id])
+                        all_child_ids = [r[0] for r in hub_cur.fetchall()]
+
+                        # Get all parent configs to determine which children belong to this parent
+                        hub_cur.execute("""
+                            SELECT rc.id FROM repartition_configs_etab_annee rc
+                            JOIN repartition_instances r ON r.id_instance = rc.repartition_id
+                            WHERE rc.etablissement_annee_id = %s AND r.type_id = %s
+                            ORDER BY r.ordre
+                        """, [etab_annee_id, parent_type_id])
+                        all_parent_ids = [r[0] for r in hub_cur.fetchall()]
+
+                        if all_parent_ids and all_child_ids:
+                            kids_per_parent = len(all_child_ids) // len(all_parent_ids)
+                            try:
+                                pidx = all_parent_ids.index(int(repartition_id))
+                            except ValueError:
+                                pidx = 0
+                            start = pidx * kids_per_parent
+                            end = start + kids_per_parent
+                            my_child_ids = all_child_ids[start:end]
+                        else:
+                            my_child_ids = all_child_ids
+
+                        # Config IDs = child periods (TJ type=1) + parent (EX type=2)
+                        config_ids = my_child_ids + [int(repartition_id)]
+                        note_types = [1, 2]  # TJ from children + EX from parent
+
+            if not config_ids:
+                config_ids = [int(repartition_id)]
+                note_types = [1, 2, 5]
+
+        elif delib_type == 'examen' and repartition_id:
+            # Exam deliberation: EX (type=2) on parent config
+            config_ids = [int(repartition_id)]
+            note_types = [2]
+
+        elif delib_type == 'annee':
+            # Annual deliberation: get ALL parent configs, sum TOTAL (type=5)
+            # or sum all TJ + EX across all configs
+            with connections['countryStructure'].cursor() as hub_cur:
+                hub_cur.execute("""
+                    SELECT rc.id FROM repartition_configs_etab_annee rc
+                    JOIN repartition_instances r ON r.id_instance = rc.repartition_id
+                    WHERE rc.etablissement_annee_id = %s
+                """, [etab_annee_id])
+                config_ids = [r[0] for r in hub_cur.fetchall()]
+            note_types = [1, 2]  # All TJ + EX
+
+        else:
+            return JsonResponse({'success': False, 'error': f'Type de délibération non supporté: {delib_type}'}, status=400)
 
         import sys
-        print(f"[DELIB DEBUG] type={delib_type}, repartition_id={repartition_id}, rep_filter={rep_filter}, rep_params={rep_params}", file=sys.stderr)
+        print(f"[DELIB DEBUG] type={delib_type}, config_ids={config_ids}, note_types={note_types}, cours_count={len(cours_annee_ids)}", file=sys.stderr)
 
-        # Calculate percentages for each student
+        # 3. Calculate percentages for each student from note_bulletin
+        ca_placeholders = ','.join(['%s'] * len(cours_annee_ids))
+        cfg_placeholders = ','.join(['%s'] * len(config_ids))
+        nt_placeholders = ','.join(['%s'] * len(note_types))
+
         resultats = []
         for eleve in eleves:
             id_eleve = eleve['id_eleve']
 
-            # Get total notes and maxima by joining with evaluation for ponderer_eval
             with connection.cursor() as cur:
-                query = f"""
+                cur.execute(f"""
                     SELECT 
-                        COALESCE(SUM(en.note), 0) as total_note,
-                        COALESCE(SUM(ev.ponderer_eval), 0) as total_max
-                    FROM eleve_note en
-                    JOIN evaluation ev ON ev.id_evaluation = en.id_evaluation_id
-                    WHERE en.id_eleve_id = %s
-                      AND en.id_annee_id = %s
-                      AND en.classe_id = %s AND en.groupe <=> %s AND en.section_id <=> %s
-                      AND en.id_etablissement = %s
-                      {rep_filter}
-                """
-                params = [id_eleve, annee.id_annee, eac.classe_id, eac.groupe, eac.section_id, etab.id_etablissement] + rep_params
-                cur.execute(query, params)
+                        COALESCE(SUM(nb.note), 0) as total_note,
+                        COALESCE(SUM(nb.maxima), 0) as total_max
+                    FROM note_bulletin nb
+                    WHERE nb.id_eleve_id = %s
+                      AND nb.id_etablissement = %s
+                      AND nb.id_cours_annee IN ({ca_placeholders})
+                      AND nb.id_repartition_config IN ({cfg_placeholders})
+                      AND nb.id_note_type IN ({nt_placeholders})
+                """, [id_eleve, etab.id_etablissement] + cours_annee_ids + config_ids + note_types)
                 row = cur.fetchone()
                 total_note = float(row[0]) if row and row[0] else 0
                 total_max = float(row[1]) if row and row[1] else 0
