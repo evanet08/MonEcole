@@ -9343,17 +9343,56 @@ def calculate_period_batch(request):
                         return JsonResponse({'success': False, 'error': 'Hiérarchie non trouvée.'}, status=404)
                     child_type_id = child_type_row[0]
 
-                    # Get ALL child configs under this parent
-                    conn_hub.execute("""
-                        SELECT rc.id AS config_id, rc.repartition_id, r.taux_participation, r.nom
-                        FROM repartition_configs_etab_annee rc
-                        JOIN repartition_instances r ON r.id_instance = rc.repartition_id
-                        WHERE rc.etablissement_annee_id = %s AND r.type_id = %s AND rc.is_open = 1
-                        ORDER BY r.ordre
-                    """, [etab_annee_id, child_type_id])
+                    # Use frontend-provided config_ids if available (correct parent-child mapping)
+                    periods_cfg_raw = data.get('periods_config') or []
+                    if periods_cfg_raw:
+                        frontend_config_ids = [pc['config_id'] for pc in periods_cfg_raw]
+                        ph_fc = ','.join(['%s'] * len(frontend_config_ids))
+                        conn_hub.execute(f"""
+                            SELECT rc.id AS config_id, rc.repartition_id, r.taux_participation, r.nom
+                            FROM repartition_configs_etab_annee rc
+                            JOIN repartition_instances r ON r.id_instance = rc.repartition_id
+                            WHERE rc.id IN ({ph_fc})
+                            ORDER BY r.ordre
+                        """, frontend_config_ids)
+                    else:
+                        # Fallback: discover children, but properly filter by parent ordering
+                        conn_hub.execute("""
+                            SELECT rc.id AS config_id, rc.repartition_id, r.taux_participation, r.nom
+                            FROM repartition_configs_etab_annee rc
+                            JOIN repartition_instances r ON r.id_instance = rc.repartition_id
+                            WHERE rc.etablissement_annee_id = %s AND r.type_id = %s AND rc.is_open = 1
+                            ORDER BY r.ordre
+                        """, [etab_annee_id, child_type_id])
+
                     child_configs = [{'config_id': r[0], 'repartition_id': r[1],
                                       'taux': float(r[2]) if r[2] else 100.0, 'nom': r[3]}
                                      for r in conn_hub.fetchall()]
+
+                    # Fallback filtering: if no periods_config, filter by parent ordering
+                    if not periods_cfg_raw and child_configs:
+                        # Get all parent configs to determine child-parent mapping
+                        conn_hub.execute("""
+                            SELECT rc.id AS config_id
+                            FROM repartition_configs_etab_annee rc
+                            JOIN repartition_instances r ON r.id_instance = rc.repartition_id
+                            WHERE rc.etablissement_annee_id = %s AND r.type_id = %s AND rc.is_open = 1
+                            ORDER BY r.ordre
+                        """, [etab_annee_id, parent_type_id])
+                        all_parent_ids = [r[0] for r in conn_hub.fetchall()]
+                        # Determine child_count_per_root
+                        if all_parent_ids:
+                            child_count_per_root = len(child_configs) // len(all_parent_ids)
+                            if child_count_per_root > 0:
+                                # Find index of our parent in the parent list
+                                try:
+                                    parent_idx = all_parent_ids.index(parent_config_id)
+                                except ValueError:
+                                    parent_idx = 0
+                                start = parent_idx * child_count_per_root
+                                end = start + child_count_per_root
+                                child_configs = child_configs[start:end]
+
                     if not child_configs:
                         return JsonResponse({'success': False, 'error': 'Aucune période enfant trouvée.'}, status=404)
 
@@ -9390,7 +9429,6 @@ def calculate_period_batch(request):
 
                 # Get courses — single or all
                 single_cours_id = data.get('cours_id')
-                periods_cfg_raw = data.get('periods_config') or []
                 # Build lookup: config_id -> {eval_id -> {included, weight}}
                 pcfg_map = {}
                 for pcc in periods_cfg_raw:
@@ -9499,15 +9537,30 @@ def calculate_period_batch(request):
                                 scaled = None
 
                             if scaled is not None:
+                                # Build calc_details JSON for audit trail
+                                details_json = json.dumps({
+                                    'taux_participation': this_taux,
+                                    'total_taux': total_taux,
+                                    'tj_max': tj_max,
+                                    'evaluations': [
+                                        {
+                                            'id': ev['id'],
+                                            'max': ev['max'],
+                                            'weight': ev['weight'],
+                                            'note': raw_notes.get(ev['id'])
+                                        } for ev in included_evals
+                                    ]
+                                })
                                 cur.execute("""
                                     INSERT INTO note_bulletin
                                         (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                         note, maxima, source_type, date_calcul, id_etablissement)
-                                    VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', NOW(), %s)
+                                         note, maxima, source_type, calc_details, date_calcul, id_etablissement)
+                                    VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', %s, NOW(), %s)
                                     ON DUPLICATE KEY UPDATE
                                         note = VALUES(note), maxima = VALUES(maxima),
+                                        calc_details = VALUES(calc_details),
                                         date_calcul = NOW(), updated_at = NOW()
-                                """, [eleve_id, cours_id, cfg_id, child_tj_nt_id, scaled, tj_max, etab_id])
+                                """, [eleve_id, cours_id, cfg_id, child_tj_nt_id, scaled, tj_max, details_json, etab_id])
                                 period_calc += 1
 
                     total_calculated += period_calc

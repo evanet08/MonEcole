@@ -248,6 +248,7 @@ class NoteBulletin(models.Model):
     note = models.DecimalField(decimal_places=2, max_digits=6, null=True, blank=True)
     maxima = models.IntegerField(default=20)
     source_type = models.CharField(max_length=15, default='CALCULE', choices=SOURCE_CHOICES)
+    calc_details = models.TextField(null=True, blank=True)  # JSON: evaluation weights, taux used
     date_calcul = models.DateTimeField(null=True, blank=True)
     id_etablissement = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
