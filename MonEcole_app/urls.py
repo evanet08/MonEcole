@@ -153,6 +153,7 @@ urlpatterns = [
     path('api/deliberations/conditions/', api_views.get_deliberation_conditions, name='get_deliberation_conditions'),
     path('api/deliberations/execute/', api_views.execute_deliberation, name='execute_deliberation'),
     path('api/deliberations/cancel/', api_views.cancel_deliberation, name='cancel_deliberation'),
+    path('api/deliberations/results/', api_views.get_deliberation_results, name='get_deliberation_results'),
 
     # Références
     path('api/get-sessions/', api_views.get_sessions_data, name='get_sessions'),

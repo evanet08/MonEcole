@@ -13420,6 +13420,105 @@ def cancel_deliberation(request):
         traceback.print_exc()
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
+@require_http_methods(["GET"])
+def get_deliberation_results(request):
+    """
+    Charge les résultats de délibération existants.
+    GET /api/deliberations/results/?classe_id=X&type=periode&repartition_id=Y
+    """
+    try:
+        from MonEcole_app.models.evaluations.note import (
+            Deliberation_annuelle_resultat,
+            Deliberation_periodique_resultat,
+            Deliberation_trimistrielle_resultat,
+        )
+
+        classe_id = request.GET.get('classe_id')
+        delib_type = request.GET.get('type', 'periode')
+        repartition_id = request.GET.get('repartition_id')
+
+        etab, err = _get_tenant_etab(request)
+        if err:
+            return err
+
+        annee = Annee.objects.filter(isOpen=True).first()
+        if not annee:
+            return JsonResponse({'success': True, 'resultats': []})
+
+        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).first() if classe_id else None
+        if not eac:
+            return JsonResponse({'success': True, 'resultats': []})
+
+        base_filter = {
+            'id_annee': annee,
+            'id_etablissement': etab.id_etablissement,
+            'id_classe_id': eac.classe_id,
+            'groupe': eac.groupe,
+            'section_id': eac.section_id,
+        }
+
+        results_qs = None
+
+        if delib_type == 'periode' and repartition_id:
+            f = dict(base_filter)
+            f['id_periode_id'] = int(repartition_id)
+            results_qs = Deliberation_periodique_resultat.objects.filter(**f).select_related('id_eleve').order_by('pourcentage').reverse()
+        elif delib_type == 'trimestre' and repartition_id:
+            f = dict(base_filter)
+            f['id_trimestre_id'] = int(repartition_id)
+            results_qs = Deliberation_trimistrielle_resultat.objects.filter(**f).select_related('id_eleve').order_by('pourcentage').reverse()
+        elif delib_type == 'annee':
+            results_qs = Deliberation_annuelle_resultat.objects.filter(**base_filter).select_related('id_eleve').order_by('pourcentage').reverse()
+        else:
+            return JsonResponse({'success': True, 'resultats': []})
+
+        if results_qs is None or not results_qs.exists():
+            return JsonResponse({'success': True, 'resultats': []})
+
+        # Build response
+        resultats = []
+        mentions = {m.id_mention: str(m) for m in Mention.objects.all()}
+
+        for r in results_qs:
+            eleve = r.id_eleve
+            mention_str = '—'
+            decision_str = '—'
+
+            # Get mention from percentage
+            for m in Mention.objects.all():
+                if m.min <= r.pourcentage <= m.max:
+                    mention_str = str(m)
+                    # Get decision from conditions
+                    cond = Deliberation_annuelle_condition.objects.filter(
+                        id_annee=annee, id_mention_id=m.id_mention
+                    ).first()
+                    if cond:
+                        try:
+                            fin = Deliberation_annuelle_finalite.objects.get(id_finalite=cond.id_finalite_id)
+                            decision_str = fin.finalite
+                        except:
+                            decision_str = cond.sanction_disciplinaire or '—'
+                    break
+
+            resultats.append({
+                'id_eleve': eleve.id_eleve,
+                'nom': eleve.nom or '',
+                'prenom': eleve.prenom or '',
+                'pourcentage': round(r.pourcentage, 2),
+                'total_note': '',
+                'total_max': '',
+                'place': r.place,
+                'mention': mention_str,
+                'decision': decision_str,
+            })
+
+        return JsonResponse({'success': True, 'resultats': resultats, 'exists': True})
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
 
 # =============================================================================
 # BULLETINS API

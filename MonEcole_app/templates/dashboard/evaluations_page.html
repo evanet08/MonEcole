@@ -2491,13 +2491,48 @@ function _resetDelibResults() {
     if (badge) badge.style.display = 'none';
 }
 
-// Attach onchange to repartition and session selects
+// Attach onchange to repartition and session selects — auto-load saved results
 (function() {
     var repSel = document.getElementById('delib-repartition-select');
     var sesSel = document.getElementById('delib-session-select');
-    if (repSel) repSel.addEventListener('change', function() { _resetDelibResults(); });
-    if (sesSel) sesSel.addEventListener('change', function() { _resetDelibResults(); });
+    if (repSel) repSel.addEventListener('change', function() { _loadExistingResults(); });
+    if (sesSel) sesSel.addEventListener('change', function() { _loadExistingResults(); });
 })()
+
+async function _loadExistingResults() {
+    var classeId = document.getElementById('delib-classe-select').value;
+    var repId = document.getElementById('delib-repartition-select').value;
+    var type = _currentDelibTab;
+    var badge = document.getElementById('delibStatusBadge');
+
+    if (!classeId || (['periode','trimestre'].indexOf(type)>=0 && !repId)) {
+        _resetDelibResults();
+        return;
+    }
+
+    // Show loading state
+    var container = document.getElementById('delibResultsContainer');
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem;color:#f97316"></i><div style="margin-top:10px;font-size:.78rem;font-weight:600">Chargement...</div></div>';
+
+    try {
+        var url = '/api/deliberations/results/?classe_id=' + classeId + '&type=' + type;
+        if (repId) url += '&repartition_id=' + repId;
+        var res = await fetch(url);
+        var data = await res.json();
+        if (data.success && data.resultats && data.resultats.length > 0) {
+            renderDelibResults(data.resultats);
+            badge.style.display = '';
+            badge.style.background = 'linear-gradient(135deg,#059669,#10b981)';
+            badge.style.color = '#fff';
+            badge.textContent = '\u2705 D\u00e9j\u00e0 d\u00e9lib\u00e9r\u00e9 (' + data.resultats.length + ' \u00e9l\u00e8ves)';
+        } else {
+            _resetDelibResults();
+        }
+    } catch(e) {
+        console.error(e);
+        _resetDelibResults();
+    }
+}
 
 async function onDelibClasseChange() {
     var classeId = document.getElementById('delib-classe-select').value;
