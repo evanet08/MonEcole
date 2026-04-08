@@ -2446,7 +2446,7 @@ function _filterDelibRepartitions() {
     _allDelibRepartitions.filter(function(r){ return showTypes.indexOf(r.type_code)>=0; })
         .forEach(function(r) {
             var opt = document.createElement('option');
-            opt.value = r.repartition_id;
+            opt.value = r.id;
             opt.textContent = r.nom;
             repSelect.appendChild(opt);
         });
