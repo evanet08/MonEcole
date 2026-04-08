@@ -9262,10 +9262,12 @@ def import_exam_notes_excel(request):
 def calculate_period_batch(request):
     """
     Calcule les TJ de TOUTES les périodes enfants d'un parent (semestre)
-    pour TOUS les cours de la classe, en un seul appel.
+    pour UN cours OU tous les cours de la classe.
     Body JSON:
       - classe_id: EAC id
       - parent_config_id: repartition_config id du parent (semestre/trimestre)
+      - cours_id (optional): cours_annee id — if provided, only this course
+      - periods_config (optional): [{config_id, evaluations: [{id, included, weight}]}]
     """
     try:
         user_id = request.session.get('user_id')
@@ -9386,16 +9388,33 @@ def calculate_period_batch(request):
                 finally:
                     conn_hub.close()
 
-                # Get all courses for this class
-                cur.execute("""
-                    SELECT cann.id_cours_annee, cann.maxima_tj, cann.maxima_exam
-                    FROM countryStructure.cours_annee cann
-                    JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
-                    JOIN countryStructure.etablissements_annees ea3 ON ea3.annee_id = cann.annee_id
-                    JOIN countryStructure.etablissements_annees_classes eac3 ON eac3.etablissement_annee_id = ea3.id
-                    WHERE eac3.id = %s AND ca.classe_id = eac3.classe_id
-                    GROUP BY cann.id_cours_annee, cann.maxima_tj, cann.maxima_exam
-                """, [classe_id])
+                # Get courses — single or all
+                single_cours_id = data.get('cours_id')
+                periods_cfg_raw = data.get('periods_config') or []
+                # Build lookup: config_id -> {eval_id -> {included, weight}}
+                pcfg_map = {}
+                for pcc in periods_cfg_raw:
+                    ev_map = {}
+                    for evc in (pcc.get('evaluations') or []):
+                        ev_map[evc['id']] = {'included': evc.get('included', True), 'weight': float(evc.get('weight', 0))}
+                    pcfg_map[pcc['config_id']] = ev_map
+
+                if single_cours_id:
+                    cur.execute("""
+                        SELECT cann.id_cours_annee, cann.maxima_tj, cann.maxima_exam
+                        FROM countryStructure.cours_annee cann
+                        WHERE cann.id_cours_annee = %s
+                    """, [single_cours_id])
+                else:
+                    cur.execute("""
+                        SELECT cann.id_cours_annee, cann.maxima_tj, cann.maxima_exam
+                        FROM countryStructure.cours_annee cann
+                        JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
+                        JOIN countryStructure.etablissements_annees ea3 ON ea3.annee_id = cann.annee_id
+                        JOIN countryStructure.etablissements_annees_classes eac3 ON eac3.etablissement_annee_id = ea3.id
+                        WHERE eac3.id = %s AND ca.classe_id = eac3.classe_id
+                        GROUP BY cann.id_cours_annee, cann.maxima_tj, cann.maxima_exam
+                    """, [classe_id])
                 all_cours = cur.fetchall()
 
                 total_calculated = 0
@@ -9432,13 +9451,26 @@ def calculate_period_batch(request):
                         if not db_evals:
                             continue
 
-                        # Auto equal weight for batch mode
-                        n_evals = len(db_evals)
-                        included_evals = [{
-                            'id': ev['id_evaluation'],
-                            'max': ev['ponderer_eval'] or 0,
-                            'weight': round(100.0 / n_evals, 2) if n_evals > 0 else 0
-                        } for ev in db_evals]
+                        # Use user-provided weights if available
+                        ev_cfg = pcfg_map.get(cfg_id, {})
+                        if ev_cfg:
+                            included_evals = []
+                            for ev in db_evals:
+                                ec = ev_cfg.get(ev['id_evaluation'])
+                                if ec and ec['included']:
+                                    included_evals.append({
+                                        'id': ev['id_evaluation'],
+                                        'max': ev['ponderer_eval'] or 0,
+                                        'weight': ec.get('weight', 0)
+                                    })
+                        else:
+                            # Auto equal weight
+                            n_evals = len(db_evals)
+                            included_evals = [{
+                                'id': ev['id_evaluation'],
+                                'max': ev['ponderer_eval'] or 0,
+                                'weight': round(100.0 / n_evals, 2) if n_evals > 0 else 0
+                            } for ev in db_evals]
 
                         eval_ids = [e['id'] for e in included_evals]
                         placeholders = ','.join(['%s'] * len(eval_ids))
@@ -11088,6 +11120,7 @@ def get_bulletin_overview(request):
                 'is_parent': is_parent,
                 'is_open': cfg.is_open,
                 'parent_config_id': None,
+                'taux_participation': float(rep.taux_participation) if rep.taux_participation else 100.0,
             }
 
             if is_parent:
