@@ -6047,6 +6047,35 @@ async function _doCalcPeriod(coursId, configId) {
     }
 }
 
+// === Calculer TJ Batch (toutes périodes d'un semestre, tous cours) ===
+async function _doCalcBatch(parentConfigId, parentNom) {
+    var btn = document.getElementById('batchBtn_'+parentConfigId);
+    if (!btn) return;
+    var origHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size:.5rem"></i><span>Calcul en cours…</span>';
+    btn.style.opacity = '.7';
+    try {
+        var r = await fetch('/api/notes/bulletin/calculate-period-batch/', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json', 'X-CSRFToken': getCsrfToken()},
+            body: JSON.stringify({classe_id: _compClasseId, parent_config_id: parentConfigId})
+        });
+        var d = await r.json();
+        if (d.success) {
+            var details = (d.periods || []).map(function(p){return p.nom+': '+p.calculated}).join(', ');
+            showToast(d.calculated + ' note(s) TJ calculée(s) — ' + parentNom + ' ('+details+')', 'success');
+            await _loadOv();
+        } else {
+            showToast(d.error || 'Erreur', 'error');
+            btn.disabled = false; btn.innerHTML = origHtml; btn.style.opacity = '1';
+        }
+    } catch(e) {
+        showToast('Erreur connexion: ' + e.message, 'error');
+        btn.disabled = false; btn.innerHTML = origHtml; btn.style.opacity = '1';
+    }
+}
+
 // === Calculer Résultat: TJ (héritage) + EX → TOTAL ===
 function _openCalcResultat(repartitionId, parentNom, coursNom) {
     var overlay = document.getElementById('calcResultatOverlay');
@@ -6174,6 +6203,8 @@ function _render() {
             html += '<i class="fas fa-calendar-alt" style="color:'+tCol+';font-size:.7rem"></i>';
             html += '<span style="color:'+tCol+';font-size:.75rem;font-weight:700">'+par.nom+'</span>';
             html += '<span style="color:#94a3b8;font-size:.45rem;margin-left:6px">'+myKids.length+' période(s)</span>';
+            html += '<button id="batchBtn_'+par.config_id+'" onclick="event.stopPropagation();_doCalcBatch('+par.config_id+',\'' + par.nom.replace(/'/g,'\\\'') + '\')" style="margin-left:auto;background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:.55rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:5px;box-shadow:0 2px 8px rgba(124,58,237,.3);transition:all .2s" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">';
+            html += '<i class="fas fa-bolt" style="font-size:.5rem"></i><span>Calculer TJ (toutes périodes)</span></button>';
             html += '</div>';
             html += '<div id="'+tAid+'" style="display:none;background:#fff;overflow:auto;padding:4px">';
 
