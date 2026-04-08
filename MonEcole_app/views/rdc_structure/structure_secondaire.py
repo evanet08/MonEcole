@@ -549,7 +549,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
     table = Table(table_data, colWidths=col_widths, rowHeights=[4*mm] * len(table_data))
 
     table_style = TableStyle([
-        ('GRID', (0, 0), (-1, -1), 0.3, colors.black),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -590,8 +590,8 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
     # Fusionner verticalement + bordures épaisses pour marquer la séparation
     if num_rows > 3:
         table_style.add('SPAN', (col_hachuree, 3), (col_hachuree, num_rows - 1))
-        table_style.add('LINEAFTER', (col_hachuree - 1, 3), (col_hachuree - 1, num_rows - 1), 1.5, colors.black)
-        table_style.add('LINEAFTER', (col_hachuree, 3), (col_hachuree, num_rows - 1), 1.5, colors.black)
+        table_style.add('LINEAFTER', (col_hachuree - 1, 3), (col_hachuree - 1, num_rows - 1), 0.5, colors.black)
+        table_style.add('LINEAFTER', (col_hachuree, 3), (col_hachuree, num_rows - 1), 0.5, colors.black)
             
     # Lignes finales (MAXIMA, POURCENTAGE, etc.) — fusionner les colonnes non-utilisées avec bordures
     maxima_idx = None
@@ -606,16 +606,16 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
             for col_idx in colonnes_struct:
                 if col_idx < len(table_data[row_idx]):
                     table_data[row_idx][col_idx] = None
-                    table_style.add('LINEAFTER', (col_idx - 1, row_idx), (col_idx - 1, row_idx), 1.5, colors.black)
-                    table_style.add('LINEAFTER', (col_idx, row_idx), (col_idx, row_idx), 1.5, colors.black)
+                    table_style.add('LINEAFTER', (col_idx - 1, row_idx), (col_idx - 1, row_idx), 0.5, colors.black)
+                    table_style.add('LINEAFTER', (col_idx, row_idx), (col_idx, row_idx), 0.5, colors.black)
 
         colonnes_struct_2 = [5, 7, 12, 14]
         for row_idx in range(maxima_idx + 2, min(maxima_idx + 4, num_rows)):
             for col_idx in colonnes_struct_2:
                 if row_idx < num_rows and col_idx < len(table_data[row_idx]):
                     table_data[row_idx][col_idx] = None
-                    table_style.add('LINEAFTER', (col_idx - 1, row_idx), (col_idx - 1, row_idx), 1.5, colors.black)
-                    table_style.add('LINEAFTER', (col_idx, row_idx), (col_idx, row_idx), 1.5, colors.black)
+                    table_style.add('LINEAFTER', (col_idx - 1, row_idx), (col_idx - 1, row_idx), 0.5, colors.black)
+                    table_style.add('LINEAFTER', (col_idx, row_idx), (col_idx, row_idx), 0.5, colors.black)
 
     # Zone signature en bas à droite
     signature_start = num_rows - 6 if num_rows > 6 else num_rows - 1
@@ -816,18 +816,17 @@ def injecter_places_secondaire(table_data, id_annee, id_campus, id_cycle, id_cla
 
 def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_semestre, col, semestres_data=None):
     """
-    Récupère le classement. 
-    - Périodes: id_trimestre_id = repartition_instance_id de la période (P1=1, P2=6, etc.)
-    - Examen/Trimestre: id_trimestre_id = repartition_instance_id du semestre (S1=11, S2=12)
+    Récupère le classement depuis les tables de délibération.
+    Utilise config_id (PK de repartition_configs_etab_annee) car c'est ce que 
+    execute_deliberation stocke dans id_periode_id / id_trimestre_id.
     """
+    from django.db import connections
+    
     if not semestres_data:
         semestres_data = get_semestres(id_annee, id_campus, id_cycle, id_classe)
     
     if not semestres_data:
         return "-"
-    
-    sem1_rep_id = semestres_data[0][2] if len(semestres_data[0]) > 2 else semestres_data[0][0]
-    sem2_rep_id = semestres_data[1][2] if len(semestres_data[1]) > 2 else semestres_data[1][0]
     
     # Resolve EAC → business keys
     from MonEcole_app.models.country_structure import EtablissementAnneeClasse as _EAC
@@ -836,52 +835,64 @@ def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_
         bk_classe_id = _eac.classe_id
         bk_groupe = _eac.groupe
         bk_section_id = _eac.section_id
+        etab_annee_id = _eac.etablissement_annee_id
     except _EAC.DoesNotExist:
         return "-"
 
     filtre_base = {
-        "id_annee_id": id_annee,
-        "idCampus_id": id_campus,
-        "id_cycle_id": id_cycle,
         "id_classe_id": bk_classe_id,
         "groupe": bk_groupe,
         "section_id": bk_section_id,
         "id_eleve_id": id_eleve,
     }
 
-    # Colonnes périodes (TJ) - lookup by period repartition_instance_id
+    # Build code→config_id mapping from DB
+    code_to_config = {}
+    try:
+        with connections['countryStructure'].cursor() as cur:
+            cur.execute("""
+                SELECT rc.id, ri.code
+                FROM repartition_configs_etab_annee rc
+                JOIN repartition_instances ri ON ri.id_instance = rc.repartition_id
+                WHERE rc.etablissement_annee_id = %s
+            """, [etab_annee_id])
+            for row in cur.fetchall():
+                code_to_config[row[1]] = row[0]
+    except Exception:
+        pass
+
+    # Colonnes périodes (TJ)
     if col in [2, 3, 9, 10]:
-        from MonEcole_app.models.country_structure import RepartitionInstance
         col_to_code = {2: "P1", 3: "P2", 9: "P3", 10: "P4"}
         code = col_to_code.get(col)
-        if not code:
+        config_id = code_to_config.get(code)
+        if not config_id:
             return "-"
-        # Get the repartition_instance_id for this period code
-        try:
-            rep_inst = RepartitionInstance.objects.filter(code=code).first()
-            if rep_inst:
-                filtre = {**filtre_base, "id_trimestre_id": rep_inst.id_instance}
-                res = Deliberation_periodique_resultat.objects.filter(**filtre).first()
-                return res.place.strip() if res and res.place and res.place.strip() else "-"
-        except Exception:
-            pass
-        return "-"
+        filtre = {**filtre_base, "id_periode_id": config_id}
+        res = Deliberation_periodique_resultat.objects.filter(**filtre).first()
+        return res.place.strip() if res and res.place and res.place.strip() else "-"
 
-    # Colonnes examen
+    # Colonnes examen (sem1=col5, sem2=col12)
     if col in [5, 12]:
-        sem_rep = sem1_rep_id if col == 5 else sem2_rep_id
-        filtre = {**filtre_base, "id_trimestre_id": sem_rep}
+        sem_code = "S1" if col == 5 else "S2"
+        config_id = code_to_config.get(sem_code)
+        if not config_id:
+            return "-"
+        filtre = {**filtre_base, "id_trimestre_id": config_id}
         res = Deliberation_examen_resultat.objects.filter(**filtre).first()
         return res.place.strip() if res and res.place and res.place.strip() else "-"
 
-    # Colonnes total semestre
+    # Colonnes total semestre (sem1=col7, sem2=col14)
     if col in [7, 14]:
-        sem_rep = sem1_rep_id if col == 7 else sem2_rep_id
-        filtre = {**filtre_base, "id_trimestre_id": sem_rep}
+        sem_code = "S1" if col == 7 else "S2"
+        config_id = code_to_config.get(sem_code)
+        if not config_id:
+            return "-"
+        filtre = {**filtre_base, "id_trimestre_id": config_id}
         res = Deliberation_trimistrielle_resultat.objects.filter(**filtre).first()
         return res.place.strip() if res and res.place and res.place.strip() else "-"
 
-    # Col 16 = TOTAL GENERAL place (deliberation annuelle)
+    # Col 16 = TOTAL GENERAL (deliberation annuelle)
     if col == 16:
         res = Deliberation_annuelle_resultat.objects.filter(**filtre_base).first()
         return res.place.strip() if res and res.place and res.place.strip() else "-"
