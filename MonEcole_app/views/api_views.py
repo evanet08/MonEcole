@@ -13099,24 +13099,7 @@ def execute_deliberation(request):
         from django.db import connections
         etab_annee_id = eac.etablissement_annee_id
 
-        # 1. Get all cours_annee IDs for this class (Hub)
-        with connections['countryStructure'].cursor() as hub_cur:
-            hub_cur.execute("""
-                SELECT ca.id_cours_annee
-                FROM cours_annee ca
-                WHERE ca.cours_id IN (
-                    SELECT id_cours FROM cours WHERE classe_id = %s
-                )
-                AND ca.etablissement_id = (
-                    SELECT etablissement_id FROM etablissements_annees WHERE id = %s
-                )
-            """, [eac.classe_id, etab_annee_id])
-            cours_annee_ids = [row[0] for row in hub_cur.fetchall()]
-
-        if not cours_annee_ids:
-            return JsonResponse({'success': False, 'error': 'Aucun cours configuré pour cette classe.'}, status=400)
-
-        # 2. Determine which config_ids and note_types to query based on delib_type
+        # Determine which config_ids and note_types to query based on delib_type
         config_ids = []
         note_types = []
 
@@ -13191,12 +13174,10 @@ def execute_deliberation(request):
             note_types = [2]
 
         elif delib_type == 'annee':
-            # Annual deliberation: get ALL parent configs, sum TOTAL (type=5)
-            # or sum all TJ + EX across all configs
+            # Annual deliberation: get ALL configs, sum all TJ + EX
             with connections['countryStructure'].cursor() as hub_cur:
                 hub_cur.execute("""
                     SELECT rc.id FROM repartition_configs_etab_annee rc
-                    JOIN repartition_instances r ON r.id_instance = rc.repartition_id
                     WHERE rc.etablissement_annee_id = %s
                 """, [etab_annee_id])
                 config_ids = [r[0] for r in hub_cur.fetchall()]
@@ -13206,10 +13187,10 @@ def execute_deliberation(request):
             return JsonResponse({'success': False, 'error': f'Type de délibération non supporté: {delib_type}'}, status=400)
 
         import sys
-        print(f"[DELIB DEBUG] type={delib_type}, config_ids={config_ids}, note_types={note_types}, cours_count={len(cours_annee_ids)}", file=sys.stderr)
+        print(f"[DELIB DEBUG] type={delib_type}, config_ids={config_ids}, note_types={note_types}", file=sys.stderr)
 
-        # 3. Calculate percentages for each student from note_bulletin
-        ca_placeholders = ','.join(['%s'] * len(cours_annee_ids))
+        # Calculate percentages for each student from note_bulletin
+        # note_bulletin is already scoped by id_etablissement, no need for cours_annee filter
         cfg_placeholders = ','.join(['%s'] * len(config_ids))
         nt_placeholders = ','.join(['%s'] * len(note_types))
 
@@ -13225,10 +13206,9 @@ def execute_deliberation(request):
                     FROM note_bulletin nb
                     WHERE nb.id_eleve_id = %s
                       AND nb.id_etablissement = %s
-                      AND nb.id_cours_annee IN ({ca_placeholders})
                       AND nb.id_repartition_config IN ({cfg_placeholders})
                       AND nb.id_note_type IN ({nt_placeholders})
-                """, [id_eleve, etab.id_etablissement] + cours_annee_ids + config_ids + note_types)
+                """, [id_eleve, etab.id_etablissement] + config_ids + note_types)
                 row = cur.fetchone()
                 total_note = float(row[0]) if row and row[0] else 0
                 total_max = float(row[1]) if row and row[1] else 0
