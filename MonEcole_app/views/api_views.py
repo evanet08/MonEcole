@@ -13431,6 +13431,8 @@ def get_deliberation_results(request):
             Deliberation_annuelle_resultat,
             Deliberation_periodique_resultat,
             Deliberation_trimistrielle_resultat,
+            Deliberation_annuelle_condition,
+            Deliberation_annuelle_finalite,
         )
 
         classe_id = request.GET.get('classe_id')
