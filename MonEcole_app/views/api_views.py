@@ -13104,10 +13104,13 @@ def execute_deliberation(request):
             hub_cur.execute("""
                 SELECT ca.id_cours_annee
                 FROM cours_annee ca
-                WHERE ca.id_cours_id IN (
+                WHERE ca.cours_id IN (
                     SELECT id_cours FROM cours WHERE classe_id = %s
                 )
-            """, [eac.classe_id])
+                AND ca.etablissement_id = (
+                    SELECT etablissement_id FROM etablissements_annees WHERE id = %s
+                )
+            """, [eac.classe_id, etab_annee_id])
             cours_annee_ids = [row[0] for row in hub_cur.fetchall()]
 
         if not cours_annee_ids:
