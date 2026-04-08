@@ -2663,7 +2663,9 @@ function renderDelibResults(resultats) {
         html += '<tr style="background:'+bg+';transition:background .15s" onmouseover="this.style.background=\'#f0f4ff\'" onmouseout="this.style.background=\''+bg+'\'">';
         html += '<td style="padding:10px 12px;text-align:center;border-bottom:1px solid #f1f5f9">'+rank+'</td>';
         html += '<td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;font-weight:700;color:#0f172a;font-size:.76rem">'+(r.nom||'')+' '+(r.prenom||'')+'</td>';
-        html += '<td style="padding:10px 10px;text-align:center;border-bottom:1px solid #f1f5f9;color:#475569;font-size:.68rem;font-weight:600">'+(r.total_note!=null?parseFloat(r.total_note).toFixed(1):'\u2014')+'/'+(r.total_max||'\u2014')+'</td>';
+        var totalNote = (r.total_note !== '' && r.total_note != null && !isNaN(parseFloat(r.total_note))) ? parseFloat(r.total_note).toFixed(1) : '\u2014';
+        var totalMax = (r.total_max !== '' && r.total_max != null && !isNaN(parseFloat(r.total_max))) ? parseFloat(r.total_max).toFixed(1) : '\u2014';
+        html += '<td style="padding:10px 10px;text-align:center;border-bottom:1px solid #f1f5f9;color:#475569;font-size:.68rem;font-weight:600">'+totalNote+'/'+totalMax+'</td>';
         html += '<td style="padding:10px 10px;text-align:center;border-bottom:1px solid #f1f5f9"><span style="background:'+pctBg+';color:'+pctColor+';padding:4px 12px;border-radius:8px;font-weight:800;font-size:.74rem">'+pct.toFixed(1)+'%</span></td>';
         html += '<td style="padding:10px 10px;text-align:center;border-bottom:1px solid #f1f5f9;font-weight:700;color:#334155">'+(r.place||'\u2014')+'</td>';
         html += '<td style="padding:10px 10px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#475569">'+(r.mention||'\u2014')+'</td>';
