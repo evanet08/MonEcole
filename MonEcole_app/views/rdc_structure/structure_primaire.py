@@ -88,7 +88,7 @@ def get_styles():
     styles = getSampleStyleSheet()
     style_normal = ParagraphStyle(name='NormalSmall', fontSize=4.5, leading=6, alignment=0, fontName='Times-Roman')  
     style_center = ParagraphStyle(name='CenterSmall', fontSize=4.5, leading=6, alignment=1, fontName='Times-Roman')  
-    style_title = ParagraphStyle(name='TitleSmall', fontSize=8, leading=9, alignment=1, fontName='Times-Bold')
+    style_title = ParagraphStyle(name='TitleSmall', fontSize=8, leading=9, alignment=1, fontName='Helvetica-Bold')
     style_right = ParagraphStyle(name='RightSmall', fontSize=7, leading=8, alignment=2, fontName='Times-Italic') 
     return styles, style_normal, style_center, style_title, style_right
 
@@ -214,12 +214,66 @@ def create_line2_left(elements, style_normal, id_campus=None):
     ]))
     return left_table_vertical  
 
-def create_nid_section(elements, style_normal):
-    nid_squares = [[None] * 27]
-    nid_squares_table = Table(nid_squares, colWidths=[3*mm]*27, rowHeights=4*mm)
-    nid_squares_table.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 0.5, colors.black)]))
-    nid_data = [[Paragraph("<font color='black'><b>N.ID :</b></font>", style_normal), nid_squares_table]]
-    nid_table = Table(nid_data, colWidths=[15*mm, 81*mm], hAlign='CENTER')
+def create_nid_section(elements, style_normal, eleve=None, id_campus=None):
+    """N.ID section: numero_serie_eleve - matricule_ecole displayed in bold detached boxes."""
+    # Build the NID string: numero_serie - matricule
+    nid_value = ""
+    numero_serie = ""
+    matricule = ""
+
+    if eleve and hasattr(eleve, 'numero_serie') and eleve.numero_serie:
+        numero_serie = str(eleve.numero_serie).strip()
+
+    if id_campus:
+        try:
+            campus = Campus.objects.get(idCampus=id_campus)
+            if campus.id_etablissement:
+                from django.db import connections
+                with connections['countryStructure'].cursor() as cursor:
+                    cursor.execute(
+                        "SELECT matricule FROM etablissements WHERE id_etablissement = %s",
+                        [campus.id_etablissement]
+                    )
+                    row = cursor.fetchone()
+                    if row and row[0]:
+                        matricule = str(row[0]).strip()
+        except Exception:
+            pass
+
+    if numero_serie and matricule:
+        nid_value = f"{numero_serie}-{matricule}"
+    elif numero_serie:
+        nid_value = numero_serie
+    elif matricule:
+        nid_value = matricule
+
+    # Create individual character boxes (bold, detached)
+    nb_cases = max(len(nid_value), 20)  # minimum 20 boxes
+    chars = list(nid_value.ljust(nb_cases))  # pad with spaces if shorter
+
+    nid_squares = [chars]
+    nid_squares_table = Table(nid_squares, colWidths=[3.5*mm]*nb_cases, rowHeights=4.5*mm)
+    nid_squares_table.setStyle(TableStyle([
+        ('BOX', (0,0), (-1,-1), 0, colors.white),  # no outer border
+        ('INNERGRID', (0,0), (-1,-1), 0, colors.white),  # no inner grid
+        ('FONTNAME', (0,0), (-1,-1), 'Times-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 7),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 0),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+        ('LEFTPADDING', (0,0), (-1,-1), 0),
+        ('RIGHTPADDING', (0,0), (-1,-1), 0),
+    ]))
+    # Add individual borders for each cell (detached boxes)
+    for i in range(nb_cases):
+        nid_squares_table.setStyle(TableStyle([
+            ('BOX', (i,0), (i,0), 0.5, colors.black),
+        ]))
+
+    nid_label_style = ParagraphStyle(name='NIDLabel', fontSize=5, leading=7, alignment=1, fontName='Helvetica-Bold')
+    nid_data = [[Paragraph("N.ID", nid_label_style), nid_squares_table]]
+    nid_table = Table(nid_data, colWidths=[12*mm, nb_cases*3.5*mm + 4*mm], hAlign='CENTER')
     nid_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (0, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -1296,32 +1350,94 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
 
 
 
-def create_footer(elements, style_normal, style_center):
+def create_footer(elements, style_normal, style_center, id_classe=None):
+    """Footer matching official RDC bulletin format."""
+    # Retrieve institution info for dynamic footer
+    chef_nom = ""
+    ville = ""
+    ecole_nom = ""
+    if id_classe:
+        try:
+            _eac = EtablissementAnneeClasse.objects.select_related('etablissement_annee').get(id=id_classe)
+            etab_id = _eac.etablissement_annee.etablissement_id
+            from django.db import connections
+            with connections['countryStructure'].cursor() as cur:
+                cur.execute(
+                    "SELECT nom, representant, emplacement FROM etablissements WHERE id_etablissement = %s",
+                    [etab_id]
+                )
+                row = cur.fetchone()
+                if row:
+                    ecole_nom = row[0] or ""
+                    chef_nom = row[1] or ""
+                    ville = row[2] or ""
+        except Exception:
+            pass
+
+    style_footer = ParagraphStyle(name='FooterText', fontSize=4, leading=5, alignment=0, fontName='Times-Roman')
+    style_footer_center = ParagraphStyle(name='FooterCenter', fontSize=4, leading=5, alignment=1, fontName='Times-Roman')
+    style_footer_right = ParagraphStyle(name='FooterRight', fontSize=4, leading=5, alignment=2, fontName='Times-Roman')
+    style_footer_bold = ParagraphStyle(name='FooterBold', fontSize=4, leading=5, alignment=0, fontName='Times-Bold')
+
+    import datetime
+    date_str = datetime.date.today().strftime('%d/%m/%Y')
+    fait_a = f"Fait à {ville} le {date_str}" if ville else f"Fait le {date_str}"
+
+    # Row 1: repêchage line (full width)
+    repechage_line = Paragraph(
+        "L'élève ne pourra pas passer dans la classe supérieure s'il n'a pas subi avec succès "
+        "un examen de repêchage en ..............................................................",
+        style_footer
+    )
+
+    # Row 2: three-column layout
+    left_col = Paragraph(
+        "L'élève passe dans la classe supérieure (1)<br/>"
+        "L'élève double la classe (1)",
+        style_footer
+    )
+    center_col = Paragraph("Sceau de l'école", style_footer_center)
+    right_col = Paragraph(
+        f"{fait_a}<br/>"
+        f"Le chef de l'Établissement<br/>"
+        f"Nom et Signature<br/>"
+        f"<b>{chef_nom}</b>",
+        style_footer_right
+    )
+
+    # Row 3: note
+    note_line = Paragraph(
+        "(1): Biffer la mention inutile<br/>"
+        "<b>NOTE IMPORTANTE</b>: Le bulletin est sans importance s'il est raturé ou surchargé",
+        style_footer
+    )
+
+    # Row 4: branding
+    branding = Paragraph(
+        "<i>Proclamation générée par MonEkole (https://monecole.pro)</i>",
+        style_footer_center
+    )
+
+    # Build the footer table
     footer_data = [
-        [
-            Paragraph("L'élève passe dans la classe supérieure<br/>L'élève double la classe<br/>(1) : Biffer la mention inutile<br/>Note importante : Le bulletin est sans valeur s'il est raturé ou surchargé", style_normal),
-            Paragraph("Sceau de l'école<br/><br/>Interdiction formelle de reproduire ce bulletin sous peine des sanctions prévues par la loi", style_center),
-            None
-        ],
-        [
-            None,
-            None,
-            Paragraph("<font color='black'><b>Le chef de l'établissement<br/>Nom et signature : Ndayiragije Alain Fabrice</b></font>", style_normal)
-        ]
+        [repechage_line, None, None],
+        [left_col, center_col, right_col],
+        [note_line, None, None],
+        [branding, None, None],
     ]
-    footer_table = Table(footer_data, colWidths=[70*mm, 70*mm, 50*mm])
+    footer_table = Table(footer_data, colWidths=[70*mm, 50*mm, 70*mm])
     footer_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-        ('ALIGN', (1, 0), (1, 0), 'CENTER'),
-        ('ALIGN', (2, 1), (2, 1), 'RIGHT'),
-        ('TOPPADDING', (0, 0), (-1, -1), 0.5),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0.5),
-        ('LEFTPADDING', (0, 0), (-1, -1), 0.5),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 0.5),
+        ('SPAN', (0, 0), (2, 0)),   # repêchage line spans full width
+        ('SPAN', (0, 2), (2, 2)),   # note line spans full width
+        ('SPAN', (0, 3), (2, 3)),   # branding spans full width
+        ('LINEABOVE', (0, 0), (-1, 0), 0.5, colors.black),
+        ('TOPPADDING', (0, 0), (-1, -1), 1*mm),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0.5*mm),
+        ('LEFTPADDING', (0, 0), (-1, -1), 1),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 1),
     ]))
     elements.append(footer_table)
-    elements.append(Spacer(1, 0.5*mm))
 
 
 def draw_border(canvas, doc, eleve, margin):

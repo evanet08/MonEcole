@@ -348,7 +348,7 @@ def generer_bulletin_pdf(request):
                     check_image_paths(logo_path, emblem_path)
 
                     create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=eleve)
-                    create_nid_section(elements, style_normal)
+                    create_nid_section(elements, style_normal, eleve=eleve, id_campus=idCampus)
                     left_table = create_line2_left(elements, style_normal, id_campus=idCampus)
                     right_table = create_line2_right(elements, eleve, style_normal, id_classe)
                     create_line2_section(elements, left_table, right_table)
@@ -409,7 +409,7 @@ def generer_bulletin_pdf(request):
                     elements.append(Spacer(1, 5*mm))
 
                     create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=eleve)
-                    create_nid_section(elements, style_normal)
+                    create_nid_section(elements, style_normal, eleve=eleve, id_campus=idCampus)
                     left_table = create_line2_left(elements, style_normal, id_campus=idCampus)
                     right_table = create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
                     create_line2_section__secondaire_rdc(elements, left_table, right_table)
@@ -452,7 +452,7 @@ def generer_bulletin_pdf(request):
                         check_image_paths(logo_path, emblem_path)
 
                         create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=eleve)
-                        create_nid_section(elements, style_normal)
+                        create_nid_section(elements, style_normal, eleve=eleve, id_campus=idCampus)
                         left_table = create_line2_left(elements, style_normal, id_campus=idCampus)
                         right_table = create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
                         create_line2_section__secondaire_rdc(elements, left_table, right_table)
@@ -490,7 +490,7 @@ def generer_bulletin_pdf(request):
                         check_image_paths(logo_path, emblem_path)
 
                         create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=eleve)
-                        create_nid_section(elements, style_normal)
+                        create_nid_section(elements, style_normal, eleve=eleve, id_campus=idCampus)
                         left_table = create_line2_left(elements, style_normal, id_campus=idCampus)
                         right_table = create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
                         create_line2_section__secondaire_rdc(elements, left_table, right_table)

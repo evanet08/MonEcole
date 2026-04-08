@@ -658,45 +658,91 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
    
    
 def create_footer__secondaire_rdc(elements, style_normal, style_center, classe_id):
-    footer_data = [
-        [
-            Paragraph(
-                "L'élève passe dans la classe supérieure<br/>"
-                "L'élève double la classe<br/>"
-                "(1) : Biffer la mention inutile<br/>"
-                "Note importante : Le bulletin est sans valeur s'il est raturé ou surchargé",
-                style_normal
-            ),
-            Paragraph(
-                "Sceau de l'école<br/><br/>"
-                "Interdiction formelle de reproduire ce bulletin sous peine des sanctions prévues par la loi",
-                style_center
-            ),
-            None
-        ],
-        [
-            None,
-            None,
-            Paragraph(
-                "<font color='black'><b>Le chef de l'établissement<br/>"
-                "Nom et signature : Ndayiragije Alain Fabrice</b></font>",
-                style_normal
-            )
-        ]
-    ]
+    """Footer matching official RDC bulletin format — used by secondaire and cycle supérieur."""
+    # Retrieve institution info for dynamic footer
+    chef_nom = ""
+    ville = ""
+    ecole_nom = ""
+    if classe_id:
+        try:
+            _eac = EtablissementAnneeClasse.objects.select_related('etablissement_annee').get(id=classe_id)
+            etab_id = _eac.etablissement_annee.etablissement_id
+            from django.db import connections
+            with connections['countryStructure'].cursor() as cur:
+                cur.execute(
+                    "SELECT nom, representant, emplacement FROM etablissements WHERE id_etablissement = %s",
+                    [etab_id]
+                )
+                row = cur.fetchone()
+                if row:
+                    ecole_nom = row[0] or ""
+                    chef_nom = row[1] or ""
+                    ville = row[2] or ""
+        except Exception:
+            pass
 
-    footer_table = Table(footer_data, colWidths=[70*mm, 70*mm, 50*mm])
+    style_footer = ParagraphStyle(name='FooterTextSec', fontSize=4, leading=5, alignment=0, fontName='Times-Roman')
+    style_footer_center = ParagraphStyle(name='FooterCenterSec', fontSize=4, leading=5, alignment=1, fontName='Times-Roman')
+    style_footer_right = ParagraphStyle(name='FooterRightSec', fontSize=4, leading=5, alignment=2, fontName='Times-Roman')
+
+    import datetime
+    date_str = datetime.date.today().strftime('%d/%m/%Y')
+    fait_a = f"Fait à {ville} le {date_str}" if ville else f"Fait le {date_str}"
+
+    # Row 1: repêchage line (full width)
+    repechage_line = Paragraph(
+        "L'élève ne pourra pas passer dans la classe supérieure s'il n'a pas subi avec succès "
+        "un examen de repêchage en ..............................................................",
+        style_footer
+    )
+
+    # Row 2: three-column layout
+    left_col = Paragraph(
+        "L'élève passe dans la classe supérieure (1)<br/>"
+        "L'élève double la classe (1)",
+        style_footer
+    )
+    center_col = Paragraph("Sceau de l'école", style_footer_center)
+    right_col = Paragraph(
+        f"{fait_a}<br/>"
+        f"Le chef de l'Établissement<br/>"
+        f"Nom et Signature<br/>"
+        f"<b>{chef_nom}</b>",
+        style_footer_right
+    )
+
+    # Row 3: note
+    note_line = Paragraph(
+        "(1): Biffer la mention inutile<br/>"
+        "<b>NOTE IMPORTANTE</b>: Le bulletin est sans importance s'il est raturé ou surchargé",
+        style_footer
+    )
+
+    # Row 4: branding
+    branding = Paragraph(
+        "<i>Proclamation générée par MonEkole (https://monecole.pro)</i>",
+        style_footer_center
+    )
+
+    # Build the footer table
+    footer_data = [
+        [repechage_line, None, None],
+        [left_col, center_col, right_col],
+        [note_line, None, None],
+        [branding, None, None],
+    ]
+    footer_table = Table(footer_data, colWidths=[70*mm, 50*mm, 70*mm])
     footer_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-        ('ALIGN', (1, 0), (1, 0), 'CENTER'),
-        ('ALIGN', (2, 1), (2, 1), 'RIGHT'),
-        ('TOPPADDING', (0, 0), (-1, -1), 0.5*mm),
+        ('SPAN', (0, 0), (2, 0)),   # repêchage line full width
+        ('SPAN', (0, 2), (2, 2)),   # note line full width
+        ('SPAN', (0, 3), (2, 3)),   # branding full width
+        ('LINEABOVE', (0, 0), (-1, 0), 0.5, colors.black),
+        ('TOPPADDING', (0, 0), (-1, -1), 1*mm),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0.5*mm),
-        ('LEFTPADDING', (0, 0), (-1, -1), 0.5*mm),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 0.5*mm),
+        ('LEFTPADDING', (0, 0), (-1, -1), 1),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 1),
     ]))
-
     elements.append(footer_table)
     elements.append(Spacer(1, 4*mm))  
     resultat_table = None
