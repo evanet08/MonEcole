@@ -25,9 +25,9 @@ logger = logging.getLogger(__name__)
 
 styles = getSampleStyleSheet()
 style_center = ParagraphStyle(name='CenterSec', parent=styles['Normal'], fontSize=8, leading=9, alignment=1)
-style_center_bold = ParagraphStyle(name='CenterSecBold', parent=style_center, fontName='Helvetica-Bold', fontSize=8, leading=9, alignment=1)
-style_normal = styles['Normal']
-style_normal.alignment = 0  
+style_center_bold = ParagraphStyle(name='CenterSecBold', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=7, leading=8, alignment=1)
+style_normal = ParagraphStyle(name='NormalSec', parent=styles['Normal'], fontSize=8, leading=9, alignment=0)
+style_normal_bold = ParagraphStyle(name='NormalSecBold', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=7, leading=8, alignment=0)
 
 
 def get_semestres(id_annee, id_campus, id_cycle, id_classe):
@@ -418,22 +418,22 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
         nom_trim1 = "PREMIER SEMESTRE"
         nom_trim2 = "SECOND SEMESTRE"
     table_data.append([
-        Paragraph("<font color='black'><b>BRANCHES</b></font>", style_center),
-        Paragraph(f"<font color='black'><b>{nom_trim1}</b></font>", style_center), None, None, None, None, None, None,
-        Paragraph(f"<font color='black'><b>{nom_trim2}</b></font>", style_center), None, None, None, None, None, None,
-        Paragraph("<font color='black'><b>TOTAL GENERAL</b></font>", style_center), None,
-        Paragraph("<font color='black'><b></b></font>", style_center), 
-        Paragraph("<font color='black'><b>EXAMEN DE REPECHAGE</b></font>", style_center)  
+        Paragraph("<b>BRANCHES</b>", style_center_bold),
+        Paragraph(f"<b>{nom_trim1}</b>", style_center_bold), None, None, None, None, None, None,
+        Paragraph(f"<b>{nom_trim2}</b>", style_center_bold), None, None, None, None, None, None,
+        Paragraph("<b>TOTAL GENERAL</b>", style_center_bold), None,
+        Paragraph("", style_center_bold), 
+        Paragraph("<b>EXAMEN DE REPECHAGE</b>", style_center_bold)  
     ])
 
     table_data.append([
         None,
-        Paragraph("<font color='black'><b>TRAV.JOUR.</b></font>", style_center), None, None,
-        Paragraph("<font color='black'><b>EXAM</b></font>", style_center), None,
-        Paragraph("<font color='black'><b>TOT.SEM</b></font>", style_center), None,
-        Paragraph("<font color='black'><b>TRAV.JOUR.</b></font>", style_center), None, None,
-        Paragraph("<font color='black'><b>EXAM</b></font>", style_center), None,
-        Paragraph("<font color='black'><b>TOT.SEM</b></font>", style_center), None,
+        Paragraph("<b>TRAV.JOUR.</b>", style_center_bold), None, None,
+        Paragraph("<b>EXAM</b>", style_center_bold), None,
+        Paragraph("<b>TOT.SEM</b>", style_center_bold), None,
+        Paragraph("<b>TRAV.JOUR.</b>", style_center_bold), None, None,
+        Paragraph("<b>EXAM</b>", style_center_bold), None,
+        Paragraph("<b>TOT.SEM</b>", style_center_bold), None,
         None, None, 
         None,     
         None      
@@ -478,7 +478,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
     for groupe in domaines_cours:
         domaine_nom = groupe['domaine']
 
-        row_domaine = [Paragraph(f"<font color='black'><b>{domaine_nom}</b></font>", style_center)]
+        row_domaine = [Paragraph(f"<b>{domaine_nom}</b>", style_center_bold)]
         table_data.append(row_domaine + [None] * 19) 
 
         if domaine_index < len(lignes_domaines) and ligne_courante == lignes_domaines[domaine_index]:
@@ -513,11 +513,11 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                     row.append(Paragraph(str(note_val), style_center))
 
                 elif col in [1, 8]:
-                    row.append(Paragraph(str(ponderation), style_center_bold))
+                    row.append(Paragraph(f"<b>{ponderation}</b>", style_center_bold))
 
                 elif col in [4, 11]:
                     exam_val = exam if exam != "-" else "0"
-                    row.append(Paragraph(str(exam_val), style_center_bold))
+                    row.append(Paragraph(f"<b>{exam_val}</b>", style_center_bold))
                     if col == 4:
                         val_exam_t1 = exam_val
                     if col == 11:
@@ -530,14 +530,14 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                     pond_val = float(ponderation) if ponderation != "-" else 0.0
                     val_tot_sem_t1 = pond_val + float(val_exam_t1)
                     display_tot_sem = str(int(val_tot_sem_t1)) if val_tot_sem_t1 == int(val_tot_sem_t1) else str(val_tot_sem_t1)
-                    row.append(Paragraph(display_tot_sem, style_center_bold))
+                    row.append(Paragraph(f"<b>{display_tot_sem}</b>", style_center_bold))
 
                 elif col == 13: 
                     # Max TOT.SEM = Max TJ (ponderation) + Max Exam
                     pond_val = float(ponderation) if ponderation != "-" else 0.0
                     val_tot_sem_t2 = pond_val + float(val_exam_t2)
                     display_tot_sem = str(int(val_tot_sem_t2)) if val_tot_sem_t2 == int(val_tot_sem_t2) else str(val_tot_sem_t2)
-                    row.append(Paragraph(display_tot_sem, style_center_bold))
+                    row.append(Paragraph(f"<b>{display_tot_sem}</b>", style_center_bold))
 
                 elif col == 7:  
                     tot_s1 = 0.0
@@ -565,7 +565,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                         tot_max = float(row[6].text or 0) + float(row[13].text or 0)
                     except:
                         tot_max = 0.0
-                    row.append(Paragraph(str(round(tot_max, 2)), style_center_bold))
+                    row.append(Paragraph(f"<b>{round(tot_max, 2)}</b>", style_center_bold))
 
                 elif col == 16:
                     # TOTAL GENERAL col 16 = Total Obtenu (TOT S1 + TOT S2)
@@ -584,7 +584,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
             table_data.append(row)
 
 
-        row_sous_total = [Paragraph("<b>Sous Total</b>", style_normal)] + [None] * 19
+        row_sous_total = [Paragraph("<b>Sous Total</b>", style_normal_bold)] + [None] * 19
         table_data.append(row_sous_total)
         ligne_courante += 1  
     lignes_finales = [
@@ -597,11 +597,8 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
     ]
 
     for texte in lignes_finales:
-        if texte == "APPLICATION":
-            table_data.append([Paragraph(f"<b>{texte}</b>", style_normal)] + [None] * 19)
-        else:
-            table_data.append([Paragraph(f"<b>{texte}</b>", style_normal)] + [None] * 19)
-    calculer_sous_totaux_et_maxima_secondaire(table_data, style_center)
+        table_data.append([Paragraph(f"<b>{texte}</b>", style_normal_bold)] + [None] * 19)
+    calculer_sous_totaux_et_maxima_secondaire(table_data, style_center_bold)
     calculer_pourcentages_secondaire(table_data, style_center)
     injecter_places_secondaire(
         table_data,
