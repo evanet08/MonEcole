@@ -140,11 +140,21 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
     ]))
 
-    # Column 3 data (Sexe / Date Naissance)
-    date_naissance = str(eleve.date_naissance) if eleve.date_naissance else '..........'
+    # Format date as dd-MM-yyyy
+    if eleve.date_naissance:
+        try:
+            from datetime import date as dt_date
+            if isinstance(eleve.date_naissance, dt_date):
+                date_naissance = eleve.date_naissance.strftime('%d-%m-%Y')
+            else:
+                date_naissance = str(eleve.date_naissance)
+        except:
+            date_naissance = str(eleve.date_naissance)
+    else:
+        date_naissance = '..........'
     col3_data = [
         [Paragraph("Sexe", lbl_style), Paragraph(":", colon_style), Paragraph(f"{(eleve.genre or '').upper()}", val_style)],
-        [Paragraph("Date Naissance", lbl_style), Paragraph(":", colon_style), Paragraph(f"{date_naissance}", val_style)],
+        [Paragraph("Année de Naissance", lbl_style), Paragraph(":", colon_style), Paragraph(f"{date_naissance}", val_style)],
         [None, None, None],
         [None, None, None],
     ]
@@ -657,14 +667,16 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
             elif "MAXIMA" in texte:
                 pass  # Bold already handled via Paragraph style_normal_bold + style_center_bold
 
-    # Colonne hachurée (col 17) — lignes continues au lieu de background noir
-    col_hachuree = 17 
+    # Colonne séparatrice (col 17) — fond gris clair au lieu de hachures
+    col_hachuree = 17
+    light_gray = colors.Color(0.85, 0.85, 0.85)
     for row_idx in range(3, num_rows):
         if col_hachuree < len(table_data[row_idx]):
             table_data[row_idx][col_hachuree] = None
-    # Fusionner verticalement + bordures épaisses pour marquer la séparation
+    # Fusionner verticalement + background gris clair
     if num_rows > 3:
         table_style.add('SPAN', (col_hachuree, 3), (col_hachuree, num_rows - 1))
+        table_style.add('BACKGROUND', (col_hachuree, 3), (col_hachuree, num_rows - 1), light_gray)
         table_style.add('LINEAFTER', (col_hachuree - 1, 3), (col_hachuree - 1, num_rows - 1), 0.5, colors.black)
         table_style.add('LINEAFTER', (col_hachuree, 3), (col_hachuree, num_rows - 1), 0.5, colors.black)
             
@@ -681,6 +693,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
             for col_idx in colonnes_struct:
                 if col_idx < len(table_data[row_idx]):
                     table_data[row_idx][col_idx] = None
+                    table_style.add('BACKGROUND', (col_idx, row_idx), (col_idx, row_idx), light_gray)
                     table_style.add('LINEAFTER', (col_idx - 1, row_idx), (col_idx - 1, row_idx), 0.5, colors.black)
                     table_style.add('LINEAFTER', (col_idx, row_idx), (col_idx, row_idx), 0.5, colors.black)
 
@@ -689,6 +702,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
             for col_idx in colonnes_struct_2:
                 if row_idx < num_rows and col_idx < len(table_data[row_idx]):
                     table_data[row_idx][col_idx] = None
+                    table_style.add('BACKGROUND', (col_idx, row_idx), (col_idx, row_idx), light_gray)
                     table_style.add('LINEAFTER', (col_idx - 1, row_idx), (col_idx - 1, row_idx), 0.5, colors.black)
                     table_style.add('LINEAFTER', (col_idx, row_idx), (col_idx, row_idx), 0.5, colors.black)
 
@@ -702,21 +716,21 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
     texte_visible = (
         "Passe(1)<br/>"
         "Double(1)<br/>"
-        "A echoué(1)<br/>"
-        "<br/>"  
-        "Le chef de l'Etablissement,<br/>"
-        "sceau ecole."
+        "A échoué(1)<br/>"
+        "<br/>"
+        "Le Chef d'Établissement<br/>"
+        "Sceau de l'école"
     )
 
     style_visible = ParagraphStyle(
         name='TexteVisible',
         parent=style_center,
-        fontSize=10,
-        leading=16,         
+        fontSize=6,
+        leading=8,         
         alignment=1,       
         textColor=colors.black,
-        spaceBefore=8,
-        spaceAfter=8
+        spaceBefore=2,
+        spaceAfter=2
     )
     if signature_start < len(table_data) and 18 < len(table_data[signature_start]):
         table_data[signature_start][18] = Paragraph(texte_visible, style_visible)
