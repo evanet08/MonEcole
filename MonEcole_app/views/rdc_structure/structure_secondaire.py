@@ -627,7 +627,6 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
         style_center, bulletin_type='secondaire'
     )
     col_widths = [30*mm] + [8.22*mm] * 17 + [10*mm] + [20*mm]
-    table = Table(table_data, colWidths=col_widths, rowHeights=[4.5*mm] * len(table_data))
 
     table_style = TableStyle([
         ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
@@ -779,6 +778,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
     if signature_start < len(table_data) and 18 < len(table_data[signature_start]):
         table_data[signature_start][18] = Paragraph(texte_visible, style_visible)
     
+    table = Table(table_data, colWidths=col_widths, rowHeights=[4.5*mm] * len(table_data))
     table.setStyle(table_style)
     elements.append(table)
     elements.append(Spacer(1, 0.5*mm))
