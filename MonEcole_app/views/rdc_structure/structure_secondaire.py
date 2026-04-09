@@ -24,10 +24,10 @@ from .structure_primaire import (get_styles,check_image_paths,
 logger = logging.getLogger(__name__)
 
 styles = getSampleStyleSheet()
-style_center = ParagraphStyle(name='CenterSec', parent=styles['Normal'], fontSize=8, leading=9, alignment=1)
-style_center_bold = ParagraphStyle(name='CenterSecBold', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=7, leading=8, alignment=1)
-style_normal = ParagraphStyle(name='NormalSec', parent=styles['Normal'], fontSize=8, leading=9, alignment=0)
-style_normal_bold = ParagraphStyle(name='NormalSecBold', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=7, leading=8, alignment=0)
+style_center = ParagraphStyle(name='CenterSec', parent=styles['Normal'], fontSize=9, leading=10, alignment=1)
+style_center_bold = ParagraphStyle(name='CenterSecBold', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=6, leading=7, alignment=1)
+style_normal = ParagraphStyle(name='NormalSec', parent=styles['Normal'], fontSize=9, leading=10, alignment=0)
+style_normal_bold = ParagraphStyle(name='NormalSecBold', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=6, leading=7, alignment=0)
 
 
 def get_semestres(id_annee, id_campus, id_cycle, id_classe):
@@ -621,7 +621,6 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
 
     table_style = TableStyle([
         ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
@@ -654,14 +653,9 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                 table_style.add('SPAN', (0, row_idx), (-1, row_idx))
                 table_style.add('BACKGROUND', (0, row_idx), (-1, row_idx), colors.lightblue)
             elif "Sous Total" in texte:
-                table_style.add('FONTNAME', (0, row_idx), (-1, row_idx), 'Helvetica-Bold')
+                pass  # Bold already handled via Paragraph style_normal_bold + style_center_bold
             elif "MAXIMA" in texte:
-                table_style.add('FONTNAME', (0, row_idx), (-1, row_idx), 'Helvetica-Bold')
-
-    # Bold pour les colonnes maxima verticales
-    maxima_cols = [1, 4, 6, 8, 11, 13, 15]
-    for col in maxima_cols:
-        table_style.add('FONTNAME', (col, 3), (col, num_rows - 1), 'Helvetica-Bold')
+                pass  # Bold already handled via Paragraph style_normal_bold + style_center_bold
 
     # Colonne hachurée (col 17) — lignes continues au lieu de background noir
     col_hachuree = 17 
