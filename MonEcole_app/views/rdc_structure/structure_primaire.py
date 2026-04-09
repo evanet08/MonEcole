@@ -164,8 +164,9 @@ def create_header(elements, logo_path, emblem_path, style_title, style_center, e
 def create_line2_left(elements, style_normal, id_campus=None):
     """Left info section with proper 3-column alignment: Label | : | Value."""
     
-    # Retrieve matricule
+    # Retrieve matricule + nom école in a single DB query
     matricule = ""
+    ecole_display = ""
     if id_campus:
         try:
             campus = Campus.objects.get(idCampus=id_campus)
@@ -173,12 +174,15 @@ def create_line2_left(elements, style_normal, id_campus=None):
                 from django.db import connections
                 with connections['countryStructure'].cursor() as cursor:
                     cursor.execute(
-                        "SELECT matricule FROM etablissements WHERE id_etablissement = %s",
+                        "SELECT matricule, nom FROM etablissements WHERE id_etablissement = %s",
                         [campus.id_etablissement]
                     )
                     row = cursor.fetchone()
-                    if row and row[0]:
-                        matricule = str(row[0]).strip()
+                    if row:
+                        if row[0]:
+                            matricule = str(row[0]).strip()
+                        if row[1]:
+                            ecole_display = str(row[1]).strip().upper()
         except Exception:
             pass
 
@@ -212,24 +216,6 @@ def create_line2_left(elements, style_normal, id_campus=None):
     lbl_w = 22*mm
     col_w2 = 3*mm
     val_w = col_w - lbl_w - col_w2
-
-    # Récupérer dynamiquement le nom de l'école
-    ecole_display = ""
-    if id_campus:
-        try:
-            campus_obj = Campus.objects.get(idCampus=id_campus)
-            if campus_obj.id_etablissement:
-                from django.db import connections
-                with connections['countryStructure'].cursor() as cursor:
-                    cursor.execute(
-                        "SELECT nom FROM etablissements WHERE id_etablissement = %s",
-                        [campus_obj.id_etablissement]
-                    )
-                    row = cursor.fetchone()
-                    if row and row[0]:
-                        ecole_display = str(row[0]).strip().upper()
-        except Exception:
-            pass
 
     left_data = [
         [Paragraph("Province", lbl_style), Paragraph(":", colon_style), Paragraph("SUD-KIVU", val_style)],
@@ -804,7 +790,7 @@ def _get_deliberated_config_ids(id_eleve, eac):
     deliberated_period_configs = set(
         Deliberation_periodique_resultat.objects.filter(
             id_eleve_id=id_eleve,
-            id_annee=eac.etablissement_annee.annee_id,
+            id_classe_id=eac.classe_id,
         ).values_list('id_periode_id', flat=True)
     )
 
@@ -812,7 +798,7 @@ def _get_deliberated_config_ids(id_eleve, eac):
     deliberated_exam_configs = set(
         Deliberation_examen_resultat.objects.filter(
             id_eleve_id=id_eleve,
-            id_annee=eac.etablissement_annee.annee_id,
+            id_classe_id=eac.classe_id,
         ).values_list('id_trimestre_id', flat=True)
     )
 
@@ -820,7 +806,7 @@ def _get_deliberated_config_ids(id_eleve, eac):
     deliberated_trim_configs = set(
         Deliberation_trimistrielle_resultat.objects.filter(
             id_eleve_id=id_eleve,
-            id_annee=eac.etablissement_annee.annee_id,
+            id_classe_id=eac.classe_id,
         ).values_list('id_trimestre_id', flat=True)
     )
 
@@ -839,7 +825,7 @@ def _has_annual_deliberation(id_eleve, eac):
     from MonEcole_app.models.evaluations.note import Deliberation_annuelle_resultat
     return Deliberation_annuelle_resultat.objects.filter(
         id_eleve_id=id_eleve,
-        id_annee=eac.etablissement_annee.annee_id,
+        id_classe_id=eac.classe_id,
     ).exists()
 
 
