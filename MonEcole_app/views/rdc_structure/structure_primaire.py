@@ -965,11 +965,11 @@ def blank_non_deliberated_columns(table_data, id_eleve, id_classe, trimestres_da
 
     logger.info(f"[blank_non_deliberated] élève={id_eleve}, colonnes à effacer: {columns_to_blank}")
 
-    # Colonnes structurelles (Max) à ne JAMAIS blanker
+    # Colonnes structurelles + TOTAL GENERAL + TOT.SEM à ne JAMAIS blanker
     if bulletin_type == 'secondaire':
-        structural_cols = {1, 4, 6, 8, 11, 13, 15}  # Max TJ, Max Exam, Max TOT.SEM, Max Total
+        structural_cols = {1, 4, 6, 7, 8, 11, 13, 14, 15, 16}  # Max + TOT.SEM + Total Général
     else:
-        structural_cols = {1, 4, 6, 8, 11, 13, 15, 18, 20}  # Primaire: 3 trimestres
+        structural_cols = {1, 4, 6, 7, 8, 11, 13, 14, 15, 18, 20, 21, 22, 23}  # Primaire: Max + TOT + Total
 
     # Mots-clés des lignes spéciales à protéger
     protected_keywords = {
