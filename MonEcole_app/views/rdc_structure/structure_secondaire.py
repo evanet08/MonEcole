@@ -748,6 +748,12 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
     signature_start = num_rows - 5 if num_rows > 5 else num_rows - 1
     signature_end = num_rows - 1
     if signature_start >= 0 and signature_end < num_rows and signature_start < signature_end:
+        # Vider toutes les cellules dans la zone du SPAN avant de fusionner
+        for r in range(signature_start, signature_end + 1):
+            if r < len(table_data):
+                for c in [18, 19]:
+                    if c < len(table_data[r]):
+                        table_data[r][c] = None
         table_style.add('SPAN', (18, signature_start), (19, signature_end))
         table_style.add('BOX', (18, signature_start), (19, signature_end), 0.5, colors.black)
 
