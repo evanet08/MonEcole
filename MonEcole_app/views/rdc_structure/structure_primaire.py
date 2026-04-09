@@ -213,11 +213,29 @@ def create_line2_left(elements, style_normal, id_campus=None):
     col_w2 = 3*mm
     val_w = col_w - lbl_w - col_w2
 
+    # Récupérer dynamiquement le nom de l'école
+    ecole_display = ""
+    if id_campus:
+        try:
+            campus_obj = Campus.objects.get(idCampus=id_campus)
+            if campus_obj.id_etablissement:
+                from django.db import connections
+                with connections['countryStructure'].cursor() as cursor:
+                    cursor.execute(
+                        "SELECT nom FROM etablissements WHERE id_etablissement = %s",
+                        [campus_obj.id_etablissement]
+                    )
+                    row = cursor.fetchone()
+                    if row and row[0]:
+                        ecole_display = str(row[0]).strip().upper()
+        except Exception:
+            pass
+
     left_data = [
         [Paragraph("Province", lbl_style), Paragraph(":", colon_style), Paragraph("SUD-KIVU", val_style)],
         [Paragraph("Ville", lbl_style), Paragraph(":", colon_style), Paragraph("BUKAVU", val_style)],
         [Paragraph("Commune", lbl_style), Paragraph(":", colon_style), Paragraph("D'IBANDA", val_style)],
-        [Paragraph("Ecole", lbl_style), Paragraph(":", colon_style), Paragraph("1 COLLEGE ALFAJIRI BUKAVU", val_style)],
+        [Paragraph("Ecole", lbl_style), Paragraph(":", colon_style), Paragraph(ecole_display or "...........", val_style)],
         [Paragraph("Matricule", lbl_style), Paragraph(":", colon_style), code_squares_table],
     ]
     left_table_vertical = Table(left_data, colWidths=[lbl_w, col_w2, val_w], rowHeights=[5*mm]*4 + [6.5*mm])
