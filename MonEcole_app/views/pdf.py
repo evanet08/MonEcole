@@ -137,22 +137,30 @@ def generer_bulletin_pdf(request):
             if match:
                 rank_map[eleve_id] = int(match.group(1))
 
-        # 2. Si pas de résultats annuels, essayer trimestrielle (plus récente)
+        # 2. Si pas de résultats annuels, essayer trimestrielle (la plus récente par date)
         if not rank_map:
-            for eleve_id, place in Deliberation_trimistrielle_resultat.objects.filter(
+            latest_trim = Deliberation_trimistrielle_resultat.objects.filter(
                 **base_filter
-            ).order_by('-id_trimestre_id').values_list('id_eleve_id', 'place'):
-                if eleve_id not in rank_map:
+            ).order_by('-date_creation', '-id_deliberation').first()
+            if latest_trim:
+                latest_trim_id = latest_trim.id_trimestre_id
+                for eleve_id, place in Deliberation_trimistrielle_resultat.objects.filter(
+                    id_trimestre_id=latest_trim_id, **base_filter
+                ).values_list('id_eleve_id', 'place'):
                     match = re.search(r'(\d+)', place or '')
                     if match:
                         rank_map[eleve_id] = int(match.group(1))
 
-        # 3. Si toujours rien, essayer périodique (plus récente)
+        # 3. Si toujours rien, essayer périodique (la plus récente par date)
         if not rank_map:
-            for eleve_id, place in Deliberation_periodique_resultat.objects.filter(
+            latest_per = Deliberation_periodique_resultat.objects.filter(
                 **base_filter
-            ).order_by('-id_periode_id').values_list('id_eleve_id', 'place'):
-                if eleve_id not in rank_map:
+            ).order_by('-date_creation', '-id_deliberation').first()
+            if latest_per:
+                latest_per_id = latest_per.id_periode_id
+                for eleve_id, place in Deliberation_periodique_resultat.objects.filter(
+                    id_periode_id=latest_per_id, **base_filter
+                ).values_list('id_eleve_id', 'place'):
                     match = re.search(r'(\d+)', place or '')
                     if match:
                         rank_map[eleve_id] = int(match.group(1))

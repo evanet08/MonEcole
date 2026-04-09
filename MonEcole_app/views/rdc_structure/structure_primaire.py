@@ -863,20 +863,10 @@ def blank_non_deliberated_columns(table_data, id_eleve, id_classe, trimestres_da
     columns_to_blank = set()
 
     # 1. Colonnes de périodes non-délibérées
-    # Récupérer TOUTES les configs de périodes pour cet étab/année
-    from MonEcole_app.models.annee import Annee_periode
-    all_period_configs = set(
-        Annee_periode.objects.filter(
-            etablissement_annee_id=eac.etablissement_annee_id,
-            has_parent=True,
-        ).values_list('id_periode', flat=True)
-    )
-
-    for cfg_id in all_period_configs:
+    # config_to_col contient déjà tous les config_ids de périodes → colonnes
+    for cfg_id, col in config_to_col.items():
         if cfg_id not in deliberated_period_configs:
-            col = config_to_col.get(cfg_id)
-            if col is not None:
-                columns_to_blank.add(col)
+            columns_to_blank.add(col)
 
     # 2. Colonnes d'examen et TOT trimestre/semestre non-délibérées
     if bulletin_type == 'secondaire':
