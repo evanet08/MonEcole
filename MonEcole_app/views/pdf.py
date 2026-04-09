@@ -129,41 +129,48 @@ def generer_bulletin_pdf(request):
             'id_eleve_id__in': id_eleves,
         }
 
-        # 1. Essayer délibération annuelle
-        for eleve_id, place in Deliberation_annuelle_resultat.objects.filter(
+        # Trouver la délibération LA PLUS RECENTE tous types confondus
+        # puis utiliser son classement pour l'ordre d'impression
+        candidates = []  # (date_creation, type, ref_id, model)
+
+        # Annuelle
+        latest_ann = Deliberation_annuelle_resultat.objects.filter(
             **base_filter
-        ).values_list('id_eleve_id', 'place'):
-            match = re.search(r'(\d+)', place or '')
-            if match:
-                rank_map[eleve_id] = int(match.group(1))
+        ).order_by('-date_creation', '-id_deliberation').first()
+        if latest_ann:
+            candidates.append((latest_ann.date_creation, 'annuelle', None, Deliberation_annuelle_resultat))
 
-        # 2. Si pas de résultats annuels, essayer trimestrielle (la plus récente par date)
-        if not rank_map:
-            latest_trim = Deliberation_trimistrielle_resultat.objects.filter(
-                **base_filter
-            ).order_by('-date_creation', '-id_deliberation').first()
-            if latest_trim:
-                latest_trim_id = latest_trim.id_trimestre_id
-                for eleve_id, place in Deliberation_trimistrielle_resultat.objects.filter(
-                    id_trimestre_id=latest_trim_id, **base_filter
-                ).values_list('id_eleve_id', 'place'):
-                    match = re.search(r'(\d+)', place or '')
-                    if match:
-                        rank_map[eleve_id] = int(match.group(1))
+        # Trimestrielle
+        latest_trim = Deliberation_trimistrielle_resultat.objects.filter(
+            **base_filter
+        ).order_by('-date_creation', '-id_deliberation').first()
+        if latest_trim:
+            candidates.append((latest_trim.date_creation, 'trimestrielle', latest_trim.id_trimestre_id, Deliberation_trimistrielle_resultat))
 
-        # 3. Si toujours rien, essayer périodique (la plus récente par date)
-        if not rank_map:
-            latest_per = Deliberation_periodique_resultat.objects.filter(
-                **base_filter
-            ).order_by('-date_creation', '-id_deliberation').first()
-            if latest_per:
-                latest_per_id = latest_per.id_periode_id
-                for eleve_id, place in Deliberation_periodique_resultat.objects.filter(
-                    id_periode_id=latest_per_id, **base_filter
-                ).values_list('id_eleve_id', 'place'):
-                    match = re.search(r'(\d+)', place or '')
-                    if match:
-                        rank_map[eleve_id] = int(match.group(1))
+        # Périodique
+        latest_per = Deliberation_periodique_resultat.objects.filter(
+            **base_filter
+        ).order_by('-date_creation', '-id_deliberation').first()
+        if latest_per:
+            candidates.append((latest_per.date_creation, 'periodique', latest_per.id_periode_id, Deliberation_periodique_resultat))
+
+        if candidates:
+            # Prendre la plus récente
+            candidates.sort(key=lambda x: x[0], reverse=True)
+            winner_date, winner_type, winner_ref, winner_model = candidates[0]
+            logger.warning(f"[BULLETIN PDF] Most recent deliberation: type={winner_type}, date={winner_date}, ref={winner_ref}")
+
+            if winner_type == 'annuelle':
+                qs = winner_model.objects.filter(**base_filter)
+            elif winner_type == 'trimestrielle':
+                qs = winner_model.objects.filter(id_trimestre_id=winner_ref, **base_filter)
+            else:  # periodique
+                qs = winner_model.objects.filter(id_periode_id=winner_ref, **base_filter)
+
+            for eleve_id, place in qs.values_list('id_eleve_id', 'place'):
+                match = re.search(r'(\d+)', place or '')
+                if match:
+                    rank_map[eleve_id] = int(match.group(1))
 
         # Sort: ranked students first (by rank), then unranked
         id_eleves.sort(key=lambda eid: rank_map.get(eid, 99999))
