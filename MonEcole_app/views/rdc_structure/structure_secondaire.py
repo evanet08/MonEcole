@@ -688,20 +688,61 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
             break
 
     if maxima_idx is not None:
-        # Colonnes séparatrices principales — décalées d'une ligne (à partir de POURCENTAGE)
+        # Colonnes séparatrices: clear data from POURCENTAGE through APPLICATION
         colonnes_struct = [1, 4, 6, 8, 11, 13]
-        for row_idx in range(maxima_idx + 1, min(maxima_idx + 6, num_rows)):
+        for row_idx in range(maxima_idx + 1, min(maxima_idx + 5, num_rows)):
             for col_idx in colonnes_struct:
                 if col_idx < len(table_data[row_idx]):
                     table_data[row_idx][col_idx] = None
-                    table_style.add('BACKGROUND', (col_idx, row_idx), (col_idx, row_idx), separator_gray)
 
         colonnes_struct_2 = [5, 7, 12, 14]
-        for row_idx in range(maxima_idx + 3, min(maxima_idx + 6, num_rows)):
+        for row_idx in range(maxima_idx + 3, min(maxima_idx + 5, num_rows)):
             for col_idx in colonnes_struct_2:
                 if row_idx < num_rows and col_idx < len(table_data[row_idx]):
                     table_data[row_idx][col_idx] = None
-                    table_style.add('BACKGROUND', (col_idx, row_idx), (col_idx, row_idx), separator_gray)
+
+        # Fusion VERTICALE des colonnes séparatrices (POURCENTAGE → APPLICATION = 4 lignes)
+        end_row = min(maxima_idx + 4, num_rows - 1)
+        for col_idx in colonnes_struct:
+            table_style.add('SPAN', (col_idx, maxima_idx + 1), (col_idx, end_row))
+            table_style.add('BACKGROUND', (col_idx, maxima_idx + 1), (col_idx, end_row), separator_gray)
+
+        # Fusion VERTICALE colonnes secondaires (CONDUITE → APPLICATION = 2 lignes)
+        if maxima_idx + 4 < num_rows:
+            for col_idx in colonnes_struct_2:
+                table_style.add('SPAN', (col_idx, maxima_idx + 3), (col_idx, maxima_idx + 4))
+                table_style.add('BACKGROUND', (col_idx, maxima_idx + 3), (col_idx, maxima_idx + 4), separator_gray)
+
+        # CONDUITE + APPLICATION: fusionner les cellules vides horizontalement + gray
+        for offset in [3, 4]:  # CONDUITE=+3, APPLICATION=+4
+            row_idx = maxima_idx + offset
+            if row_idx < num_rows:
+                # Cols 2-3 (entre séparateurs 1 et 4)
+                for c in [2, 3]:
+                    if c < len(table_data[row_idx]):
+                        table_data[row_idx][c] = None
+                table_style.add('SPAN', (2, row_idx), (3, row_idx))
+                table_style.add('BACKGROUND', (2, row_idx), (3, row_idx), separator_gray)
+                # Cols 9-10 (entre séparateurs 8 et 11)
+                for c in [9, 10]:
+                    if c < len(table_data[row_idx]):
+                        table_data[row_idx][c] = None
+                table_style.add('SPAN', (9, row_idx), (10, row_idx))
+                table_style.add('BACKGROUND', (9, row_idx), (10, row_idx), separator_gray)
+                # Cols 15-16 (Total Général)
+                for c in [15, 16]:
+                    if c < len(table_data[row_idx]):
+                        table_data[row_idx][c] = None
+                table_style.add('SPAN', (15, row_idx), (16, row_idx))
+                table_style.add('BACKGROUND', (15, row_idx), (16, row_idx), separator_gray)
+
+        # SIGNATURE DU RESPONSABLE (dernière ligne finale): fusion horizontale complète, sans background
+        sig_row = maxima_idx + 5
+        if sig_row < num_rows:
+            for c in range(1, 17):
+                if c < len(table_data[sig_row]):
+                    table_data[sig_row][c] = None
+            table_style.add('SPAN', (0, sig_row), (16, sig_row))
 
     # Zone signature en bas à droite
     signature_start = num_rows - 5 if num_rows > 5 else num_rows - 1
