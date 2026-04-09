@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 styles = getSampleStyleSheet()
 style_center = ParagraphStyle(name='CenterSec', parent=styles['Normal'], fontSize=8, leading=9, alignment=1)
-style_center_bold = ParagraphStyle(name='CenterSecBold', parent=style_center, fontName='Helvetica-Bold', fontSize=7, leading=8, alignment=1)
+style_center_bold = ParagraphStyle(name='CenterSecBold', parent=style_center, fontName='Helvetica-Bold', fontSize=8, leading=9, alignment=1)
 style_normal = styles['Normal']
 style_normal.alignment = 0  
 
@@ -620,7 +620,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
         style_center, bulletin_type='secondaire'
     )
     col_widths = [30*mm] + [8.22*mm] * 17 + [10*mm] + [20*mm]
-    table = Table(table_data, colWidths=col_widths, rowHeights=[4*mm] * len(table_data))
+    table = Table(table_data, colWidths=col_widths, rowHeights=[5*mm] * len(table_data))
 
     table_style = TableStyle([
         ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
@@ -629,8 +629,8 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('LEFTPADDING', (0, 0), (-1, -1), 0.5),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 0.5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ('SPAN', (0, 0), (0, 2)),
         ('SPAN', (1, 0), (7, 0)),
         ('SPAN', (1, 1), (3, 1)),
@@ -658,16 +658,13 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                 table_style.add('BACKGROUND', (0, row_idx), (-1, row_idx), colors.lightblue)
             elif "Sous Total" in texte:
                 table_style.add('FONTNAME', (0, row_idx), (-1, row_idx), 'Helvetica-Bold')
-                table_style.add('FONTSIZE', (0, row_idx), (-1, row_idx), 7)
             elif "MAXIMA" in texte:
                 table_style.add('FONTNAME', (0, row_idx), (-1, row_idx), 'Helvetica-Bold')
-                table_style.add('FONTSIZE', (0, row_idx), (-1, row_idx), 7)
 
-    # Bold + taille réduite pour les colonnes maxima verticales (visuellement équilibré)
+    # Bold pour les colonnes maxima verticales
     maxima_cols = [1, 4, 6, 8, 11, 13, 15]
     for col in maxima_cols:
         table_style.add('FONTNAME', (col, 3), (col, num_rows - 1), 'Helvetica-Bold')
-        table_style.add('FONTSIZE', (col, 3), (col, num_rows - 1), 7)
 
     # Colonne hachurée (col 17) — lignes continues au lieu de background noir
     col_hachuree = 17 
