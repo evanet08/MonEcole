@@ -668,7 +668,6 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
     # Colonne séparatrice (col 17) — fond gris foncé
     col_hachuree = 17
     separator_gray = colors.Color(0.45, 0.45, 0.45)
-    repechage_gray = colors.Color(0.85, 0.85, 0.85)
     for row_idx in range(4, num_rows):
         if col_hachuree < len(table_data[row_idx]):
             table_data[row_idx][col_hachuree] = None
@@ -679,18 +678,18 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
         table_style.add('LINEAFTER', (col_hachuree - 1, 4), (col_hachuree - 1, num_rows - 1), 0.5, colors.black)
         table_style.add('LINEAFTER', (col_hachuree, 4), (col_hachuree, num_rows - 1), 0.5, colors.black)
 
-    # Background gris clair pour cols 18-19 SEULEMENT sur les lignes avec background (domaines + sous-totaux)
+    # Même gris foncé pour cols 18-19 sur les lignes domaines + sous-totaux
     for row_idx in range(3, num_rows):
         row = table_data[row_idx]
         if len(row) > 0 and isinstance(row[0], Paragraph):
             texte = row[0].text or ""
             has_bg = False
             if "<b>" in texte and "Sous Total" not in texte and "MAXIMA" not in texte and "POURCENTAGE" not in texte and "PLACE" not in texte and "CONDUITE" not in texte and "APPLICATION" not in texte and "SIGNATURE" not in texte:
-                has_bg = True  # Domaine header
+                has_bg = True
             elif "Sous Total" in texte:
-                has_bg = True  # Sous-total row
+                has_bg = True
             if has_bg:
-                table_style.add('BACKGROUND', (18, row_idx), (19, row_idx), repechage_gray)
+                table_style.add('BACKGROUND', (18, row_idx), (19, row_idx), separator_gray)
             
     # Lignes finales (MAXIMA, POURCENTAGE, etc.) — colonnes structurelles avec background gris
     maxima_idx = None
