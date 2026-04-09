@@ -13363,7 +13363,12 @@ def execute_deliberation(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def cancel_deliberation(request):
-    """Annule (supprime) les résultats d'une délibération pour une classe."""
+    """
+    Annule (supprime) les résultats d'une délibération pour une classe.
+    Cascade : annuler une période P annule aussi toutes les périodes supérieures,
+    les trimestres/semestres concernés, et l'annuelle.
+    Si preview=true dans le body, retourne la liste de ce qui sera annulé sans exécuter.
+    """
     try:
         from MonEcole_app.models.evaluations.note import (
             Deliberation_annuelle_resultat,
@@ -13371,11 +13376,13 @@ def cancel_deliberation(request):
             Deliberation_trimistrielle_resultat,
             Deliberation_examen_resultat,
         )
+        from django.db import connections
 
         data = json.loads(request.body)
         classe_id = data.get('classe_id') or data.get('id_classe_id')
         delib_type = data.get('type')
         repartition_id = data.get('repartition_id')
+        preview_mode = data.get('preview', False)
 
         etab, err = _get_tenant_etab(request)
         if err:
@@ -13385,7 +13392,6 @@ def cancel_deliberation(request):
         if not annee:
             return JsonResponse({'success': False, 'error': 'Aucune année en cours.'}, status=400)
 
-        # Resolve EAC → business keys for class filtering
         eac = EtablissementAnneeClasse.objects.filter(id=classe_id).first() if classe_id else None
         base_filter = {
             'id_annee': annee,
@@ -13396,24 +13402,131 @@ def cancel_deliberation(request):
             base_filter['groupe'] = eac.groupe
             base_filter['section_id'] = eac.section_id
 
-        deleted = 0
+        # ── Ordre structurel des codes ──
+        CODE_POSITION = {
+            'P1': 1, 'P2': 2, 'S1': 5, 'T1': 5,
+            'P3': 6, 'P4': 7, 'S2': 10, 'T2': 10,
+            'P5': 11, 'P6': 12, 'S3': 15, 'T3': 15,
+        }
+        ANNUAL_POS = 100
 
+        # Résoudre config_id → code + nom
+        config_to_info = {}  # config_id → {'code': 'P1', 'nom': '1ère Période', 'pos': 1}
+        if eac:
+            try:
+                with connections['countryStructure'].cursor() as cur:
+                    cur.execute("""
+                        SELECT rc.id, ri.code, ri.nom, rc.parent_id, rc.has_parent
+                        FROM repartition_configs_etab_annee rc
+                        JOIN repartition_instances ri ON ri.id_instance = rc.repartition_id
+                        WHERE rc.etablissement_annee_id = %s
+                    """, [eac.etablissement_annee_id])
+                    for row in cur.fetchall():
+                        cfg_id, code, nom, parent_id, has_parent = row
+                        pos = CODE_POSITION.get(code, 0)
+                        config_to_info[cfg_id] = {
+                            'code': code, 'nom': nom, 'pos': pos,
+                            'parent_id': parent_id, 'has_parent': bool(has_parent)
+                        }
+            except Exception as e:
+                import traceback; traceback.print_exc()
+
+        # Déterminer la position de la délibération qu'on annule
+        cancel_pos = 0
+        cancel_label = ''
         if delib_type == 'annee':
-            deleted, _ = Deliberation_annuelle_resultat.objects.filter(**base_filter).delete()
-        elif delib_type == 'trimestre':
-            f = dict(base_filter)
-            if repartition_id:
-                f['id_trimestre_id'] = int(repartition_id)
-            deleted, _ = Deliberation_trimistrielle_resultat.objects.filter(**f).delete()
-        elif delib_type == 'periode':
-            f = dict(base_filter)
-            if repartition_id:
-                f['id_periode_id'] = int(repartition_id)
-            deleted, _ = Deliberation_periodique_resultat.objects.filter(**f).delete()
+            cancel_pos = ANNUAL_POS
+            cancel_label = 'Annuelle'
+        elif delib_type == 'trimestre' and repartition_id:
+            info = config_to_info.get(int(repartition_id), {})
+            cancel_pos = info.get('pos', 0)
+            cancel_label = info.get('nom', f'Trimestre {repartition_id}')
+        elif delib_type == 'periode' and repartition_id:
+            info = config_to_info.get(int(repartition_id), {})
+            cancel_pos = info.get('pos', 0)
+            cancel_label = info.get('nom', f'Période {repartition_id}')
 
+        # Construire la liste de TOUT ce qui doit être annulé (position >= cancel_pos)
+        to_cancel = []  # [{'type': 'periode|trimestre|annee', 'config_id': X, 'label': '...', 'pos': N}]
+
+        # Périodes supérieures ou égales
+        for cfg_id, info in config_to_info.items():
+            if info['has_parent'] and info['pos'] >= cancel_pos:
+                # Vérifier qu'une délibération existe pour cette période
+                f = dict(base_filter)
+                f['id_periode_id'] = cfg_id
+                if Deliberation_periodique_resultat.objects.filter(**f).exists():
+                    to_cancel.append({
+                        'type': 'periode', 'config_id': cfg_id,
+                        'label': info['nom'], 'code': info['code'], 'pos': info['pos']
+                    })
+
+        # Trimestres/semestres dont la position est >= cancel_pos
+        for cfg_id, info in config_to_info.items():
+            if not info['has_parent'] and info['pos'] >= cancel_pos and info['code'] in CODE_POSITION:
+                f = dict(base_filter)
+                f['id_trimestre_id'] = cfg_id
+                if Deliberation_trimistrielle_resultat.objects.filter(**f).exists():
+                    to_cancel.append({
+                        'type': 'trimestre', 'config_id': cfg_id,
+                        'label': info['nom'], 'code': info['code'], 'pos': info['pos']
+                    })
+                # Aussi les examens du trimestre
+                fe = dict(base_filter)
+                fe['id_trimestre_id'] = cfg_id
+                if Deliberation_examen_resultat.objects.filter(**fe).exists():
+                    to_cancel.append({
+                        'type': 'examen', 'config_id': cfg_id,
+                        'label': f"Examen {info['nom']}", 'code': info['code'], 'pos': info['pos']
+                    })
+
+        # Annuelle (pos >= cancel_pos, toujours vrai puisque ANNUAL=100)
+        if ANNUAL_POS >= cancel_pos:
+            f_ann = dict(base_filter)
+            if Deliberation_annuelle_resultat.objects.filter(**f_ann).exists():
+                to_cancel.append({
+                    'type': 'annee', 'config_id': None,
+                    'label': 'Délibération Annuelle', 'code': 'ANN', 'pos': ANNUAL_POS
+                })
+
+        # Trier par position structurelle
+        to_cancel.sort(key=lambda x: x['pos'])
+
+        # ── Mode preview ──
+        if preview_mode:
+            labels = [item['label'] for item in to_cancel]
+            return JsonResponse({
+                'success': True,
+                'preview': True,
+                'cancel_label': cancel_label,
+                'affected': labels,
+                'count': len(to_cancel),
+            })
+
+        # ── Mode exécution : supprimer en cascade ──
+        total_deleted = 0
+        for item in to_cancel:
+            f = dict(base_filter)
+            if item['type'] == 'periode':
+                f['id_periode_id'] = item['config_id']
+                d, _ = Deliberation_periodique_resultat.objects.filter(**f).delete()
+                total_deleted += d
+            elif item['type'] == 'trimestre':
+                f['id_trimestre_id'] = item['config_id']
+                d, _ = Deliberation_trimistrielle_resultat.objects.filter(**f).delete()
+                total_deleted += d
+            elif item['type'] == 'examen':
+                f['id_trimestre_id'] = item['config_id']
+                d, _ = Deliberation_examen_resultat.objects.filter(**f).delete()
+                total_deleted += d
+            elif item['type'] == 'annee':
+                d, _ = Deliberation_annuelle_resultat.objects.filter(**f).delete()
+                total_deleted += d
+
+        cancelled_labels = [item['label'] for item in to_cancel]
         return JsonResponse({
             'success': True,
-            'message': f'Délibération annulée. {deleted} résultat(s) supprimé(s).'
+            'message': f'Délibérations annulées en cascade : {", ".join(cancelled_labels)}. {total_deleted} résultat(s) supprimé(s).'
         })
     except Exception as e:
         import traceback

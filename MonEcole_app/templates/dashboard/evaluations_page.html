@@ -2627,16 +2627,25 @@ async function launchDeliberation() {
 async function cancelDeliberation() {
     var classeId = document.getElementById('delib-classe-select').value;
     if (!classeId) { showToast('S\u00e9lectionnez une classe.', 'error'); return; }
-    if (!confirm('Annuler cette d\u00e9lib\u00e9ration ?')) return;
     var repId = document.getElementById('delib-repartition-select').value;
     try {
-        var payload = { classe_id: classeId, type: _currentDelibTab };
+        var payload = { classe_id: classeId, type: _currentDelibTab, preview: true };
         if (repId) payload.repartition_id = repId;
         var res = await fetch('/api/deliberations/cancel/', { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken}, body:JSON.stringify(payload) });
         var data = await res.json();
-        if (data.success) { showToast('Annul\u00e9e.','success'); document.getElementById('delibResultsContainer').innerHTML='<div style="text-align:center;padding:40px;color:#10b981;font-size:.82rem;font-weight:700"><i class="fas fa-check-circle"></i> Annul\u00e9e.</div>'; document.getElementById('delibStatusBadge').style.display='none'; }
-        else { showToast(data.error||'Erreur.','error'); }
-    } catch(e) { showToast('Erreur.','error'); }
+        if (!data.success) { showToast(data.error||'Erreur.','error'); return; }
+        if (!data.affected || data.affected.length === 0) { showToast('Aucune deliberation a annuler.','info'); return; }
+        var msg = 'ATTENTION - Annulation en cascade !\n\n';
+        msg += 'En annulant la deliberation de [ ' + (data.cancel_label || '') + ' ], les deliberations suivantes seront egalement annulees :\n\n';
+        data.affected.forEach(function(label, i) { msg += '  ' + (i+1) + '. ' + label + '\n'; });
+        msg += '\nTotal : ' + data.count + ' deliberation(s)\n\nVoulez-vous continuer ?';
+        if (!confirm(msg)) return;
+        payload.preview = false;
+        var res2 = await fetch('/api/deliberations/cancel/', { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken}, body:JSON.stringify(payload) });
+        var data2 = await res2.json();
+        if (data2.success) { showToast(data2.message || 'Annulee.','success'); document.getElementById('delibResultsContainer').innerHTML='<div style="text-align:center;padding:40px;color:#10b981;font-size:.82rem;font-weight:700"><i class="fas fa-check-circle"><\/i> Annulee en cascade.<\/div>'; document.getElementById('delibStatusBadge').style.display='none'; }
+        else { showToast(data2.error||'Erreur.','error'); }
+    } catch(e) { showToast('Erreur de connexion.','error'); }
 }
 
 function renderDelibResults(resultats) {
