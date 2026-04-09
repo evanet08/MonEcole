@@ -24,8 +24,8 @@ from .structure_primaire import (get_styles,check_image_paths,
 logger = logging.getLogger(__name__)
 
 styles = getSampleStyleSheet()
-style_center = ParagraphStyle(name='CenterSec', parent=styles['Normal'], fontSize=7, leading=8, alignment=1)
-style_center_bold = ParagraphStyle(name='CenterSecBold', parent=style_center, fontName='Helvetica-Bold', fontSize=7, leading=8, alignment=1)
+style_center = ParagraphStyle(name='CenterSec', parent=styles['Normal'], fontSize=8, leading=9, alignment=1)
+style_center_bold = ParagraphStyle(name='CenterSecBold', parent=style_center, fontName='Helvetica-Bold', fontSize=8, leading=9, alignment=1)
 style_normal = styles['Normal']
 style_normal.alignment = 0  
 
@@ -513,11 +513,11 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                     row.append(Paragraph(str(note_val), style_center))
 
                 elif col in [1, 8]:
-                    row.append(Paragraph(str(ponderation), style_center_bold))
+                    row.append(Paragraph(str(ponderation), style_center))
 
                 elif col in [4, 11]:
                     exam_val = exam if exam != "-" else "0"
-                    row.append(Paragraph(str(exam_val), style_center_bold))
+                    row.append(Paragraph(str(exam_val), style_center))
                     if col == 4:
                         val_exam_t1 = exam_val
                     if col == 11:
@@ -530,14 +530,14 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                     pond_val = float(ponderation) if ponderation != "-" else 0.0
                     val_tot_sem_t1 = pond_val + float(val_exam_t1)
                     display_tot_sem = str(int(val_tot_sem_t1)) if val_tot_sem_t1 == int(val_tot_sem_t1) else str(val_tot_sem_t1)
-                    row.append(Paragraph(display_tot_sem, style_center_bold))
+                    row.append(Paragraph(display_tot_sem, style_center))
 
                 elif col == 13: 
                     # Max TOT.SEM = Max TJ (ponderation) + Max Exam
                     pond_val = float(ponderation) if ponderation != "-" else 0.0
                     val_tot_sem_t2 = pond_val + float(val_exam_t2)
                     display_tot_sem = str(int(val_tot_sem_t2)) if val_tot_sem_t2 == int(val_tot_sem_t2) else str(val_tot_sem_t2)
-                    row.append(Paragraph(display_tot_sem, style_center_bold))
+                    row.append(Paragraph(display_tot_sem, style_center))
 
                 elif col == 7:  
                     tot_s1 = 0.0
@@ -565,7 +565,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                         tot_max = float(row[6].text or 0) + float(row[13].text or 0)
                     except:
                         tot_max = 0.0
-                    row.append(Paragraph(str(round(tot_max, 2)), style_center_bold))
+                    row.append(Paragraph(str(round(tot_max, 2)), style_center))
 
                 elif col == 16:
                     # TOTAL GENERAL col 16 = Total Obtenu (TOT S1 + TOT S2)
@@ -624,7 +624,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
 
     table_style = TableStyle([
         ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ('FONTSIZE', (0, 0), (-1, -1), 7),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
@@ -660,11 +660,6 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                 table_style.add('FONTNAME', (0, row_idx), (-1, row_idx), 'Helvetica-Bold')
             elif "MAXIMA" in texte:
                 table_style.add('FONTNAME', (0, row_idx), (-1, row_idx), 'Helvetica-Bold')
-
-    # Bold pour les colonnes de maxima verticales (Max TJ, Max Exam, Max TOT.SEM, Max TOTAL)
-    maxima_cols = [1, 4, 6, 8, 11, 13, 15]
-    for col in maxima_cols:
-        table_style.add('FONTNAME', (col, 3), (col, num_rows - 1), 'Helvetica-Bold')
 
     # Colonne hachurée (col 17) — lignes continues au lieu de background noir
     col_hachuree = 17 
