@@ -613,6 +613,12 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
         id_semestre=id_semestre_actif_rep,
         semestres_data=trimestres_data 
     )
+    # Post-processing : vider les colonnes non-délibérées
+    from .structure_primaire import blank_non_deliberated_columns
+    blank_non_deliberated_columns(
+        table_data, id_eleve, id_classe, trimestres_data,
+        style_center, bulletin_type='secondaire'
+    )
     col_widths = [30*mm] + [8.22*mm] * 17 + [10*mm] + [20*mm]
     table = Table(table_data, colWidths=col_widths, rowHeights=[4*mm] * len(table_data))
 

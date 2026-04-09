@@ -816,6 +816,126 @@ def _get_deliberated_config_ids(id_eleve, eac):
     return deliberated_period_configs, all_trim_configs
 
 
+def _has_annual_deliberation(id_eleve, eac):
+    """Vérifie si l'élève a une délibération annuelle."""
+    from MonEcole_app.models.evaluations.note import Deliberation_annuelle_resultat
+    return Deliberation_annuelle_resultat.objects.filter(
+        id_eleve_id=id_eleve,
+        id_annee=eac.etablissement_annee.annee_id,
+    ).exists()
+
+
+def blank_non_deliberated_columns(table_data, id_eleve, id_classe, trimestres_data,
+                                   style_center, bulletin_type='primaire'):
+    """
+    Post-processing : vide complètement les colonnes des périodes non-délibérées.
+    Seuls les maxima structurels (Max per, Max Exam, Max Trim, Max Total) restent.
+    Les colonnes non-délibérées deviennent des cellules vides (pas de '-', pas de '0.00%').
+    
+    bulletin_type: 'primaire' (3 trimestres, 24 cols) ou 'secondaire' (2 semestres, 20 cols)
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    try:
+        eac = EtablissementAnneeClasse.objects.select_related('classe', 'etablissement_annee').get(id=id_classe)
+    except EtablissementAnneeClasse.DoesNotExist:
+        return
+
+    # Récupérer les configs délibérées
+    deliberated_period_configs, deliberated_trim_configs = _get_deliberated_config_ids(id_eleve, eac)
+    has_annual = _has_annual_deliberation(id_eleve, eac)
+
+    # Construire le mapping config_id → colonne pour les périodes
+    cours_annee_to_cours, config_to_rep, rep_to_code = _get_bulletin_context(eac)
+    periode_to_col = _get_periode_to_col(eac)
+
+    # Reverse map: pour chaque config_id de période, trouver la colonne
+    config_to_col = {}
+    for cfg_id, rep_id in config_to_rep.items():
+        code = rep_to_code.get(rep_id, '')
+        if code.startswith('P'):
+            col = periode_to_col.get(code)
+            if col is not None:
+                config_to_col[cfg_id] = col
+
+    # Déterminer les colonnes à effacer
+    columns_to_blank = set()
+
+    # 1. Colonnes de périodes non-délibérées
+    # Récupérer TOUTES les configs de périodes pour cet étab/année
+    from MonEcole_app.models.annee import Annee_periode
+    all_period_configs = set(
+        Annee_periode.objects.filter(
+            etablissement_annee_id=eac.etablissement_annee_id,
+            has_parent=True,
+        ).values_list('id_periode', flat=True)
+    )
+
+    for cfg_id in all_period_configs:
+        if cfg_id not in deliberated_period_configs:
+            col = config_to_col.get(cfg_id)
+            if col is not None:
+                columns_to_blank.add(col)
+
+    # 2. Colonnes d'examen et TOT trimestre/semestre non-délibérées
+    if bulletin_type == 'secondaire':
+        # Secondaire: 2 semestres
+        # T1 → exam=col5, tot=col7 ; T2 → exam=col12, tot=col14
+        trim_col_map = {}
+        if len(trimestres_data) >= 1:
+            trim_col_map[trimestres_data[0][0]] = {'exam': 5, 'tot': 7}
+        if len(trimestres_data) >= 2:
+            trim_col_map[trimestres_data[1][0]] = {'exam': 12, 'tot': 14}
+
+        for trim_id, cols in trim_col_map.items():
+            if trim_id not in deliberated_trim_configs:
+                columns_to_blank.add(cols['exam'])
+                columns_to_blank.add(cols['tot'])
+
+        # 3. Total général (col 16) si pas de délibération annuelle
+        if not has_annual:
+            columns_to_blank.add(16)
+
+    elif bulletin_type == 'primaire':
+        # Primaire: 3 trimestres
+        # T1 → exam=col5, tot=col7 ; T2 → exam=col12, tot=col14 ; T3 → exam=col19, tot=col21
+        trim_col_map = {}
+        if len(trimestres_data) >= 1:
+            trim_col_map[trimestres_data[0][0]] = {'exam': 5, 'tot': 7}
+        if len(trimestres_data) >= 2:
+            trim_col_map[trimestres_data[1][0]] = {'exam': 12, 'tot': 14}
+        if len(trimestres_data) >= 3:
+            trim_col_map[trimestres_data[2][0]] = {'exam': 19, 'tot': 21}
+
+        for trim_id, cols in trim_col_map.items():
+            if trim_id not in deliberated_trim_configs:
+                columns_to_blank.add(cols['exam'])
+                columns_to_blank.add(cols['tot'])
+
+        # 3. Total annuel (col 23) si pas de délibération annuelle
+        if not has_annual:
+            columns_to_blank.add(23)
+
+    if not columns_to_blank:
+        logger.info(f"[blank_non_deliberated] Rien à effacer pour élève {id_eleve}")
+        return
+
+    logger.info(f"[blank_non_deliberated] élève={id_eleve}, colonnes à effacer: {columns_to_blank}")
+
+    # Appliquer le blanking sur toutes les lignes (sauf headers rows 0,1)
+    empty_p = Paragraph("", style_center)
+    for row_idx, row in enumerate(table_data):
+        if row_idx < 2:  # Skip header rows
+            continue
+        if len(row) == 0 or row[0] is None:
+            continue
+
+        for col in columns_to_blank:
+            if col < len(row):
+                row[col] = Paragraph("", style_center)
+
+
 def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
     """
     Retourne les notes TJ par cours depuis note_bulletin, indexées par code de période.
@@ -1406,8 +1526,12 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
         id_trimestre=id_trimestre_actif
     )
 
-    
-    
+    # Post-processing : vider les colonnes non-délibérées
+    blank_non_deliberated_columns(
+        table_data, id_eleve, id_classe, trimestres_data,
+        style_center, bulletin_type='primaire'
+    )
+
     col_widths = [30*mm] + [7.4*mm] * 22
     table = Table(table_data, colWidths=col_widths, rowHeights=[4*mm] * len(table_data))
     table_style = TableStyle([
