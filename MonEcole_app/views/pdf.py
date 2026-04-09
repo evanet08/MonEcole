@@ -129,36 +129,70 @@ def generer_bulletin_pdf(request):
             'id_eleve_id__in': id_eleves,
         }
 
-        # Trouver la délibération LA PLUS RECENTE tous types confondus
-        # puis utiliser son classement pour l'ordre d'impression
-        candidates = []  # (date_creation, type, ref_id, model)
+        # Trouver la délibération la plus AVANCÉE structurellement
+        # Ordre : P1 < P2 < S1/T1 < P3 < P4 < S2/T2 < P5 < P6 < S3/T3 < Annuel
+        # La 1e période du trimestre suivant > tout ce qui concerne le précédent
+        CODE_POSITION = {
+            'P1': 1, 'P2': 2,
+            'S1': 5, 'T1': 5,
+            'P3': 6, 'P4': 7,
+            'S2': 10, 'T2': 10,
+            'P5': 11, 'P6': 12,
+            'S3': 15, 'T3': 15,
+        }
+        ANNUAL_POSITION = 100
+
+        # Résoudre config_id → code via le Hub
+        from django.db import connections
+        config_to_code = {}
+        try:
+            eac_obj = None
+            from MonEcole_app.models.country_structure import EtablissementAnneeClasse as _EAC2
+            eac_obj = _EAC2.objects.get(id=id_classe)
+            with connections['countryStructure'].cursor() as cur:
+                cur.execute("""
+                    SELECT rc.id, ri.code
+                    FROM repartition_configs_etab_annee rc
+                    JOIN repartitions ri ON ri.id_instance = rc.repartition_id
+                    WHERE rc.etablissement_annee_id = %s
+                """, [eac_obj.etablissement_annee_id])
+                for row in cur.fetchall():
+                    config_to_code[row[0]] = row[1]
+        except Exception as e:
+            logger.warning(f"[BULLETIN PDF] Could not resolve config codes: {e}")
+
+        candidates = []  # (position, type, ref_id, model)
 
         # Annuelle
-        latest_ann = Deliberation_annuelle_resultat.objects.filter(
-            **base_filter
-        ).order_by('-date_creation', '-id_deliberation').first()
-        if latest_ann:
-            candidates.append((latest_ann.date_creation, 'annuelle', None, Deliberation_annuelle_resultat))
+        if Deliberation_annuelle_resultat.objects.filter(**base_filter).exists():
+            candidates.append((ANNUAL_POSITION, 'annuelle', None, Deliberation_annuelle_resultat))
 
-        # Trimestrielle
-        latest_trim = Deliberation_trimistrielle_resultat.objects.filter(
+        # Trimestrielle — chaque trimestre délibéré
+        for trim_delib in Deliberation_trimistrielle_resultat.objects.filter(
             **base_filter
-        ).order_by('-date_creation', '-id_deliberation').first()
-        if latest_trim:
-            candidates.append((latest_trim.date_creation, 'trimestrielle', latest_trim.id_trimestre_id, Deliberation_trimistrielle_resultat))
+        ).values('id_trimestre_id').distinct():
+            trim_id = trim_delib['id_trimestre_id']
+            code = config_to_code.get(trim_id, '')
+            pos = CODE_POSITION.get(code, 0)
+            if pos:
+                candidates.append((pos, 'trimestrielle', trim_id, Deliberation_trimistrielle_resultat))
 
-        # Périodique
-        latest_per = Deliberation_periodique_resultat.objects.filter(
+        # Périodique — chaque période délibérée
+        for per_delib in Deliberation_periodique_resultat.objects.filter(
             **base_filter
-        ).order_by('-date_creation', '-id_deliberation').first()
-        if latest_per:
-            candidates.append((latest_per.date_creation, 'periodique', latest_per.id_periode_id, Deliberation_periodique_resultat))
+        ).values('id_periode_id').distinct():
+            per_id = per_delib['id_periode_id']
+            code = config_to_code.get(per_id, '')
+            pos = CODE_POSITION.get(code, 0)
+            if pos:
+                candidates.append((pos, 'periodique', per_id, Deliberation_periodique_resultat))
 
         if candidates:
-            # Prendre la plus récente
+            # Prendre la plus avancée structurellement
             candidates.sort(key=lambda x: x[0], reverse=True)
-            winner_date, winner_type, winner_ref, winner_model = candidates[0]
-            logger.warning(f"[BULLETIN PDF] Most recent deliberation: type={winner_type}, date={winner_date}, ref={winner_ref}")
+            winner_pos, winner_type, winner_ref, winner_model = candidates[0]
+            winner_code = config_to_code.get(winner_ref, 'Annual') if winner_ref else 'Annual'
+            logger.warning(f"[BULLETIN PDF] Most advanced deliberation: type={winner_type}, code={winner_code}, pos={winner_pos}")
 
             if winner_type == 'annuelle':
                 qs = winner_model.objects.filter(**base_filter)
