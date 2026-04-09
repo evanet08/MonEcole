@@ -670,17 +670,17 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
     # Colonne séparatrice (col 17) — fond gris foncé
     col_hachuree = 17
     separator_gray = colors.Color(0.45, 0.45, 0.45)
-    for row_idx in range(3, num_rows):
+    for row_idx in range(4, num_rows):
         if col_hachuree < len(table_data[row_idx]):
             table_data[row_idx][col_hachuree] = None
-    # Fusionner verticalement + background gris
-    if num_rows > 3:
-        table_style.add('SPAN', (col_hachuree, 3), (col_hachuree, num_rows - 1))
-        table_style.add('BACKGROUND', (col_hachuree, 3), (col_hachuree, num_rows - 1), separator_gray)
-        table_style.add('LINEAFTER', (col_hachuree - 1, 3), (col_hachuree - 1, num_rows - 1), 0.5, colors.black)
-        table_style.add('LINEAFTER', (col_hachuree, 3), (col_hachuree, num_rows - 1), 0.5, colors.black)
+    # Fusionner verticalement + background gris (à partir de la ligne 4)
+    if num_rows > 4:
+        table_style.add('SPAN', (col_hachuree, 4), (col_hachuree, num_rows - 1))
+        table_style.add('BACKGROUND', (col_hachuree, 4), (col_hachuree, num_rows - 1), separator_gray)
+        table_style.add('LINEAFTER', (col_hachuree - 1, 4), (col_hachuree - 1, num_rows - 1), 0.5, colors.black)
+        table_style.add('LINEAFTER', (col_hachuree, 4), (col_hachuree, num_rows - 1), 0.5, colors.black)
             
-    # Lignes finales (MAXIMA, POURCENTAGE, etc.) — fusionner les colonnes non-utilisées avec bordures
+    # Lignes finales (MAXIMA, POURCENTAGE, etc.) — colonnes structurelles avec background gris
     maxima_idx = None
     for idx, row in enumerate(table_data):
         if len(row) > 0 and isinstance(row[0], Paragraph) and "MAXIMA GENEREAUX" in (row[0].text or ""):
@@ -688,50 +688,20 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
             break
 
     if maxima_idx is not None:
+        # Colonnes séparatrices principales — décalées d'une ligne (à partir de POURCENTAGE)
         colonnes_struct = [1, 4, 6, 8, 11, 13]
-        for row_idx in range(maxima_idx, min(maxima_idx + 4, num_rows)):
+        for row_idx in range(maxima_idx + 1, min(maxima_idx + 6, num_rows)):
             for col_idx in colonnes_struct:
                 if col_idx < len(table_data[row_idx]):
                     table_data[row_idx][col_idx] = None
                     table_style.add('BACKGROUND', (col_idx, row_idx), (col_idx, row_idx), separator_gray)
-                    table_style.add('LINEAFTER', (col_idx - 1, row_idx), (col_idx - 1, row_idx), 0.5, colors.black)
-                    table_style.add('LINEAFTER', (col_idx, row_idx), (col_idx, row_idx), 0.5, colors.black)
 
         colonnes_struct_2 = [5, 7, 12, 14]
-        for row_idx in range(maxima_idx + 2, min(maxima_idx + 4, num_rows)):
+        for row_idx in range(maxima_idx + 3, min(maxima_idx + 6, num_rows)):
             for col_idx in colonnes_struct_2:
                 if row_idx < num_rows and col_idx < len(table_data[row_idx]):
                     table_data[row_idx][col_idx] = None
                     table_style.add('BACKGROUND', (col_idx, row_idx), (col_idx, row_idx), separator_gray)
-                    table_style.add('LINEAFTER', (col_idx - 1, row_idx), (col_idx - 1, row_idx), 0.5, colors.black)
-                    table_style.add('LINEAFTER', (col_idx, row_idx), (col_idx, row_idx), 0.5, colors.black)
-
-        # Colspans pour CONDUITE, APPLICATION, SIGNATURE DU RESPONSABLE (3 dernières lignes)
-        for offset in range(3, 6):  # maxima_idx+3=CONDUITE, +4=APPLICATION, +5=SIGNATURE
-            row_idx = maxima_idx + offset
-            if row_idx < num_rows:
-                # Fusionner cols 1-6 (Sem1 area)
-                for c in range(1, 7):
-                    if c < len(table_data[row_idx]):
-                        table_data[row_idx][c] = None
-                table_style.add('SPAN', (1, row_idx), (6, row_idx))
-                table_style.add('BACKGROUND', (1, row_idx), (6, row_idx), separator_gray)
-                # Fusionner cols 8-14 (Sem2 area)
-                for c in range(8, 15):
-                    if c < len(table_data[row_idx]):
-                        table_data[row_idx][c] = None
-                table_style.add('SPAN', (8, row_idx), (14, row_idx))
-                table_style.add('BACKGROUND', (8, row_idx), (14, row_idx), separator_gray)
-                # Col 7 separator
-                if 7 < len(table_data[row_idx]):
-                    table_data[row_idx][7] = None
-                    table_style.add('BACKGROUND', (7, row_idx), (7, row_idx), separator_gray)
-                # Cols 15-16 (Total General area)
-                for c in range(15, 17):
-                    if c < len(table_data[row_idx]):
-                        table_data[row_idx][c] = None
-                table_style.add('SPAN', (15, row_idx), (16, row_idx))
-                table_style.add('BACKGROUND', (15, row_idx), (16, row_idx), separator_gray)
 
     # Zone signature en bas à droite
     signature_start = num_rows - 5 if num_rows > 5 else num_rows - 1
@@ -752,8 +722,8 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
     style_visible = ParagraphStyle(
         name='TexteVisible',
         parent=style_center,
-        fontSize=6,
-        leading=8,         
+        fontSize=7,
+        leading=9,         
         alignment=1,       
         textColor=colors.black,
         spaceBefore=2,
