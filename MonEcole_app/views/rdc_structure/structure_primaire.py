@@ -1014,12 +1014,16 @@ def calculer_pourcentages(table_data, style_center):
     pourcentage_row = table_data[ligne_pourcentage_idx]
     while len(pourcentage_row) < 24:
         pourcentage_row.append(None)
-    pourcentage_row[2] = Paragraph(f"{(get_val(max_gen_idx, 2) / max_per_t1 * 100):.2f}%", style_center) if max_per_t1 > 0 else Paragraph("0.00%", style_center)
-    pourcentage_row[3] = Paragraph(f"{(get_val(max_gen_idx, 3) / max_per_t1 * 100):.2f}%", style_center) if max_per_t1 > 0 else Paragraph("0.00%", style_center)
-    pourcentage_row[9] = Paragraph(f"{(get_val(max_gen_idx, 9) / max_per_t2 * 100):.2f}%", style_center) if max_per_t2 > 0 else Paragraph("0.00%", style_center)
-    pourcentage_row[10] = Paragraph(f"{(get_val(max_gen_idx, 10) / max_per_t2 * 100):.2f}%", style_center) if max_per_t2 > 0 else Paragraph("0.00%", style_center)
-    pourcentage_row[16] = Paragraph(f"{(get_val(max_gen_idx, 16) / max_per_t3 * 100):.2f}%", style_center) if max_per_t3 > 0 else Paragraph("0.00%", style_center)
-    pourcentage_row[17] = Paragraph(f"{(get_val(max_gen_idx, 17) / max_per_t3 * 100):.2f}%", style_center) if max_per_t3 > 0 else Paragraph("0.00%", style_center)
+    # Pondération par période = max TJ trimestre / 2 (2 périodes par trimestre)
+    pond_p_t1 = max_per_t1 / 2 if max_per_t1 > 0 else 0
+    pond_p_t2 = max_per_t2 / 2 if max_per_t2 > 0 else 0
+    pond_p_t3 = max_per_t3 / 2 if max_per_t3 > 0 else 0
+    pourcentage_row[2] = Paragraph(f"{(get_val(max_gen_idx, 2) / pond_p_t1 * 100):.2f}%", style_center) if pond_p_t1 > 0 else Paragraph("0.00%", style_center)
+    pourcentage_row[3] = Paragraph(f"{(get_val(max_gen_idx, 3) / pond_p_t1 * 100):.2f}%", style_center) if pond_p_t1 > 0 else Paragraph("0.00%", style_center)
+    pourcentage_row[9] = Paragraph(f"{(get_val(max_gen_idx, 9) / pond_p_t2 * 100):.2f}%", style_center) if pond_p_t2 > 0 else Paragraph("0.00%", style_center)
+    pourcentage_row[10] = Paragraph(f"{(get_val(max_gen_idx, 10) / pond_p_t2 * 100):.2f}%", style_center) if pond_p_t2 > 0 else Paragraph("0.00%", style_center)
+    pourcentage_row[16] = Paragraph(f"{(get_val(max_gen_idx, 16) / pond_p_t3 * 100):.2f}%", style_center) if pond_p_t3 > 0 else Paragraph("0.00%", style_center)
+    pourcentage_row[17] = Paragraph(f"{(get_val(max_gen_idx, 17) / pond_p_t3 * 100):.2f}%", style_center) if pond_p_t3 > 0 else Paragraph("0.00%", style_center)
 
     pourcentage_row[5] = Paragraph(f"{(get_val(max_gen_idx, 5) / max_exam_t1 * 100):.2f}%", style_center) if max_exam_t1 > 0 else Paragraph("0.00%", style_center)
     pourcentage_row[12] = Paragraph(f"{(get_val(max_gen_idx, 12) / max_exam_t2 * 100):.2f}%", style_center) if max_exam_t2 > 0 else Paragraph("0.00%", style_center)
