@@ -153,7 +153,7 @@ def generer_bulletin_pdf(request):
                 cur.execute("""
                     SELECT rc.id, ri.code
                     FROM repartition_configs_etab_annee rc
-                    JOIN repartitions ri ON ri.id_instance = rc.repartition_id
+                    JOIN repartition_instances ri ON ri.id_instance = rc.repartition_id
                     WHERE rc.etablissement_annee_id = %s
                 """, [eac_obj.etablissement_annee_id])
                 for row in cur.fetchall():
