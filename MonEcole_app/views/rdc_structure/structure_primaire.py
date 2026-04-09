@@ -934,8 +934,9 @@ def blank_non_deliberated_columns(table_data, id_eleve, id_classe, trimestres_da
                 columns_to_blank.add(cols['exam'])
                 columns_to_blank.add(cols['tot'])
 
-        # 3. Total général (col 16) si pas de délibération annuelle
-        if not has_annual:
+        # 3. Total général (col 16) : blanker SEULEMENT si un des semestres n'est pas délibéré
+        #    (le total est la somme des TOT.SEM, donc si les deux semestres sont visibles, le total l'est aussi)
+        if 7 in columns_to_blank or 14 in columns_to_blank:
             columns_to_blank.add(16)
 
     elif bulletin_type == 'primaire':
@@ -954,8 +955,8 @@ def blank_non_deliberated_columns(table_data, id_eleve, id_classe, trimestres_da
                 columns_to_blank.add(cols['exam'])
                 columns_to_blank.add(cols['tot'])
 
-        # 3. Total annuel (col 23) si pas de délibération annuelle
-        if not has_annual:
+        # 3. Total annuel (col 23) : blanker SEULEMENT si un trimestre n'est pas délibéré
+        if 7 in columns_to_blank or 14 in columns_to_blank or 21 in columns_to_blank:
             columns_to_blank.add(23)
 
     if not columns_to_blank:
