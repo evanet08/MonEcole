@@ -265,13 +265,7 @@ def calculer_sous_totaux_et_maxima_secondaire(table_data, style_center):
             if col >= len(st_row):
                 continue
             val = sommes[col]
-            val_net = round(val, 2)
-            if abs(val_net - round(val_net)) < 1e-10:
-                display_val = str(int(val_net))
-            else:
-                display_val = f"{val_net:.2f}"
-
-            st_row[col] = Paragraph(display_val if val > 0 else "-", style_center_bold)
+            st_row[col] = Paragraph(smart_format(val) if val > 0 else "-", style_center_bold)
 
     max_gen_idx = None
     for idx, row in enumerate(table_data):
@@ -317,13 +311,18 @@ def calculer_sous_totaux_et_maxima_secondaire(table_data, style_center):
         if col >= len(mg_row):
             continue
         val = max_sommes[col]
-        val_net = round(val, 2)
-        if abs(val_net - round(val_net)) < 1e-10:
-            display_val = str(int(val_net))
-        else:
-            display_val = f"{val_net:.2f}"
+        mg_row[col] = Paragraph(smart_format(val) if val > 0 else "0", style_center_bold)
 
-        mg_row[col] = Paragraph(display_val if val > 0 else "0", style_center_bold)
+def smart_format(val):
+    """Formate un nombre sans zéros inutiles: 54.40→54.4, 200.0→200, 3.50→3.5"""
+    if val == 0:
+        return "0"
+    rounded = round(val, 2)
+    if rounded == int(rounded):
+        return str(int(rounded))
+    # Remove trailing zeros: 54.40 → 54.4
+    return f"{rounded:.2f}".rstrip('0').rstrip('.')
+
 
 def calcul_pourcentage(valeur, maximum):
     try:
@@ -396,19 +395,19 @@ def calculer_pourcentages_secondaire(table_data, style_center):
         pourcentage_row.append(None)
         
     # Périodes: pourcentage sur la pondération (max par période)
-    pourcentage_row[2] = Paragraph(f"{calcul_pourcentage(note_1er_p, max_per_p1)}%", style_center)
-    pourcentage_row[3] = Paragraph(f"{calcul_pourcentage(note_2eme_p, max_per_p2)}%", style_center)
-    pourcentage_row[5] = Paragraph(f"{calcul_pourcentage(note_exam_sem1, max_exam_sem1)}%", style_center)
-    pourcentage_row[7] = Paragraph(f"{calcul_pourcentage(tot_sem1, max_tot_sem1)}%", style_center)
-    pourcentage_row[9] = Paragraph(f"{calcul_pourcentage(note_3e_p, max_per_p3)}%", style_center)
-    pourcentage_row[10] = Paragraph(f"{calcul_pourcentage(note_4eme_p, max_per_p4)}%", style_center)
-    pourcentage_row[12] = Paragraph(f"{calcul_pourcentage(note_exam_sem2, max_exam_sem2)}%", style_center)
-    pourcentage_row[14] = Paragraph(f"{calcul_pourcentage(tot_sem2, max_tot_sem2)}%", style_center)
+    pourcentage_row[2] = Paragraph(f"{calcul_pourcentage(note_1er_p, max_per_p1)}%", style_center_bold)
+    pourcentage_row[3] = Paragraph(f"{calcul_pourcentage(note_2eme_p, max_per_p2)}%", style_center_bold)
+    pourcentage_row[5] = Paragraph(f"{calcul_pourcentage(note_exam_sem1, max_exam_sem1)}%", style_center_bold)
+    pourcentage_row[7] = Paragraph(f"{calcul_pourcentage(tot_sem1, max_tot_sem1)}%", style_center_bold)
+    pourcentage_row[9] = Paragraph(f"{calcul_pourcentage(note_3e_p, max_per_p3)}%", style_center_bold)
+    pourcentage_row[10] = Paragraph(f"{calcul_pourcentage(note_4eme_p, max_per_p4)}%", style_center_bold)
+    pourcentage_row[12] = Paragraph(f"{calcul_pourcentage(note_exam_sem2, max_exam_sem2)}%", style_center_bold)
+    pourcentage_row[14] = Paragraph(f"{calcul_pourcentage(tot_sem2, max_tot_sem2)}%", style_center_bold)
 
     # TOTAL GENERAL percentage
     max_total_gen = get_val(max_gen_idx, 15)
     total_gen_obtenu = get_val(max_gen_idx, 16)
-    pourcentage_row[16] = Paragraph(f"{calcul_pourcentage(total_gen_obtenu, max_total_gen)}%", style_center)
+    pourcentage_row[16] = Paragraph(f"{calcul_pourcentage(total_gen_obtenu, max_total_gen)}%", style_center_bold)
 
 
 def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_annee, id_campus, id_cycle, id_classe,id_eleve):
@@ -557,7 +556,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                         tot_s1 += float(row[5].text or 0) if len(row) > 5 and row[5] else 0.0
                     except:
                         tot_s1 = 0.0
-                    row.append(Paragraph(str(round(tot_s1, 2)), style_center))
+                    row.append(Paragraph(smart_format(tot_s1), style_center))
 
                 elif col == 14: 
                     tot_s2 = 0.0
@@ -567,7 +566,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                         tot_s2 += float(row[12].text or 0) if len(row) > 12 and row[12] else 0.0
                     except:
                         tot_s2 = 0.0
-                    row.append(Paragraph(str(round(tot_s2, 2)), style_center))
+                    row.append(Paragraph(smart_format(tot_s2), style_center))
 
                 elif col == 15:
                     # TOTAL GENERAL col 15 = Max Total (TOT.SEM Max S1 + TOT.SEM Max S2)
@@ -575,7 +574,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                         tot_max = float(row[6].text or 0) + float(row[13].text or 0)
                     except:
                         tot_max = 0.0
-                    row.append(Paragraph(str(round(tot_max, 2)), style_center_bold))
+                    row.append(Paragraph(smart_format(tot_max), style_center_bold))
 
                 elif col == 16:
                     # TOTAL GENERAL col 16 = Total Obtenu (TOT S1 + TOT S2)
@@ -583,7 +582,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                         tot_gen = float(row[7].text or 0) + float(row[14].text or 0)
                     except:
                         tot_gen = 0.0
-                    row.append(Paragraph(str(round(tot_gen, 2)), style_center))
+                    row.append(Paragraph(smart_format(tot_gen), style_center))
 
                 elif col in [17, 18, 19]:
                     row.append(None)
@@ -660,7 +659,8 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
             texte = row[0].text or ""
             if "<b>" in texte and "Sous Total" not in texte and "MAXIMA" not in texte and "POURCENTAGE" not in texte and "PLACE" not in texte and "CONDUITE" not in texte and "APPLICATION" not in texte and "SIGNATURE" not in texte:
                 table_style.add('SPAN', (0, row_idx), (-1, row_idx))
-                table_style.add('BACKGROUND', (0, row_idx), (-1, row_idx), colors.lightblue)
+                table_style.add('BACKGROUND', (0, row_idx), (-1, row_idx), colors.Color(0.45, 0.45, 0.45))
+                table_style.add('TEXTCOLOR', (0, row_idx), (-1, row_idx), colors.white)
             elif "Sous Total" in texte:
                 pass  # Bold already handled via Paragraph style_normal_bold + style_center_bold
             elif "MAXIMA" in texte:
