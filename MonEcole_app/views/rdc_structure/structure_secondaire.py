@@ -25,9 +25,9 @@ logger = logging.getLogger(__name__)
 
 styles = getSampleStyleSheet()
 style_center = ParagraphStyle(name='CenterSec', parent=styles['Normal'], fontSize=9, leading=10, alignment=1)
-style_center_bold = ParagraphStyle(name='CenterSecBold', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=6, leading=7, alignment=1)
+style_center_bold = ParagraphStyle(name='CenterSecBold', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=5, leading=6, alignment=1)
 style_normal = ParagraphStyle(name='NormalSec', parent=styles['Normal'], fontSize=9, leading=10, alignment=0)
-style_normal_bold = ParagraphStyle(name='NormalSecBold', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=6, leading=7, alignment=0)
+style_normal_bold = ParagraphStyle(name='NormalSecBold', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=5, leading=6, alignment=0)
 
 
 def get_semestres(id_annee, id_campus, id_cycle, id_classe):
@@ -261,7 +261,7 @@ def calculer_sous_totaux_et_maxima_secondaire(table_data, style_center):
             else:
                 display_val = f"{val_net:.2f}"
 
-            st_row[col] = Paragraph(f"<b>{display_val}</b>" if val > 0 else "<b>-</b>", style_center_bold)
+            st_row[col] = Paragraph(display_val if val > 0 else "-", style_center_bold)
 
     max_gen_idx = None
     for idx, row in enumerate(table_data):
@@ -313,7 +313,7 @@ def calculer_sous_totaux_et_maxima_secondaire(table_data, style_center):
         else:
             display_val = f"{val_net:.2f}"
 
-        mg_row[col] = Paragraph(f"<b>{display_val}</b>" if val > 0 else "<b>0</b>", style_center_bold)
+        mg_row[col] = Paragraph(display_val if val > 0 else "0", style_center_bold)
 
 def calcul_pourcentage(valeur, maximum):
     try:
@@ -513,11 +513,11 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                     row.append(Paragraph(str(note_val), style_center))
 
                 elif col in [1, 8]:
-                    row.append(Paragraph(f"<b>{ponderation}</b>", style_center_bold))
+                    row.append(Paragraph(str(ponderation), style_center_bold))
 
                 elif col in [4, 11]:
                     exam_val = exam if exam != "-" else "0"
-                    row.append(Paragraph(f"<b>{exam_val}</b>", style_center_bold))
+                    row.append(Paragraph(str(exam_val), style_center_bold))
                     if col == 4:
                         val_exam_t1 = exam_val
                     if col == 11:
@@ -530,14 +530,14 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                     pond_val = float(ponderation) if ponderation != "-" else 0.0
                     val_tot_sem_t1 = pond_val + float(val_exam_t1)
                     display_tot_sem = str(int(val_tot_sem_t1)) if val_tot_sem_t1 == int(val_tot_sem_t1) else str(val_tot_sem_t1)
-                    row.append(Paragraph(f"<b>{display_tot_sem}</b>", style_center_bold))
+                    row.append(Paragraph(display_tot_sem, style_center_bold))
 
                 elif col == 13: 
                     # Max TOT.SEM = Max TJ (ponderation) + Max Exam
                     pond_val = float(ponderation) if ponderation != "-" else 0.0
                     val_tot_sem_t2 = pond_val + float(val_exam_t2)
                     display_tot_sem = str(int(val_tot_sem_t2)) if val_tot_sem_t2 == int(val_tot_sem_t2) else str(val_tot_sem_t2)
-                    row.append(Paragraph(f"<b>{display_tot_sem}</b>", style_center_bold))
+                    row.append(Paragraph(display_tot_sem, style_center_bold))
 
                 elif col == 7:  
                     tot_s1 = 0.0
@@ -565,7 +565,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                         tot_max = float(row[6].text or 0) + float(row[13].text or 0)
                     except:
                         tot_max = 0.0
-                    row.append(Paragraph(f"<b>{round(tot_max, 2)}</b>", style_center_bold))
+                    row.append(Paragraph(str(round(tot_max, 2)), style_center_bold))
 
                 elif col == 16:
                     # TOTAL GENERAL col 16 = Total Obtenu (TOT S1 + TOT S2)
