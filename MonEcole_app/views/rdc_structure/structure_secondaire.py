@@ -24,8 +24,8 @@ from .structure_primaire import (get_styles,check_image_paths,
 logger = logging.getLogger(__name__)
 
 styles = getSampleStyleSheet()
-style_center = styles['Normal']
-style_center.alignment = 1 
+style_center = ParagraphStyle(name='CenterSec', parent=styles['Normal'], fontSize=10, leading=11, alignment=1)
+style_center_bold = ParagraphStyle(name='CenterSecBold', parent=style_center, fontName='Helvetica-Bold', fontSize=10, leading=11, alignment=1)
 style_normal = styles['Normal']
 style_normal.alignment = 0  
 
@@ -198,8 +198,8 @@ def create_bulletin_title__secondaire_rdc(elements, style_title, style_right,id_
         return HttpResponse('<script>history.back();</script>', status=404)
     elements.append(Spacer(1, 2*mm))
     title_data = [
-        [Paragraph(f"<font color='black'><b>BULLETIN DE :{classe_name}  EDUCATION DE BASE</b></font>", style_title),
-         Paragraph(f"<font color='black'><b>ANNEE SCOLAIRE :{annee_obj.annee} </b></font>", style_right)]
+        [Paragraph(f"<font color='black'><b>BULLETIN D'EDUCATION DE BASE DE : Classe de {classe_name}</b></font>", style_title),
+         Paragraph(f"<font color='black'><b>ANNEE SCOLAIRE {annee_obj.annee}</b></font>", style_right)]
     ]
     title_table = Table(title_data, colWidths=[100*mm, 100*mm])
     title_table.setStyle(TableStyle([
@@ -261,7 +261,7 @@ def calculer_sous_totaux_et_maxima_secondaire(table_data, style_center):
             else:
                 display_val = f"{val_net:.2f}"
 
-            st_row[col] = Paragraph(display_val if val > 0 else "-", style_center)
+            st_row[col] = Paragraph(f"<b>{display_val}</b>" if val > 0 else "<b>-</b>", style_center_bold)
 
     max_gen_idx = None
     for idx, row in enumerate(table_data):
@@ -313,7 +313,7 @@ def calculer_sous_totaux_et_maxima_secondaire(table_data, style_center):
         else:
             display_val = f"{val_net:.2f}"
 
-        mg_row[col] = Paragraph(display_val if val > 0 else "0", style_center)
+        mg_row[col] = Paragraph(f"<b>{display_val}</b>" if val > 0 else "<b>0</b>", style_center_bold)
 
 def calcul_pourcentage(valeur, maximum):
     try:

@@ -13410,26 +13410,36 @@ def cancel_deliberation(request):
         }
         ANNUAL_POS = 100
 
-        # Résoudre config_id → code + nom
-        config_to_info = {}  # config_id → {'code': 'P1', 'nom': '1ère Période', 'pos': 1}
+        # Résoudre config_id → code + nom + type
+        config_to_info = {}  # config_id → {'code': 'P1', 'nom': '...', 'pos': N, 'type_code': 'P'}
         if eac:
             try:
                 with connections['countryStructure'].cursor() as cur:
                     cur.execute("""
-                        SELECT rc.id, ri.code, ri.nom, rc.parent_id, rc.has_parent
+                        SELECT rc.id, ri.code, ri.nom, rc.parent_id, rc.has_parent, rt.code as type_code
                         FROM repartition_configs_etab_annee rc
                         JOIN repartition_instances ri ON ri.id_instance = rc.repartition_id
+                        LEFT JOIN repartition_types rt ON rt.id_type = ri.type_id
                         WHERE rc.etablissement_annee_id = %s
                     """, [eac.etablissement_annee_id])
                     for row in cur.fetchall():
-                        cfg_id, code, nom, parent_id, has_parent = row
+                        cfg_id, code, nom, parent_id, has_parent, type_code = row
                         pos = CODE_POSITION.get(code, 0)
+                        # Déterminer si c'est une période via le type_code ('P') ou le code (commence par 'P')
+                        is_period = (type_code == 'P') or (code and code.startswith('P'))
+                        is_sem_tri = (type_code in ('S', 'T')) or (code and code[:1] in ('S', 'T'))
                         config_to_info[cfg_id] = {
                             'code': code, 'nom': nom, 'pos': pos,
-                            'parent_id': parent_id, 'has_parent': bool(has_parent)
+                            'parent_id': parent_id, 'has_parent': bool(has_parent),
+                            'type_code': type_code or '',
+                            'is_period': is_period,
+                            'is_sem_tri': is_sem_tri,
                         }
             except Exception as e:
                 import traceback; traceback.print_exc()
+
+        import sys
+        print(f"[CANCEL DEBUG] config_to_info = { {k: (v['code'], v['pos'], v['is_period'], v['is_sem_tri']) for k,v in config_to_info.items()} }", file=sys.stderr)
 
         # Déterminer la position de la délibération qu'on annule
         cancel_pos = 0
@@ -13446,24 +13456,27 @@ def cancel_deliberation(request):
             cancel_pos = info.get('pos', 0)
             cancel_label = info.get('nom', f'Période {repartition_id}')
 
-        # Construire la liste de TOUT ce qui doit être annulé (position >= cancel_pos)
-        to_cancel = []  # [{'type': 'periode|trimestre|annee', 'config_id': X, 'label': '...', 'pos': N}]
+        print(f"[CANCEL DEBUG] cancel_pos={cancel_pos}, cancel_label={cancel_label}, delib_type={delib_type}", file=sys.stderr)
 
-        # Périodes supérieures ou égales
+        # Construire la liste de TOUT ce qui doit être annulé (position >= cancel_pos)
+        to_cancel = []
+
+        # Périodes dont la position est >= cancel_pos (identifiées par type_code='P' ou code startswith 'P')
         for cfg_id, info in config_to_info.items():
-            if info['has_parent'] and info['pos'] >= cancel_pos:
-                # Vérifier qu'une délibération existe pour cette période
+            if info['is_period'] and info['pos'] >= cancel_pos:
                 f = dict(base_filter)
                 f['id_periode_id'] = cfg_id
-                if Deliberation_periodique_resultat.objects.filter(**f).exists():
+                exists = Deliberation_periodique_resultat.objects.filter(**f).exists()
+                print(f"[CANCEL DEBUG]   Period {info['code']} cfg={cfg_id} pos={info['pos']} exists={exists}", file=sys.stderr)
+                if exists:
                     to_cancel.append({
                         'type': 'periode', 'config_id': cfg_id,
                         'label': info['nom'], 'code': info['code'], 'pos': info['pos']
                     })
 
-        # Trimestres/semestres dont la position est >= cancel_pos
+        # Semestres/Trimestres dont la position est >= cancel_pos
         for cfg_id, info in config_to_info.items():
-            if not info['has_parent'] and info['pos'] >= cancel_pos and info['code'] in CODE_POSITION:
+            if info['is_sem_tri'] and info['pos'] >= cancel_pos:
                 f = dict(base_filter)
                 f['id_trimestre_id'] = cfg_id
                 if Deliberation_trimistrielle_resultat.objects.filter(**f).exists():
@@ -13471,7 +13484,7 @@ def cancel_deliberation(request):
                         'type': 'trimestre', 'config_id': cfg_id,
                         'label': info['nom'], 'code': info['code'], 'pos': info['pos']
                     })
-                # Aussi les examens du trimestre
+                # Aussi les examens du semestre/trimestre
                 fe = dict(base_filter)
                 fe['id_trimestre_id'] = cfg_id
                 if Deliberation_examen_resultat.objects.filter(**fe).exists():
@@ -13491,6 +13504,7 @@ def cancel_deliberation(request):
 
         # Trier par position structurelle
         to_cancel.sort(key=lambda x: x['pos'])
+        print(f"[CANCEL DEBUG] to_cancel = {[(c['type'], c['code'], c['pos']) for c in to_cancel]}", file=sys.stderr)
 
         # ── Mode preview ──
         if preview_mode:
