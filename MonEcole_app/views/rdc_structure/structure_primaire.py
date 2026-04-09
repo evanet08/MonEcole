@@ -793,6 +793,16 @@ def _get_deliberated_config_ids(id_eleve, eac):
             id_classe_id=eac.classe_id,
         ).values_list('id_periode_id', flat=True)
     )
+    # Fallback par id_annee si aucun résultat par classe_id
+    if not deliberated_period_configs:
+        deliberated_period_configs = set(
+            Deliberation_periodique_resultat.objects.filter(
+                id_eleve_id=id_eleve,
+                id_annee=eac.etablissement_annee.annee_id,
+            ).values_list('id_periode_id', flat=True)
+        )
+        if deliberated_period_configs:
+            logger.warning(f"[_get_deliberated_config_ids] Period fallback par id_annee pour élève={id_eleve}")
 
     # 2. Trimestre/Semestre configs délibérés pour examens
     deliberated_exam_configs = set(
@@ -801,6 +811,15 @@ def _get_deliberated_config_ids(id_eleve, eac):
             id_classe_id=eac.classe_id,
         ).values_list('id_trimestre_id', flat=True)
     )
+    if not deliberated_exam_configs:
+        deliberated_exam_configs = set(
+            Deliberation_examen_resultat.objects.filter(
+                id_eleve_id=id_eleve,
+                id_annee=eac.etablissement_annee.annee_id,
+            ).values_list('id_trimestre_id', flat=True)
+        )
+        if deliberated_exam_configs:
+            logger.warning(f"[_get_deliberated_config_ids] Exam fallback par id_annee pour élève={id_eleve}")
 
     # 3. Trimestre/Semestre configs délibérés (trimestriels)
     deliberated_trim_configs = set(
@@ -809,6 +828,15 @@ def _get_deliberated_config_ids(id_eleve, eac):
             id_classe_id=eac.classe_id,
         ).values_list('id_trimestre_id', flat=True)
     )
+    if not deliberated_trim_configs:
+        deliberated_trim_configs = set(
+            Deliberation_trimistrielle_resultat.objects.filter(
+                id_eleve_id=id_eleve,
+                id_annee=eac.etablissement_annee.annee_id,
+            ).values_list('id_trimestre_id', flat=True)
+        )
+        if deliberated_trim_configs:
+            logger.warning(f"[_get_deliberated_config_ids] Trim fallback par id_annee pour élève={id_eleve}")
 
     # Union des configs trimestre (examen + trimestriel)
     all_trim_configs = deliberated_exam_configs | deliberated_trim_configs
@@ -823,10 +851,29 @@ def _get_deliberated_config_ids(id_eleve, eac):
 def _has_annual_deliberation(id_eleve, eac):
     """Vérifie si l'élève a une délibération annuelle."""
     from MonEcole_app.models.evaluations.note import Deliberation_annuelle_resultat
-    return Deliberation_annuelle_resultat.objects.filter(
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Filtre principal : par business key (classe_id)
+    exists = Deliberation_annuelle_resultat.objects.filter(
         id_eleve_id=id_eleve,
         id_classe_id=eac.classe_id,
     ).exists()
+
+    if not exists:
+        # Fallback : filtre par année (au cas où les données utilisent un ancien schéma)
+        exists = Deliberation_annuelle_resultat.objects.filter(
+            id_eleve_id=id_eleve,
+            id_annee=eac.etablissement_annee.annee_id,
+        ).exists()
+        if exists:
+            logger.warning(
+                f"[_has_annual_deliberation] Fallback par id_annee pour élève={id_eleve} "
+                f"(classe_id={eac.classe_id} non trouvé, mais annee_id={eac.etablissement_annee.annee_id} trouvé)"
+            )
+
+    logger.info(f"[_has_annual_deliberation] eleve={id_eleve}, classe_id={eac.classe_id}, exists={exists}")
+    return exists
 
 
 def blank_non_deliberated_columns(table_data, id_eleve, id_classe, trimestres_data,
@@ -917,15 +964,39 @@ def blank_non_deliberated_columns(table_data, id_eleve, id_classe, trimestres_da
 
     logger.info(f"[blank_non_deliberated] élève={id_eleve}, colonnes à effacer: {columns_to_blank}")
 
-    # Appliquer le blanking sur toutes les lignes (sauf headers rows 0,1)
-    empty_p = Paragraph("", style_center)
+    # Colonnes structurelles (Max) à ne JAMAIS blanker
+    if bulletin_type == 'secondaire':
+        structural_cols = {1, 4, 6, 8, 11, 13, 15}  # Max TJ, Max Exam, Max TOT.SEM, Max Total
+    else:
+        structural_cols = {1, 4, 6, 8, 11, 13, 15, 18, 20}  # Primaire: 3 trimestres
+
+    # Mots-clés des lignes spéciales à protéger
+    protected_keywords = {
+        'MAXIMA GENEREAUX', 'POURCENTAGE', 'PLACE', 'CONDUITE',
+        'APPLICATION', 'SIGNATURE'
+    }
+
+    # Appliquer le blanking sur les lignes de cours/sous-totaux uniquement
     for row_idx, row in enumerate(table_data):
-        if row_idx < 2:  # Skip header rows
+        if row_idx < 3:  # Skip header rows (0, 1, 2)
             continue
         if len(row) == 0 or row[0] is None:
             continue
 
+        # Vérifier si c'est une ligne protégée (MAXIMA, POURCENTAGE, PLACE, etc.)
+        row_text = ''
+        if isinstance(row[0], Paragraph):
+            row_text = (row[0].text or '').upper()
+        else:
+            row_text = str(row[0]).upper()
+        
+        is_protected_row = any(kw in row_text for kw in protected_keywords)
+        if is_protected_row:
+            continue  # Ne jamais blanker les lignes spéciales
+
         for col in columns_to_blank:
+            if col in structural_cols:
+                continue  # Ne pas blanker les colonnes Max structurelles
             if col < len(row):
                 row[col] = Paragraph("", style_center)
 
