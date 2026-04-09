@@ -659,8 +659,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
             texte = row[0].text or ""
             if "<b>" in texte and "Sous Total" not in texte and "MAXIMA" not in texte and "POURCENTAGE" not in texte and "PLACE" not in texte and "CONDUITE" not in texte and "APPLICATION" not in texte and "SIGNATURE" not in texte:
                 table_style.add('SPAN', (0, row_idx), (-1, row_idx))
-                table_style.add('BACKGROUND', (0, row_idx), (-1, row_idx), colors.Color(0.45, 0.45, 0.45))
-                table_style.add('TEXTCOLOR', (0, row_idx), (-1, row_idx), colors.white)
+                table_style.add('BACKGROUND', (0, row_idx), (-1, row_idx), colors.lightblue)
             elif "Sous Total" in texte:
                 pass  # Bold already handled via Paragraph style_normal_bold + style_center_bold
             elif "MAXIMA" in texte:
