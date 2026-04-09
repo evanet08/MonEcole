@@ -764,6 +764,58 @@ def _get_bulletin_context(eac):
     return cours_annee_to_cours, config_to_rep, rep_to_code
 
 
+def _get_deliberated_config_ids(id_eleve, eac):
+    """
+    Retourne les config_ids délibérés pour un élève :
+    - deliberated_period_configs: set de config_ids de périodes délibérées (TJ)
+    - deliberated_trim_configs: set de config_ids de trimestres/semestres délibérés (Examen)
+    Seules les notes associées à ces configs apparaîtront sur le bulletin.
+    """
+    from MonEcole_app.models.evaluations.note import (
+        Deliberation_periodique_resultat,
+        Deliberation_examen_resultat,
+        Deliberation_trimistrielle_resultat,
+    )
+    import logging
+    logger = logging.getLogger(__name__)
+
+    etab_annee_id = eac.etablissement_annee_id
+    classe_id = eac.classe_id
+
+    # 1. Période configs délibérées (id_periode = config_id de repartition_configs_etab_annee)
+    deliberated_period_configs = set(
+        Deliberation_periodique_resultat.objects.filter(
+            id_eleve_id=id_eleve,
+            id_annee=eac.etablissement_annee.annee_id,
+        ).values_list('id_periode_id', flat=True)
+    )
+
+    # 2. Trimestre/Semestre configs délibérés pour examens
+    deliberated_exam_configs = set(
+        Deliberation_examen_resultat.objects.filter(
+            id_eleve_id=id_eleve,
+            id_annee=eac.etablissement_annee.annee_id,
+        ).values_list('id_trimestre_id', flat=True)
+    )
+
+    # 3. Trimestre/Semestre configs délibérés (trimestriels)
+    deliberated_trim_configs = set(
+        Deliberation_trimistrielle_resultat.objects.filter(
+            id_eleve_id=id_eleve,
+            id_annee=eac.etablissement_annee.annee_id,
+        ).values_list('id_trimestre_id', flat=True)
+    )
+
+    # Union des configs trimestre (examen + trimestriel)
+    all_trim_configs = deliberated_exam_configs | deliberated_trim_configs
+
+    logger.info(f"[_get_deliberated_config_ids] eleve={id_eleve}: "
+                f"period_configs={deliberated_period_configs}, "
+                f"trim_configs={all_trim_configs}")
+
+    return deliberated_period_configs, all_trim_configs
+
+
 def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
     """
     Retourne les notes TJ par cours depuis note_bulletin, indexées par code de période.
@@ -831,6 +883,7 @@ def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
 def get_student_exam_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe):
     """
     Retourne les notes d'examen par cours depuis note_bulletin.
+    Seules les notes des trimestres/semestres DELIBERES apparaissent.
     Source: note_bulletin WHERE id_note_type=2 (EX)
     Indexées par config_id pour compatibilité avec le template existant.
     """
@@ -846,13 +899,15 @@ def get_student_exam_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe):
     if not cours_annee_to_cours:
         return defaultdict(dict)
 
+    # Filtre délibération : récupérer les config_ids de trimestres délibérés
+    _, deliberated_trim_configs = _get_deliberated_config_ids(id_eleve, eac)
+
     from MonEcole_app.models.evaluations.note import NoteBulletin
     from MonEcole_app.models.campus import Campus
     campus = Campus.objects.filter(idCampus=id_campus).first()
     etab_id = campus.id_etablissement if campus else 1
 
     # EX notes from note_bulletin (type=2)
-    # order_by id_note_bulletin ASC so latest entry overwrites older duplicates
     notes_qs = NoteBulletin.objects.filter(
         id_eleve_id=id_eleve,
         id_etablissement=etab_id,
@@ -866,11 +921,17 @@ def get_student_exam_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe):
         if not cours_id:
             continue
         config_id = nb.id_repartition_config
+
+        # Filtre délibération : ignorer les trimestres non délibérés
+        if deliberated_trim_configs and config_id not in deliberated_trim_configs:
+            continue
+
         notes_par_cours[cours_id][config_id] = (
             float(nb.note) if nb.note is not None else "-"
         )
 
-    logger.warning(f"[get_student_exam_notes] note_bulletin: found EX for {len(notes_par_cours)} cours")
+    logger.warning(f"[get_student_exam_notes] note_bulletin: found EX for {len(notes_par_cours)} cours, "
+                   f"deliberated_trims={deliberated_trim_configs}")
     return notes_par_cours
 
 
@@ -1040,6 +1101,7 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
     """
     Retourne les notes TJ par cours depuis note_bulletin,
     indexées par position de colonne (2, 3, 9, 10, 16, 17).
+    Seules les notes des périodes DELIBEREES apparaissent.
     Source: note_bulletin WHERE id_note_type = TJ (type 1)
     """
     import logging
@@ -1060,13 +1122,15 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
         logger.warning(f"[get_student_period_notes] No cours_annee mapping")
         return defaultdict(dict)
 
+    # Filtre délibération : récupérer les config_ids délibérés
+    deliberated_period_configs, _ = _get_deliberated_config_ids(id_eleve, eac)
+
     from MonEcole_app.models.evaluations.note import NoteBulletin
     from MonEcole_app.models.campus import Campus
     campus = Campus.objects.filter(idCampus=id_campus).first()
     etab_id = campus.id_etablissement if campus else 1
 
     # TJ notes from note_bulletin (type=1)
-    # order_by id_note_bulletin ASC so latest entry (highest id) overwrites older duplicates
     notes_qs = NoteBulletin.objects.filter(
         id_eleve_id=id_eleve,
         id_etablissement=etab_id,
@@ -1080,6 +1144,11 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
         if not cours_id:
             continue
         config_id = nb.id_repartition_config
+
+        # Filtre délibération : ignorer les périodes non délibérées
+        if deliberated_period_configs and config_id not in deliberated_period_configs:
+            continue
+
         rep_id = config_to_rep.get(config_id)
         if not rep_id:
             continue
@@ -1100,7 +1169,8 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
             valeur = "-"
         notes_par_cours[cours_id][col] = valeur
 
-    logger.warning(f"[get_student_period_notes] note_bulletin: found TJ for {len(notes_par_cours)} cours, periode_to_col={periode_to_col}")
+    logger.warning(f"[get_student_period_notes] note_bulletin: found TJ for {len(notes_par_cours)} cours, "
+                   f"deliberated_periods={deliberated_period_configs}")
     return notes_par_cours
 
 
