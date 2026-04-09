@@ -665,18 +665,21 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
             elif "MAXIMA" in texte:
                 pass  # Bold already handled via Paragraph style_normal_bold + style_center_bold
 
-    # Colonne séparatrice (col 17) — fond gris foncé
+    # Colonne séparatrice (col 17) + zone EXAMEN DE REPECHAGE (cols 18-19) — fond gris
     col_hachuree = 17
     separator_gray = colors.Color(0.45, 0.45, 0.45)
+    repechage_gray = colors.Color(0.85, 0.85, 0.85)  # Gris clair pour la zone repêchage
     for row_idx in range(4, num_rows):
         if col_hachuree < len(table_data[row_idx]):
             table_data[row_idx][col_hachuree] = None
-    # Fusionner verticalement + background gris (à partir de la ligne 4)
+    # Fusionner verticalement + background gris foncé pour la séparatrice
     if num_rows > 4:
         table_style.add('SPAN', (col_hachuree, 4), (col_hachuree, num_rows - 1))
         table_style.add('BACKGROUND', (col_hachuree, 4), (col_hachuree, num_rows - 1), separator_gray)
         table_style.add('LINEAFTER', (col_hachuree - 1, 4), (col_hachuree - 1, num_rows - 1), 0.5, colors.black)
         table_style.add('LINEAFTER', (col_hachuree, 4), (col_hachuree, num_rows - 1), 0.5, colors.black)
+        # Background gris clair pour la zone EXAMEN DE REPECHAGE (cols 18-19)
+        table_style.add('BACKGROUND', (18, 4), (19, num_rows - 1), repechage_gray)
             
     # Lignes finales (MAXIMA, POURCENTAGE, etc.) — colonnes structurelles avec background gris
     maxima_idx = None
