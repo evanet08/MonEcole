@@ -993,6 +993,30 @@ def injecter_places_secondaire(table_data, id_annee, id_campus, id_cycle, id_cla
 
     return places_injectees > 0
 
+def _normalize_place(place_raw, result_model, filtre_key, filtre_base, config_id=None):
+    """Convertit '1er'/'1ère'/'40ème' en '1/N' format. Si déjà 'X/Y', retourne tel quel."""
+    import re
+    if not place_raw or place_raw.strip() == '-':
+        return "-"
+    place = place_raw.strip()
+    # Déjà au format X/Y
+    if '/' in place:
+        return place
+    # Extraire le rang numérique
+    match = re.match(r'(\d+)', place)
+    if not match:
+        return place
+    rank = match.group(1)
+    # Compter le total d'élèves dans la même délibération
+    try:
+        count_filtre = {k: v for k, v in filtre_base.items() if k != 'id_eleve_id'}
+        if config_id and filtre_key:
+            count_filtre[filtre_key] = config_id
+        total = result_model.objects.filter(**count_filtre).count()
+        return f"{rank}/{total}" if total > 0 else place
+    except Exception:
+        return place
+
 def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_semestre, col, semestres_data=None):
     """
     Récupère le classement depuis les tables de délibération.
@@ -1049,7 +1073,8 @@ def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_
             return "-"
         filtre = {**filtre_base, "id_periode_id": config_id}
         res = Deliberation_periodique_resultat.objects.filter(**filtre).first()
-        return res.place.strip() if res and res.place and res.place.strip() else "-"
+        raw = res.place.strip() if res and res.place and res.place.strip() else "-"
+        return _normalize_place(raw, Deliberation_periodique_resultat, "id_periode_id", filtre_base, config_id)
 
     # Colonnes examen (sem1=col5, sem2=col12)
     if col in [5, 12]:
@@ -1059,7 +1084,8 @@ def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_
             return "-"
         filtre = {**filtre_base, "id_trimestre_id": config_id}
         res = Deliberation_examen_resultat.objects.filter(**filtre).first()
-        return res.place.strip() if res and res.place and res.place.strip() else "-"
+        raw = res.place.strip() if res and res.place and res.place.strip() else "-"
+        return _normalize_place(raw, Deliberation_examen_resultat, "id_trimestre_id", filtre_base, config_id)
 
     # Colonnes total semestre (sem1=col7, sem2=col14)
     if col in [7, 14]:
@@ -1069,12 +1095,14 @@ def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_
             return "-"
         filtre = {**filtre_base, "id_trimestre_id": config_id}
         res = Deliberation_trimistrielle_resultat.objects.filter(**filtre).first()
-        return res.place.strip() if res and res.place and res.place.strip() else "-"
+        raw = res.place.strip() if res and res.place and res.place.strip() else "-"
+        return _normalize_place(raw, Deliberation_trimistrielle_resultat, "id_trimestre_id", filtre_base, config_id)
 
     # Col 16 = TOTAL GENERAL (deliberation annuelle)
     if col == 16:
         res = Deliberation_annuelle_resultat.objects.filter(**filtre_base).first()
-        return res.place.strip() if res and res.place and res.place.strip() else "-"
+        raw = res.place.strip() if res and res.place and res.place.strip() else "-"
+        return _normalize_place(raw, Deliberation_annuelle_resultat, None, filtre_base)
 
     return "-"
 
