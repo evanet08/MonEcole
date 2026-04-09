@@ -13231,11 +13231,8 @@ def execute_deliberation(request):
         # Assign places
         for i, r in enumerate(resultats):
             rank = i + 1
-            genre = r.get('genre', 'M')
-            if rank == 1:
-                r['place'] = '1ère' if genre == 'F' else '1er'
-            else:
-                r['place'] = f'{rank}ème'
+            total_eleves = len(resultats)
+            r['place'] = f'{rank}/{total_eleves}'
 
         # Determine mention for each student
         mentions = list(Mention.objects.all())
