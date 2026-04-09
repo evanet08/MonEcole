@@ -24,9 +24,9 @@ from .structure_primaire import (get_styles,check_image_paths,
 logger = logging.getLogger(__name__)
 
 styles = getSampleStyleSheet()
-style_center = ParagraphStyle(name='CenterSec', parent=styles['Normal'], fontSize=9, leading=10, alignment=1)
+style_center = ParagraphStyle(name='CenterSec', parent=styles['Normal'], fontSize=10, leading=11, alignment=1)
 style_center_bold = ParagraphStyle(name='CenterSecBold', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=5, leading=6, alignment=1)
-style_normal = ParagraphStyle(name='NormalSec', parent=styles['Normal'], fontSize=9, leading=10, alignment=0)
+style_normal = ParagraphStyle(name='NormalSec', parent=styles['Normal'], fontSize=10, leading=11, alignment=0)
 style_normal_bold = ParagraphStyle(name='NormalSecBold', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=5, leading=6, alignment=0)
 
 
@@ -617,7 +617,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
         style_center, bulletin_type='secondaire'
     )
     col_widths = [30*mm] + [8.22*mm] * 17 + [10*mm] + [20*mm]
-    table = Table(table_data, colWidths=col_widths, rowHeights=[5*mm] * len(table_data))
+    table = Table(table_data, colWidths=col_widths, rowHeights=[4.5*mm] * len(table_data))
 
     table_style = TableStyle([
         ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
