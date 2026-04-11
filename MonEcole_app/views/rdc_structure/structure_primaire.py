@@ -190,31 +190,47 @@ def create_line2_left(elements, style_normal, id_campus=None):
             ('BOX', (i,0), (i,0), 0.5, colors.black),
         ]))
 
-    # Styles officiels — labels en gras, valeurs en gras
-    lbl_style = ParagraphStyle(name='InfoLabel', fontSize=7, leading=9, alignment=0, fontName='Times-Bold')
+    # Styles — TOUT EN MAJUSCULES GRAS + pointillés comme sur le bulletin officiel
+    lbl_style = ParagraphStyle(name='InfoLabel', fontSize=7, leading=9, alignment=0, fontName='Helvetica-Bold')
     val_style = ParagraphStyle(name='InfoValue', fontSize=7, leading=9, alignment=0, fontName='Helvetica-Bold')
-    colon_style = ParagraphStyle(name='InfoColon', fontSize=7, leading=9, alignment=1, fontName='Times-Roman')
 
-    dots = '<font size="5" color="grey">' + '.' * 50 + '</font>'
+    # Pointillés gris fins
+    dots_long = '<font size="5" color="#999999">' + ' .' * 30 + '</font>'
+    dots_mid = '<font size="5" color="#999999">' + ' .' * 20 + '</font>'
+
     half_w = 97*mm
-    lbl_w = 28*mm
-    col_w2 = 3*mm
-    val_w = half_w - lbl_w - col_w2
 
+    # Format: [Label + " : " + Valeur + pointillés] — une seule colonne large
     left_data = [
-        [Paragraph("Province Educ.", lbl_style), Paragraph(":", colon_style), Paragraph(f"<b>SUD-KIVU</b>", val_style)],
-        [Paragraph("Ville", lbl_style), Paragraph(":", colon_style), Paragraph(f"<b>BUKAVU</b>", val_style)],
-        [Paragraph("Commune/Ter.", lbl_style), Paragraph(":", colon_style), Paragraph(f"<b>D'IBANDA</b>", val_style)],
-        [Paragraph("Ecole", lbl_style), Paragraph(":", colon_style), Paragraph(f"<b>{ecole_display or '...........'}</b>", val_style)],
-        [Paragraph("Code", lbl_style), Paragraph(":", colon_style), code_squares_table],
+        [Paragraph(f"<b>PROVINCE EDUCATIONNELLE :</b>  SUD-KIVU {dots_mid}", lbl_style)],
+        [Paragraph(f"<b>VILLE :</b>  BUKAVU {dots_long}", lbl_style)],
+        [Paragraph(f"<b>COMMUNE / TER. (1) :</b>  D'IBANDA {dots_mid}", lbl_style)],
+        [Paragraph(f"<b>ECOLE :</b>  {ecole_display or ''} {dots_long}", lbl_style)],
+        [Paragraph("<b>CODE :</b>", lbl_style), code_squares_table],
     ]
-    left_table_vertical = Table(left_data, colWidths=[lbl_w, col_w2, val_w], rowHeights=[5.5*mm]*4 + [7*mm])
+    # Les 4 premières lignes: 1 colonne pleine largeur. La dernière: label + cases
+    left_table_vertical = Table(
+        [[left_data[0][0]], [left_data[1][0]], [left_data[2][0]], [left_data[3][0]], left_data[4]],
+        colWidths=[half_w] if False else None,
+        rowHeights=[5.5*mm]*4 + [7*mm]
+    )
+    # Reconstruire proprement avec 2 colonnes pour la dernière ligne
+    left_rows = []
+    for i in range(4):
+        left_rows.append([left_data[i][0], None])
+    left_rows.append([Paragraph("<b>CODE :</b>", lbl_style), code_squares_table])
+    
+    left_table_vertical = Table(left_rows, colWidths=[half_w - nb_cases*4*mm - 6*mm, nb_cases*4*mm + 6*mm], rowHeights=[5.5*mm]*4 + [7*mm])
     left_table_vertical.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 2),
         ('RIGHTPADDING', (0, 0), (-1, -1), 1),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('SPAN', (0, 0), (1, 0)),  # Row 1 spans full width
+        ('SPAN', (0, 1), (1, 1)),  # Row 2 spans full width
+        ('SPAN', (0, 2), (1, 2)),  # Row 3 spans full width
+        ('SPAN', (0, 3), (1, 3)),  # Row 4 spans full width
     ]))
     return left_table_vertical  
 
@@ -288,14 +304,14 @@ def create_nid_section(elements, style_normal, eleve=None, id_campus=None):
 
 
 def create_line2_right(elements, eleve, style_normal, id_classe):
-    """Right info section — fidèle format officiel RDC: Eleve+Sexe, Ne(e)A+Date, Classe, N.Perm."""
+    """Right info section — EXACTEMENT fidèle au modèle officiel RDC."""
     try:
         eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
         classe_name = eac.classe.classe.strip().upper()
     except:
         return HttpResponse('<script>history.back();</script>', status=404)
     
-    # N.PERM boxes — cases plus grandes
+    # N° PERM. boxes
     nperm_str = str(eleve.numero_serie).strip() if hasattr(eleve, 'numero_serie') and eleve.numero_serie else ''
     nb_cases = len(nperm_str) if nperm_str else 13
     nperm_cells = [list(nperm_str)] if nperm_str else [[None] * nb_cases]
@@ -317,62 +333,51 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
             ('BOX', (i,0), (i,0), 0.5, colors.black),
         ]))
 
-    # Styles — labels en gras, valeurs en gras
-    lbl_style = ParagraphStyle(name='InfoLblRP', fontSize=7, leading=9, alignment=0, fontName='Times-Bold')
-    val_style = ParagraphStyle(name='InfoValRP', fontSize=7, leading=9, alignment=0, fontName='Helvetica-Bold')
-    colon_style = ParagraphStyle(name='InfoColRP', fontSize=7, leading=9, alignment=1, fontName='Times-Roman')
+    # Style unique — MAJUSCULES GRAS comme le modèle officiel
+    lbl_style = ParagraphStyle(name='InfoLblRP', fontSize=7, leading=9, alignment=0, fontName='Helvetica-Bold')
 
     nom_upper = (eleve.nom or '').upper()
     prenom_title = (eleve.prenom or '').title()
     sexe = (eleve.genre or '').upper()
-    date_naissance = str(eleve.date_naissance) if eleve.date_naissance else '..........'
+    
+    # Date au format LE jj/mm/aaaa
+    date_str = ''
+    if eleve.date_naissance:
+        try:
+            d = eleve.date_naissance
+            date_str = f"{d.day:02d} / {d.month:02d} / {d.year}"
+        except:
+            date_str = str(eleve.date_naissance)
+
+    dots_long = '<font size="5" color="#999999">' + ' .' * 30 + '</font>'
+    dots_mid = '<font size="5" color="#999999">' + ' .' * 15 + '</font>'
+    dots_short = '<font size="5" color="#999999">' + ' .' * 5 + '</font>'
 
     half_w = 97*mm
-    # 6 colonnes: [Label1 | : | Value1 | Label2 | : | Value2]
-    lbl1_w = 16*mm
-    col_w = 3*mm
-    val1_w = 40*mm
-    lbl2_w = 22*mm
-    val2_w = half_w - lbl1_w - col_w - val1_w - lbl2_w - col_w
 
-    right_data = [
-        [
-            Paragraph("Eleve", lbl_style),
-            Paragraph(":", colon_style),
-            Paragraph(f"<b>{nom_upper} {prenom_title}</b>", val_style),
-            Paragraph("Sexe", lbl_style),
-            Paragraph(":", colon_style),
-            Paragraph(f"<b>{sexe}</b>", val_style),
-        ],
-        [
-            Paragraph("Ne(e) A", lbl_style),
-            Paragraph(":", colon_style),
-            Paragraph("<b>..........</b>", val_style),
-            Paragraph("Année de Naissance", lbl_style),
-            Paragraph(":", colon_style),
-            Paragraph(f"<b>{date_naissance}</b>", val_style),
-        ],
-        [
-            Paragraph("Classe", lbl_style),
-            Paragraph(":", colon_style),
-            Paragraph(f"<b>{classe_name}</b>", val_style),
-            None, None, None,
-        ],
-        [
-            Paragraph("N.Perm", lbl_style),
-            Paragraph(":", colon_style),
-            nperm_squares_table,
-            None, None, None,
-        ],
+    # Format officiel — label + valeur + pointillés sur UNE seule ligne
+    # Ligne 1: ELEVE : nom .......................... SEXE : .........
+    # Ligne 2: NE(E) A : ........................  LE ..... / ..... / ..........
+    # Ligne 3: CLASSE : ...............................................................
+    # Ligne 4: N° PERM. : [cases]
+
+    right_rows = [
+        [Paragraph(f"<b>ELEVE :</b>  {nom_upper} {prenom_title} {dots_mid}  <b>SEXE :</b> {sexe} {dots_short}", lbl_style), None],
+        [Paragraph(f"<b>NE(E) A :</b> {dots_mid}  <b>LE</b> {date_str if date_str else '..... / ..... / ..........'}", lbl_style), None],
+        [Paragraph(f"<b>CLASSE :</b>  {classe_name} {dots_long}", lbl_style), None],
+        [Paragraph("<b>N° PERM. :</b>", lbl_style), nperm_squares_table],
     ]
-    right_table = Table(right_data, colWidths=[lbl1_w, col_w, val1_w, lbl2_w, col_w, val2_w], rowHeights=[5.5*mm]*3 + [7*mm])
+
+    right_table = Table(right_rows, colWidths=[half_w - nb_cases*4*mm - 6*mm, nb_cases*4*mm + 6*mm], rowHeights=[5.5*mm]*3 + [7*mm])
     right_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 1),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
         ('RIGHTPADDING', (0, 0), (-1, -1), 1),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('SPAN', (2, 3), (5, 3)),  # N.Perm boxes span full width
+        ('SPAN', (0, 0), (1, 0)),  # Row 1 full width
+        ('SPAN', (0, 1), (1, 1)),  # Row 2 full width
+        ('SPAN', (0, 2), (1, 2)),  # Row 3 full width
     ]))
 
     return right_table
