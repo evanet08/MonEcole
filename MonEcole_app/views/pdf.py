@@ -317,12 +317,25 @@ def generer_bulletin_pdf(request):
             return HttpResponse('<script>history.back();</script>', status=400)
 
         model_name = bcm.id_model.model_name.strip()
+        code_model = (bcm.id_model.code_model or '').strip()
+        code_lower = code_model.lower()
         margin = 5 * mm
 
-        # Déterminer le cycle par mots-clés dans le model_name
+        # Déterminer le cycle par code_model (Hub: bulletin_model.code_model)
         cycle_model = ''
 
+        if code_lower:
+            if 'maternelle' in code_lower:
+                cycle_model = 'Maternel'
+            elif 'primaire' in code_lower:
+                cycle_model = 'Primaire'
+            elif 'education de base' in code_lower or 'ecole de base' in code_lower:
+                cycle_model = 'Ecole de Base'
+            elif 'humanit' in code_lower or 'cfp' in code_lower:
+                cycle_model = 'Humanités/CFP'
+        
         if not cycle_model:
+            # Fallback sur model_name si code_model vide
             mn_lower = model_name.lower()
             if 'maternelle' in mn_lower:
                 cycle_model = 'Maternel'
@@ -468,7 +481,8 @@ def generer_bulletin_pdf(request):
                         id_annee, idCampus, id_cycle, id_classe, id_eleve
                     )
                     # Footer: 8ème année utilise un pied spécifique avec RESULTAT FINAL
-                    if '8eme' in mn_lower or '8ème' in mn_lower or '8EME' in model_name:
+                    # Détection via code_model (Hub: bulletin_model)
+                    if '8eme' in code_lower or '8ème' in code_lower:
                         create_footer_8eme(elements, style_normal, style_center, id_classe=id_classe)
                     else:
                         create_footer__secondaire_rdc(elements, style_normal, style_center, id_classe)
