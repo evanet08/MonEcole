@@ -314,13 +314,13 @@ def draw_border__secondaire_rdc_without_qrcode (canvas, doc, eleve, margin, wate
 
     canvas.restoreState()
     
-    # Watermark: armoirie du pays en filigrane très faible au centre
+    # Watermark: armoirie du pays en filigrane au centre
     import os
     if watermark_path and os.path.exists(watermark_path):
         canvas.saveState()
-        canvas.setFillAlpha(0.06)
+        canvas.setFillAlpha(0.15)
         page_w, page_h = A4
-        wm_size = 120 * mm
+        wm_size = 140 * mm
         x = (page_w - wm_size) / 2
         y = (page_h - wm_size) / 2
         canvas.drawImage(watermark_path, x, y, width=wm_size, height=wm_size,

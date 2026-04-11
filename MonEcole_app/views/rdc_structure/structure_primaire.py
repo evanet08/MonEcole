@@ -111,29 +111,32 @@ def _resolve_logo_paths(logo_path, emblem_path):
             if os.path.exists(fallback2):
                 logo_path = fallback2
     if not emblem_path or not os.path.exists(emblem_path):
-        fallback = os.path.join(base, 'logoMinistere.png')
+        # Priorité au logo officiel MINEDUC
+        fallback = os.path.join(base, 'logomineduc.png')
         if os.path.exists(fallback):
             emblem_path = fallback
         else:
-            fallback2 = os.path.join(base, 'logomineduc.png')
+            fallback2 = os.path.join(base, 'logoMinistere.png')
             if os.path.exists(fallback2):
                 emblem_path = fallback2
     return logo_path, emblem_path
 
 def create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=None):
     logo_path, emblem_path = _resolve_logo_paths(logo_path, emblem_path)
-    logo = Image(logo_path, width=15*mm, height=12*mm) if logo_path and os.path.exists(logo_path) else Paragraph("", style_center)
-    emblem = Image(emblem_path, width=14*mm, height=14*mm) if emblem_path and os.path.exists(emblem_path) else Paragraph("", style_center)
-    header_title_style = ParagraphStyle('HeaderTitle', fontSize=8, leading=10, alignment=1, fontName='Times-Bold')
+    # Drapeau RDC à gauche — plus grand, format officiel
+    logo = Image(logo_path, width=22*mm, height=16*mm) if logo_path and os.path.exists(logo_path) else Paragraph("", style_center)
+    # Logo MINEDUC à droite — circulaire, format officiel
+    emblem = Image(emblem_path, width=18*mm, height=18*mm) if emblem_path and os.path.exists(emblem_path) else Paragraph("", style_center)
+    header_title_style = ParagraphStyle('HeaderTitle', fontSize=9, leading=11, alignment=1, fontName='Times-Bold')
     header_data = [
         [logo, Paragraph("<font color='black'><b>REPUBLIQUE DEMOCRATIQUE DU CONGO<br/>MINISTERE DE L'EDUCATION NATIONALE<br/>ET NOUVELLE CITOYENNETE</b></font>", header_title_style), emblem]
     ]
-    header_table = Table(header_data, colWidths=[18*mm, 158*mm, 18*mm], hAlign='LEFT')
+    header_table = Table(header_data, colWidths=[25*mm, 144*mm, 25*mm], hAlign='LEFT')
     header_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('LEFTPADDING', (0, 0), (0, 0), 0), 
-        ('RIGHTPADDING', (-1, -1), (-1, -1), 0),  
+        ('LEFTPADDING', (0, 0), (0, 0), 0),
+        ('RIGHTPADDING', (-1, -1), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
     ]))
@@ -1431,7 +1434,7 @@ def injecter_places_dans_tableau(table_data, id_annee, id_campus, id_cycle, id_c
     fontSize=6,
     leading=8,
     alignment=1,
-    textColor=colors.red,
+    textColor=colors.HexColor('#003366'),  # Bleu foncé
     spaceBefore=0,
     spaceAfter=0
 )
@@ -1445,7 +1448,7 @@ def injecter_places_dans_tableau(table_data, id_annee, id_campus, id_cycle, id_c
         )
         
 
-        ligne_43[col] = Paragraph(place, place_style)
+        ligne_43[col] = Paragraph(f"<b>{place}</b>", place_style)
 
 
 def create_notes_table(elements, style_center, style_normal, id_annee, id_campus, id_cycle, id_classe, id_eleve):
@@ -1527,7 +1530,17 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
                     row.append(Paragraph(str(max_exam), style_center))
                 elif col in [5, 12, 19]:      
                     note_ex = exam_notes.get(col, "-")
-                    row.append(Paragraph(str(note_ex), style_center))
+                    # Echec examen: rouge si < 50% du max examen
+                    echec_ex = False
+                    if note_ex != "-" and max_exam != "-":
+                        try:
+                            echec_ex = float(note_ex) < float(max_exam) / 2
+                        except (ValueError, TypeError):
+                            pass
+                    if echec_ex:
+                        row.append(Paragraph(f"<font color='red'>{note_ex}</font>", style_center))
+                    else:
+                        row.append(Paragraph(str(note_ex), style_center))
                 elif col in [6, 13, 20]:    
                     row.append(Paragraph(str(max_trim_val), style_center)) 
                 elif col == 22:                
@@ -1536,7 +1549,17 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
                     row.append(Paragraph("-", style_center))
                 elif col in [2, 3, 9, 10, 16, 17]: 
                     note_val = notes_cours_periodes.get(col, "-")
-                    row.append(Paragraph(str(note_val), style_center))
+                    # Echec période: rouge si < 50% du max période
+                    echec_p = False
+                    if note_val != "-" and ponderation != "-":
+                        try:
+                            echec_p = float(note_val) < float(ponderation) / 2
+                        except (ValueError, TypeError):
+                            pass
+                    if echec_p:
+                        row.append(Paragraph(f"<font color='red'>{note_val}</font>", style_center))
+                    else:
+                        row.append(Paragraph(str(note_val), style_center))
                 else:
                     row.append(Paragraph("-", style_center))
             table_data.append(row)
@@ -1768,12 +1791,12 @@ def create_footer(elements, style_normal, style_center, id_classe=None):
 def draw_border(canvas, doc, eleve, margin, watermark_path=None):
     canvas.setLineWidth(0.5)
     canvas.rect(margin, margin, A4[0] - 2 * margin, A4[1] - 2 * margin)
-    # Watermark: armoirie du pays en filigrane très faible au centre
+    # Watermark: armoirie du pays en filigrane au centre
     if watermark_path and os.path.exists(watermark_path):
         canvas.saveState()
-        canvas.setFillAlpha(0.06)  # Très faiblement visible
+        canvas.setFillAlpha(0.15)  # Filigrane visible mais ne masque pas les notes
         page_w, page_h = A4
-        wm_size = 120 * mm  # Grande taille
+        wm_size = 140 * mm  # Grande taille
         x = (page_w - wm_size) / 2
         y = (page_h - wm_size) / 2
         canvas.drawImage(watermark_path, x, y, width=wm_size, height=wm_size,

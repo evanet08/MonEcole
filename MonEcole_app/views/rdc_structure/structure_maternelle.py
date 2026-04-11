@@ -508,12 +508,12 @@ def draw_border__maternelle_rdc(canvas, doc, eleve, margin=5*mm, watermark_path=
     canvas.setLineWidth(1.5)
     canvas.setStrokeColor(colors.black)
     
-    # Watermark: armoirie du pays en filigrane très faible au centre
+    # Watermark: armoirie du pays en filigrane au centre
     if watermark_path and os.path.exists(watermark_path):
         canvas.saveState()
-        canvas.setFillAlpha(0.06)
+        canvas.setFillAlpha(0.15)
         page_w, page_h = A4
-        wm_size = 120 * mm
+        wm_size = 140 * mm
         x = (page_w - wm_size) / 2
         y = (page_h - wm_size) / 2
         canvas.drawImage(watermark_path, x, y, width=wm_size, height=wm_size,
