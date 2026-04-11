@@ -123,15 +123,15 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
         except:
             date_str = str(eleve.date_naissance)
 
-    dots_long = '<font size="3" color="#aaaaaa">' + ' .' * 45 + '</font>'
-    dots_mid = '<font size="3" color="#aaaaaa">' + ' .' * 25 + '</font>'
-    dots_short = '<font size="3" color="#aaaaaa">' + ' .' * 8 + '</font>'
+    dots_long = '<font size="3" color="#aaaaaa">' + ' .' * 50 + '</font>'
+    dots_mid = '<font size="3" color="#aaaaaa">' + ' .' * 30 + '</font>'
+    dots_short = '<font size="3" color="#aaaaaa">' + ' .' * 12 + '</font>'
 
     right_w = 116.4*mm
 
     right_rows = [
         [Paragraph(f"ELEVE : <b>{nom_upper} {prenom_title}</b> {dots_mid}  SEXE : <b>{sexe}</b> {dots_short}", p_style)],
-        [Paragraph(f"NE(E) A : {dots_mid}  LE <b>{date_str if date_str else '..... / ..... / ..........'}</b>", p_style)],
+        [Paragraph(f"NE(E) A : {dots_mid}  LE <b>{date_str if date_str else '..... / ..... / ..........'}</b> {dots_short}", p_style)],
         [Paragraph(f"CLASSE : <b>{classe_name}</b> {dots_long}", p_style)],
         [Paragraph("N° PERM. :", p_style), nperm_squares_table],
     ]
@@ -1048,7 +1048,7 @@ def injecter_places_secondaire(table_data, id_annee, id_campus, id_cycle, id_cla
             id_eleve, id_semestre, col, semestres_data=semestres_data
         )
 
-        ligne_place[col] = Paragraph(place, place_style)
+        ligne_place[col] = Paragraph(f"<font color='#003366'><b>{place}</b></font>", place_style)
 
         if place != "-":
             places_injectees += 1

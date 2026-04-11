@@ -335,15 +335,15 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
         except:
             date_str = str(eleve.date_naissance)
 
-    dots_long = '<font size="3" color="#aaaaaa">' + ' .' * 45 + '</font>'
-    dots_mid = '<font size="3" color="#aaaaaa">' + ' .' * 25 + '</font>'
-    dots_short = '<font size="3" color="#aaaaaa">' + ' .' * 8 + '</font>'
+    dots_long = '<font size="3" color="#aaaaaa">' + ' .' * 50 + '</font>'
+    dots_mid = '<font size="3" color="#aaaaaa">' + ' .' * 30 + '</font>'
+    dots_short = '<font size="3" color="#aaaaaa">' + ' .' * 12 + '</font>'
 
     right_w = 116.4*mm
 
     right_rows = [
         [Paragraph(f"ELEVE : <b>{nom_upper} {prenom_title}</b> {dots_mid}  SEXE : <b>{sexe}</b> {dots_short}", p_style)],
-        [Paragraph(f"NE(E) A : {dots_mid}  LE <b>{date_str if date_str else '..... / ..... / ..........'}</b>", p_style)],
+        [Paragraph(f"NE(E) A : {dots_mid}  LE <b>{date_str if date_str else '..... / ..... / ..........'}</b> {dots_short}", p_style)],
         [Paragraph(f"CLASSE : <b>{classe_name}</b> {dots_long}", p_style)],
         [Paragraph("N° PERM. :", p_style), nperm_squares_table],
     ]
@@ -1450,7 +1450,7 @@ def injecter_places_dans_tableau(table_data, id_annee, id_campus, id_cycle, id_c
         )
         
 
-        ligne_43[col] = Paragraph(f"<b>{place}</b>", place_style)
+        ligne_43[col] = Paragraph(f"<font color='#003366'><b>{place}</b></font>", place_style)
 
 
 def create_notes_table(elements, style_center, style_normal, id_annee, id_campus, id_cycle, id_classe, id_eleve):
@@ -1694,11 +1694,13 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
         if 0 <= index_ligne < len(table_data):
             table_style.add('SPAN', (0, index_ligne), (-1, index_ligne))
             table_style.add('BACKGROUND', (0, index_ligne), (-1, index_ligne), colors.lightblue)    
-    # ── Ligne PLACE (index 42) : texte bleu foncé + gras ──
-    place_row_index = 42
-    if place_row_index < len(table_data):
-        table_style.add('TEXTCOLOR', (0, place_row_index), (-1, place_row_index), colors.HexColor('#003366'))
-        table_style.add('FONTNAME', (0, place_row_index), (-1, place_row_index), 'Helvetica-Bold')
+    # ── Ligne PLACE : texte bleu foncé + gras (trouver dynamiquement) ──
+    for ridx, row in enumerate(table_data):
+        texte_check = str(row[0]) if row and row[0] else ""
+        if "PLACE" in texte_check.upper():
+            table_style.add('TEXTCOLOR', (0, ridx), (-1, ridx), colors.HexColor('#003366'))
+            table_style.add('FONTNAME', (0, ridx), (-1, ridx), 'Helvetica-Bold')
+            break
 
     # ── Post-traitement : notes < 50% du max ⇒ rouge ──
     # Colonnes PTS.OBT trimestriels (7, 14, 21) et annuel (23) + leurs max (6, 13, 20, 22)
