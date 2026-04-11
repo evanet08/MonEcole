@@ -467,7 +467,11 @@ def generer_bulletin_pdf(request):
                         elements, style_center, style_normal,
                         id_annee, idCampus, id_cycle, id_classe, id_eleve
                     )
-                    create_footer__secondaire_rdc(elements, style_normal, style_center, id_classe)
+                    # Footer: 8ème année utilise un pied spécifique avec RESULTAT FINAL
+                    if '8eme' in mn_lower or '8ème' in mn_lower or '8EME' in model_name:
+                        create_footer_8eme(elements, style_normal, style_center, id_classe=id_classe)
+                    else:
+                        create_footer__secondaire_rdc(elements, style_normal, style_center, id_classe)
 
                     filename_parts.append(slugify(eleve.nom or f"eleve_{id_eleve}"))
                 except Exception as e:
