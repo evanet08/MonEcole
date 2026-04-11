@@ -167,7 +167,8 @@ def create_line2_section__secondaire_rdc(elements, left_table, right_table):
     line2_table = Table(line2_data, colWidths=[left_w, right_w])
 
     line2_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('VALIGN', (0, 0), (0, 0), 'TOP'),
+        ('VALIGN', (1, 0), (1, 0), 'MIDDLE'),
         ('LINEABOVE', (0, 0), (-1, 0), 0.5, colors.black),
         ('LINEBELOW', (0, -1), (-1, -1), 0.5, colors.black),
         ('LINEBEFORE', (1, 0), (1, -1), 0.3, colors.black),

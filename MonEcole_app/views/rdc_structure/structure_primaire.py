@@ -194,11 +194,10 @@ def create_line2_left(elements, style_normal, id_campus=None):
     lbl_style = ParagraphStyle(name='InfoLabel', fontSize=7, leading=8, alignment=0, fontName='Helvetica')
     colon_style = ParagraphStyle(name='InfoColon', fontSize=7, leading=8, alignment=1, fontName='Helvetica')
 
-    # Helper: valeur en gras + pointillés remplissant jusqu'au bord
-    dots = '<font size="3" color="#aaaaaa">' + ' .' * 80 + '</font>'
-    def val_with_dots(value):
-        return Paragraph(f"<b>{value}</b>  {dots}", ParagraphStyle(
-            name='ValWithDots', fontSize=7, leading=8, alignment=0, fontName='Helvetica-Bold'))
+    # Helper: valeur en gras sans pointillés
+    def val_bold(value):
+        return Paragraph(f"<b>{value}</b>", ParagraphStyle(
+            name='ValBold', fontSize=7, leading=8, alignment=0, fontName='Helvetica-Bold'))
 
     left_w = 77.6*mm  # 40% de 194mm
     lbl_w = 32*mm
@@ -206,10 +205,10 @@ def create_line2_left(elements, style_normal, id_campus=None):
     val_w = left_w - lbl_w - col_w
 
     left_data = [
-        [Paragraph("PROVINCE EDUC.", lbl_style), Paragraph(":", colon_style), val_with_dots("SUD-KIVU")],
-        [Paragraph("VILLE", lbl_style), Paragraph(":", colon_style), val_with_dots("BUKAVU")],
-        [Paragraph("COMMUNE/TER.", lbl_style), Paragraph(":", colon_style), val_with_dots("D'IBANDA")],
-        [Paragraph("ECOLE", lbl_style), Paragraph(":", colon_style), val_with_dots(ecole_display or "")],
+        [Paragraph("PROVINCE EDUC.", lbl_style), Paragraph(":", colon_style), val_bold("SUD-KIVU")],
+        [Paragraph("VILLE", lbl_style), Paragraph(":", colon_style), val_bold("BUKAVU")],
+        [Paragraph("COMMUNE/TER.", lbl_style), Paragraph(":", colon_style), val_bold("D'IBANDA")],
+        [Paragraph("ECOLE", lbl_style), Paragraph(":", colon_style), val_bold(ecole_display or "")],
         [Paragraph("CODE", lbl_style), Paragraph(":", colon_style), code_squares_table],
     ]
     left_table = Table(left_data, colWidths=[lbl_w, col_w, val_w], rowHeights=[5.5*mm]*4 + [7*mm])
@@ -379,7 +378,8 @@ def create_line2_section(elements, left_table, right_table):
     line2_table = Table(line2_data, colWidths=[left_w, right_w])
 
     line2_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('VALIGN', (0, 0), (0, 0), 'TOP'),
+        ('VALIGN', (1, 0), (1, 0), 'MIDDLE'),
         ('LINEABOVE', (0, 0), (-1, 0), 0.5, colors.black),
         ('LINEBELOW', (0, -1), (-1, -1), 0.5, colors.black),
         ('LINEBEFORE', (1, 0), (1, -1), 0.3, colors.black),
