@@ -335,9 +335,9 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
         except:
             date_str = str(eleve.date_naissance)
 
-    dots_long = '<font size="3" color="#aaaaaa">' + ' .' * 50 + '</font>'
-    dots_mid = '<font size="3" color="#aaaaaa">' + ' .' * 30 + '</font>'
-    dots_short = '<font size="3" color="#aaaaaa">' + ' .' * 12 + '</font>'
+    dots_long = '<font size="3" color="#aaaaaa">' + ' .' * 80 + '</font>'
+    dots_mid = '<font size="3" color="#aaaaaa">' + ' .' * 50 + '</font>'
+    dots_short = '<font size="3" color="#aaaaaa">' + ' .' * 30 + '</font>'
 
     right_w = 116.4*mm
 
@@ -373,8 +373,8 @@ def create_line2_section(elements, left_table, right_table):
     if isinstance(right_table, tuple):
         right_table = right_table[0]
 
-    left_w = 77.6*mm   # 40%
-    right_w = 116.4*mm  # 60%
+    left_w = 80*mm   # 40%
+    right_w = 120*mm  # 60%
     line2_data = [[left_table, right_table]]
     line2_table = Table(line2_data, colWidths=[left_w, right_w])
 
@@ -1436,7 +1436,7 @@ def injecter_places_dans_tableau(table_data, id_annee, id_campus, id_cycle, id_c
     fontSize=6,
     leading=8,
     alignment=1,
-    textColor=colors.HexColor('#003366'),  # Bleu foncé
+    textColor=colors.HexColor('#0000CC'),  # Bleu très visible
     spaceBefore=0,
     spaceAfter=0
 )
@@ -1450,7 +1450,7 @@ def injecter_places_dans_tableau(table_data, id_annee, id_campus, id_cycle, id_c
         )
         
 
-        ligne_43[col] = Paragraph(f"<font color='#003366'><b>{place}</b></font>", place_style)
+        ligne_43[col] = Paragraph(f"<font color='#0000CC'><b>{place}</b></font>", place_style)
 
 
 def create_notes_table(elements, style_center, style_normal, id_annee, id_campus, id_cycle, id_classe, id_eleve):
@@ -1698,7 +1698,7 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
     for ridx, row in enumerate(table_data):
         texte_check = str(row[0]) if row and row[0] else ""
         if "PLACE" in texte_check.upper():
-            table_style.add('TEXTCOLOR', (0, ridx), (-1, ridx), colors.HexColor('#003366'))
+            table_style.add('TEXTCOLOR', (0, ridx), (-1, ridx), colors.HexColor('#0000CC'))
             table_style.add('FONTNAME', (0, ridx), (-1, ridx), 'Helvetica-Bold')
             break
 

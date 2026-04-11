@@ -123,9 +123,9 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
         except:
             date_str = str(eleve.date_naissance)
 
-    dots_long = '<font size="3" color="#aaaaaa">' + ' .' * 50 + '</font>'
-    dots_mid = '<font size="3" color="#aaaaaa">' + ' .' * 30 + '</font>'
-    dots_short = '<font size="3" color="#aaaaaa">' + ' .' * 12 + '</font>'
+    dots_long = '<font size="3" color="#aaaaaa">' + ' .' * 80 + '</font>'
+    dots_mid = '<font size="3" color="#aaaaaa">' + ' .' * 50 + '</font>'
+    dots_short = '<font size="3" color="#aaaaaa">' + ' .' * 30 + '</font>'
 
     right_w = 116.4*mm
 
@@ -162,8 +162,8 @@ def create_line2_section__secondaire_rdc(elements, left_table, right_table):
     if isinstance(right_table, tuple):
         right_table = right_table[0]
 
-    left_w = 77.6*mm
-    right_w = 116.4*mm
+    left_w = 80*mm
+    right_w = 120*mm
     line2_data = [[left_table, right_table]]
     line2_table = Table(line2_data, colWidths=[left_w, right_w])
 
@@ -779,7 +779,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
     for ridx, row in enumerate(table_data):
         texte = str(row[0]) if row and row[0] else ""
         if "PLACE" in texte.upper():
-            table_style.add('TEXTCOLOR', (0, ridx), (-1, ridx), colors.HexColor('#003366'))
+            table_style.add('TEXTCOLOR', (0, ridx), (-1, ridx), colors.HexColor('#0000CC'))
             table_style.add('FONTNAME', (0, ridx), (-1, ridx), 'Helvetica-Bold')
             break
 
@@ -1035,7 +1035,7 @@ def injecter_places_secondaire(table_data, id_annee, id_campus, id_cycle, id_cla
         fontSize=5,                
         leading=6,
         alignment=1,                
-        textColor=colors.red,        
+        textColor=colors.HexColor('#0000CC'),
         spaceBefore=0,
         spaceAfter=0
     )
@@ -1048,7 +1048,7 @@ def injecter_places_secondaire(table_data, id_annee, id_campus, id_cycle, id_cla
             id_eleve, id_semestre, col, semestres_data=semestres_data
         )
 
-        ligne_place[col] = Paragraph(f"<font color='#003366'><b>{place}</b></font>", place_style)
+        ligne_place[col] = Paragraph(f"<font color='#0000CC'><b>{place}</b></font>", place_style)
 
         if place != "-":
             places_injectees += 1
