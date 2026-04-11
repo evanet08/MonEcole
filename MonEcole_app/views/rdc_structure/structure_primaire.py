@@ -1954,7 +1954,7 @@ def create_footer_8eme(elements, style_normal, style_center, id_classe=None):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0.5*mm),
         ('LEFTPADDING', (0, 0), (-1, -1), 2),
         ('RIGHTPADDING', (0, 0), (-1, -1), 2),
-        ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
+        ('LINEBELOW', (0, 0), (-1, 0), 0.3, colors.black),
     ]))
     elements.append(footer_table)
 
