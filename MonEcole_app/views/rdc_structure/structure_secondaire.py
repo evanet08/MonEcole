@@ -141,7 +141,7 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
         final_rows.append([right_rows[i][0], None])
     final_rows.append(right_rows[3])
 
-    right_table = Table(final_rows, colWidths=[right_w - nb_cases*4*mm - 6*mm, nb_cases*4*mm + 6*mm], rowHeights=[5.5*mm]*3 + [7*mm])
+    right_table = Table(final_rows, colWidths=[right_w - nb_cases*4*mm - 1*mm, nb_cases*4*mm + 1*mm], rowHeights=[5.5*mm]*3 + [7*mm])
     right_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 2),

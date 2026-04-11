@@ -354,7 +354,7 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
         final_rows.append([right_rows[i][0], None])
     final_rows.append(right_rows[3])
 
-    right_table = Table(final_rows, colWidths=[right_w - nb_cases*4*mm - 6*mm, nb_cases*4*mm + 6*mm], rowHeights=[5.5*mm]*3 + [7*mm])
+    right_table = Table(final_rows, colWidths=[right_w - nb_cases*4*mm - 1*mm, nb_cases*4*mm + 1*mm], rowHeights=[5.5*mm]*3 + [7*mm])
     right_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 2),
@@ -1894,11 +1894,11 @@ def create_footer_8eme(elements, style_normal, style_center, id_classe=None):
     resultat_data = [
         [Paragraph("<b>RESULTAT</b>", rf_header), Paragraph("<b>POINTS</b>", rf_header), Paragraph("<b>MAX</b>", rf_header)],
         [Paragraph("<b>FINAL</b>", rf_header), Paragraph("<b>OBT.</b>", rf_header), None],
-        [Paragraph("MOYENNE<br/>ECOLE", rf_cell), None, Paragraph("50", rf_cell)],
+        [Paragraph("MOYENNE ECOLE", rf_cell), None, Paragraph("50", rf_cell)],
         [Paragraph("ENAFEP", rf_cell), None, Paragraph("50", rf_cell)],
         [Paragraph("TOTAL", rf_cell), None, Paragraph("100", rf_cell)],
     ]
-    resultat_table = Table(resultat_data, colWidths=[18*mm, 13*mm, 10*mm], rowHeights=[4*mm]*5)
+    resultat_table = Table(resultat_data, colWidths=[22*mm, 15*mm, 12*mm], rowHeights=[4*mm]*5)
     resultat_table.setStyle(TableStyle([
         ('GRID', (0, 0), (-1, -1), 0.3, colors.black),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
