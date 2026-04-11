@@ -26,6 +26,7 @@ class Pays(models.Model):
     nLevelsAdministratifs = models.PositiveIntegerField(default=0)
     logo_ministere = models.CharField(max_length=255, blank=True, null=True)
     logo_pays = models.CharField(max_length=255, db_column='logoPays', blank=True, default='')
+    armoirePays = models.CharField(max_length=255, db_column='armoirePays', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

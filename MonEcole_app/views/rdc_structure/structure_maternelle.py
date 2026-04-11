@@ -4,6 +4,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+import os
 from MonEcole_app.views.rdc_structure.structure_cycle_sup import(get_styles,
                                                                  create_header,create_line2_left,
                                                                  create_line2_right__secondaire_rdc,
@@ -491,7 +492,7 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     return elements
 
 
-def draw_border__maternelle_rdc(canvas, doc, eleve, margin=5*mm):
+def draw_border__maternelle_rdc(canvas, doc, eleve, margin=5*mm, watermark_path=None):
     canvas.setLineWidth(0.5)
     canvas.rect(margin, margin, A4[0] - 2 * margin, A4[1] - 2 * margin)
 
@@ -504,8 +505,20 @@ def draw_border__maternelle_rdc(canvas, doc, eleve, margin=5*mm):
 
     x_line = margin + sum(col_widths[:4])
 
-    canvas.setLineWidth(1.5)          # 
+    canvas.setLineWidth(1.5)
     canvas.setStrokeColor(colors.black)
+    
+    # Watermark: armoirie du pays en filigrane très faible au centre
+    if watermark_path and os.path.exists(watermark_path):
+        canvas.saveState()
+        canvas.setFillAlpha(0.06)
+        page_w, page_h = A4
+        wm_size = 120 * mm
+        x = (page_w - wm_size) / 2
+        y = (page_h - wm_size) / 2
+        canvas.drawImage(watermark_path, x, y, width=wm_size, height=wm_size,
+                         preserveAspectRatio=True, mask='auto')
+        canvas.restoreState()
     
     qr_value = f"Généré par Application MonEkole,ce Bulletin est de : {eleve.nom} {eleve.prenom} Conçue par entreprise ICT Group"
     qr_code = QrCodeWidget(qr_value)

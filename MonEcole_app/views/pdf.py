@@ -563,8 +563,33 @@ def generer_bulletin_pdf(request):
             messages.error(request, "Aucun bulletin valide généré pour RDC.")
             return HttpResponse('<script>history.back();</script>', status=400)
 
+        # Fetch armoirePays watermark from Pays table
+        watermark_path = None
+        try:
+            from MonEcole_app.models.country_structure import Etablissement, Pays
+            import os as _os
+            campus_obj = Campus.objects.get(idCampus=idCampus)
+            etab = Etablissement.objects.select_related('pays').get(
+                id_etablissement=campus_obj.id_etablissement
+            )
+            pays = etab.pays
+            media_root = getattr(settings, 'MEDIA_ROOT', '')
+            if not media_root:
+                media_root = _os.path.join(settings.BASE_DIR, 'media')
+            if hasattr(pays, 'armoirePays') and pays.armoirePays:
+                wp = _os.path.join(media_root, pays.armoirePays)
+                if _os.path.exists(wp):
+                    watermark_path = wp
+            # Fallback: check project root
+            if not watermark_path:
+                fallback_wm = _os.path.join(settings.BASE_DIR, 'armoirerdc.png')
+                if _os.path.exists(fallback_wm):
+                    watermark_path = fallback_wm
+        except Exception as e:
+            logger.warning(f"[BULLETIN PDF] Could not fetch watermark: {e}")
+
         def on_all_pages(canvas, doc):
-            draw_border(canvas, doc, eleve, margin) 
+            draw_border(canvas, doc, eleve, margin, watermark_path=watermark_path) 
 
         doc.build(elements, onFirstPage=on_all_pages, onLaterPages=on_all_pages)
 

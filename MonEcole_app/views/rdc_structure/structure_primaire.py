@@ -120,35 +120,11 @@ def create_header(elements, logo_path, emblem_path, style_title, style_center, e
     logo_path, emblem_path = _resolve_logo_paths(logo_path, emblem_path)
     logo = Image(logo_path, width=15*mm, height=12*mm) if logo_path and os.path.exists(logo_path) else Paragraph("", style_center)
     emblem = Image(emblem_path, width=14*mm, height=14*mm) if emblem_path and os.path.exists(emblem_path) else Paragraph("", style_center)
-    # Student photo
-    photo_style = ParagraphStyle('PhotoPlaceholder', fontSize=6, leading=8, alignment=1, fontName='Times-Roman')
-    photo_square = Paragraph("Photo", photo_style)
-    if eleve and hasattr(eleve, 'imageUrl') and eleve.imageUrl:
-        try:
-            photo_file_path = eleve.imageUrl.path
-            if os.path.exists(photo_file_path):
-                photo_square = Image(photo_file_path, width=14*mm, height=17*mm)
-        except (ValueError, Exception):
-            # Fallback: imageUrl may store '/media/Photos/...' (absolute) — resolve manually
-            try:
-                from django.conf import settings as _settings
-                raw_url = str(eleve.imageUrl)
-                # Strip leading /media/ if present
-                if raw_url.startswith('/media/'):
-                    raw_url = raw_url[len('/media/'):]
-                media_root = getattr(_settings, 'MEDIA_ROOT', '')
-                if not media_root:
-                    media_root = os.path.join(_settings.BASE_DIR, 'media')
-                photo_file_path = os.path.join(str(media_root), raw_url)
-                if os.path.exists(photo_file_path):
-                    photo_square = Image(photo_file_path, width=14*mm, height=17*mm)
-            except Exception:
-                pass
     header_title_style = ParagraphStyle('HeaderTitle', fontSize=8, leading=10, alignment=1, fontName='Times-Bold')
     header_data = [
-        [logo, Paragraph("<font color='black'><b>REPUBLIQUE DEMOCRATIQUE DU CONGO<br/>MINISTERE DE L'EDUCATION NATIONALE ET NOUVELLE CITOYENNETE</b></font>", header_title_style), emblem, photo_square]
+        [logo, Paragraph("<font color='black'><b>REPUBLIQUE DEMOCRATIQUE DU CONGO<br/>MINISTERE DE L'EDUCATION NATIONALE<br/>ET NOUVELLE CITOYENNETE</b></font>", header_title_style), emblem]
     ]
-    header_table = Table(header_data, colWidths=[18*mm, 140*mm, 18*mm, 18*mm], hAlign='LEFT')
+    header_table = Table(header_data, colWidths=[18*mm, 158*mm, 18*mm], hAlign='LEFT')
     header_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -213,16 +189,16 @@ def create_line2_left(elements, style_normal, id_campus=None):
     colon_style = ParagraphStyle(name='InfoColon', fontSize=6, leading=8, alignment=1, fontName='Times-Roman')
 
     col_w = 66.5*mm  # each column = bulletin_width / 3
-    lbl_w = 22*mm
+    lbl_w = 26*mm
     col_w2 = 3*mm
     val_w = col_w - lbl_w - col_w2
 
     left_data = [
-        [Paragraph("Province", lbl_style), Paragraph(":", colon_style), Paragraph("SUD-KIVU", val_style)],
+        [Paragraph("Province Educ.", lbl_style), Paragraph(":", colon_style), Paragraph("SUD-KIVU", val_style)],
         [Paragraph("Ville", lbl_style), Paragraph(":", colon_style), Paragraph("BUKAVU", val_style)],
-        [Paragraph("Commune", lbl_style), Paragraph(":", colon_style), Paragraph("D'IBANDA", val_style)],
+        [Paragraph("Commune/Ter.", lbl_style), Paragraph(":", colon_style), Paragraph("D'IBANDA", val_style)],
         [Paragraph("Ecole", lbl_style), Paragraph(":", colon_style), Paragraph(ecole_display or "...........", val_style)],
-        [Paragraph("Matricule", lbl_style), Paragraph(":", colon_style), code_squares_table],
+        [Paragraph("Code", lbl_style), Paragraph(":", colon_style), code_squares_table],
     ]
     left_table_vertical = Table(left_data, colWidths=[lbl_w, col_w2, val_w], rowHeights=[5*mm]*4 + [6.5*mm])
     left_table_vertical.setStyle(TableStyle([
@@ -1785,9 +1761,20 @@ def create_footer(elements, style_normal, style_center, id_classe=None):
     elements.append(footer_table)
 
 
-def draw_border(canvas, doc, eleve, margin):
+def draw_border(canvas, doc, eleve, margin, watermark_path=None):
     canvas.setLineWidth(0.5)
     canvas.rect(margin, margin, A4[0] - 2 * margin, A4[1] - 2 * margin)
+    # Watermark: armoirie du pays en filigrane très faible au centre
+    if watermark_path and os.path.exists(watermark_path):
+        canvas.saveState()
+        canvas.setFillAlpha(0.06)  # Très faiblement visible
+        page_w, page_h = A4
+        wm_size = 120 * mm  # Grande taille
+        x = (page_w - wm_size) / 2
+        y = (page_h - wm_size) / 2
+        canvas.drawImage(watermark_path, x, y, width=wm_size, height=wm_size,
+                         preserveAspectRatio=True, mask='auto')
+        canvas.restoreState()
     qr_value = f"Généré par  MonEkole App,ce Bulletin est de : {eleve.nom}{eleve.prenom} Conçue par entreprise ICT Group"
     qr_code = qr.QrCodeWidget(qr_value)
     bounds = qr_code.getBounds()

@@ -301,7 +301,7 @@ def recuperer_notes_par_classe_cycle_superieur(annee_id, campus_id, cycle_id, cl
 
 
 
-def draw_border__secondaire_rdc_without_qrcode (canvas, doc, eleve, margin):
+def draw_border__secondaire_rdc_without_qrcode (canvas, doc, eleve, margin, watermark_path=None):
     canvas.saveState()
     
     canvas.setLineWidth(0.5) 
@@ -313,6 +313,19 @@ def draw_border__secondaire_rdc_without_qrcode (canvas, doc, eleve, margin):
     )
 
     canvas.restoreState()
+    
+    # Watermark: armoirie du pays en filigrane très faible au centre
+    import os
+    if watermark_path and os.path.exists(watermark_path):
+        canvas.saveState()
+        canvas.setFillAlpha(0.06)
+        page_w, page_h = A4
+        wm_size = 120 * mm
+        x = (page_w - wm_size) / 2
+        y = (page_h - wm_size) / 2
+        canvas.drawImage(watermark_path, x, y, width=wm_size, height=wm_size,
+                         preserveAspectRatio=True, mask='auto')
+        canvas.restoreState()
 
 def generate_bulletin_superieur_secondLevel_rdc(request, eleve_id=103):
     id_classe = 50

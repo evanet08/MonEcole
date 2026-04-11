@@ -937,9 +937,20 @@ def create_footer__secondaire_rdc(elements, style_normal, style_center, classe_i
     # Espace final
     elements.append(Spacer(1, 0.5*mm))
 
-def draw_border__secondaire_rdc(canvas, doc, eleve, margin):
+def draw_border__secondaire_rdc(canvas, doc, eleve, margin, watermark_path=None):
     canvas.setLineWidth(0.5)
     canvas.rect(margin, margin, A4[0] - 2 * margin, A4[1] - 2 * margin)
+    # Watermark: armoirie du pays en filigrane très faible au centre
+    if watermark_path and os.path.exists(watermark_path):
+        canvas.saveState()
+        canvas.setFillAlpha(0.06)
+        page_w, page_h = A4
+        wm_size = 120 * mm
+        x = (page_w - wm_size) / 2
+        y = (page_h - wm_size) / 2
+        canvas.drawImage(watermark_path, x, y, width=wm_size, height=wm_size,
+                         preserveAspectRatio=True, mask='auto')
+        canvas.restoreState()
     qr_value = f"Généré par Application MonEkole,ce Bulletin est de : {eleve.nom}{eleve.prenom} Conçue par entreprise ICT Group"
     qr_code = qr.QrCodeWidget(qr_value)
     bounds = qr_code.getBounds()
