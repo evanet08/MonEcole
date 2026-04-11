@@ -80,18 +80,18 @@ def get_semestres(id_annee, id_campus, id_cycle, id_classe):
 
 
 def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal):
-    """Right info section — 2 equal columns matching left column width."""
+    """Right info section — EXACTEMENT fidèle au modèle officiel RDC."""
     try:
         eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
         classe_name = eac.classe.classe.strip().upper()
     except:
         return HttpResponse('<script>history.back();</script>', status=404)
 
-    # N.PERM = numero_serie — detached boxes
+    # N° PERM. boxes — cases agrandies
     nperm_str = str(eleve.numero_serie).strip() if eleve.numero_serie else ''
     nb_cases = len(nperm_str) if nperm_str else 13
     nperm_cells = [list(nperm_str)] if nperm_str else [[None] * nb_cases]
-    nperm_squares_table = Table(nperm_cells, colWidths=[3.5*mm]*nb_cases, rowHeights=4.5*mm)
+    nperm_squares_table = Table(nperm_cells, colWidths=[4*mm]*nb_cases, rowHeights=5*mm)
     nperm_squares_table.setStyle(TableStyle([
         ('BOX', (0,0), (-1,-1), 0, colors.white),
         ('INNERGRID', (0,0), (-1,-1), 0, colors.white),
@@ -109,90 +109,69 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
             ('BOX', (i,0), (i,0), 0.5, colors.black),
         ]))
 
-    # Styles: labels = normal Times, values = bold Helvetica UPPER
-    lbl_style = ParagraphStyle(name='InfoLblR', fontSize=6, leading=8, alignment=0, fontName='Times-Roman')
-    val_style = ParagraphStyle(name='InfoValR', fontSize=6, leading=8, alignment=0, fontName='Helvetica-Bold')
-    colon_style = ParagraphStyle(name='InfoColR', fontSize=6, leading=8, alignment=1, fontName='Times-Roman')
+    # Style unique — MAJUSCULES GRAS
+    lbl_style = ParagraphStyle(name='InfoLblR', fontSize=7, leading=9, alignment=0, fontName='Helvetica-Bold')
 
-    lieu = getattr(eleve, 'naissance_commune', None) or getattr(eleve, 'Lieu_naissance', None) or '..........'
     nom_upper = (eleve.nom or '').upper()
     prenom_title = (eleve.prenom or '').title()
+    sexe = (eleve.genre or '').upper()
 
-    # Two sub-columns for the right side, each ~66mm
-    col_w = 66.5*mm  # each column = bulletin_width / 3
-    lbl_w = 22*mm
-    col_w2 = 3*mm
-    val_w = col_w - lbl_w - col_w2
-
-    # Column 2 data (Eleve / Ne(e) A / Classe / N.Perm)
-    col2_data = [
-        [Paragraph("Eleve", lbl_style), Paragraph(":", colon_style), Paragraph(f"{nom_upper} {prenom_title}", val_style)],
-        [Paragraph("Ne(e) A", lbl_style), Paragraph(":", colon_style), Paragraph(f"{str(lieu).upper()}", val_style)],
-        [Paragraph("Classe", lbl_style), Paragraph(":", colon_style), Paragraph(f"{classe_name}", val_style)],
-        [Paragraph("N.Perm", lbl_style), Paragraph(":", colon_style), nperm_squares_table],
-    ]
-    col2_table = Table(col2_data, colWidths=[lbl_w, col_w2, val_w], rowHeights=[5*mm]*3 + [6.5*mm])
-    col2_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 1),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 1),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-    ]))
-
-    # Format date as dd-MM-yyyy
+    # Date au format LE jj / mm / aaaa
+    date_str = ''
     if eleve.date_naissance:
         try:
-            from datetime import date as dt_date
-            if isinstance(eleve.date_naissance, dt_date):
-                date_naissance = eleve.date_naissance.strftime('%d-%m-%Y')
-            else:
-                date_naissance = str(eleve.date_naissance)
+            d = eleve.date_naissance
+            date_str = f"{d.day:02d} / {d.month:02d} / {d.year}"
         except:
-            date_naissance = str(eleve.date_naissance)
-    else:
-        date_naissance = '..........'
-    col3_data = [
-        [Paragraph("Sexe", lbl_style), Paragraph(":", colon_style), Paragraph(f"{(eleve.genre or '').upper()}", val_style)],
-        [Paragraph("Année de Naissance", lbl_style), Paragraph(":", colon_style), Paragraph(f"{date_naissance}", val_style)],
-        [None, None, None],
-        [None, None, None],
+            date_str = str(eleve.date_naissance)
+
+    dots_long = '<font size="5" color="#999999">' + ' .' * 30 + '</font>'
+    dots_mid = '<font size="5" color="#999999">' + ' .' * 15 + '</font>'
+    dots_short = '<font size="5" color="#999999">' + ' .' * 5 + '</font>'
+
+    half_w = 97*mm
+
+    right_rows = [
+        [Paragraph(f"<b>ELEVE :</b>  {nom_upper} {prenom_title} {dots_mid}  <b>SEXE :</b> {sexe} {dots_short}", lbl_style), None],
+        [Paragraph(f"<b>NE(E) A :</b> {dots_mid}  <b>LE</b> {date_str if date_str else '..... / ..... / ..........'}", lbl_style), None],
+        [Paragraph(f"<b>CLASSE :</b>  {classe_name} {dots_long}", lbl_style), None],
+        [Paragraph("<b>N° PERM. :</b>", lbl_style), nperm_squares_table],
     ]
-    col3_table = Table(col3_data, colWidths=[lbl_w, col_w2, val_w], rowHeights=[5*mm]*3 + [6.5*mm])
-    col3_table.setStyle(TableStyle([
+
+    right_table = Table(right_rows, colWidths=[half_w - nb_cases*4*mm - 6*mm, nb_cases*4*mm + 6*mm], rowHeights=[5.5*mm]*3 + [7*mm])
+    right_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 1),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
         ('RIGHTPADDING', (0, 0), (-1, -1), 1),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('SPAN', (0, 0), (1, 0)),
+        ('SPAN', (0, 1), (1, 1)),
+        ('SPAN', (0, 2), (1, 2)),
     ]))
 
-    return col2_table, col3_table
+    return right_table
 
 
 
 def create_line2_section__secondaire_rdc(elements, left_table, right_table):
-    """Combine left + right info into 3 equal columns."""
+    """Combine left + right — 2 colonnes avec séparateur vertical, format officiel."""
     if isinstance(right_table, tuple):
-        col2_table, col3_table = right_table
-    else:
-        col2_table = right_table
-        col3_table = None
+        right_table = right_table[0]
 
-    col_w = 66.5*mm  # bulletin_width / 3
-    if col3_table:
-        line2_data = [[left_table, col2_table, col3_table]]
-        line2_table = Table(line2_data, colWidths=[col_w, col_w, col_w])
-    else:
-        line2_data = [[left_table, col2_table]]
-        line2_table = Table(line2_data, colWidths=[col_w*1.5, col_w*1.5])
+    half_w = 97*mm
+    line2_data = [[left_table, right_table]]
+    line2_table = Table(line2_data, colWidths=[half_w, half_w])
 
     line2_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('LINEABOVE', (0, 0), (-1, 0), 0.5, colors.black),
         ('LINEBELOW', (0, -1), (-1, -1), 0.5, colors.black),
+        ('LINEBEFORE', (1, 0), (1, -1), 0.3, colors.black),
         ('TOPPADDING', (0, 0), (-1, -1), 1),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
     ]))
     elements.append(line2_table)
     elements.append(Spacer(1, 0.5*mm))
