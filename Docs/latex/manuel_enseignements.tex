@@ -1,0 +1,553 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\geometry{top=2.5cm,bottom=2.5cm,left=2.5cm,right=2.5cm}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,arrows.meta,positioning,calc,shadows.blur,fit,backgrounds}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{fontawesome5}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=indigo,urlcolor=indigo,pdfauthor={MonEcole},pdftitle={Manuel --- Module Enseignements}}
+\usepackage{fancyhdr}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{caption}
+
+% ====== COULEURS ======
+\definecolor{indigo}{HTML}{4338CA}
+\definecolor{violet}{HTML}{7C3AED}
+\definecolor{amber}{HTML}{D97706}
+\definecolor{emerald}{HTML}{059669}
+\definecolor{rose}{HTML}{E11D48}
+\definecolor{slate}{HTML}{334155}
+\definecolor{slatelight}{HTML}{94A3B8}
+\definecolor{teal}{HTML}{0D9488}
+\definecolor{sky}{HTML}{0EA5E9}
+\definecolor{coverbg}{HTML}{1E1B4B}
+\definecolor{coveraccent}{HTML}{10B981}
+\definecolor{lightbg}{HTML}{F8FAFC}
+\definecolor{warningbg}{HTML}{FEF3C7}
+\definecolor{successbg}{HTML}{ECFDF5}
+\definecolor{infobg}{HTML}{EFF6FF}
+\definecolor{dangerbg}{HTML}{FEF2F2}
+\definecolor{purplebg}{HTML}{FAF5FF}
+\definecolor{tealbg}{HTML}{F0FDFA}
+
+% ====== TCOLORBOX ======
+\newtcolorbox{astuce}[1][]{enhanced,colback=successbg,colframe=emerald,fonttitle=\bfseries\small,title={\faLightbulb\hspace{6pt}Astuce},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+\newtcolorbox{attention}[1][]{enhanced,colback=warningbg,colframe=amber,fonttitle=\bfseries\small,title={\faExclamationTriangle\hspace{6pt}Attention},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+\newtcolorbox{info}[1][]{enhanced,colback=infobg,colframe=indigo,fonttitle=\bfseries\small,title={\faInfoCircle\hspace{6pt}Information},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+\newtcolorbox{danger}[1][]{enhanced,colback=dangerbg,colframe=rose,fonttitle=\bfseries\small,title={\faTimes\hspace{6pt}Important},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+\newtcolorbox{etape}[1][]{enhanced,colback=white,colframe=indigo!60,fonttitle=\bfseries\small,left=10pt,right=10pt,top=8pt,bottom=8pt,arc=6pt,boxrule=1.5pt,breakable,#1}
+\newtcolorbox{prerequis}[1][]{enhanced,colback=purplebg,colframe=violet,fonttitle=\bfseries\small,title={\faClipboard\hspace{6pt}Pr\'erequis},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+\newtcolorbox{resultat}[1][]{enhanced,colback=tealbg,colframe=teal,fonttitle=\bfseries\small,title={\faCheck\hspace{6pt}R\'esultat attendu},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+
+% ====== HEADERS ======
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{\small\color{slatelight}\leftmark}
+\fancyhead[R]{\small\color{emerald}\textbf{MonEcole}}
+\fancyfoot[C]{\small\color{slatelight}\thepage}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0.3pt}
+
+% ====== COMMANDES ======
+\newcommand{\bouton}[1]{{\colorbox{emerald}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+\newcommand{\onglet}[1]{{\colorbox{indigo}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+\newcommand{\champ}[1]{\texttt{\color{violet}#1}}
+\newcommand{\btnviolet}[1]{{\colorbox{violet}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+\newcommand{\btnamber}[1]{{\colorbox{amber}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+\newcommand{\btnrose}[1]{{\colorbox{rose}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+
+\begin{document}
+
+% ===================================================================
+%                         PAGE DE COUVERTURE
+% ===================================================================
+\begin{titlepage}
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[coverbg] (current page.south west) rectangle (current page.north east);
+  \fill[coveraccent,opacity=0.12] (current page.north east) ++(-4,1) circle (8cm);
+  \fill[teal,opacity=0.08] (current page.south west) ++(3,-2) circle (10cm);
+  \fill[coveraccent,opacity=0.06] (current page.center) ++(6,-4) circle (5cm);
+  \fill[amber,opacity=0.05] (current page.north west) ++(2,-8) circle (4cm);
+  \draw[coveraccent,line width=2pt,opacity=0.4] ([yshift=-6cm]current page.north west) ++(2.5,0) -- ++(16,0);
+  \node[fill=coveraccent,rounded corners=14pt,minimum size=2cm,inner sep=0pt] at ([yshift=-3.5cm]current page.north) {\color{white}\fontsize{28pt}{28pt}\selectfont\faChalkboardTeacher};
+  \node[anchor=north,text width=14cm,align=center] at ([yshift=-6.5cm]current page.north) {
+    \color{white}\fontsize{32pt}{36pt}\selectfont\textbf{Manuel d'Utilisation}\\[12pt]
+    \fontsize{18pt}{22pt}\selectfont\color{coveraccent!70!white}Module \textbf{Enseignements}
+  };
+  \node[anchor=north,text width=14cm,align=center] at ([yshift=-10cm]current page.north) {
+    \color{white!60}\fontsize{11pt}{15pt}\selectfont
+    Guide complet pour le tableau de bord des enseignants,\\
+    la gestion des tables de r\'ef\'erence, l'attribution des cours\\
+    aux enseignants et la planification des emplois du temps.
+  };
+  \draw[coveraccent,line width=1.5pt] ([yshift=-12.5cm]current page.north) ++(-3,0) -- ++(6,0);
+  \node[anchor=north,text width=14cm,align=center] at ([yshift=-13.5cm]current page.north) {
+    \color{white!50}\small
+    \faBuilding\hspace{4pt}Plateforme MonEcole --- Architecture Hub-and-Spoke\\[6pt]
+    \faCalendar\hspace{4pt}Avril 2026 --- Version 1.0\\[6pt]
+    \faBook\hspace{4pt}Documentation Utilisateur --- 4 Sections D\'etaill\'ees
+  };
+  \node[anchor=south,text width=14cm,align=center] at ([yshift=1.5cm]current page.south) {
+    \color{white!30}\footnotesize \faCopyright\hspace{3pt} Nexora Tech --- Tous droits r\'eserv\'es
+  };
+\end{tikzpicture}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ===================================================================
+\chapter{Introduction au Module Enseignements}
+% ===================================================================
+
+\section{Pr\'esentation g\'en\'erale}
+
+Le module \textbf{Enseignements} est le centre de gestion du personnel enseignant et de l'organisation p\'edagogique de votre \'etablissement. Il couvre l'ensemble des op\'erations li\'ees aux enseignants~: de l'enregistrement dans la base de donn\'ees jusqu'\`a la planification de leur emploi du temps hebdomadaire.
+
+Ce module est accessible depuis la barre de navigation lat\'erale (sidebar) en cliquant sur \textbf{Enseignements}. Il se divise en \textbf{4 sections} principales, chacune accessible via un lien dans la barre lat\'erale~:
+
+\begin{center}
+\begin{tikzpicture}[
+  sect/.style={rounded corners=10pt, minimum height=1.1cm, minimum width=3.5cm, font=\small\bfseries, inner sep=8pt, text=white, drop shadow={shadow xshift=1pt, shadow yshift=-1pt, opacity=0.2}},
+  desc/.style={text width=3.3cm, align=center, font=\tiny\color{slate}}
+]
+  \node[sect, fill=emerald] (s1) at (0,0) {\faChartBar\ Dashboard};
+  \node[sect, fill=violet, right=6pt of s1] (s2) {\faDatabase\ R\'ef\'erence};
+  \node[sect, fill=rose, right=6pt of s2] (s3) {\faUserTag\ Attribution};
+  \node[sect, fill=amber, right=6pt of s3] (s4) {\faCalendar\ Horaire};
+
+  \node[desc, below=8pt of s1] {Vue d'ensemble statistique des enseignants et du personnel};
+  \node[desc, below=8pt of s2] {Tables de r\'ef\'erence~: cat\'egories, types, postes, dipl\^omes...};
+  \node[desc, below=8pt of s3] {Attribuer un enseignant \`a chaque cours d'une classe};
+  \node[desc, below=8pt of s4] {Planifier l'emploi du temps hebdomadaire par classe};
+\end{tikzpicture}
+\end{center}
+
+\section{Flux de travail recommand\'e}
+
+Pour un \'etablissement nouvellement configur\'e, voici l'ordre logique des op\'erations~:
+
+\begin{center}
+\begin{tikzpicture}[
+  step/.style={draw=slate!40, fill=white, rounded corners=8pt, minimum width=2.4cm, minimum height=1.5cm, align=center, font=\scriptsize\bfseries, text=slate, drop shadow={shadow xshift=1pt, shadow yshift=-1pt, opacity=0.12}},
+  arrow/.style={-{Stealth[length=6pt,width=5pt]}, thick, color=slatelight}
+]
+  \node[step] (s1) at (0,0) {\faDatabase\\[2pt]Configurer les\\tables de r\'ef.};
+  \node[step, right=0.5cm of s1] (s2) {\faUserPlus\\[2pt]Enregistrer les\\enseignants};
+  \node[step, right=0.5cm of s2] (s3) {\faUserTag\\[2pt]Attribuer les\\cours};
+  \node[step, right=0.5cm of s3] (s4) {\faCalendar\\[2pt]Planifier\\l'horaire};
+  \node[step, right=0.5cm of s4] (s5) {\faChartBar\\[2pt]Suivre via\\le dashboard};
+
+  \draw[arrow] (s1) -- (s2);
+  \draw[arrow] (s2) -- (s3);
+  \draw[arrow] (s3) -- (s4);
+  \draw[arrow] (s4) -- (s5);
+\end{tikzpicture}
+\end{center}
+
+\begin{info}
+Les sections \textbf{R\'ef\'erence} et \textbf{Dashboard} sont des modules de consultation/configuration de base. L'\textbf{Attribution} et l'\textbf{Horaire} sont les modules op\'erationnels principaux o\`u se d\'eroule le travail quotidien de planification.
+\end{info}
+
+\newpage
+% ===================================================================
+\chapter{Section 2 --- R\'ef\'erence du Personnel}
+% ===================================================================
+
+\section{Objectif de cette section}
+
+La section \textbf{R\'ef\'erence} permet de g\'erer les \textbf{tables de r\'ef\'erence} utilis\'ees pour cat\'egoriser et d\'ecrire le personnel enseignant. Ces tables sont essentielles car elles alimentent les menus d\'eroulants utilis\'es lors de l'enregistrement des enseignants.
+
+\section{Les 7 tables de r\'ef\'erence}
+
+La section affiche une barre de boutons color\'es, chacun correspondant \`a une table de r\'ef\'erence~:
+
+\begin{center}
+\begin{tikzpicture}[
+  btn/.style={rounded corners=4pt, minimum height=0.6cm, font=\tiny\bfseries, inner sep=4pt, text=white, fill=#1}
+]
+  \node[btn=indigo] (b1) at (0,0) {\faTags\ Cat\'egories};
+  \node[btn=violet, right=3pt of b1] (b2) {\faUserTag\ Types};
+  \node[btn=teal, right=3pt of b2] (b3) {\faBriefcase\ Postes};
+  \node[btn=sky, right=3pt of b3] (b4) {\faGraduationCap\ Dipl\^omes};
+  \node[btn=amber, right=3pt of b4] (b5) {\faMicroscope\ Sp\'ecialit\'es};
+  \node[btn=rose, right=3pt of b5] (b6) {\faClock\ Vacations};
+  \node[btn=slate, right=3pt of b6] (b7) {\faTasks\ T\^aches};
+\end{tikzpicture}
+\end{center}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{llX}
+\toprule
+\textbf{Table} & \textbf{Ic\^one} & \textbf{Description} \\
+\midrule
+Cat\'egories & \faTags & Classement professionnel~: Enseignant, Administratif, Personnel d'appui... \\
+Types & \faUserTag & Sous-classification~: Titulaire, Vacataire, Stagiaire, Contractuel... \\
+Postes & \faBriefcase & Fonctions~: Professeur, Directeur, Pr\'efet d'\'etudes, Surveillant... \\
+Dipl\^omes & \faGraduationCap & Qualifications~: Licence, Master, Doctorat, Brevet, Certificat... \\
+Sp\'ecialit\'es & \faMicroscope & Domaines d'expertise~: Math\'ematiques, Fran\c{c}ais, Physique, Biologie... \\
+Vacations & \faClock & Types de vacation~: Temps plein, Mi-temps, Horaire... \\
+T\^aches & \faTasks & Activit\'es secondaires~: Titulaire de classe, Chef de d\'epartement... \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{Pour consulter une table de r\'ef\'erence}
+
+\begin{etape}[title=Proc\'edure : Consulter une table]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=8pt]
+  \item \textbf{Acc\'edez \`a la section R\'ef\'erence} en cliquant sur \textbf{R\'ef\'erence} dans la barre lat\'erale.
+  \item \textbf{Cliquez sur le bouton} correspondant \`a la table souhait\'ee (ex.\ : \onglet{Cat\'egories}). Le bouton s\'electionn\'e prend une couleur indigo.
+  \item \textbf{Le contenu s'affiche} dans un tableau structur\'e en dessous des boutons, avec les colonnes \textbf{ID}, \textbf{Nom}, \textbf{Description} (si applicable) et \textbf{Actions} (modifier / supprimer).
+\end{enumerate}
+\end{etape}
+
+\section{Pour ajouter un \'el\'ement \`a une table}
+
+\begin{etape}[title=Proc\'edure : Ajouter un \'el\'ement]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{S\'electionnez la table} via les boutons (ex.\ : \onglet{Postes}).
+  \item \textbf{Cliquez sur} \bouton{+ Ajouter} en haut du tableau. Un formulaire inline appara\^it.
+  \item \textbf{Remplissez le nom} de l'\'el\'ement (ex.\ : \textit{Professeur principal}).
+  \item \textbf{Ajoutez une description} (optionnel) pour pr\'eciser le r\^ole.
+  \item \textbf{Cliquez sur} \bouton{Enregistrer}. L\'el\'ement appara\^it dans le tableau.
+\end{enumerate}
+\end{etape}
+
+\section{Pour modifier ou supprimer un \'el\'ement}
+
+\begin{etape}[title=Proc\'edure : Modifier / Supprimer]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=8pt]
+  \item \textbf{Rep\'erez la ligne} de l'\'el\'ement dans le tableau.
+  \item \textbf{Pour modifier}~: cliquez sur \textcolor{indigo}{\faPen}. Les champs deviennent \'editables. Modifiez et cliquez sur \bouton{OK}.
+  \item \textbf{Pour supprimer}~: cliquez sur \textcolor{rose}{\faTrash}. Confirmez dans la bo\^ite de dialogue.
+\end{enumerate}
+\end{etape}
+
+\begin{attention}
+La suppression d'un \'el\'ement de r\'ef\'erence peut impacter les enseignants qui y sont rattach\'es. Par exemple, supprimer la cat\'egorie \textit{<<~Vacataire~>>} d\'etachera tous les enseignants class\'es dans cette cat\'egorie.
+\end{attention}
+
+\section{Gestion compl\`ete du personnel}
+
+La section R\'ef\'erence contient \'egalement le \textbf{panneau de gestion du personnel}, accessible via un bouton dans la barre d'outils~:
+
+\subsection{Pour ajouter un enseignant}
+
+\begin{etape}[title=Proc\'edure d\'etaill\'ee : Ajouter un enseignant]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{Cliquez sur} \bouton{Ajouter} (bouton vert avec ic\^one \faUserPlus).
+  \item \textbf{Le formulaire d'ajout} s'affiche avec 6 champs sur 3 colonnes~:
+  \begin{itemize}
+    \item \champ{Nom} --- Nom de famille (obligatoire)
+    \item \champ{Pr\'enom} --- Pr\'enom (obligatoire)
+    \item \champ{Post-nom} --- Post-nom (optionnel)
+    \item \champ{Genre} --- Menu d\'eroulant~: Masculin / F\'eminin (obligatoire)
+    \item \champ{T\'el\'ephone} --- Num\'ero de t\'el\'ephone
+    \item \champ{Email} --- Adresse \'electronique
+  \end{itemize}
+  \item \textbf{Cliquez sur} \bouton{Enregistrer}. Un toast vert confirme l'ajout et la grille se rafra\^ichit.
+\end{enumerate}
+\end{etape}
+
+\subsection{Pour modifier un enseignant dans la grille}
+
+\begin{etape}[title=Proc\'edure : Modification inline]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=8pt]
+  \item Rep\'erez l'enseignant dans la grille du personnel.
+  \item \textbf{Cliquez directement sur la cellule} que vous souhaitez modifier (les cellules sont \'editables en mode \texttt{contenteditable}).
+  \item La cellule prend un contour bleu indigo pour signaler le mode \'edition.
+  \item \textbf{Tapez votre modification} puis cliquez en dehors de la cellule ou appuyez sur Tab.
+  \item La cellule \textbf{clignote en vert} bri\`evement pour confirmer l'enregistrement automatique.
+\end{enumerate}
+\end{etape}
+
+\subsection{Pour importer du personnel depuis Excel}
+
+\begin{etape}[title=Proc\'edure : Import Excel]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{T\'el\'echargez le mod\`ele} en cliquant sur \btnviolet{Mod\`ele Import} (bouton violet).
+  \item \textbf{Remplissez le fichier} Excel t\'el\'echarg\'e avec les donn\'ees du personnel~: nom, pr\'enom, post-nom, genre, t\'el\'ephone, email.
+  \item \textbf{Cliquez sur} \btnrose{Importer} (bouton rose) et s\'electionnez le fichier rempli.
+  \item Le syst\`eme importe les donn\'ees et affiche un r\'esum\'e~: nombre de nouveaux enregistrements, nombre de doublons ignor\'es.
+\end{enumerate}
+\end{etape}
+
+\subsection{Pour personnaliser les colonnes affich\'ees}
+
+\begin{etape}[title=Proc\'edure : S\'electeur de colonnes]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=8pt]
+  \item Cliquez sur le bouton \onglet{Colonnes} (en haut \`a droite de la grille).
+  \item Un panneau flottant appara\^it avec la liste de toutes les colonnes disponibles, chacune avec une case \`a cocher.
+  \item \textbf{Cochez ou d\'ecochez} les colonnes pour les afficher ou les masquer.
+  \item La grille se met \`a jour imm\'ediatement.
+\end{enumerate}
+\end{etape}
+
+\newpage
+% ===================================================================
+\chapter{Section 3 --- Attribution des Cours}
+% ===================================================================
+
+\section{Objectif de cette section}
+
+La section \textbf{Attribution} est le c\oe ur op\'erationnel du module Enseignements. Elle permet d'\textbf{associer un enseignant \`a chaque cours} pour chaque classe de l'\'etablissement. Sans attribution, le syst\`eme ne peut pas g\'en\'erer les emplois du temps ni associer les notes aux enseignants.
+
+\begin{info}
+L'attribution se fait \textbf{classe par classe}. Pour chaque classe, vous verrez la liste de tous les cours configur\'es, et vous pourrez assigner un enseignant \`a chacun d'eux \`a l'aide d'un menu d\'eroulant.
+\end{info}
+
+\section{Comprendre l'interface}
+
+L'interface se compose de~:
+
+\begin{enumerate}[leftmargin=1.2cm]
+  \item \textbf{S\'electeur de classe} --- Un menu d\'eroulant dans un encadr\'e violet avec ic\^one \faChalkboard. La s\'election d'une classe charge la liste des cours.
+  \item \textbf{Compteurs r\'ecapitulatifs} --- 3 cartes affichant~:
+  \begin{itemize}
+    \item \textcolor{emerald}{\textbf{Total cours}} --- Nombre total de cours de la classe.
+    \item \textcolor{sky}{\textbf{Attribu\'es}} --- Nombre de cours d\'ej\`a affect\'es \`a un enseignant.
+    \item \textcolor{rose}{\textbf{Non attribu\'es}} --- Nombre de cours sans enseignant.
+  \end{itemize}
+  \item \textbf{Tableau d'attribution} --- Liste de tous les cours avec colonnes~: Cours, Domaine, Heures, Enseignant (menu d\'eroulant), Actions.
+\end{enumerate}
+
+
+
+\section{Pour attribuer un enseignant \`a un cours}
+
+\begin{prerequis}
+\begin{itemize}
+  \item La \textbf{configuration annuelle} doit \^etre compl\`ete (cycles, classes, cours activ\'es).
+  \item Des \textbf{enseignants} doivent avoir \'et\'e enregistr\'es dans la section R\'ef\'erence.
+\end{itemize}
+\end{prerequis}
+
+\begin{etape}[title=Proc\'edure d\'etaill\'ee : Attribuer un enseignant]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=12pt]
+  \item \textbf{S\'electionnez une classe} dans le menu d\'eroulant \champ{Classe}. Le tableau des cours se charge avec les compteurs r\'ecapitulatifs.
+
+  \item \textbf{Rep\'erez le cours} \`a attribuer dans le tableau. Les cours non attribu\'es sont marqu\'es d'un indicateur rouge.
+
+  \item \textbf{Ouvrez le menu d\'eroulant} dans la colonne \textbf{Enseignant} de la ligne correspondante. La liste affiche tous les enseignants enregistr\'es, tri\'es alphab\'etiquement.
+
+  \item \textbf{S\'electionnez l'enseignant} souhait\'e. Le syst\`eme enregistre imm\'ediatement l'attribution via l'API.
+
+  \item \textbf{Le compteur se met \`a jour} automatiquement~: le nombre d'\textit{<<~Attribu\'es~>>} augmente et celui de \textit{<<~Non attribu\'es~>>} diminue.
+
+  \item \textbf{Pour retirer une attribution}~: s\'electionnez l'option vide (premi\`ere option du menu d\'eroulant) ou cliquez sur \textcolor{rose}{\faTimes} \`a c\^ot\'e du nom.
+\end{enumerate}
+\end{etape}
+
+\begin{resultat}
+Apr\`es attribution, l'enseignant est visible dans le tableau avec son nom complet. L'information est imm\'ediatement disponible pour~:
+\begin{itemize}
+  \item La planification des emplois du temps (section Horaire).
+  \item Les grilles de notes du module \'Evaluations.
+  \item La g\'en\'eration des bulletins PDF.
+\end{itemize}
+\end{resultat}
+
+\begin{astuce}
+\textbf{Un m\^eme enseignant} peut \^etre attribu\'e \`a plusieurs cours et \`a plusieurs classes. Le syst\`eme v\'erifiera automatiquement les conflits d'horaire lors de la planification de l'emploi du temps.
+\end{astuce}
+
+\section{Pour visualiser les attributions existantes}
+
+\begin{etape}[title=Proc\'edure : V\'erifier les attributions]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=8pt]
+  \item S\'electionnez une classe dans le menu d\'eroulant.
+  \item Le tableau se charge. Les cours d\'ej\`a attribu\'es affichent le nom de l'enseignant dans la colonne \textbf{Enseignant} avec un fond vert clair.
+  \item Les cours non attribu\'es affichent \textit{<<~S\'electionnez...~>>} en gris dans le menu d\'eroulant.
+  \item Utilisez les 3 compteurs pour \'evaluer rapidement la progression.
+\end{enumerate}
+\end{etape}
+
+\newpage
+% ===================================================================
+\chapter{Section 4 --- Emploi du Temps (Horaire)}
+% ===================================================================
+
+\section{Objectif de cette section}
+
+La section \textbf{Horaire} permet de planifier l'\textbf{emploi du temps hebdomadaire} de chaque classe. Elle offre une vue calendaire interactive o\`u vous pouvez cr\'eer, modifier et supprimer des cr\'eneaux de cours pour chaque jour de la semaine.
+
+\begin{info}
+L'emploi du temps est organis\'e \textbf{par semaine}. Vous pouvez naviguer entre les semaines avec les boutons de navigation (\faChevronLeft\ et \faChevronRight) et copier l'emploi du temps d'une semaine vers la suivante.
+\end{info}
+
+\section{Comprendre l'interface}
+
+L'interface se compose de~:
+
+\begin{enumerate}[leftmargin=1.2cm]
+  \item \textbf{S\'electeur de classe} --- Menu d\'eroulant avec fond violet.
+  \item \textbf{S\'electeur de p\'eriode} --- Menu d\'eroulant avec fond jaune/ambre. D\'efinit la plage de dates pour les semaines disponibles.
+  \item \textbf{Navigation entre les semaines} --- Boutons \faChevronLeft\ / \faChevronRight\ avec le libell\'e de la semaine (ex.\ : \textit{<<~Semaine du 14 au 18 octobre 2025~>>}).
+  \item \textbf{Bouton Copier semaine pr\'ec\'edente} --- Permet de dupliquer tous les cr\'eneaux de la semaine pr\'ec\'edente.
+  \item \textbf{Grille hebdomadaire} --- Un tableau avec les jours en colonnes et les heures en lignes. Chaque cellule repr\'esente un cr\'eneau potentiel.
+\end{enumerate}
+
+\section{Pour afficher l'emploi du temps d'une classe}
+
+\begin{etape}[title=Proc\'edure : Charger l'emploi du temps]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=12pt]
+  \item \textbf{S\'electionnez une classe} dans le premier menu d\'eroulant \champ{Classe}.
+
+  \item \textbf{S\'electionnez une p\'eriode} dans le second menu d\'eroulant \champ{P\'eriode}. Le syst\`eme charge les semaines disponibles pour cette p\'eriode.
+
+  \item \textbf{La navigation par semaine} appara\^it avec le libell\'e de la premi\`ere semaine et un compteur (ex.\ : \textit{<<~Semaine 1/8~>>}).
+
+  \item \textbf{La grille hebdomadaire} se charge avec les cr\'eneaux existants. Chaque cr\'eneau est repr\'esent\'e par un bloc color\'e affichant le nom du cours, l'heure de d\'ebut et de fin, et le nom de l'enseignant attribu\'e.
+\end{enumerate}
+\end{etape}
+
+\section{Pour ajouter un cr\'eneau de cours}
+
+\begin{etape}[title=Proc\'edure d\'etaill\'ee : Ajouter un cr\'eneau]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=12pt]
+  \item \textbf{Cliquez sur une cellule vide} de la grille (correspondant au jour et \`a l'heure souhait\'es). La fen\^etre modale \textit{<<~Ajouter un cr\'eneau~>>} s'ouvre.
+
+  \item \textbf{La date est pr\'e-remplie} avec le jour s\'electionn\'e. Elle est affich\'ee en lecture seule dans le champ \champ{Date}.
+
+  \item \textbf{S\'electionnez le cours} dans le menu d\'eroulant \champ{Cours}. Seuls les cours de la classe s\'electionn\'ee sont list\'es (avec le nom de l'enseignant attribu\'e s'il existe).
+
+  \item \textbf{D\'efinissez les heures}~:
+  \begin{itemize}
+    \item \champ{D\'ebut} --- S\'electionnez l'heure de d\'ebut (format HH:MM).
+    \item \champ{Fin} --- S\'electionnez l'heure de fin.
+  \end{itemize}
+
+  \item \textbf{Option multi-jours} (optionnel)~: Cochez la case \textit{<<~Appliquer \`a plusieurs jours~>>} pour cr\'eer le m\^eme cr\'eneau sur d'autres jours de la semaine. Les jours disponibles s'affichent sous forme de boutons cliquables (Lundi, Mardi, etc.). S\'electionnez les jours souhait\'es.
+
+  \item \textbf{Cliquez sur} \bouton{Enregistrer}. Le cr\'eneau appara\^it dans la grille.
+\end{enumerate}
+\end{etape}
+
+\begin{astuce}
+L'option \textbf{multi-jours} est particuli\`erement utile pour les cours r\'ecurrents. Par exemple, si les Math\'ematiques ont lieu tous les lundis et mercredis de 8h \`a 10h, vous n'avez besoin de cr\'eer qu'un seul cr\'eneau en s\'electionnant les deux jours.
+\end{astuce}
+
+\section{Pour modifier un cr\'eneau existant}
+
+\begin{etape}[title=Proc\'edure : Modifier un cr\'eneau]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=8pt]
+  \item \textbf{Cliquez sur le bloc color\'e} du cr\'eneau dans la grille.
+  \item La modale s'ouvre \textbf{pr\'e-remplie} avec les informations existantes (cours, heures).
+  \item Modifiez les champs n\'ecessaires.
+  \item Cliquez sur \bouton{Enregistrer}.
+\end{enumerate}
+\end{etape}
+
+\section{Pour supprimer un cr\'eneau}
+
+\begin{etape}[title=Proc\'edure : Supprimer un cr\'eneau]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=8pt]
+  \item Cliquez sur le cr\'eneau dans la grille.
+  \item Dans la modale, cliquez sur \btnrose{Supprimer} (bouton rouge en bas).
+  \item Confirmez la suppression. Le cr\'eneau dispara\^it de la grille.
+\end{enumerate}
+\end{etape}
+
+\section{Pour copier l'emploi du temps d'une semaine pr\'ec\'edente}
+
+\begin{etape}[title=Proc\'edure : Copier une semaine]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{Naviguez vers la semaine cible} (celle qui doit recevoir les cr\'eneaux) \`a l'aide des boutons \faChevronLeft\ / \faChevronRight.
+
+  \item \textbf{Cliquez sur} \bouton{Copier semaine pr\'ec\'edente} (bouton vert avec ic\^one \faCopy, visible uniquement \`a partir de la semaine 2).
+
+  \item \textbf{La modale de copie s'ouvre} et affiche la liste de tous les cr\'eneaux de la semaine pr\'ec\'edente, chacun avec une case \`a cocher. Vous pouvez~:
+  \begin{itemize}
+    \item \textbf{Tout s\'electionner} --- Cliquez sur \bouton{Tout s\'electionner} pour cocher tous les cr\'eneaux.
+    \item \textbf{S\'electionner individuellement} --- Cochez uniquement les cr\'eneaux que vous souhaitez copier.
+    \item \textbf{Tout d\'es\'electionner} --- Pour recommencer la s\'election.
+  \end{itemize}
+
+  \item \textbf{Cliquez sur} \bouton{Copier la s\'election}. Les cr\'eneaux s\'electionn\'es sont dupliqu\'es sur les m\^emes jours/heures de la semaine courante.
+\end{enumerate}
+\end{etape}
+
+\begin{danger}
+La copie de semaine \textbf{n'\'ecrase pas} les cr\'eneaux existants. Si un cr\'eneau identique existe d\'ej\`a, le syst\`eme l'ignore. Les cr\'eneaux sont cr\'e\'es avec les m\^emes heures mais aux dates correspondantes de la nouvelle semaine.
+\end{danger}
+
+\newpage
+% ===================================================================
+\chapter{R\'ef\'erence rapide}
+% ===================================================================
+
+\section{Navigation entre les sections}
+
+\begin{tabularx}{\textwidth}{llX}
+\toprule
+\textbf{Ic\^one Sidebar} & \textbf{Section} & \textbf{Description} \\
+\midrule
+\faChartBar\ (vert) & Dashboard & Tableau de bord statistique du personnel \\
+\faDatabase\ (violet) & R\'ef\'erence & Tables de r\'ef\'erence + gestion du personnel \\
+\faUserTag\ (rouge) & Attribution & Attribution enseignant $\rightarrow$ cours par classe \\
+\faCalendar\ (ambre) & Horaire & Planification de l'emploi du temps hebdomadaire \\
+\bottomrule
+\end{tabularx}
+
+\section{Endpoints API du module Enseignements}
+
+{\small
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Endpoint} & \textbf{Description} \\
+\midrule
+\texttt{/api/personnel/list/} & GET --- Liste compl\`ete du personnel \\
+\texttt{/api/personnel/add/} & POST --- Ajouter un membre du personnel \\
+\texttt{/api/personnel/update/} & POST --- Modifier les donn\'ees d'un personnel \\
+\texttt{/api/personnel/delete/} & POST --- Supprimer un personnel \\
+\texttt{/api/personnel/import/} & POST --- Importer depuis Excel \\
+\texttt{/api/personnel/template/} & GET --- T\'el\'echarger le mod\`ele Excel \\
+\texttt{/api/ref-tables/get/} & GET --- Lister les \'el\'ements d'une table \\
+\texttt{/api/ref-tables/save/} & POST --- Ajouter/modifier un \'el\'ement \\
+\texttt{/api/ref-tables/delete/} & POST --- Supprimer un \'el\'ement de r\'ef\'erence \\
+\texttt{/api/attribution/list/} & GET --- Liste des attributions d'une classe \\
+\texttt{/api/attribution/save/} & POST --- Attribuer un enseignant \`a un cours \\
+\texttt{/api/attribution/remove/} & POST --- Retirer une attribution \\
+\texttt{/api/horaire/get/} & GET --- Cr\'eneaux d'une classe/semaine \\
+\texttt{/api/horaire/save/} & POST --- Cr\'eer/modifier un cr\'eneau \\
+\texttt{/api/horaire/delete/} & POST --- Supprimer un cr\'eneau \\
+\texttt{/api/horaire/copy-week/} & POST --- Copier les cr\'eneaux d'une semaine \\
+\texttt{/api/dashboard/eleves-stats/} & GET --- Statistiques \'el\`eves \\
+\texttt{/api/dashboard/campus-list/} & GET --- Liste des campus \\
+\bottomrule
+\end{tabularx}
+}
+
+\section{Glossaire}
+
+\begin{description}[leftmargin=1.5cm, style=nextline, font=\bfseries\color{indigo}]
+  \item[Attribution] Lien entre un enseignant et un cours pour une classe donn\'ee dans l'ann\'ee scolaire.
+  \item[Campus] Site physique de l'\'etablissement (un \'etablissement peut avoir plusieurs campus).
+  \item[Cat\'egorie] Classification professionnelle du personnel (Enseignant, Administratif...).
+  \item[Cr\'eneau] Bloc horaire d'un cours planifi\'e \`a un jour et une heure pr\'ecise.
+  \item[Emploi du temps] Grille hebdomadaire des cr\'eneaux de cours pour une classe.
+  \item[P\'eriode] Subdivision du calendrier scolaire d\'elimitant la plage de l'emploi du temps.
+  \item[Table de r\'ef\'erence] Liste de valeurs pr\'ed\'efinies utilis\'ees pour classifier le personnel.
+  \item[Vacation] R\'egime de travail d'un enseignant (temps plein, mi-temps, horaire).
+\end{description}
+
+\vspace{2cm}
+\begin{center}
+\begin{tikzpicture}
+  \fill[coverbg, rounded corners=12pt] (0,0) rectangle (14,2.5);
+  \node[text=white, font=\large\bfseries] at (7,1.5) {\faCheck\hspace{8pt}Fin du Manuel --- Module Enseignements};
+  \node[text=white!50, font=\small] at (7,0.7) {Plateforme MonEcole --- Nexora Tech --- Avril 2026 --- v1.0};
+\end{tikzpicture}
+\end{center}
+
+\end{document}

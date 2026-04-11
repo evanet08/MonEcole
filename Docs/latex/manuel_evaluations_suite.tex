@@ -1,0 +1,357 @@
+% ===================================================================
+\chapter{Onglet 3 --- Notes Par \'Evaluation}
+% ===================================================================
+
+\section{Objectif de cet onglet}
+
+L'onglet \onglet{Notes Par \'Evaluation} est l'interface principale de \textbf{saisie des notes brutes}. C'est ici que chaque enseignant ou administrateur entre les r\'esultats obtenus par les \'el\`eves pour chaque \'evaluation planifi\'ee \`a l'onglet~2.
+
+Cet onglet supporte~:
+\begin{itemize}
+  \item \textbf{Trois modes de saisie} --- Par P\'eriode, Par Cours, Par \'Evaluation.
+  \item \textbf{Deux types d'entr\'ee} --- Notes de p\'eriode (\'evaluations continues) et Notes d'examen.
+  \item \textbf{Import/Export Excel} --- Pour traiter les notes en lot.
+  \item \textbf{Navigation au clavier} --- Pour une saisie rapide et ergonomique.
+\end{itemize}
+
+\section{Comprendre l'interface}
+
+L'interface se compose de trois zones principales~:
+
+\begin{enumerate}[leftmargin=1.2cm]
+  \item \textbf{Zone de filtres} (en haut) --- Contient les menus d\'eroulants \champ{Classe} et \champ{P\'eriode}. La s\'election d'une classe charge automatiquement les p\'eriodes disponibles.
+  \item \textbf{Boutons de mode} --- Trois boutons permettent de choisir le niveau de d\'etail de la grille~: \textbf{Par P\'eriode}, \textbf{Par Cours} ou \textbf{Par \'Evaluation}.
+  \item \textbf{Grille de saisie} --- Un tableau interactif avec les \'el\`eves en lignes et les \'evaluations en colonnes. Chaque cellule est un champ de saisie num\'erique.
+\end{enumerate}
+
+\section{Pour s\'electionner la classe et la p\'eriode}
+
+\begin{etape}[title=Proc\'edure : Pr\'eparer la grille de saisie]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=12pt]
+  \item \textbf{S\'electionnez une Classe} --- Ouvrez le menu d\'eroulant \champ{Classe} et choisissez la classe. Le syst\`eme charge les r\'epartitions (p\'eriodes) disponibles.
+
+  \item \textbf{S\'electionnez une P\'eriode} --- Le menu d\'eroulant \champ{P\'eriode} affiche la liste organis\'ee en groupes~:
+  \begin{itemize}
+    \item Les \textbf{p\'eriodes normales} (1\textsuperscript{\`ere} P\'eriode, 2\textsuperscript{\`eme} P\'eriode...) pour les notes continues.
+    \item Les entr\'ees \textbf{\faPencil\ Examen} (en violet dans le menu) pour les notes d'examen semestrielles.
+  \end{itemize}
+
+  \item \textbf{La grille se charge} automatiquement avec les \'el\`eves de la classe et les \'evaluations de la p\'eriode.
+\end{enumerate}
+\end{etape}
+
+\begin{attention}
+Si vous s\'electionnez une entr\'ee \textbf{Examen}, la grille passe en \textbf{mode examen}~: les colonnes affichent les cours (pas les \'evaluations individuelles), et le maximum correspond au bar\`eme d'examen configur\'e pour chaque cours.
+\end{attention}
+
+\section{Les trois modes de saisie en d\'etail}
+
+Apr\`es le chargement de la grille, trois boutons de mode apparaissent au-dessus du tableau~:
+
+\subsection{Mode \guillemotleft~Par P\'eriode~\guillemotright}
+
+\begin{etape}[title=Mode Par P\'eriode --- Vue panoramique]
+C'est le mode \textbf{par d\'efaut}. Il affiche un tableau large avec~:
+\begin{itemize}
+  \item \textbf{Lignes} --- tous les \'el\`eves de la classe, tri\'es alphab\'etiquement.
+  \item \textbf{Colonnes} --- \textit{toutes} les \'evaluations de \textit{tous} les cours pour la p\'eriode s\'electionn\'ee.
+  \item \textbf{En-t\^etes} --- regroup\'es par cours (en-t\^ete de groupe color\'e) puis par \'evaluation.
+\end{itemize}
+
+\textbf{Utilisation recommand\'ee}~: Quand vous voulez avoir une vue d'ensemble sur toutes les notes d'une p\'eriode.
+\end{etape}
+
+\subsection{Mode \guillemotleft~Par Cours~\guillemotright}
+
+\begin{etape}[title=Mode Par Cours --- Vue cibl\'ee]
+Ce mode ajoute un filtre \champ{Cours} suppl\'ementaire. Il affiche uniquement les \'evaluations d'\textbf{un seul cours}.
+
+\textbf{Pour activer}~: cliquez sur le bouton \btnviolet{Par Cours}, puis s\'electionnez le cours dans le menu d\'eroulant qui appara\^it.
+
+\textbf{Utilisation recommand\'ee}~: Quand un enseignant veut saisir les notes de son cours uniquement.
+\end{etape}
+
+\subsection{Mode \guillemotleft~Par \'Evaluation~\guillemotright}
+
+\begin{etape}[title=Mode Par \'Evaluation --- Vue unitaire]
+Ce mode est le plus cibl\'e. Il affiche une \textbf{seule colonne} pour une seule \'evaluation d'un seul cours.
+
+\textbf{Pour activer}~: cliquez sur \btnviolet{Par \'Evaluation}, s\'electionnez le cours, puis l'\'evaluation sp\'ecifique.
+
+\textbf{Utilisation recommand\'ee}~: Pour une saisie rapide et concentr\'ee apr\`es une interrogation.
+\end{etape}
+
+\section{Pour saisir les notes}
+
+\begin{etape}[title=Proc\'edure d\'etaill\'ee : Saisir les notes]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=12pt]
+  \item \textbf{Cliquez sur une cellule} de la grille. Le curseur se place dans le champ de saisie. Le fond de la cellule devient l\'eg\`erement bleut\'e pour indiquer la s\'election.
+
+  \item \textbf{Tapez la note} sous forme num\'erique (entier ou d\'ecimal avec un point). Par exemple~: \texttt{15} ou \texttt{7.5}.
+
+  \item \textbf{Observez la validation visuelle}~:
+  \begin{itemize}
+    \item \textcolor{emerald}{\faCheck\ Fond vert clair} --- la note est dans les limites (entre 0 et le maximum).
+    \item \textcolor{rose}{\faTimes\ Fond rouge clair} --- la note d\'epasse le maximum autoris\'e. Elle sera refus\'ee \`a l'enregistrement.
+  \end{itemize}
+
+  \item \textbf{Naviguez avec le clavier}~:
+  \begin{itemize}
+    \item \texttt{Tab} ou \texttt{Entr\'ee} --- passe \`a la cellule \textbf{suivante} (vers la droite, puis ligne suivante).
+    \item \texttt{Shift+Tab} --- revient \`a la cellule \textbf{pr\'ec\'edente}.
+    \item \texttt{Fl\`eche Bas} --- descend dans la \textbf{m\^eme colonne}.
+    \item \texttt{Fl\`eche Haut} --- monte dans la m\^eme colonne.
+  \end{itemize}
+
+  \item \textbf{Enregistrez} --- Une fois toutes les notes saisies, cliquez sur \bouton{Enregistrer} (en bas ou en haut de la grille). Le syst\`eme envoie toutes les notes au serveur et affiche un toast de confirmation avec le nombre de notes enregistr\'ees.
+\end{enumerate}
+\end{etape}
+
+\begin{astuce}
+Vous n'\^etes pas oblig\'e de remplir toutes les cellules avant d'enregistrer. Les cellules vides seront simplement ignor\'ees. Vous pourrez compl\'eter plus tard.
+\end{astuce}
+
+\section{Pour saisir les notes d'examen}
+
+\begin{etape}[title=Proc\'edure : Saisir les notes d'examen]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{S\'electionnez la classe} dans le filtre.
+  \item \textbf{Dans le menu P\'eriode}, choisissez l'entr\'ee \textbf{\faPencil\ Examen --- [Nom du semestre]} (affich\'ee en violet avec une ic\^one stylo).
+  \item La grille d'examen se charge~: les colonnes sont les \textbf{cours} (pas les \'evaluations individuelles).
+  \item Saisissez les notes d'examen cours par cours pour chaque \'el\`eve.
+  \item Cliquez sur \bouton{Enregistrer Examen}.
+\end{enumerate}
+\end{etape}
+
+\section{Pour importer des notes depuis Excel}
+
+\begin{etape}[title=Proc\'edure : Import Excel]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{T\'el\'echargez le mod\`ele} --- Cliquez sur \btnamber{Mod\`ele Excel}. Un fichier \texttt{.xlsx} se t\'el\'echarge avec la liste des \'el\`eves et les en-t\^etes des \'evaluations.
+  \item \textbf{Remplissez le fichier} --- Ouvrez-le dans Excel ou LibreOffice Calc, saisissez les notes dans les colonnes correspondantes.
+  \item \textbf{Importez} --- Cliquez sur \btnamber{Importer}, s\'electionnez votre fichier.
+  \item Les notes sont charg\'ees directement dans la grille. V\'erifiez et cliquez sur \bouton{Enregistrer}.
+\end{enumerate}
+\end{etape}
+
+\newpage
+% ===================================================================
+\chapter{Onglet 4 --- Notes Pond\'er\'ees}
+% ===================================================================
+
+\section{Objectif de cet onglet}
+
+L'onglet \onglet{Notes Pond\'er\'ees} est le \textbf{centre de calcul} du bulletin scolaire. Il transforme les notes brutes saisies \`a l'onglet~3 en r\'esultats agr\'eg\'es~: \textbf{NP} (Note Pond\'er\'ee par p\'eriode), \textbf{TJ} (Travaux Journaliers) et \textbf{TOTAL} (TJ + EX).
+
+\subsection{Pipeline de calcul}
+
+Le calcul suit un pipeline en 5 \'etapes~:
+
+\begin{center}
+\begin{tikzpicture}[
+  box/.style={draw=slate!40, fill=white, rounded corners=6pt, minimum width=2cm, minimum height=1cm, align=center, font=\scriptsize\bfseries, text=slate, drop shadow={shadow xshift=0.5pt, shadow yshift=-0.5pt, opacity=0.1}},
+  arrow/.style={-{Stealth[length=5pt,width=4pt]}, thick, color=slatelight},
+  lbl/.style={font=\tiny\itshape\color{slatelight}, above, midway}
+]
+  \node[box] (e1) at (0,0) {\faPencil\\[2pt]Notes\\brutes};
+  \node[box, right=0.4cm of e1] (np) {\faCalculator\\[2pt]Note\\Pond\'er\'ee};
+  \node[box, right=0.4cm of np] (tj) {\faServer\\[2pt]TJ\\Semestriel};
+  \node[box, right=0.4cm of tj] (ex) {\faFile\\[2pt]EX\\Examen};
+  \node[box, right=0.4cm of ex] (tot) {\faTrophy\\[2pt]TOTAL};
+  \draw[arrow] (e1) -- (np) node[lbl]{poids};
+  \draw[arrow] (np) -- (tj) node[lbl]{somme};
+  \draw[arrow] (tj) -- (tot);
+  \draw[arrow] (ex) -- (tot) node[lbl]{TJ+EX};
+\end{tikzpicture}
+\end{center}
+
+\section{Comprendre la vue hi\'erarchique}
+
+Lorsque vous s\'electionnez une classe, l'interface affiche un \textbf{accord\'eon imbriqu\'e \`a 3 niveaux}~:
+
+\begin{etape}[title=Structure de l'accord\'eon]
+\begin{description}[leftmargin=1.5cm, style=nextline, font=\bfseries\color{indigo}]
+  \item[Niveau 1 --- Cours] Chaque cours est un bloc color\'e avec le nom du cours et un bouton \textcolor{amber}{\faBolt\ TJ} pour calculer les TJ en lot. Cliquez pour d\'eplier et voir les semestres.
+  \item[Niveau 2 --- Semestre/Trimestre] \`A l'int\'erieur de chaque cours, les semestres sont affich\'es avec fond pastel. Ils montrent le nombre de p\'eriodes enfants. Cliquez pour d\'eplier le tableau.
+  \item[Niveau 3 --- Tableau de donn\'ees] Le tableau affiche pour chaque \'el\`eve~:
+  \begin{itemize}
+    \item Les \textbf{notes brutes} de chaque \'evaluation (fond jaune clair).
+    \item La \textbf{NP} (Note Pond\'er\'ee) par p\'eriode (fond orange, bordure droite orange).
+    \item Le \textbf{TJ} semestriel (fond vert clair).
+    \item L'\textbf{EX} examen (fond violet clair).
+    \item Le \textbf{TOTAL} = TJ + EX (fond bleu clair, en gras).
+  \end{itemize}
+\end{description}
+\end{etape}
+
+\section{Pour calculer les TJ d'un cours (pond\'eration par p\'eriode)}
+
+\begin{etape}[title=Proc\'edure d\'etaill\'ee : Calculer TJ avec pond\'eration]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=12pt]
+  \item \textbf{Rep\'erez le cours} dans l'accord\'eon et cliquez sur le bouton \textcolor{amber}{\faBolt\ TJ} dans l'en-t\^ete du cours.
+
+  \item \textbf{La modale de pond\'eration s'ouvre}~: elle affiche pour chaque semestre un bloc color\'e contenant ses p\'eriodes, et pour chaque p\'eriode, la liste de ses \'evaluations sous forme de tableau.
+
+  \item \textbf{Pour chaque \'evaluation}, vous voyez~:
+  \begin{itemize}
+    \item Une \textbf{case \`a cocher} --- pour inclure/exclure l'\'evaluation du calcul.
+    \item Le \textbf{nom} de l'\'evaluation et son \textbf{maximum} (/10, /20...).
+    \item Le \textbf{poids en \%} --- modifiable. Par d\'efaut, le poids est r\'eparti \'equitablement entre toutes les \'evaluations coch\'ees.
+  \end{itemize}
+
+  \item \textbf{Ajustez les poids} --- Vous pouvez modifier manuellement le pourcentage de chaque \'evaluation. Si vous d\'ecochez une \'evaluation, les poids se \textbf{redistribuent automatiquement} entre les \'evaluations restantes (redistribution \'equitable).
+
+  \item \textbf{Lancez le calcul} \`a l'un des trois niveaux~:
+  \begin{itemize}
+    \item \textbf{Calc.} (petit bouton par p\'eriode) --- calcule la NP d'une seule p\'eriode.
+    \item \textbf{Calculer} (bouton par semestre) --- calcule toutes les p\'eriodes du semestre.
+    \item \textbf{Calculer TOUT} (bouton global en bas) --- calcule toutes les p\'eriodes de tous les semestres pour ce cours.
+  \end{itemize}
+
+  \item \textbf{Le tableau se met \`a jour} avec les valeurs NP calcul\'ees pour chaque \'el\`eve.
+\end{enumerate}
+\end{etape}
+
+\begin{astuce}
+Lorsque vous cochez/d\'ecochez une \'evaluation, les poids se redistribuent automatiquement. Par exemple, avec 4 \'evaluations coch\'ees, chacune re\c{c}oit 25\%. Si vous en d\'ecochez une, les 3 restantes passent \`a 33,33\% chacune.
+\end{astuce}
+
+\section{Pour calculer le R\'esultat semestriel (TJ + EX $\rightarrow$ TOTAL)}
+
+\begin{etape}[title=Proc\'edure : Calculer TJ + EX = TOTAL]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{D\'epliez} l'accord\'eon d'un cours puis d'un semestre pour voir le tableau.
+  \item \textbf{Rep\'erez} le groupe de colonnes \textbf{R\'esultat} (TJ, EX, TOTAL) \`a droite du tableau.
+  \item \textbf{Cliquez} sur l'ic\^one \textcolor{amber}{\faCalculator} dans l'en-t\^ete du groupe R\'esultat.
+  \item \textbf{La modale de confirmation} appara\^it et explique le processus en 3 \'etapes~:
+  \begin{enumerate}
+    \item \textbf{TJ} --- Le syst\`eme somme les NP de toutes les p\'eriodes enfants, pond\'er\'ees par leur taux de participation.
+    \item \textbf{EX} --- Il agr\`ege les notes d'examen saisies au niveau parent.
+    \item \textbf{TOTAL} --- Il additionne TJ + EX.
+  \end{enumerate}
+  \item \textbf{Cliquez sur} \bouton{Calculer}. Les colonnes TJ, EX et TOTAL se remplissent.
+\end{enumerate}
+\end{etape}
+
+\section{Pour calculer tout en lot (tous les cours)}
+
+Le bouton \bouton{Calculer Tout} situ\'e en haut de la page lance le calcul pour \textbf{tous les cours} de la classe en une seule op\'eration. Le syst\`eme it\`ere sur chaque semestre/trimestre parent et calcule les TJ + EX $\rightarrow$ TOTAL pour chaque cours.
+
+\begin{resultat}
+Apr\`es le calcul global, un compteur indique le nombre total de notes calcul\'ees (ex.~: \textit{\guillemotleft~245 note(s) calcul\'ee(s)~\guillemotright}). Le tableau se rafra\^ichit automatiquement.
+\end{resultat}
+
+% ===================================================================
+\chapter{Sections compl\'ementaires}
+% ===================================================================
+
+\section{D\'elib\'erations}
+
+La section \textbf{D\'elib\'erations} (accessible via l'ic\^one \faGavel) permet de valider officiellement les r\'esultats scolaires. Elle supporte 4 niveaux de d\'elib\'eration~: \textbf{Par P\'eriode}, \textbf{Par Trimestre/Semestre}, \textbf{Par Ann\'ee} et \textbf{Rep\^echage}.
+
+\begin{etape}[title=Proc\'edure : Lancer une d\'elib\'eration]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{Choisissez le type} en cliquant sur l'onglet correspondant (P\'eriode, Trimestre, Ann\'ee, Rep\^echage).
+  \item \textbf{S\'electionnez une Classe} dans le menu d\'eroulant.
+  \item \textbf{S\'electionnez la R\'epartition} (pour P\'eriode/Trimestre) ou la \textbf{Session} (pour Ann\'ee/Rep\^echage).
+  \item Un panneau de \textbf{Conditions de D\'elib\'eration} s'affiche montrant les seuils, mentions et sanctions configur\'es.
+  \item \textbf{Cliquez sur} \bouton{Lancer la D\'elib\'eration}.
+  \item Le badge de statut passe \`a \textit{\guillemotleft~D\'elib\'eration en cours...\guillemotright} puis \`a \textit{\guillemotleft~R\'eussie~\guillemotright}.
+  \item Un \textbf{tableau de r\'esultats} appara\^it avec les colonnes~:
+  \begin{itemize}
+    \item \textbf{\#} --- classement (m\'edailles d'or/argent/bronze pour les 3 premiers).
+    \item \textbf{\'El\`eve} --- nom et pr\'enom.
+    \item \textbf{Total} --- note totale / maximum.
+    \item \textbf{\%} --- pourcentage (color\'e vert $\geq$70\%, orange $\geq$50\%, rouge $<$50\%).
+    \item \textbf{Place} --- rang dans la classe.
+    \item \textbf{Mention} --- selon les conditions configur\'ees.
+    \item \textbf{D\'ecision} --- Admis (badge vert) ou Ajourn\'e (badge rouge).
+  \end{itemize}
+\end{enumerate}
+\end{etape}
+
+\begin{danger}
+\textbf{Annulation en cascade}~: Si vous annulez une d\'elib\'eration de p\'eriode, toutes les d\'elib\'erations de niveaux sup\'erieurs (trimestre, ann\'ee) qui en d\'ependent seront aussi annul\'ees. Le syst\`eme affiche un avertissement d\'etaill\'e avant de proc\'eder.
+\end{danger}
+
+\section{Bulletins PDF}
+
+\begin{etape}[title=Proc\'edure : G\'en\'erer des bulletins]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{S\'electionnez une classe d\'elib\'er\'ee} dans le menu d\'eroulant de la section Bulletins. Seules les classes ayant au moins une d\'elib\'eration valid\'ee apparaissent.
+  \item \textbf{La liste des \'el\`eves} s'affiche sous forme de pastilles cliquables.
+  \item \textbf{Cochez les \'el\`eves} souhait\'es en cliquant sur les pastilles (ou cliquez \bouton{Tous}).
+  \item Le compteur en bas indique le nombre de s\'electionn\'es (ex.~: \textit{\guillemotleft~\textbf{12} s\'electionn\'e(s)~\guillemotright}).
+  \item \textbf{Cliquez sur} \bouton{G\'en\'erer}. Le PDF s'ouvre dans un nouvel onglet du navigateur.
+\end{enumerate}
+\end{etape}
+
+% ===================================================================
+\chapter{R\'ef\'erence rapide}
+% ===================================================================
+
+\section{R\'ecapitulatif des endpoints API}
+
+{\small
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Endpoint} & \textbf{Description} \\
+\midrule
+\texttt{/api/evaluations/types/} & GET --- Liste tous les types d'\'evaluations \\
+\texttt{/api/evaluations/types/save/} & POST --- Cr\'eer ou modifier un type \\
+\texttt{/api/evaluations/types/delete/} & POST --- Supprimer un type \\
+\texttt{/api/evaluations/list/} & GET --- Liste les \'evaluations d'une classe/cours \\
+\texttt{/api/evaluations/save/} & POST --- Cr\'eer ou modifier une \'evaluation \\
+\texttt{/api/evaluations/delete/} & POST --- Supprimer une \'evaluation \\
+\texttt{/api/notes/grid/} & GET --- Grille de notes d'une p\'eriode \\
+\texttt{/api/notes/save/} & POST --- Enregistrer les notes saisies \\
+\texttt{/api/notes/exam/grid/} & GET --- Grille des notes d'examen \\
+\texttt{/api/notes/exam/save/} & POST --- Enregistrer les notes d'examen \\
+\texttt{/api/notes/template/} & GET --- Mod\`ele Excel pr\'e-rempli \\
+\texttt{/api/notes/import/} & POST --- Importer notes depuis Excel \\
+\texttt{/api/notes/bulletin/overview/} & GET --- Vue d'ensemble Notes Pond\'er\'ees \\
+\texttt{/api/notes/bulletin/calculate/} & POST --- Calculer TJ + EX = TOTAL \\
+\texttt{/api/notes/bulletin/calculate-period-batch/} & POST --- Calcul TJ multi-p\'eriodes \\
+\texttt{/api/deliberations/execute/} & POST --- Lancer une d\'elib\'eration \\
+\texttt{/api/deliberations/cancel/} & POST --- Annuler une d\'elib\'eration \\
+\texttt{/api/deliberations/results/} & GET --- R\'esultats d'une d\'elib\'eration \\
+\bottomrule
+\end{tabularx}
+}
+
+\section{Codes couleur dans les grilles}
+
+\begin{tabularx}{\textwidth}{p{1.5cm}lX}
+\toprule
+\textbf{Couleur} & \textbf{\'El\'ement} & \textbf{Signification} \\
+\midrule
+Jaune & \'Evaluations & Notes brutes des interrogations et devoirs \\
+Orange & NP & Note Pond\'er\'ee (calcul\'ee par p\'eriode) \\
+Vert & TJ & Travaux Journaliers (somme des NP) \\
+Violet & EX & Note d'examen \\
+Bleu & TOTAL & R\'esultat final (TJ + EX) \\
+\bottomrule
+\end{tabularx}
+
+\section{Raccourcis clavier}
+
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Touche} & \textbf{Action} \\
+\midrule
+\texttt{Tab} / \texttt{Entr\'ee} & Passer \`a la cellule suivante \\
+\texttt{Shift + Tab} & Revenir \`a la cellule pr\'ec\'edente \\
+\texttt{Fl\`eche Bas} & Descendre dans la m\^eme colonne \\
+\texttt{Fl\`eche Haut} & Monter dans la m\^eme colonne \\
+\texttt{Echap} & Fermer une fen\^etre modale \\
+\bottomrule
+\end{tabularx}
+
+\vspace{2cm}
+\begin{center}
+\begin{tikzpicture}
+  \fill[coverbg, rounded corners=12pt] (0,0) rectangle (14,2.5);
+  \node[text=white, font=\large\bfseries] at (7,1.5) {\faCheck\hspace{8pt}Fin du Manuel --- Module \'Evaluations};
+  \node[text=white!50, font=\small] at (7,0.7) {Plateforme MonEcole --- Nexora Tech --- Avril 2026 --- v1.0};
+\end{tikzpicture}
+\end{center}

@@ -114,6 +114,10 @@ def _resolve_logo_paths(logo_path, emblem_path):
         fallback = os.path.join(base, 'logoMinistere.png')
         if os.path.exists(fallback):
             emblem_path = fallback
+        else:
+            fallback2 = os.path.join(base, 'logomineduc.png')
+            if os.path.exists(fallback2):
+                emblem_path = fallback2
     return logo_path, emblem_path
 
 def create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=None):

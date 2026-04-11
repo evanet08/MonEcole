@@ -1,0 +1,32 @@
+\babel@toc {french}{}\relax 
+\contentsline {chapter}{\numberline {1}Introduction au Module Enseignements}{2}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Pr\'esentation g\'en\'erale}{2}{section.1.1}%
+\contentsline {section}{\numberline {1.2}Flux de travail recommand\'e}{2}{section.1.2}%
+\contentsline {chapter}{\numberline {2}Section 2 --- R\'ef\'erence du Personnel}{3}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Objectif de cette section}{3}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Les 7 tables de r\'ef\'erence}{3}{section.2.2}%
+\contentsline {section}{\numberline {2.3}Pour consulter une table de r\'ef\'erence}{3}{section.2.3}%
+\contentsline {section}{\numberline {2.4}Pour ajouter un \'el\'ement \`a une table}{4}{section.2.4}%
+\contentsline {section}{\numberline {2.5}Pour modifier ou supprimer un \'el\'ement}{4}{section.2.5}%
+\contentsline {section}{\numberline {2.6}Gestion compl\`ete du personnel}{4}{section.2.6}%
+\contentsline {subsection}{\numberline {2.6.1}Pour ajouter un enseignant}{5}{subsection.2.6.1}%
+\contentsline {subsection}{\numberline {2.6.2}Pour modifier un enseignant dans la grille}{5}{subsection.2.6.2}%
+\contentsline {subsection}{\numberline {2.6.3}Pour importer du personnel depuis Excel}{5}{subsection.2.6.3}%
+\contentsline {subsection}{\numberline {2.6.4}Pour personnaliser les colonnes affich\'ees}{6}{subsection.2.6.4}%
+\contentsline {chapter}{\numberline {3}Section 3 --- Attribution des Cours}{7}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Objectif de cette section}{7}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Comprendre l'interface}{7}{section.3.2}%
+\contentsline {section}{\numberline {3.3}Pour attribuer un enseignant \`a un cours}{7}{section.3.3}%
+\contentsline {section}{\numberline {3.4}Pour visualiser les attributions existantes}{8}{section.3.4}%
+\contentsline {chapter}{\numberline {4}Section 4 --- Emploi du Temps (Horaire)}{10}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Objectif de cette section}{10}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Comprendre l'interface}{10}{section.4.2}%
+\contentsline {section}{\numberline {4.3}Pour afficher l'emploi du temps d'une classe}{11}{section.4.3}%
+\contentsline {section}{\numberline {4.4}Pour ajouter un cr\'eneau de cours}{11}{section.4.4}%
+\contentsline {section}{\numberline {4.5}Pour modifier un cr\'eneau existant}{12}{section.4.5}%
+\contentsline {section}{\numberline {4.6}Pour supprimer un cr\'eneau}{12}{section.4.6}%
+\contentsline {section}{\numberline {4.7}Pour copier l'emploi du temps d'une semaine pr\'ec\'edente}{12}{section.4.7}%
+\contentsline {chapter}{\numberline {5}R\'ef\'erence rapide}{14}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Navigation entre les sections}{14}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Endpoints API du module Enseignements}{14}{section.5.2}%
+\contentsline {section}{\numberline {5.3}Glossaire}{15}{section.5.3}%

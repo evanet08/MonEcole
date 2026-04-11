@@ -1,0 +1,478 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\geometry{top=2.5cm,bottom=2.5cm,left=2.5cm,right=2.5cm}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,arrows.meta,positioning,calc,shadows.blur,decorations.pathmorphing,fit,backgrounds,patterns}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{fontawesome5}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=indigo,urlcolor=indigo,pdfauthor={MonEcole},pdftitle={Manuel — Module Évaluations}}
+\usepackage{fancyhdr}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{multicol}
+\usepackage{pifont}
+\usepackage{setspace}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{mdframed}
+\usepackage{lipsum}
+
+% ====== COULEURS ======
+\definecolor{indigo}{HTML}{4338CA}
+\definecolor{violet}{HTML}{7C3AED}
+\definecolor{amber}{HTML}{D97706}
+\definecolor{emerald}{HTML}{059669}
+\definecolor{rose}{HTML}{E11D48}
+\definecolor{slate}{HTML}{334155}
+\definecolor{slatelight}{HTML}{94A3B8}
+\definecolor{teal}{HTML}{0D9488}
+\definecolor{sky}{HTML}{0EA5E9}
+\definecolor{coverbg}{HTML}{1E1B4B}
+\definecolor{coveraccent}{HTML}{6366F1}
+\definecolor{lightbg}{HTML}{F8FAFC}
+\definecolor{warningbg}{HTML}{FEF3C7}
+\definecolor{successbg}{HTML}{ECFDF5}
+\definecolor{infobg}{HTML}{EFF6FF}
+\definecolor{dangerbg}{HTML}{FEF2F2}
+\definecolor{orangebg}{HTML}{FFF7ED}
+\definecolor{purplebg}{HTML}{FAF5FF}
+\definecolor{tealbg}{HTML}{F0FDFA}
+
+% ====== TCOLORBOX STYLES ======
+\newtcolorbox{astuce}[1][]{enhanced,colback=successbg,colframe=emerald,fonttitle=\bfseries\small,title={\faLightbulb\hspace{6pt}Astuce},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,shadow={2pt}{-2pt}{0pt}{emerald!20},#1}
+\newtcolorbox{attention}[1][]{enhanced,colback=warningbg,colframe=amber,fonttitle=\bfseries\small,title={\faExclamationTriangle\hspace{6pt}Attention},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,shadow={2pt}{-2pt}{0pt}{amber!20},#1}
+\newtcolorbox{info}[1][]{enhanced,colback=infobg,colframe=indigo,fonttitle=\bfseries\small,title={\faInfoCircle\hspace{6pt}Information},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,shadow={2pt}{-2pt}{0pt}{indigo!15},#1}
+\newtcolorbox{danger}[1][]{enhanced,colback=dangerbg,colframe=rose,fonttitle=\bfseries\small,title={\faTimesCircle\hspace{6pt}Important},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,shadow={2pt}{-2pt}{0pt}{rose!15},#1}
+\newtcolorbox{etape}[1][]{enhanced,colback=white,colframe=indigo!60,fonttitle=\bfseries\small,left=10pt,right=10pt,top=8pt,bottom=8pt,arc=6pt,boxrule=1.5pt,breakable,shadow={2pt}{-2pt}{0pt}{black!12},#1}
+\newtcolorbox{prerequis}[1][]{enhanced,colback=purplebg,colframe=violet,fonttitle=\bfseries\small,title={\faClipboard\hspace{6pt}Prérequis},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+\newtcolorbox{resultat}[1][]{enhanced,colback=tealbg,colframe=teal,fonttitle=\bfseries\small,title={\faCheck\hspace{6pt}Résultat attendu},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+
+% ====== HEADERS / FOOTERS ======
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{slatelight}\leftmark}
+\fancyhead[R]{\small\color{indigo}\textbf{MonEcole}}
+\fancyfoot[C]{\small\color{slatelight}\thepage}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0.3pt}
+
+% ====== COMMANDES ======
+\newcommand{\menubtn}[1]{\tikz[baseline=(X.base)]{\node[fill=indigo!12,rounded corners=3pt,inner sep=3pt,font=\small\sffamily\bfseries\color{indigo}](X){#1};}}
+\newcommand{\champ}[1]{\texttt{\color{violet}#1}}
+\newcommand{\bouton}[1]{{\colorbox{emerald}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+\newcommand{\onglet}[1]{{\colorbox{indigo}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+\newcommand{\btnviolet}[1]{{\colorbox{violet}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+\newcommand{\btnamber}[1]{{\colorbox{amber}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+\newcommand{\btnrose}[1]{{\colorbox{rose}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+
+\begin{document}
+
+% ===================================================================
+%                         PAGE DE COUVERTURE
+% ===================================================================
+\begin{titlepage}
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[coverbg] (current page.south west) rectangle (current page.north east);
+  \fill[coveraccent,opacity=0.12] (current page.north east) ++(-4,1) circle (8cm);
+  \fill[violet,opacity=0.08] (current page.south west) ++(3,-2) circle (10cm);
+  \fill[coveraccent,opacity=0.06] (current page.center) ++(6,-4) circle (5cm);
+  \fill[amber,opacity=0.05] (current page.north west) ++(2,-8) circle (4cm);
+  \draw[coveraccent,line width=2pt,opacity=0.4] ([yshift=-6cm]current page.north west) ++(2.5,0) -- ++(16,0);
+  \node[fill=coveraccent,rounded corners=14pt,minimum size=2cm,inner sep=0pt] at ([yshift=-3.5cm]current page.north) {\color{white}\fontsize{28pt}{28pt}\selectfont\faFile};
+  \node[anchor=north,text width=14cm,align=center] at ([yshift=-6.5cm]current page.north) {
+    \color{white}\fontsize{32pt}{36pt}\selectfont\textbf{Manuel d'Utilisation}\\[12pt]
+    \fontsize{18pt}{22pt}\selectfont\color{coveraccent!70!white}Module \textbf{Évaluations}
+  };
+  \node[anchor=north,text width=14cm,align=center] at ([yshift=-10cm]current page.north) {
+    \color{white!60}\fontsize{11pt}{15pt}\selectfont
+    Guide complet et détaillé pour la gestion des types d'évaluations,\\
+    la planification, la saisie des notes, le calcul des moyennes pondérées,\\
+    les délibérations et la génération des bulletins scolaires.
+  };
+  \draw[coveraccent,line width=1.5pt] ([yshift=-12.5cm]current page.north) ++(-3,0) -- ++(6,0);
+  \node[anchor=north,text width=14cm,align=center] at ([yshift=-13.5cm]current page.north) {
+    \color{white!50}\small
+    \faBuilding\hspace{4pt}Plateforme MonEcole — Architecture Hub-and-Spoke\\[6pt]
+    \faCalendar\hspace{4pt}Avril 2026 — Version 1.0\\[6pt]
+    \faBook\hspace{4pt}Documentation Utilisateur — 4 Onglets Détaillés
+  };
+  \node[anchor=south,text width=14cm,align=center] at ([yshift=1.5cm]current page.south) {
+    \color{white!30}\footnotesize \faCopyright\hspace{3pt} Nexora Tech — Tous droits réservés
+  };
+\end{tikzpicture}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ===================================================================
+\chapter{Introduction au Module Évaluations}
+% ===================================================================
+
+\section{Présentation générale}
+
+Le module \textbf{Évaluations} est le cœur académique de la plateforme \textbf{MonEcole}. Il couvre l'intégralité du cycle de vie des notes scolaires~: de la création des catégories d'évaluations jusqu'à la génération des bulletins PDF en passant par la saisie, la pondération et la délibération.
+
+Ce module est conçu pour être utilisé par les \textbf{directeurs d'établissement}, les \textbf{préfets d'études} et les \textbf{enseignants}. Il s'adapte automatiquement à la structure de votre pays (cycles, sections, périodes) grâce à l'architecture Hub-and-Spoke de MonEcole.
+
+\begin{info}
+Ce module est accessible depuis la barre de navigation latérale (sidebar) en cliquant sur l'icône \faFile\ suivi du texte \textbf{Évaluations}. La page qui s'ouvre comporte plusieurs sections dont la principale est la section \textbf{Évaluations} avec ses 4 onglets.
+\end{info}
+
+\section{Les quatre onglets}
+
+La section Évaluations est structurée en \textbf{4 onglets} (pills) situés en haut de la page. Chaque onglet correspond à une étape logique du processus d'évaluation~:
+
+\begin{center}
+\begin{tikzpicture}[
+  pill/.style={rounded corners=10pt, minimum height=1.1cm, minimum width=4cm, font=\small\bfseries, inner sep=8pt, text=white, drop shadow={shadow xshift=1pt, shadow yshift=-1pt, opacity=0.2}},
+  desc/.style={text width=3.8cm, align=center, font=\tiny\color{slate}},
+  num/.style={circle, fill=white, text=#1, font=\tiny\bfseries, inner sep=2pt, minimum size=14pt}
+]
+  \node[pill, fill=indigo] (t1) at (0,0) {\faTags\ Types d'Évaluations};
+  \node[pill, fill=teal, right=6pt of t1] (t2) {\faCalendar\ Planifier};
+  \node[pill, fill=violet, right=6pt of t2] (t3) {\faPen\ Notes Par Éval.};
+  \node[pill, fill=amber, right=6pt of t3] (t4) {\faBalanceScale\ Notes Pondérées};
+
+  \node[num=indigo, above left=2pt and -8pt of t1] {1};
+  \node[num=teal, above left=2pt and -8pt of t2] {2};
+  \node[num=violet, above left=2pt and -8pt of t3] {3};
+  \node[num=amber, above left=2pt and -8pt of t4] {4};
+
+  \node[desc, below=8pt of t1] {Définir les catégories d'évaluations (IE, DS, TP, EX...)};
+  \node[desc, below=8pt of t2] {Créer et planifier chaque évaluation avec date et barème};
+  \node[desc, below=8pt of t3] {Saisir les notes brutes de chaque élève};
+  \node[desc, below=8pt of t4] {Calculer TJ, EX et Totaux pondérés};
+\end{tikzpicture}
+\end{center}
+
+\section{Flux de travail complet}
+
+Le processus d'évaluation suit un flux séquentiel strict. Chaque étape dépend de la précédente~:
+
+\begin{center}
+\begin{tikzpicture}[
+  step/.style={draw=#1!60, fill=#1!8, rounded corners=8pt, minimum width=2.4cm, minimum height=1.5cm, align=center, font=\scriptsize\bfseries, text=slate, drop shadow={shadow xshift=1pt, shadow yshift=-1pt, opacity=0.12}},
+  arrow/.style={-{Stealth[length=6pt,width=5pt]}, thick, color=#1!60},
+  lbl/.style={font=\tiny\itshape\color{slatelight}, above, midway}
+]
+  \node[step=indigo] (s1) at (0,0) {\faTags\\[2pt]Créer les\\Types};
+  \node[step=teal, right=0.6cm of s1] (s2) {\faCalendar\\[2pt]Planifier les\\Évaluations};
+  \node[step=violet, right=0.6cm of s2] (s3) {\faPen\\[2pt]Saisir les\\Notes brutes};
+  \node[step=amber, right=0.6cm of s3] (s4) {\faCalculator\\[2pt]Calculer\\TJ / EX};
+  \node[step=emerald, right=0.6cm of s4] (s5) {\faGavel\\[2pt]Délibérer};
+  \node[step=rose, right=0.6cm of s5] (s6) {\faFile\\[2pt]Générer\\Bulletins};
+
+  \draw[arrow=indigo] (s1) -- (s2) node[lbl]{types};
+  \draw[arrow=teal] (s2) -- (s3) node[lbl]{évals};
+  \draw[arrow=violet] (s3) -- (s4) node[lbl]{notes};
+  \draw[arrow=amber] (s4) -- (s5) node[lbl]{totaux};
+  \draw[arrow=emerald] (s5) -- (s6) node[lbl]{résultats};
+\end{tikzpicture}
+\end{center}
+
+\begin{danger}
+Il est \textbf{impératif} de suivre cet ordre. Par exemple, vous ne pouvez pas saisir de notes (onglet 3) si aucune évaluation n'a été planifiée (onglet 2). De même, les calculs de l'onglet 4 nécessitent que des notes brutes aient été saisies à l'onglet 3.
+\end{danger}
+
+\section{Concepts clés à comprendre}
+
+Avant de plonger dans chaque onglet, voici les concepts fondamentaux~:
+
+\begin{description}[leftmargin=1.5cm, style=nextline, font=\bfseries\color{indigo}]
+  \item[Type d'évaluation] Catégorie générique (ex.\ : Interrogation Écrite, Devoir Surveillé). Partagé au niveau national.
+  \item[Évaluation] Instance concrète d'un type, rattachée à un cours et une période, avec date et barème.
+  \item[Répartition] Découpage temporel de l'année (Trimestres $\rightarrow$ Périodes, ou Semestres $\rightarrow$ Périodes).
+  \item[Période] Subdivision d'un trimestre/semestre (ex.\ : 1\textsuperscript{ère} Période, 2\textsuperscript{ème} Période).
+  \item[Note Pondérée (NP)] Moyenne calculée des notes brutes d'une période, pondérée par les poids de chaque évaluation.
+  \item[TJ (Travaux Journaliers)] Somme des NP de toutes les périodes d'un semestre/trimestre.
+  \item[EX (Examen)] Note d'examen semestriel/trimestriel.
+  \item[TOTAL] Somme finale~: TJ + EX pour chaque cours par semestre.
+\end{description}
+
+\begin{center}
+\begin{tikzpicture}[
+  level/.style={draw=#1!50,fill=#1!6,rounded corners=6pt,minimum width=3.5cm,minimum height=0.8cm,font=\scriptsize\bfseries,text=#1,align=center},
+  child/.style={draw=#1!40,fill=#1!4,rounded corners=4pt,minimum width=2.8cm,minimum height=0.6cm,font=\tiny\bfseries,text=#1,align=center},
+  link/.style={-{Stealth[length=4pt]},#1!50,thick}
+]
+  \node[level=indigo] (ann) at (0,0) {\faCalendar\ Année Scolaire};
+  \node[level=teal, below left=1.2cm and 1cm of ann] (s1) {\faServer\ Semestre 1};
+  \node[level=teal, below right=1.2cm and 1cm of ann] (s2) {\faServer\ Semestre 2};
+  \node[child=violet, below left=0.8cm and 0.2cm of s1] (p1) {\faCalendar\ Période 1};
+  \node[child=violet, below right=0.8cm and 0.2cm of s1] (p2) {\faCalendar\ Période 2};
+  \node[child=violet, below left=0.8cm and 0.2cm of s2] (p3) {\faCalendar\ Période 3};
+  \node[child=violet, below right=0.8cm and 0.2cm of s2] (p4) {\faCalendar\ Période 4};
+  \node[child=amber, below=0.6cm of p1] (e1) {\faPen\ Évals P1};
+  \node[child=amber, below=0.6cm of p2] (e2) {\faPen\ Évals P2};
+  \node[child=amber, below=0.6cm of p3] (e3) {\faPen\ Évals P3};
+  \node[child=amber, below=0.6cm of p4] (e4) {\faPen\ Évals P4};
+  \draw[link=indigo] (ann) -- (s1);
+  \draw[link=indigo] (ann) -- (s2);
+  \draw[link=teal] (s1) -- (p1);
+  \draw[link=teal] (s1) -- (p2);
+  \draw[link=teal] (s2) -- (p3);
+  \draw[link=teal] (s2) -- (p4);
+  \draw[link=violet] (p1) -- (e1);
+  \draw[link=violet] (p2) -- (e2);
+  \draw[link=violet] (p3) -- (e3);
+  \draw[link=violet] (p4) -- (e4);
+\end{tikzpicture}
+\end{center}
+
+\newpage
+% ===================================================================
+\chapter{Onglet 1 — Types d'Évaluations}
+% ===================================================================
+
+\section{Objectif de cet onglet}
+
+L'onglet \onglet{Types d'Évaluations} est le point de départ de tout le processus d'évaluation. Il permet de définir le \textbf{catalogue} des catégories d'évaluations que votre établissement utilisera tout au long de l'année scolaire.
+
+\begin{info}
+Les types d'évaluations sont \textbf{partagés au niveau national} via le Hub. Cela signifie que tous les établissements d'un même pays disposent du même catalogue de base. Cependant, chaque établissement peut créer ses propres types additionnels.
+\end{info}
+
+\subsection{Présentation de l'interface}
+
+Lorsque vous cliquez sur l'onglet \textbf{Types d'Évaluations}, vous voyez~:
+
+\begin{enumerate}[leftmargin=1.2cm]
+  \item \textbf{Un bouton \bouton{+ Nouveau Type}} en haut à droite pour ajouter un nouveau type.
+  \item \textbf{Une grille de cartes} affichant tous les types existants. Chaque carte contient~:
+  \begin{itemize}
+    \item Le \textbf{nom complet} du type (ex.\ : \textit{Interrogation Écrite}).
+    \item Le \textbf{sigle} en badge coloré (ex.\ : \textit{IE}).
+    \item La \textbf{description} si renseignée.
+    \item Deux boutons d'action~: \textcolor{indigo}{\faPen} (modifier) et \textcolor{rose}{\faTrash} (supprimer).
+  \end{itemize}
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}
+  % Card frame
+  \fill[white, rounded corners=8pt, drop shadow={shadow xshift=1pt, shadow yshift=-1pt, opacity=0.1}] (0,0) rectangle (7,2.5);
+  \draw[indigo!20, rounded corners=8pt, line width=1pt] (0,0) rectangle (7,2.5);
+  % Top accent bar
+  \fill[indigo, rounded corners=8pt] (0,2.2) rectangle (7,2.5);
+  % Content
+  \node[anchor=west, font=\small\bfseries\color{slate}] at (0.4,1.7) {Interrogation Écrite};
+  \node[fill=indigo!12, rounded corners=3pt, inner sep=3pt, font=\tiny\bfseries\color{indigo}] at (5.5,1.7) {IE};
+  \node[anchor=west, font=\tiny\color{slatelight}, text width=5cm] at (0.4,1.1) {Interrogation surprise ou planifiée pour évaluer la compréhension du cours.};
+  % Action buttons
+  \node[fill=indigo!8, rounded corners=3pt, inner sep=3pt, font=\tiny\color{indigo}] at (5.2,0.4) {\faPen};
+  \node[fill=rose!8, rounded corners=3pt, inner sep=3pt, font=\tiny\color{rose}] at (6.2,0.4) {\faTrash};
+\end{tikzpicture}
+\captionof{figure}{Exemple d'une carte de type d'évaluation}
+\end{center}
+
+\section{Pour créer un nouveau type d'évaluation}
+
+\begin{prerequis}
+Vous devez être connecté avec un compte ayant les droits de gestion des évaluations (directeur ou préfet d'études).
+\end{prerequis}
+
+\begin{etape}[title=Procédure détaillée : Créer un type d'évaluation]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=12pt]
+  \item \textbf{Accédez à l'onglet} — Cliquez sur l'onglet \onglet{Types d'Évaluations} situé tout à gauche dans la barre des pills. L'onglet actif se distingue par un fond indigo avec un texte blanc.
+
+  \item \textbf{Ouvrez le formulaire} — Repérez le bouton \bouton{+ Nouveau Type} en haut à droite de la grille de cartes. Cliquez dessus. Une fenêtre modale (pop-up) apparaît au centre de l'écran avec un titre \textit{<<~Nouveau type d'évaluation~>>}.
+
+  \item \textbf{Remplissez le champ Nom} — Dans le champ \champ{Nom}, tapez le nom complet du type d'évaluation. Par exemple~: \textit{Travail Pratique}. Ce champ est \textbf{obligatoire} (marqué d'un astérisque *).
+
+  \item \textbf{Remplissez le champ Sigle} — Dans le champ \champ{Sigle}, tapez l'abréviation du type en 2 à 4 lettres. Par exemple~: \textit{TP}. Le système convertit automatiquement votre saisie en \textbf{majuscules}. Ce champ est \textbf{obligatoire}.
+
+  \item \textbf{Remplissez la Description} — Dans le champ \champ{Description}, vous pouvez (optionnellement) ajouter un texte explicatif. Par exemple~: \textit{<<~Évaluation pratique en laboratoire ou sur le terrain.~>>}
+
+  \item \textbf{Enregistrez} — Cliquez sur le bouton \bouton{Enregistrer} en bas de la modale. Le système envoie les données au serveur via l'API et~:
+  \begin{itemize}
+    \item Un \textbf{toast vert} \textit{<<~Type enregistré !~>>} confirme la réussite.
+    \item La modale se ferme automatiquement.
+    \item La grille de cartes se recharge et affiche le nouveau type.
+  \end{itemize}
+\end{enumerate}
+\end{etape}
+
+\begin{resultat}
+Après cette opération, le nouveau type apparaît sous forme de carte dans la grille. Il sera disponible dans le menu déroulant \champ{Type} lors de la création d'évaluations (onglet 2).
+\end{resultat}
+
+\section{Pour modifier un type existant}
+
+\begin{etape}[title=Procédure détaillée : Modifier un type d'évaluation]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{Repérez la carte} du type que vous souhaitez modifier dans la grille.
+
+  \item \textbf{Cliquez sur l'icône} \textcolor{indigo}{\faPen} (stylo bleu) située dans la partie basse de la carte, à côté de l'icône corbeille.
+
+  \item \textbf{La modale s'ouvre} avec les champs pré-remplis. Modifiez le \champ{Nom}, le \champ{Sigle} ou la \champ{Description} selon vos besoins.
+
+  \item \textbf{Cliquez sur} \bouton{Enregistrer}. Le type est mis à jour immédiatement et la grille se rafraîchit.
+\end{enumerate}
+\end{etape}
+
+\section{Pour supprimer un type d'évaluation}
+
+\begin{danger}
+La suppression est \textbf{définitive et irréversible}. Si des évaluations sont rattachées à ce type, elles perdront leur catégorisation. Vérifiez toujours avant de supprimer qu'aucune évaluation active n'utilise ce type.
+\end{danger}
+
+\begin{etape}[title=Procédure détaillée : Supprimer un type]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{Repérez la carte} du type à supprimer.
+  \item \textbf{Cliquez sur l'icône} \textcolor{rose}{\faTrash} (corbeille rouge).
+  \item \textbf{Une boîte de confirmation} apparaît~: \textit{<<~Êtes-vous sûr de vouloir supprimer ce type d'évaluation ?~>>}
+  \item \textbf{Cliquez sur OK} pour confirmer. Le type disparaît de la grille et un toast de confirmation s'affiche.
+\end{enumerate}
+\end{etape}
+
+\section{Exemples de types couramment utilisés}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{llX}
+\toprule
+\textbf{Sigle} & \textbf{Nom complet} & \textbf{Description recommandée} \\
+\midrule
+IE & Interrogation Écrite & Interrogation de courte durée (15--30 min) \\
+DS & Devoir Surveillé & Évaluation formelle en classe (1--2h) \\
+TP & Travail Pratique & Évaluation en laboratoire ou sur terrain \\
+DD & Devoir à Domicile & Travail à rendre réalisé à la maison \\
+EX & Examen & Épreuve de fin de période ou semestre \\
+QCM & Questionnaire à Choix & Test rapide à choix multiples \\
+EO & Évaluation Orale & Présentation ou interrogation orale \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\newpage
+% ===================================================================
+\chapter{Onglet 2 — Planifier les Évaluations}
+% ===================================================================
+
+\section{Objectif de cet onglet}
+
+L'onglet \onglet{Planifier les Évaluations} est l'endroit où vous créez les \textbf{évaluations concrètes}~: chaque interrogation, chaque devoir, chaque examen. Vous y définissez pour chaque évaluation~: le cours concerné, la période de rattachement, la date, le barème maximal, et éventuellement le document sujet en PDF.
+
+\begin{info}
+Cet onglet organise les évaluations dans un \textbf{système d'accordéons à deux niveaux}~:
+\begin{itemize}
+  \item \textbf{Niveau 1} — Regroupement par \textbf{cours} (en-tête vert avec icône \faBook).
+  \item \textbf{Niveau 2} — Regroupement par \textbf{période} au sein de chaque cours (en-tête violet avec icône \faCalendar).
+\end{itemize}
+Cliquez sur un en-tête d'accordéon pour le déplier/replier.
+\end{info}
+
+\subsection{Présentation de l'interface}
+
+L'interface se compose de~:
+
+\begin{enumerate}[leftmargin=1.2cm]
+  \item \textbf{Barre de filtres} en haut — avec deux menus déroulants~:
+  \begin{itemize}
+    \item \champ{Classe} — sélectionnez la classe cible. \textbf{Obligatoire} pour afficher quoi que ce soit.
+    \item \champ{Cours} — filtrez par cours spécifique (optionnel ; si vide, tous les cours sont affichés).
+  \end{itemize}
+  \item \textbf{Bouton} \bouton{+ Nouvelle Évaluation} — pour créer une évaluation.
+  \item \textbf{Zone d'accordéons} — affiche les évaluations regroupées.
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}[
+  acc/.style={rounded corners=6pt, minimum width=13cm, minimum height=0.9cm, font=\small, align=left, drop shadow={shadow xshift=0.5pt, shadow yshift=-0.5pt, opacity=0.08}},
+  sub/.style={rounded corners=4pt, minimum width=12cm, minimum height=0.7cm, font=\scriptsize, align=left},
+  row/.style={minimum width=11.5cm, minimum height=0.55cm, font=\tiny, align=left}
+]
+  % Cours accordion
+  \node[acc, fill=emerald!85, text=white] (a1) at (0,0) {\quad\faBook\ \textbf{Mathématiques} \hfill \scriptsize 5 évaluations \quad \faChevronDown\quad};
+  % Periode
+  \node[sub, fill=violet!10, text=violet, below=2pt of a1] (s1) {\quad\quad\faCalendar\ \textbf{1\textsuperscript{ère} Période} — Taux 25\% \hfill \scriptsize 3 évals \quad \faChevronDown\quad};
+  % Table header
+  \node[row, fill=slate!8, text=slate, below=2pt of s1] (h1) {\quad\quad\quad\footnotesize\textbf{Titre} \hfill \textbf{Type} \hfill \textbf{Date} \hfill \textbf{Max} \hfill \textbf{Actions}\quad};
+  % Rows
+  \node[row, fill=white, text=slate, below=1pt of h1] (r1) {\quad\quad\quad\footnotesize Interro Chapitre 1 \hfill IE \hfill 15/09/2025 \hfill /10 \hfill \textcolor{indigo}{\faPen}\ \textcolor{rose}{\faTrash}\quad};
+  \node[row, fill=lightbg, text=slate, below=1pt of r1] (r2) {\quad\quad\quad\footnotesize Devoir Fonctions \hfill DS \hfill 28/09/2025 \hfill /20 \hfill \textcolor{indigo}{\faPen}\ \textcolor{rose}{\faTrash}\quad};
+  \node[row, fill=white, text=slate, below=1pt of r2] (r3) {\quad\quad\quad\footnotesize QCM Algèbre \hfill QCM \hfill 05/10/2025 \hfill /10 \hfill \textcolor{indigo}{\faPen}\ \textcolor{rose}{\faTrash}\quad};
+  % Second periode
+  \node[sub, fill=violet!10, text=violet, below=4pt of r3] (s2) {\quad\quad\faCalendar\ \textbf{2\textsuperscript{ème} Période} — Taux 25\% \hfill \scriptsize 2 évals \quad \faChevronRight\quad};
+
+  % Border
+  \draw[emerald!30, rounded corners=6pt, line width=1pt] ([xshift=-0.3cm,yshift=0.2cm]a1.north west) rectangle ([xshift=0.3cm,yshift=-0.2cm]s2.south east);
+\end{tikzpicture}
+\end{center}
+
+\section{Pour créer une nouvelle évaluation}
+
+\begin{prerequis}
+\begin{itemize}
+  \item Au moins un \textbf{type d'évaluation} doit exister (onglet 1).
+  \item La \textbf{configuration annuelle} (cycles, classes, cours) doit être en place.
+  \item Les \textbf{répartitions} (calendrier scolaire) doivent être définies avec des périodes.
+\end{itemize}
+\end{prerequis}
+
+\begin{etape}[title=Procédure détaillée : Créer une évaluation]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=12pt]
+  \item \textbf{Sélectionnez la classe} — Ouvrez le menu déroulant \champ{Classe} dans la barre de filtres. Choisissez la classe concernée (ex.\ : \textit{3ème Année Secondaire (Sciences)}). Les cours de cette classe se chargent automatiquement.
+
+  \item \textbf{Sélectionnez le cours} (recommandé) — Bien que facultatif, il est conseillé de filtrer par cours dans le menu \champ{Cours} pour un affichage ciblé.
+
+  \item \textbf{Cliquez sur} \bouton{+ Nouvelle Évaluation} — La fenêtre modale s'ouvre avec le formulaire complet.
+
+  \item \textbf{Remplissez le champ Titre} — Donnez un nom clair et descriptif à l'évaluation. Exemple~: \textit{<<~Interrogation — Les fonctions polynômes~>>}.
+
+  \item \textbf{Sélectionnez le Type} — Choisissez dans le menu déroulant \champ{Type} parmi les types créés à l'onglet 1 (IE, DS, TP, etc.).
+
+  \item \textbf{Sélectionnez le Cours} — Si le cours n'est pas déjà sélectionné dans le filtre, choisissez-le dans le menu déroulant \champ{Cours} de la modale.
+
+  \item \textbf{Sélectionnez la Période} — Le menu déroulant \champ{Période} liste toutes les périodes ouvertes de la classe. Choisissez celle dans laquelle cette évaluation a lieu (ex.\ : \textit{1\textsuperscript{ère} Période}).
+
+  \item \textbf{Saisissez la Date de passation} — Tapez la date au format \texttt{jj/mm/aaaa} dans le champ \champ{Date}. Le formatage automatique ajoute les barres obliques au fur et à mesure~: il suffit de taper les 8 chiffres.
+
+  \item \textbf{Saisissez la Date de remise} (optionnel) — Si l'évaluation a une date de remise différente.
+
+  \item \textbf{Définissez le Maximum} — Dans le champ \champ{Maximum (pts)}, entrez le barème maximal (ex.\ : 10, 20, 30...). Ce maximum sera utilisé lors de la saisie des notes.
+
+  \item \textbf{Ajoutez les Consignes} (optionnel) — Rédigez des instructions dans le champ texte \champ{Consignes / Description}.
+
+  \item \textbf{Joignez un document PDF} (optionnel) — Cliquez sur \champ{Document PDF} pour joindre le sujet de l'évaluation.
+
+  \item \textbf{Enregistrez} — Cliquez sur \bouton{Enregistrer}. Un toast vert confirme la réussite.
+\end{enumerate}
+\end{etape}
+
+\begin{resultat}
+L'évaluation apparaît dans l'accordéon du cours concerné, sous la période sélectionnée. Elle est désormais disponible pour la saisie de notes (onglet 3).
+\end{resultat}
+
+\section{Pour modifier une évaluation existante}
+
+\begin{etape}[title=Procédure : Modifier une évaluation]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=8pt]
+  \item Dépliez l'accordéon du cours, puis celui de la période.
+  \item Repérez l'évaluation dans la liste tabulaire.
+  \item Cliquez sur \textcolor{indigo}{\faPen} dans la colonne \textbf{Actions}.
+  \item La modale s'ouvre pré-remplie. Modifiez les champs nécessaires.
+  \item Cliquez sur \bouton{Enregistrer}.
+\end{enumerate}
+\end{etape}
+
+\section{Pour supprimer une évaluation}
+
+\begin{attention}
+La suppression d'une évaluation supprime aussi \textbf{toutes les notes} qui y sont rattachées. Procédez avec précaution.
+\end{attention}
+
+Cliquez sur \textcolor{rose}{\faTrash} dans la colonne Actions et confirmez.
+
+\input{manuel_evaluations_suite}
+
+\end{document}
