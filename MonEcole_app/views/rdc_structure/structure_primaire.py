@@ -194,11 +194,11 @@ def create_line2_left(elements, style_normal, id_campus=None):
     lbl_style = ParagraphStyle(name='InfoLabel', fontSize=7, leading=8, alignment=0, fontName='Helvetica')
     colon_style = ParagraphStyle(name='InfoColon', fontSize=7, leading=8, alignment=1, fontName='Helvetica')
 
-    # Helper: valeur en gras au-dessus de pointillés gris
-    dots = '<font size="3" color="#aaaaaa">. . . . . . . . . . . . . . . . . . . .</font>'
-    def val_above_dots(value):
-        return Paragraph(f"<b>{value}</b><br/>{dots}", ParagraphStyle(
-            name='ValAboveDots', fontSize=7, leading=7, alignment=0, fontName='Helvetica-Bold'))
+    # Helper: valeur en gras + pointillés remplissant jusqu'au bord
+    dots = '<font size="3" color="#aaaaaa">' + ' .' * 80 + '</font>'
+    def val_with_dots(value):
+        return Paragraph(f"<b>{value}</b>  {dots}", ParagraphStyle(
+            name='ValWithDots', fontSize=7, leading=8, alignment=0, fontName='Helvetica-Bold'))
 
     left_w = 77.6*mm  # 40% de 194mm
     lbl_w = 32*mm
@@ -206,13 +206,13 @@ def create_line2_left(elements, style_normal, id_campus=None):
     val_w = left_w - lbl_w - col_w
 
     left_data = [
-        [Paragraph("PROVINCE EDUC.", lbl_style), Paragraph(":", colon_style), val_above_dots("SUD-KIVU")],
-        [Paragraph("VILLE", lbl_style), Paragraph(":", colon_style), val_above_dots("BUKAVU")],
-        [Paragraph("COMMUNE/TER.", lbl_style), Paragraph(":", colon_style), val_above_dots("D'IBANDA")],
-        [Paragraph("ECOLE", lbl_style), Paragraph(":", colon_style), val_above_dots(ecole_display or "")],
+        [Paragraph("PROVINCE EDUC.", lbl_style), Paragraph(":", colon_style), val_with_dots("SUD-KIVU")],
+        [Paragraph("VILLE", lbl_style), Paragraph(":", colon_style), val_with_dots("BUKAVU")],
+        [Paragraph("COMMUNE/TER.", lbl_style), Paragraph(":", colon_style), val_with_dots("D'IBANDA")],
+        [Paragraph("ECOLE", lbl_style), Paragraph(":", colon_style), val_with_dots(ecole_display or "")],
         [Paragraph("CODE", lbl_style), Paragraph(":", colon_style), code_squares_table],
     ]
-    left_table = Table(left_data, colWidths=[lbl_w, col_w, val_w], rowHeights=[8*mm]*4 + [7*mm])
+    left_table = Table(left_data, colWidths=[lbl_w, col_w, val_w], rowHeights=[5.5*mm]*4 + [7*mm])
     left_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 2),
@@ -292,7 +292,7 @@ def create_nid_section(elements, style_normal, eleve=None, id_campus=None):
 
 
 def create_line2_right(elements, eleve, style_normal, id_classe):
-    """Right info section — 60% du bulletin, labels normaux, valeurs gras au-dessus des pointillés."""
+    """Right info section — format image officiel: labels gras inline avec pointillés."""
     try:
         eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
         classe_name = eac.classe.classe.strip().upper()
@@ -321,22 +321,13 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
             ('BOX', (i,0), (i,0), 0.5, colors.black),
         ]))
 
-    # Styles — labels NORMAL, valeurs GRAS au-dessus des pointillés
-    lbl_style = ParagraphStyle(name='InfoLblRP', fontSize=7, leading=8, alignment=0, fontName='Helvetica')
-    colon_style = ParagraphStyle(name='InfoColRP', fontSize=7, leading=8, alignment=1, fontName='Helvetica')
-
-    dots = '<font size="3" color="#aaaaaa">. . . . . . . . . . . . . . . . . . . .</font>'
-    dots_short = '<font size="3" color="#aaaaaa">. . . . . . .</font>'
-    def val_above_dots(value, short=False):
-        d = dots_short if short else dots
-        return Paragraph(f"<b>{value}</b><br/>{d}", ParagraphStyle(
-            name='ValAboveDotsR', fontSize=7, leading=7, alignment=0, fontName='Helvetica-Bold'))
+    # Style — labels normal, valeurs en gras via <b>
+    p_style = ParagraphStyle(name='InfoRightP', fontSize=7, leading=8, alignment=0, fontName='Helvetica')
 
     nom_upper = (eleve.nom or '').upper()
     prenom_title = (eleve.prenom or '').title()
     sexe = (eleve.genre or '').upper()
     
-    # Date au format LE jj / mm / aaaa
     date_str = ''
     if eleve.date_naissance:
         try:
@@ -345,33 +336,34 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
         except:
             date_str = str(eleve.date_naissance)
 
-    right_w = 116.4*mm  # 60% de 194mm
-    # 6 colonnes: [Label1 | : | Value1 | Label2 | : | Value2]
-    lbl1_w = 14*mm
-    col_w = 3*mm
-    val1_w = 42*mm
-    lbl2_w = 18*mm
-    val2_w = right_w - lbl1_w - col_w - val1_w - lbl2_w - col_w
+    dots = '<font size="3" color="#aaaaaa">' + ' .' * 80 + '</font>'
+    dots_short = '<font size="3" color="#aaaaaa">' + ' .' * 30 + '</font>'
 
-    right_data = [
-        [Paragraph("ELEVE", lbl_style), Paragraph(":", colon_style), val_above_dots(f"{nom_upper} {prenom_title}"),
-         Paragraph("SEXE", lbl_style), Paragraph(":", colon_style), val_above_dots(sexe, short=True)],
-        [Paragraph("NE(E) A", lbl_style), Paragraph(":", colon_style), val_above_dots(""),
-         Paragraph("LE", lbl_style), Paragraph(":", colon_style), val_above_dots(date_str if date_str else "")],
-        [Paragraph("CLASSE", lbl_style), Paragraph(":", colon_style), val_above_dots(classe_name),
-         None, None, None],
-        [Paragraph("N° PERM.", lbl_style), Paragraph(":", colon_style), nperm_squares_table,
-         None, None, None],
+    right_w = 116.4*mm
+
+    right_rows = [
+        [Paragraph(f"ELEVE : <b>{nom_upper} {prenom_title}</b> {dots}  SEXE : <b>{sexe}</b> {dots_short}", p_style)],
+        [Paragraph(f"NE(E) A : {dots}  LE <b>{date_str if date_str else '..... / ..... / ..........'}</b>", p_style)],
+        [Paragraph(f"CLASSE : <b>{classe_name}</b> {dots}", p_style)],
+        [Paragraph("N° PERM. :", p_style), nperm_squares_table],
     ]
-    right_table = Table(right_data, colWidths=[lbl1_w, col_w, val1_w, lbl2_w, col_w, val2_w], rowHeights=[8*mm]*3 + [7*mm])
+
+    # Rows 1-3: single full-width paragraph. Row 4: label + boxes
+    final_rows = []
+    for i in range(3):
+        final_rows.append([right_rows[i][0], None])
+    final_rows.append(right_rows[3])
+
+    right_table = Table(final_rows, colWidths=[right_w - nb_cases*4*mm - 6*mm, nb_cases*4*mm + 6*mm], rowHeights=[5.5*mm]*3 + [7*mm])
     right_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 2),
         ('RIGHTPADDING', (0, 0), (-1, -1), 1),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('SPAN', (2, 2), (5, 2)),  # CLASSE spans full value area
-        ('SPAN', (2, 3), (5, 3)),  # N° PERM. spans full value area
+        ('SPAN', (0, 0), (1, 0)),
+        ('SPAN', (0, 1), (1, 1)),
+        ('SPAN', (0, 2), (1, 2)),
     ]))
 
     return right_table

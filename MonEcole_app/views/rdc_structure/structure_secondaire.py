@@ -80,7 +80,7 @@ def get_semestres(id_annee, id_campus, id_cycle, id_classe):
 
 
 def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal):
-    """Right info section — 60% du bulletin, labels normaux, valeurs gras au-dessus des pointillés."""
+    """Right info section — format image officiel: labels gras inline avec pointillés."""
     try:
         eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
         classe_name = eac.classe.classe.strip().upper()
@@ -109,16 +109,7 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
             ('BOX', (i,0), (i,0), 0.5, colors.black),
         ]))
 
-    # Styles — labels NORMAL, valeurs GRAS au-dessus des pointillés
-    lbl_style = ParagraphStyle(name='InfoLblR', fontSize=7, leading=8, alignment=0, fontName='Helvetica')
-    colon_style = ParagraphStyle(name='InfoColR', fontSize=7, leading=8, alignment=1, fontName='Helvetica')
-
-    dots = '<font size="3" color="#aaaaaa">. . . . . . . . . . . . . . . . . . . .</font>'
-    dots_short = '<font size="3" color="#aaaaaa">. . . . . . .</font>'
-    def val_above_dots(value, short=False):
-        d = dots_short if short else dots
-        return Paragraph(f"<b>{value}</b><br/>{d}", ParagraphStyle(
-            name='ValAboveDotsR2', fontSize=7, leading=7, alignment=0, fontName='Helvetica-Bold'))
+    p_style = ParagraphStyle(name='InfoRightP2', fontSize=7, leading=8, alignment=0, fontName='Helvetica')
 
     nom_upper = (eleve.nom or '').upper()
     prenom_title = (eleve.prenom or '').title()
@@ -132,32 +123,33 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
         except:
             date_str = str(eleve.date_naissance)
 
-    right_w = 116.4*mm
-    lbl1_w = 14*mm
-    col_w = 3*mm
-    val1_w = 42*mm
-    lbl2_w = 18*mm
-    val2_w = right_w - lbl1_w - col_w - val1_w - lbl2_w - col_w
+    dots = '<font size="3" color="#aaaaaa">' + ' .' * 80 + '</font>'
+    dots_short = '<font size="3" color="#aaaaaa">' + ' .' * 30 + '</font>'
 
-    right_data = [
-        [Paragraph("ELEVE", lbl_style), Paragraph(":", colon_style), val_above_dots(f"{nom_upper} {prenom_title}"),
-         Paragraph("SEXE", lbl_style), Paragraph(":", colon_style), val_above_dots(sexe, short=True)],
-        [Paragraph("NE(E) A", lbl_style), Paragraph(":", colon_style), val_above_dots(""),
-         Paragraph("LE", lbl_style), Paragraph(":", colon_style), val_above_dots(date_str if date_str else "")],
-        [Paragraph("CLASSE", lbl_style), Paragraph(":", colon_style), val_above_dots(classe_name),
-         None, None, None],
-        [Paragraph("N° PERM.", lbl_style), Paragraph(":", colon_style), nperm_squares_table,
-         None, None, None],
+    right_w = 116.4*mm
+
+    right_rows = [
+        [Paragraph(f"ELEVE : <b>{nom_upper} {prenom_title}</b> {dots}  SEXE : <b>{sexe}</b> {dots_short}", p_style)],
+        [Paragraph(f"NE(E) A : {dots}  LE <b>{date_str if date_str else '..... / ..... / ..........'}</b>", p_style)],
+        [Paragraph(f"CLASSE : <b>{classe_name}</b> {dots}", p_style)],
+        [Paragraph("N° PERM. :", p_style), nperm_squares_table],
     ]
-    right_table = Table(right_data, colWidths=[lbl1_w, col_w, val1_w, lbl2_w, col_w, val2_w], rowHeights=[8*mm]*3 + [7*mm])
+
+    final_rows = []
+    for i in range(3):
+        final_rows.append([right_rows[i][0], None])
+    final_rows.append(right_rows[3])
+
+    right_table = Table(final_rows, colWidths=[right_w - nb_cases*4*mm - 6*mm, nb_cases*4*mm + 6*mm], rowHeights=[5.5*mm]*3 + [7*mm])
     right_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 2),
         ('RIGHTPADDING', (0, 0), (-1, -1), 1),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('SPAN', (2, 2), (5, 2)),
-        ('SPAN', (2, 3), (5, 3)),
+        ('SPAN', (0, 0), (1, 0)),
+        ('SPAN', (0, 1), (1, 1)),
+        ('SPAN', (0, 2), (1, 2)),
     ]))
 
     return right_table
