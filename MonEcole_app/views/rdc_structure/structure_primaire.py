@@ -1849,7 +1849,7 @@ def create_footer(elements, style_normal, style_center, id_classe=None):
 
 def create_footer_8eme(elements, style_normal, style_center, id_classe=None):
     """Footer for 8ème année (Education de Base) — includes RESULTAT FINAL section."""
-    elements.append(Spacer(1, 2*mm))
+    elements.append(Spacer(1, 0.5*mm))
 
     # Retrieve institution info
     chef_nom = ""
@@ -1871,94 +1871,92 @@ def create_footer_8eme(elements, style_normal, style_center, id_classe=None):
         except Exception:
             pass
 
-    style_ft = ParagraphStyle(name='Ft8', fontSize=5, leading=6, alignment=0, fontName='Helvetica')
-    style_ft_b = ParagraphStyle(name='Ft8B', fontSize=5, leading=6, alignment=0, fontName='Helvetica-Bold')
-    style_ft_c = ParagraphStyle(name='Ft8C', fontSize=5, leading=6, alignment=1, fontName='Helvetica')
-    style_ft_r = ParagraphStyle(name='Ft8R', fontSize=5, leading=6, alignment=0, fontName='Helvetica')
+    style_ft = ParagraphStyle(name='Ft8', fontSize=4, leading=5, alignment=0, fontName='Helvetica')
+    style_ft_c = ParagraphStyle(name='Ft8C', fontSize=4, leading=5, alignment=1, fontName='Helvetica')
+    style_ft_r = ParagraphStyle(name='Ft8R', fontSize=4, leading=5, alignment=0, fontName='Helvetica')
 
     import datetime
     date_str = datetime.date.today().strftime('%d/%m/%Y')
     fait_a = f"Fait à {ville} le <b>{date_str}</b>" if ville else f"Fait le <b>{date_str}</b>"
 
-    # ── Row 1: Repêchage ──
+    # ── Repêchage ──
     repechage = Paragraph(
         "L'élève ne pourra pas passer dans la classe supérieure s'il n'a pas subi avec succès "
-        "un examen de repêchage en ......................................................................................................................",
+        "un examen de repêchage en .........................................................................",
         style_ft
     )
 
-    # ── RESULTAT FINAL table (left block) ──
-    rf_header = ParagraphStyle(name='RFH', fontSize=5, leading=6, alignment=1, fontName='Helvetica-Bold')
-    rf_cell = ParagraphStyle(name='RFC', fontSize=5, leading=6, alignment=1, fontName='Helvetica')
+    # ── RESULTAT FINAL mini-table ──
+    rf_s = ParagraphStyle(name='RFS', fontSize=4, leading=5, alignment=1, fontName='Helvetica-Bold')
+    rf_c = ParagraphStyle(name='RFC2', fontSize=4, leading=5, alignment=1, fontName='Helvetica')
 
     resultat_data = [
-        [Paragraph("<b>RESULTAT</b>", rf_header), Paragraph("<b>POINTS</b>", rf_header), Paragraph("<b>MAX</b>", rf_header)],
-        [Paragraph("<b>FINAL</b>", rf_header), Paragraph("<b>OBT.</b>", rf_header), None],
-        [Paragraph("MOYENNE ECOLE", rf_cell), None, Paragraph("50", rf_cell)],
-        [Paragraph("ENAFEP", rf_cell), None, Paragraph("50", rf_cell)],
-        [Paragraph("TOTAL", rf_cell), None, Paragraph("100", rf_cell)],
+        [Paragraph("<b>RESULTAT</b>", rf_s), Paragraph("<b>POINTS</b>", rf_s), Paragraph("<b>MAX</b>", rf_s)],
+        [Paragraph("<b>FINAL</b>", rf_s), Paragraph("<b>OBT.</b>", rf_s), None],
+        [Paragraph("MOYENNE ECOLE", rf_c), None, Paragraph("50", rf_c)],
+        [Paragraph("ENAFEP", rf_c), None, Paragraph("50", rf_c)],
+        [Paragraph("TOTAL", rf_c), None, Paragraph("100", rf_c)],
     ]
-    resultat_table = Table(resultat_data, colWidths=[22*mm, 15*mm, 12*mm], rowHeights=[4*mm]*5)
+    resultat_table = Table(resultat_data, colWidths=[20*mm, 13*mm, 10*mm], rowHeights=[3.5*mm]*5)
     resultat_table.setStyle(TableStyle([
         ('GRID', (0, 0), (-1, -1), 0.3, colors.black),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTSIZE', (0, 0), (-1, -1), 5),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('SPAN', (0, 0), (0, 1)),  # RESULTAT FINAL spans 2 rows
+        ('LEFTPADDING', (0, 0), (-1, -1), 1),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 1),
+        ('SPAN', (0, 0), (0, 1)),
     ]))
 
-    # ── Passe/Double (left below resultat) ──
-    passe_double = Paragraph(
-        "L'élève passe dans la classe supérieure (1)<br/>"
-        "L'élève double la classe (1)",
-        style_ft
-    )
+    # ── Left block: resultat + passe/double stacked ──
+    left_block_data = [
+        [resultat_table],
+        [Paragraph(
+            "L'élève passe dans la classe supérieure (1)<br/>"
+            "L'élève double la classe (1)", style_ft
+        )],
+    ]
+    left_block = Table(left_block_data, colWidths=[55*mm])
+    left_block.setStyle(TableStyle([
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+    ]))
 
-    # ── Center: Sceau ──
-    sceau = Paragraph("Sceau de l'école", style_ft_c)
-
-    # ── Right: date + chef ──
+    # ── Right ──
     right_block = Paragraph(
         f"{fait_a}<br/>"
-        f"Le chef d'Établissement<br/><br/>"
+        f"Le chef d'Établissement<br/>"
         f"Nom et Signature<br/>"
         f"<b>{chef_nom}</b>",
         style_ft_r
     )
 
-    # ── Notes de bas ──
+    # ── Note ──
     note_1 = Paragraph(
         "(1): Biffer la mention inutile<br/>"
         "<b>NOTE IMPORTANTE</b>: Le bulletin est sans importance s'il est raturé ou surchargé",
         style_ft
     )
 
-    branding = Paragraph(
-        "<i>Proclamation générée par MonEkole (https://monecole.pro)</i>",
-        style_ft_c
-    )
-
-    # Build footer table
+    # Build compact footer
     footer_data = [
-        [repechage, None, None],         # row 0: repêchage
-        [resultat_table, sceau, right_block],  # row 1: resultat + sceau + fait_a
-        [passe_double, None, None],       # row 2: passe/double
-        [note_1, None, None],             # row 3: notes
-        [branding, None, None],           # row 4: branding
+        [repechage, None, None],
+        [left_block, Paragraph("Sceau de l'école", style_ft_c), right_block],
+        [note_1, None, None],
     ]
-    footer_table = Table(footer_data, colWidths=[70*mm, 50*mm, 80*mm])
+    footer_table = Table(footer_data, colWidths=[65*mm, 55*mm, 80*mm])
     footer_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('SPAN', (0, 0), (2, 0)),
-        ('SPAN', (0, 3), (2, 3)),
-        ('SPAN', (0, 4), (2, 4)),
-        ('TOPPADDING', (0, 0), (-1, -1), 1*mm),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 1*mm),
+        ('SPAN', (0, 2), (2, 2)),
+        ('TOPPADDING', (0, 0), (-1, -1), 0.5*mm),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0.5*mm),
         ('LEFTPADDING', (0, 0), (-1, -1), 2),
         ('RIGHTPADDING', (0, 0), (-1, -1), 2),
-        ('BOX', (0, 0), (-1, 3), 0.5, colors.black),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
     ]))
     elements.append(footer_table)
 
