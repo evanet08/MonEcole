@@ -124,9 +124,9 @@ def _resolve_logo_paths(logo_path, emblem_path):
 def create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=None):
     logo_path, emblem_path = _resolve_logo_paths(logo_path, emblem_path)
     # Drapeau RDC à gauche — grand format officiel
-    logo = Image(logo_path, width=28*mm, height=20*mm) if logo_path and os.path.exists(logo_path) else Paragraph("", style_center)
-    # Logo MINEDUC à droite — circulaire, grand format officiel
-    emblem = Image(emblem_path, width=22*mm, height=22*mm) if emblem_path and os.path.exists(emblem_path) else Paragraph("", style_center)
+    logo = Image(logo_path, width=24*mm, height=16*mm) if logo_path and os.path.exists(logo_path) else Paragraph("", style_center)
+    # Logo MINEDUC à droite — circulaire
+    emblem = Image(emblem_path, width=18*mm, height=18*mm) if emblem_path and os.path.exists(emblem_path) else Paragraph("", style_center)
     header_title_style = ParagraphStyle('HeaderTitle', fontSize=10, leading=12, alignment=1, fontName='Times-Bold')
     header_data = [
         [logo, Paragraph("<font color='black'><b>REPUBLIQUE DEMOCRATIQUE DU CONGO<br/>MINISTERE DE L'EDUCATION NATIONALE<br/>ET NOUVELLE CITOYENNETE</b></font>", header_title_style), emblem]
@@ -141,7 +141,6 @@ def create_header(elements, logo_path, emblem_path, style_title, style_center, e
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
     ]))
     elements.append(header_table)
-    elements.append(Spacer(1, 0.5*mm))
 
 
 def create_line2_left(elements, style_normal, id_campus=None):
@@ -211,7 +210,7 @@ def create_line2_left(elements, style_normal, id_campus=None):
         [Paragraph("ECOLE", lbl_style), Paragraph(":", colon_style), val_bold(ecole_display or "")],
         [Paragraph("CODE", lbl_style), Paragraph(":", colon_style), code_squares_table],
     ]
-    left_table = Table(left_data, colWidths=[lbl_w, col_w, val_w], rowHeights=[5.5*mm]*4 + [7*mm])
+    left_table = Table(left_data, colWidths=[lbl_w, col_w, val_w], rowHeights=[4.5*mm]*4 + [6*mm])
     left_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 2),
@@ -259,7 +258,7 @@ def create_nid_section(elements, style_normal, eleve=None, id_campus=None):
     chars = list(nid_value.ljust(nb_cases))  # pad with spaces if shorter
 
     nid_squares = [chars]
-    nid_squares_table = Table(nid_squares, colWidths=[4*mm]*nb_cases, rowHeights=5*mm)
+    nid_squares_table = Table(nid_squares, colWidths=[4*mm]*nb_cases, rowHeights=4*mm)
     nid_squares_table.setStyle(TableStyle([
         ('BOX', (0,0), (-1,-1), 0, colors.white),
         ('INNERGRID', (0,0), (-1,-1), 0, colors.white),
@@ -287,7 +286,6 @@ def create_nid_section(elements, style_normal, eleve=None, id_campus=None):
         ('BOTTOMPADDING', (0,0), (-1,-1), 1),
     ]))
     elements.append(nid_table)
-    elements.append(Spacer(1, 0.5*mm))
 
 
 def create_line2_right(elements, eleve, style_normal, id_classe):
@@ -354,7 +352,7 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
         final_rows.append([right_rows[i][0], None])
     final_rows.append(right_rows[3])
 
-    right_table = Table(final_rows, colWidths=[right_w - nb_cases*4*mm - 1*mm, nb_cases*4*mm + 1*mm], rowHeights=[5.5*mm]*3 + [7*mm])
+    right_table = Table(final_rows, colWidths=[right_w - nb_cases*4*mm - 1*mm, nb_cases*4*mm + 1*mm], rowHeights=[4.5*mm]*3 + [6*mm])
     right_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 2),
