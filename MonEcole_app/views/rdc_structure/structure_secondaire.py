@@ -123,15 +123,16 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
         except:
             date_str = str(eleve.date_naissance)
 
-    dots = '<font size="3" color="#aaaaaa">' + ' .' * 80 + '</font>'
-    dots_short = '<font size="3" color="#aaaaaa">' + ' .' * 30 + '</font>'
+    dots_long = '<font size="3" color="#aaaaaa">' + ' .' * 45 + '</font>'
+    dots_mid = '<font size="3" color="#aaaaaa">' + ' .' * 25 + '</font>'
+    dots_short = '<font size="3" color="#aaaaaa">' + ' .' * 8 + '</font>'
 
     right_w = 116.4*mm
 
     right_rows = [
-        [Paragraph(f"ELEVE : <b>{nom_upper} {prenom_title}</b> {dots}  SEXE : <b>{sexe}</b> {dots_short}", p_style)],
-        [Paragraph(f"NE(E) A : {dots}  LE <b>{date_str if date_str else '..... / ..... / ..........'}</b>", p_style)],
-        [Paragraph(f"CLASSE : <b>{classe_name}</b> {dots}", p_style)],
+        [Paragraph(f"ELEVE : <b>{nom_upper} {prenom_title}</b> {dots_mid}  SEXE : <b>{sexe}</b> {dots_short}", p_style)],
+        [Paragraph(f"NE(E) A : {dots_mid}  LE <b>{date_str if date_str else '..... / ..... / ..........'}</b>", p_style)],
+        [Paragraph(f"CLASSE : <b>{classe_name}</b> {dots_long}", p_style)],
         [Paragraph("N° PERM. :", p_style), nperm_squares_table],
     ]
 
@@ -774,6 +775,61 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
         table_data[signature_start][18] = Paragraph(texte_visible, style_visible)
     
     table = Table(table_data, colWidths=col_widths, rowHeights=[4.5*mm] * len(table_data))
+    # ── Ligne PLACE : texte bleu foncé + gras ──
+    for ridx, row in enumerate(table_data):
+        texte = str(row[0]) if row and row[0] else ""
+        if "PLACE" in texte.upper():
+            table_style.add('TEXTCOLOR', (0, ridx), (-1, ridx), colors.HexColor('#003366'))
+            table_style.add('FONTNAME', (0, ridx), (-1, ridx), 'Helvetica-Bold')
+            break
+
+    # ── Post-traitement : notes < 50% du max ⇒ rouge ──
+    import re
+    for row_idx in range(2, len(table_data)):
+        row = table_data[row_idx]
+        if len(row) < 17:
+            continue
+        texte = str(row[0]) if row[0] else ""
+        texte_upper = texte.upper()
+        if any(mot in texte_upper for mot in [
+            "APPLICATION", "MAXIMA", "POURCENTAGE",
+            "PLACE", "CONDUITE", "SIGNATURE", "SOUS TOTAL", "BRANCHES"
+        ]):
+            continue
+        if "<b>" in texte and "Sous Total" not in texte and len(texte) > 20:
+            continue
+
+        # PTS.OBT semestriels: col 7 vs max col 6, col 14 vs max col 13
+        for pts_col, max_col in [(7, 6), (14, 13)]:
+            if pts_col < len(row) and max_col < len(row):
+                try:
+                    pts_txt = str(row[pts_col]) if row[pts_col] else ""
+                    max_txt = str(row[max_col]) if row[max_col] else ""
+                    pts_nums = re.findall(r'[\d.]+', pts_txt)
+                    max_nums = re.findall(r'[\d.]+', max_txt)
+                    if pts_nums and max_nums:
+                        pts_val = float(pts_nums[-1])
+                        max_val = float(max_nums[-1])
+                        if max_val > 0 and pts_val < max_val / 2:
+                            row[pts_col] = Paragraph(f"<font color='red'><b>{pts_nums[-1]}</b></font>", style_center)
+                except:
+                    pass
+
+        # PTS.OBT annuel: col 16 vs max col 15 (secondaire layout)
+        if 16 < len(row) and 15 < len(row):
+            try:
+                pts_txt = str(row[16]) if row[16] else ""
+                max_txt = str(row[15]) if row[15] else ""
+                pts_nums = re.findall(r'[\d.]+', pts_txt)
+                max_nums = re.findall(r'[\d.]+', max_txt)
+                if pts_nums and max_nums:
+                    pts_val = float(pts_nums[-1])
+                    max_val = float(max_nums[-1])
+                    if max_val > 0 and pts_val < max_val / 2:
+                        row[16] = Paragraph(f"<font color='red'><b>{pts_nums[-1]}</b></font>", style_center)
+            except:
+                pass
+
     table.setStyle(table_style)
     elements.append(table)
     elements.append(Spacer(1, 0.5*mm))
