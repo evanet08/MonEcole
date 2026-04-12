@@ -193,6 +193,43 @@
 .btn-edit-mode.save{background:var(--grad-emerald);color:#fff;box-shadow:0 3px 12px rgba(5,150,105,.25)}
 .btn-edit-mode.cancel{background:#f1f5f9;color:#64748b}
 
+/* Address Modal */
+.addr-modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.5);backdrop-filter:blur(4px);z-index:9999;display:none;align-items:center;justify-content:center;animation:addrFadeIn .25s ease}
+.addr-modal-overlay.visible{display:flex}
+@keyframes addrFadeIn{from{opacity:0}to{opacity:1}}
+.addr-modal{background:#fff;border-radius:20px;width:520px;max-width:95vw;max-height:85vh;overflow:hidden;box-shadow:0 25px 80px rgba(0,0,0,.25);animation:addrSlideUp .35s cubic-bezier(.22,1,.36,1)}
+@keyframes addrSlideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:none}}
+.addr-modal-header{padding:16px 24px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f1f5f9}
+.addr-modal-header .addr-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1rem;flex-shrink:0}
+.addr-modal-header h3{font-size:.9rem;font-weight:700;color:#0f172a;margin:0}
+.addr-modal-header .addr-sub{font-size:.65rem;color:#94a3b8;margin-top:1px}
+.addr-modal-close{margin-left:auto;width:32px;height:32px;border-radius:8px;border:none;background:#f1f5f9;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.addr-modal-close:hover{background:#fee2e2;color:#ef4444}
+.addr-modal-body{padding:20px 24px;overflow-y:auto;max-height:55vh}
+.addr-modal-footer{padding:12px 24px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;gap:8px}
+.addr-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;font-size:.58rem;font-weight:600;cursor:pointer;transition:all .2s;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.addr-badge:hover{transform:scale(1.05);box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.addr-badge.birth{background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe}
+.addr-badge.birth:hover{background:#dbeafe}
+.addr-badge.residence{background:#f0fdf4;color:#059669;border:1px solid #a7f3d0}
+.addr-badge.residence:hover{background:#dcfce7}
+.addr-badge.empty{background:#f8fafc;color:#94a3b8;border:1px dashed #cbd5e1;font-style:italic}
+.addr-badge.empty:hover{border-color:#94a3b8}
+.addr-tab-bar{display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:16px}
+.addr-tab{padding:8px 18px;font-size:.72rem;font-weight:600;color:#64748b;cursor:pointer;border:none;background:none;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s;display:flex;align-items:center;gap:5px}
+.addr-tab:hover{color:#4338ca;background:rgba(99,102,241,.05)}
+.addr-tab.active{border-bottom-color:#6366f1;color:#4338ca;background:rgba(99,102,241,.08)}
+.addr-tab.tab-birth.active{border-bottom-color:#2563eb;color:#1d4ed8}
+.addr-tab.tab-residence.active{border-bottom-color:#059669;color:#047857}
+.addr-cascade-panel{display:none}
+.addr-cascade-panel.active{display:block}
+.addr-resolved{margin-top:12px;padding:10px 14px;border-radius:10px;font-size:.7rem}
+.addr-resolved.birth{background:#eff6ff;border:1px solid #bfdbfe}
+.addr-resolved.residence{background:#f0fdf4;border:1px solid #a7f3d0}
+.addr-resolved-chain{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.addr-resolved-item{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:6px;font-size:.62rem;font-weight:600}
+.addr-resolved-arrow{color:#cbd5e1;font-size:.5rem}
+
 /* Section visibility */
 .etab-section{display:none}
 .etab-section.active-section{display:block}
@@ -344,6 +381,18 @@
                     <div><label>Email Parent</label><input id="eleveParentEmail" type="email" placeholder="email@..."></div>
                     <div><label>Téléphone</label><input id="eleveTelephone" placeholder="+243..."></div>
                 </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;padding-top:10px;border-top:1.5px solid #e2e8f0">
+                    <div>
+                        <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#2563eb;margin-bottom:6px;display:flex;align-items:center;gap:4px"><i class="fas fa-baby" style="font-size:.55rem"></i> Lieu de Naissance</div>
+                        <div id="addEleveAddrBirth" class="admin-cascade" style="gap:5px"></div>
+                        <input type="hidden" id="addEleveRefNaissance">
+                    </div>
+                    <div>
+                        <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#059669;margin-bottom:6px;display:flex;align-items:center;gap:4px"><i class="fas fa-home" style="font-size:.55rem"></i> Résidence Actuelle</div>
+                        <div id="addEleveAddrResidence" class="admin-cascade" style="gap:5px"></div>
+                        <input type="hidden" id="addEleveRefResidence">
+                    </div>
+                </div>
                 <div class="eleve-form-actions">
                     <button class="eleve-btn" style="background:#94a3b8;color:#fff" onclick="toggleAddEleveForm()"><i class="fas fa-times"></i> Annuler</button>
                     <button class="eleve-btn eleve-btn-add" onclick="saveEleve()"><i class="fas fa-save"></i> Enregistrer</button>
@@ -461,6 +510,44 @@
                     <div style="font-size:.7rem;color:#64748b">pour visualiser et gérer ses documents administratifs</div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ADDRESS EDIT MODAL ===== -->
+<div class="addr-modal-overlay" id="addrModalOverlay" onclick="if(event.target===this)closeAddrModal()">
+    <div class="addr-modal">
+        <div class="addr-modal-header">
+            <div class="addr-icon" id="addrModalIcon" style="background:linear-gradient(135deg,#4f46e5,#7c3aed)"><i class="fas fa-map-marker-alt"></i></div>
+            <div>
+                <h3 id="addrModalTitle">Adresses de l'élève</h3>
+                <div class="addr-sub" id="addrModalStu">—</div>
+            </div>
+            <button class="addr-modal-close" onclick="closeAddrModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="addr-modal-body">
+            <div class="addr-tab-bar">
+                <button class="addr-tab tab-birth active" onclick="switchAddrTab('birth')"><i class="fas fa-baby"></i> Lieu de Naissance</button>
+                <button class="addr-tab tab-residence" onclick="switchAddrTab('residence')"><i class="fas fa-home"></i> Résidence Actuelle</button>
+            </div>
+            <div class="addr-cascade-panel active" id="addrPanelBirth">
+                <div id="addrCascadeBirth" class="admin-cascade" style="gap:5px"></div>
+                <div class="addr-resolved birth" id="addrResolvedBirth" style="display:none">
+                    <div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#2563eb;margin-bottom:4px"><i class="fas fa-link" style="margin-right:3px"></i>Référence</div>
+                    <div class="addr-resolved-chain" id="addrChainBirth"></div>
+                </div>
+            </div>
+            <div class="addr-cascade-panel" id="addrPanelResidence">
+                <div id="addrCascadeResidence" class="admin-cascade" style="gap:5px"></div>
+                <div class="addr-resolved residence" id="addrResolvedResidence" style="display:none">
+                    <div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#059669;margin-bottom:4px"><i class="fas fa-link" style="margin-right:3px"></i>Référence</div>
+                    <div class="addr-resolved-chain" id="addrChainResidence"></div>
+                </div>
+            </div>
+        </div>
+        <div class="addr-modal-footer">
+            <button class="eleve-btn" style="background:#94a3b8;color:#fff" onclick="closeAddrModal()"><i class="fas fa-times"></i> Fermer</button>
+            <button class="eleve-btn eleve-btn-add" onclick="saveAddrModal()" id="btnSaveAddr"><i class="fas fa-save"></i> Enregistrer</button>
         </div>
     </div>
 </div>
@@ -2598,7 +2685,9 @@ async function saveEleve(){
                 classe_par_annee_id:parseInt(classeId),
                 nom_pere:pereNom,prenom_pere:perePrenom,
                 nom_mere:mereNom,prenom_mere:merePrenom,
-                email_parent:parentEmail,telephone
+                email_parent:parentEmail,telephone,
+                ref_administrative_naissance:document.getElementById('addEleveRefNaissance').value||'',
+                ref_administrative_residence:document.getElementById('addEleveRefResidence').value||''
             })
         });
         const data=await res.json();
@@ -2607,6 +2696,10 @@ async function saveEleve(){
             // Reset form
             ['eleveNom','elevePostnom','elevePrenom','eleveDN','elevePereNom','elevePerePrenom','eleveMereNom','eleveMerePrenom','eleveParentEmail','eleveTelephone'].forEach(id=>{document.getElementById(id).value=''});
             document.getElementById('eleveGenre').value='';
+            document.getElementById('addEleveRefNaissance').value='';
+            document.getElementById('addEleveRefResidence').value='';
+            initAddFormCascade('addEleveAddrBirth','addEleveRefNaissance','');
+            initAddFormCascade('addEleveAddrResidence','addEleveRefResidence','');
             // Refresh grid + stats
             if(selectedClasseActiveId) loadElevesList().then(()=>{
                 renderTransferList();
@@ -2676,6 +2769,8 @@ const GRID_COLUMNS=[
     {key:'prenom', label:'Prénom', editable:true, visible:true},
     {key:'genre', label:'Genre', editable:true, visible:true},
     {key:'date_naissance', label:'Date Naissance', editable:true, visible:true},
+    {key:'ref_administrative_naissance', label:'Lieu Naissance', editable:false, visible:false, isAddr:true, addrType:'birth'},
+    {key:'ref_administrative_residence', label:'Résidence', editable:false, visible:false, isAddr:true, addrType:'residence'},
     {key:'nom_pere', label:'Nom Père', editable:true, visible:false},
     {key:'prenom_pere', label:'Prénom Père', editable:true, visible:false},
     {key:'nom_mere', label:'Nom Mère', editable:true, visible:false},
@@ -2795,6 +2890,15 @@ function renderElevesGrid(){
             }else if(c.editable){
                 const val=stu[c.key]||'';
                 html+=`<td contenteditable="true" data-field="${c.key}" data-id="${stu.id_eleve}" data-original="${val.toString().replace(/"/g,'&quot;')}" onblur="onCellBlur(this)">${val}</td>`;
+            }else if(c.isAddr){
+                const ref=stu[c.key]||'';
+                const label=ref?resolveAddrLabel(ref,c.addrType):'';
+                const cls=c.addrType==='birth'?'birth':'residence';
+                if(ref){
+                    html+=`<td style="text-align:center"><span class="addr-badge ${cls}" onclick="openAddrModal(${stu.id_eleve})" title="${label}"><i class="fas ${c.addrType==='birth'?'fa-baby':'fa-home'}" style="font-size:.5rem"></i> ${label}</span></td>`;
+                }else{
+                    html+=`<td style="text-align:center"><span class="addr-badge empty" onclick="openAddrModal(${stu.id_eleve})" title="Cliquez pour définir"><i class="fas fa-plus" style="font-size:.45rem"></i> Définir</span></td>`;
+                }
             }else if(c.key==='redoublement'){
                 const v=parseInt(stu.redoublement)||0;
                 html+=`<td style="text-align:center"><span style="font-size:.6rem;padding:2px 6px;border-radius:4px;font-weight:600;${v?'background:#fef2f2;color:#ef4444':'background:#f0fdf4;color:#22c55e'}">${v?'Oui':'Non'}</span></td>`;
@@ -3864,6 +3968,417 @@ async function executeDeleteInscriptions() {
         showToast('Erreur de connexion', 'error');
     }
 }
+
+
+/* =================================================================
+   ADDRESS CASCADE — BIRTH & RESIDENCE (reuses ADMIN_TYPES / ADMIN_INSTANCES)
+   ================================================================= */
+
+// Build a lookup: id → instance info (once)
+const _addrIdMap={};
+Object.keys(ADMIN_INSTANCES).forEach(o=>{
+    (ADMIN_INSTANCES[o]||[]).forEach(inst=>{
+        _addrIdMap[inst.id]={...inst, ordre:parseInt(o)};
+    });
+});
+const _addrTypeByOrdre={};
+(ADMIN_TYPES||[]).forEach(t=>{ _addrTypeByOrdre[t.ordre]=t.nom; });
+
+/**
+ * Resolve a ref_administrative string ("1-14-47") to a human-readable last-level label.
+ */
+function resolveAddrLabel(ref, type){
+    if(!ref) return '';
+    const ids=ref.split('-').filter(x=>x).map(Number);
+    if(!ids.length) return '';
+    // Return the last instance name (most specific)
+    const last=_addrIdMap[ids[ids.length-1]];
+    return last ? last.nom : ref;
+}
+
+/**
+ * Resolve ref to full chain display
+ */
+function resolveAddrChain(ref){
+    if(!ref) return [];
+    const ids=ref.split('-').filter(x=>x).map(Number);
+    return ids.map(id=>{
+        const inst=_addrIdMap[id];
+        if(!inst) return null;
+        return { type_nom: _addrTypeByOrdre[inst.ordre]||('Niveau '+inst.ordre), nom: inst.nom, id };
+    }).filter(Boolean);
+}
+
+/**
+ * Filter instances for a cascade level based on parent selection.
+ */
+function _addrGetChildren(ordre, parentId){
+    const instances=ADMIN_INSTANCES[ordre]||[];
+    if(!parentId) return instances; // First level: all
+    // Filter by code ancestry
+    return instances.filter(inst=>{
+        if(!inst.code) return false;
+        const parts=inst.code.split('-').map(Number);
+        return parts.includes(parentId);
+    });
+}
+
+/* ---- Cascade State per container ---- */
+const _cascadeStates={}; // containerId → { selected: {ordre:inst}, hiddenInputId }
+
+function _buildCascade(containerId, hiddenInputId, existingRef){
+    const container=document.getElementById(containerId);
+    if(!container || !ADMIN_TYPES || !ADMIN_TYPES.length){ return; }
+
+    const state={ selected:{}, hiddenInputId };
+    _cascadeStates[containerId]=state;
+
+    // Parse existing ref
+    const existingIds=existingRef?existingRef.split('-').filter(x=>x).map(Number):[];
+    const prefilled={};
+    existingIds.forEach(id=>{ if(_addrIdMap[id]) prefilled[_addrIdMap[id].ordre]=_addrIdMap[id]; });
+
+    const firstOrdre=ADMIN_TYPES[0].ordre;
+    let html='';
+    ADMIN_TYPES.forEach((t,i)=>{
+        const o=t.ordre;
+        const pre=prefilled[o];
+        const col=LEVEL_COLORS[i%LEVEL_COLORS.length];
+        const levelId=containerId+'_lv'+o;
+
+        if(pre){
+            state.selected[o]={id:pre.id, nom:pre.nom, code:pre.code};
+            html+=`<div class="admin-level" id="${levelId}">
+                <div class="admin-level-header"><span class="level-dot" style="background:${col}"></span>${t.nom}</div>
+                <div class="admin-level-locked" id="${levelId}_locked">
+                    <span class="locked-check"><i class="fas fa-check"></i></span>${pre.nom}
+                    <span class="locked-clear" onclick="_addrClearLevel('${containerId}',${o})" title="Modifier"><i class="fas fa-pen"></i></span>
+                </div>
+                <input class="admin-level-input" id="${levelId}_input" style="display:none" placeholder="Rechercher ${t.nom}..." autocomplete="off" data-ordre="${o}" data-container="${containerId}" oninput="_addrOnInput(this)" onfocus="_addrOnFocus(this)" onkeydown="_addrOnKeydown(event,this)">
+                <div class="admin-suggestions" id="${levelId}_sug"></div>
+            </div>`;
+        } else {
+            const isFirst=o===firstOrdre;
+            const enabled=isFirst||Object.keys(prefilled).some(po=>parseInt(po)<o);
+            html+=`<div class="admin-level" id="${levelId}">
+                <div class="admin-level-header"><span class="level-dot" style="background:${col}"></span>${t.nom}</div>
+                <input class="admin-level-input" id="${levelId}_input" placeholder="Rechercher ${t.nom}..." autocomplete="off" ${enabled?'':'disabled'} data-ordre="${o}" data-container="${containerId}" oninput="_addrOnInput(this)" onfocus="_addrOnFocus(this)" onkeydown="_addrOnKeydown(event,this)">
+                <div class="admin-suggestions" id="${levelId}_sug"></div>
+            </div>`;
+        }
+    });
+    container.innerHTML=html;
+    _addrUpdateRef(containerId);
+    _addrUpdateResolved(containerId);
+
+    // Close suggestions on outside click
+    document.addEventListener('click',function handler(e){
+        if(!container.contains(e.target)){
+            container.querySelectorAll('.admin-suggestions').forEach(s=>s.classList.remove('visible'));
+        }
+    });
+}
+
+function _addrOnInput(input){
+    const containerId=input.dataset.container;
+    const ordre=parseInt(input.dataset.ordre);
+    const val=input.value.trim().toLowerCase();
+    const state=_cascadeStates[containerId];
+    if(!state) return;
+
+    // Find parent
+    let parentId=null;
+    const sortedOrdres=ADMIN_TYPES.map(t=>t.ordre).sort((a,b)=>a-b);
+    for(const po of sortedOrdres){
+        if(po>=ordre) break;
+        if(state.selected[po]) parentId=state.selected[po].id;
+    }
+
+    const children=_addrGetChildren(ordre, parentId);
+    const filtered=val?children.filter(c=>c.nom.toLowerCase().includes(val)):children.slice(0,50);
+
+    const sugId=containerId+'_lv'+ordre+'_sug';
+    const sugContainer=document.getElementById(sugId);
+    if(!sugContainer) return;
+
+    let html='';
+    filtered.forEach(inst=>{
+        html+=`<div class="admin-suggestion" onmousedown="_addrSelectItem('${containerId}',${ordre},${inst.id},'${inst.nom.replace(/'/g,"\\'")}','${(inst.code||'').replace(/'/g,"\\'")}')">
+            <span class="sug-id">${inst.id}</span><span class="sug-name">${inst.nom}</span>
+        </div>`;
+    });
+    if(!filtered.length){
+        html='<div style="padding:8px 10px;font-size:.68rem;color:#94a3b8;text-align:center"><i class="fas fa-search" style="margin-right:4px"></i>Aucun résultat</div>';
+    }
+    sugContainer.innerHTML=html;
+    sugContainer.classList.add('visible');
+}
+
+function _addrOnFocus(input){
+    _addrOnInput(input);
+}
+
+function _addrOnKeydown(e, input){
+    if(e.key==='Escape'){
+        const sugId=input.dataset.container+'_lv'+input.dataset.ordre+'_sug';
+        const sug=document.getElementById(sugId);
+        if(sug) sug.classList.remove('visible');
+    }
+}
+
+function _addrSelectItem(containerId, ordre, id, nom, code){
+    const state=_cascadeStates[containerId];
+    if(!state) return;
+
+    state.selected[ordre]={id, nom, code};
+    const levelId=containerId+'_lv'+ordre;
+
+    // Show locked
+    const input=document.getElementById(levelId+'_input');
+    const sug=document.getElementById(levelId+'_sug');
+    if(input) input.style.display='none';
+    if(sug) sug.classList.remove('visible');
+
+    // Create locked display
+    const levelEl=document.getElementById(levelId);
+    let lockedEl=document.getElementById(levelId+'_locked');
+    if(!lockedEl){
+        lockedEl=document.createElement('div');
+        lockedEl.className='admin-level-locked';
+        lockedEl.id=levelId+'_locked';
+        levelEl.insertBefore(lockedEl, input);
+    }
+    lockedEl.innerHTML=`<span class="locked-check"><i class="fas fa-check"></i></span>${nom}
+        <span class="locked-clear" onclick="_addrClearLevel('${containerId}',${ordre})" title="Modifier"><i class="fas fa-pen"></i></span>`;
+    lockedEl.style.display='';
+
+    // Clear & enable next levels
+    const sortedOrdres=ADMIN_TYPES.map(t=>t.ordre).sort((a,b)=>a-b);
+    let activateNext=false;
+    sortedOrdres.forEach(o=>{
+        if(o===ordre){ activateNext=true; return; }
+        if(activateNext){
+            // Clear selection for this and subsequent levels
+            delete state.selected[o];
+            const nLevelId=containerId+'_lv'+o;
+            const nInput=document.getElementById(nLevelId+'_input');
+            const nLocked=document.getElementById(nLevelId+'_locked');
+            const nSug=document.getElementById(nLevelId+'_sug');
+            if(nLocked){ nLocked.style.display='none'; }
+            if(nInput){
+                nInput.style.display='';
+                nInput.value='';
+                nInput.disabled=false;
+            }
+            if(nSug) nSug.classList.remove('visible');
+            activateNext=true; // Only enable the immediately next one? No — enable all below
+        }
+    });
+
+    // Only enable the NEXT level (not all)
+    let foundCurrent=false;
+    for(const o of sortedOrdres){
+        if(o===ordre){ foundCurrent=true; continue; }
+        if(foundCurrent){
+            const nInput=document.getElementById(containerId+'_lv'+o+'_input');
+            if(nInput){ nInput.disabled=false; }
+            break;
+        }
+    }
+
+    _addrUpdateRef(containerId);
+    _addrUpdateResolved(containerId);
+}
+
+function _addrClearLevel(containerId, ordre){
+    const state=_cascadeStates[containerId];
+    if(!state) return;
+
+    // Clear this level and all below
+    const sortedOrdres=ADMIN_TYPES.map(t=>t.ordre).sort((a,b)=>a-b);
+    let clearing=false;
+    sortedOrdres.forEach(o=>{
+        if(o===ordre) clearing=true;
+        if(clearing){
+            delete state.selected[o];
+            const levelId=containerId+'_lv'+o;
+            const input=document.getElementById(levelId+'_input');
+            const locked=document.getElementById(levelId+'_locked');
+            const sug=document.getElementById(levelId+'_sug');
+            if(locked) locked.style.display='none';
+            if(input){
+                input.style.display='';
+                input.value='';
+                input.disabled=(o!==ordre);
+            }
+            if(sug) sug.classList.remove('visible');
+        }
+    });
+
+    // Focus the cleared input
+    const input=document.getElementById(containerId+'_lv'+ordre+'_input');
+    if(input) setTimeout(()=>input.focus(),50);
+
+    _addrUpdateRef(containerId);
+    _addrUpdateResolved(containerId);
+}
+
+function _addrUpdateRef(containerId){
+    const state=_cascadeStates[containerId];
+    if(!state) return;
+    const sortedOrdres=ADMIN_TYPES.map(t=>t.ordre).sort((a,b)=>a-b);
+    const ids=[];
+    for(const o of sortedOrdres){
+        if(state.selected[o]) ids.push(state.selected[o].id);
+    }
+    const ref=ids.join('-');
+    const hidden=document.getElementById(state.hiddenInputId);
+    if(hidden) hidden.value=ref;
+    return ref;
+}
+
+function _addrUpdateResolved(containerId){
+    // Determine which resolved panel to update
+    let resolvedId=null, type='birth';
+    if(containerId==='addrCascadeBirth'){ resolvedId='addrResolvedBirth'; type='birth'; }
+    else if(containerId==='addrCascadeResidence'){ resolvedId='addrResolvedResidence'; type='residence'; }
+    // For add form cascades, no resolved panel
+    if(!resolvedId) return;
+
+    const el=document.getElementById(resolvedId);
+    const chainEl=document.getElementById('addrChain'+(type==='birth'?'Birth':'Residence'));
+    if(!el||!chainEl) return;
+
+    const ref=_addrUpdateRef(containerId);
+    const chain=resolveAddrChain(ref);
+    if(chain.length){
+        el.style.display='';
+        const colors=type==='birth'?{bg:'#dbeafe',fg:'#1e40af'}:{bg:'#dcfce7',fg:'#047857'};
+        chainEl.innerHTML=chain.map((c,i)=>
+            (i>0?'<i class="fas fa-chevron-right addr-resolved-arrow"></i>':'')+
+            `<span class="addr-resolved-item" style="background:${colors.bg};color:${colors.fg}">${c.type_nom}: ${c.nom}</span>`
+        ).join('');
+    } else {
+        el.style.display='none';
+    }
+}
+
+
+/* ---- Modal State ---- */
+let _addrModalEleveId=null;
+let _addrModalBirthRef='';
+let _addrModalResidenceRef='';
+
+function openAddrModal(idEleve){
+    const stu=currentElevesList.find(s=>s.id_eleve===idEleve);
+    if(!stu) return;
+    _addrModalEleveId=idEleve;
+    _addrModalBirthRef=stu.ref_administrative_naissance||'';
+    _addrModalResidenceRef=stu.ref_administrative_residence||'';
+
+    document.getElementById('addrModalStu').textContent=(stu.nom||'')+' '+(stu.postnom||'')+' '+(stu.prenom||'');
+    document.getElementById('addrModalOverlay').classList.add('visible');
+
+    // Build cascades
+    _buildCascade('addrCascadeBirth','addrModalBirthHidden',_addrModalBirthRef);
+    _buildCascade('addrCascadeResidence','addrModalResidenceHidden',_addrModalResidenceRef);
+
+    // Ensure we have hidden inputs for the modal
+    _ensureHiddenInput('addrCascadeBirth','addrModalBirthHidden',_addrModalBirthRef);
+    _ensureHiddenInput('addrCascadeResidence','addrModalResidenceHidden',_addrModalResidenceRef);
+
+    // Show birth tab by default
+    switchAddrTab('birth');
+}
+
+function _ensureHiddenInput(cascadeContainerId, hiddenId, value){
+    let el=document.getElementById(hiddenId);
+    if(!el){
+        el=document.createElement('input');
+        el.type='hidden';
+        el.id=hiddenId;
+        const container=document.getElementById(cascadeContainerId);
+        if(container) container.parentElement.appendChild(el);
+    }
+    el.value=value||'';
+    // Update cascade state
+    if(_cascadeStates[cascadeContainerId]){
+        _cascadeStates[cascadeContainerId].hiddenInputId=hiddenId;
+    }
+}
+
+function closeAddrModal(){
+    document.getElementById('addrModalOverlay').classList.remove('visible');
+    _addrModalEleveId=null;
+}
+
+function switchAddrTab(tab){
+    document.querySelectorAll('.addr-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.addr-cascade-panel').forEach(p=>p.classList.remove('active'));
+    if(tab==='birth'){
+        document.querySelector('.tab-birth').classList.add('active');
+        document.getElementById('addrPanelBirth').classList.add('active');
+    } else {
+        document.querySelector('.tab-residence').classList.add('active');
+        document.getElementById('addrPanelResidence').classList.add('active');
+    }
+}
+
+async function saveAddrModal(){
+    if(!_addrModalEleveId) return;
+    const birthRef=document.getElementById('addrModalBirthHidden')?.value||'';
+    const residenceRef=document.getElementById('addrModalResidenceHidden')?.value||'';
+
+    const btn=document.getElementById('btnSaveAddr');
+    btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
+
+    try{
+        const csrfToken=getCsrfToken();
+        const res=await fetch('/api/dashboard/update-eleve/',{
+            method:'POST',
+            headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken},
+            body:JSON.stringify({
+                id_eleve:_addrModalEleveId,
+                ref_administrative_naissance:birthRef,
+                ref_administrative_residence:residenceRef
+            })
+        });
+        const data=await res.json();
+        if(data.success){
+            showToast('Adresses mises à jour !','success');
+            // Update local data
+            const stu=currentElevesList.find(s=>s.id_eleve===_addrModalEleveId);
+            if(stu){
+                stu.ref_administrative_naissance=birthRef;
+                stu.ref_administrative_residence=residenceRef;
+            }
+            renderElevesGrid();
+            closeAddrModal();
+        } else {
+            showToast(data.error||'Erreur','error');
+        }
+    }catch(e){
+        showToast('Erreur connexion: '+e.message,'error');
+    } finally {
+        btn.disabled=false; btn.innerHTML='<i class="fas fa-save"></i> Enregistrer';
+    }
+}
+
+
+/* ---- Add-Form Cascades ---- */
+function initAddFormCascade(containerId, hiddenInputId, existingRef){
+    _buildCascade(containerId, hiddenInputId, existingRef||'');
+}
+
+/* ---- Init on DOM Ready ---- */
+const _origInitClasse=typeof initColumnSelector==='function'?initColumnSelector:null;
+document.addEventListener('DOMContentLoaded',function(){
+    // Init add-form cascades (empty by default)
+    if(ADMIN_TYPES && ADMIN_TYPES.length){
+        initAddFormCascade('addEleveAddrBirth','addEleveRefNaissance','');
+        initAddFormCascade('addEleveAddrResidence','addEleveRefResidence','');
+    }
+});
 
 </script>
 {% endblock %}

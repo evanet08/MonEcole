@@ -4035,6 +4035,8 @@ def dashboard_add_eleve(request):
         prenom_mere = data.get('prenom_mere', '').strip()
         email_parent = data.get('email_parent', '').strip()
         telephone = data.get('telephone', '').strip()
+        ref_administrative_naissance = data.get('ref_administrative_naissance', '').strip()
+        ref_administrative_residence = data.get('ref_administrative_residence', '').strip()
 
         if not all([nom, prenom, date_naissance, genre, classe_par_annee_id, id_etablissement]):
             return JsonResponse({'success': False, 'error': 'Champs obligatoires manquants.'}, status=400)
@@ -4064,13 +4066,15 @@ def dashboard_add_eleve(request):
                 # Insert into eleve
                 cur.execute("""
                     INSERT INTO eleve (numero_serie, nom, prenom, genre, date_naissance, id_etablissement,
-                                       email_parent, telephone, nom_pere, prenom_pere, nom_mere, prenom_mere)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                       email_parent, telephone, nom_pere, prenom_pere, nom_mere, prenom_mere,
+                                       ref_administrative_naissance, ref_administrative_residence)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, [
                     numero_serie or None, full_nom, prenom, genre, date_naissance, id_etablissement,
                     email_parent or None, telephone or None,
                     nom_pere or None, prenom_pere or None,
-                    nom_mere or None, prenom_mere or None
+                    nom_mere or None, prenom_mere or None,
+                    ref_administrative_naissance or None, ref_administrative_residence or None
                 ])
                 id_eleve = cur.lastrowid
 
@@ -4916,6 +4920,7 @@ def dashboard_eleves_list(request):
                            e.date_naissance, e.nom_pere, e.prenom_pere,
                            e.nom_mere, e.prenom_mere, e.email_parent, e.telephone,
                            e.imageUrl,
+                           e.ref_administrative_naissance, e.ref_administrative_residence,
                            ei.id_inscription, ei.date_inscription, ei.redoublement,
                            ei.status, ei.isDelegue
                     FROM eleve e
@@ -4958,6 +4963,8 @@ def dashboard_eleves_list(request):
                         'date_inscription': str(stu['date_inscription']) if stu.get('date_inscription') else '',
                         'redoublement': stu.get('redoublement', 0),
                         'isDelegue': stu.get('isDelegue', 0),
+                        'ref_administrative_naissance': stu.get('ref_administrative_naissance') or '',
+                        'ref_administrative_residence': stu.get('ref_administrative_residence') or '',
                     })
 
                 return JsonResponse({'success': True, 'eleves': result, 'total': len(result)})
@@ -4985,7 +4992,8 @@ def dashboard_update_eleve(request):
         allowed_fields = {
             'numero_serie', 'nom', 'postnom', 'prenom', 'genre',
             'date_naissance', 'nom_pere', 'prenom_pere',
-            'nom_mere', 'prenom_mere', 'email_parent', 'telephone'
+            'nom_mere', 'prenom_mere', 'email_parent', 'telephone',
+            'ref_administrative_naissance', 'ref_administrative_residence'
         }
 
         updates = {}

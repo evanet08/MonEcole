@@ -36,6 +36,8 @@ class Eleve(models.Model):
     province_actuelle = models.CharField(max_length=20, default='',null=True,blank=True)
     commune_actuelle = models.CharField(max_length=20, default='',null=True,blank=True)
     zone_actuelle = models.CharField(max_length=20, default='',null=True,blank=True)
+    ref_administrative_naissance = models.CharField(max_length=500, blank=True, null=True)
+    ref_administrative_residence = models.CharField(max_length=500, blank=True, null=True)
     imageUrl = models.ImageField(upload_to='logos/eleves/', blank=True, null=True)
     nationalite = models.CharField(max_length=50, default='',null=True,blank=True)
     professionPere = models.CharField(max_length=100, default='',null=True,blank=True)
