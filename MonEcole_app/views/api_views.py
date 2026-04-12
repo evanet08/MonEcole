@@ -4015,6 +4015,65 @@ def _count_eleves(cur, id_etablissement):
     return row['total'] if row else 0
 
 
+# ============================================================
+# API — Search parents (smart deduplication)
+# ============================================================
+@require_http_methods(["GET"])
+def search_parents(request):
+    """Search parents by name or phone. Returns matches with children count."""
+    try:
+        q = request.GET.get('q', '').strip()
+        if len(q) < 2:
+            return JsonResponse({'success': True, 'parents': []})
+
+        conn = _get_spoke_connection()
+        try:
+            with conn.cursor() as cur:
+                like_q = f'%{q}%'
+                cur.execute("""
+                    SELECT p.id_parent, p.nomPere, p.postnomPere, p.prenomPere,
+                           p.telephonePere, p.emailPere,
+                           p.nomMere, p.postnomMere, p.prenomMere,
+                           p.telephoneMere, p.emailMere,
+                           COUNT(e.id_eleve) AS nb_enfants,
+                           GROUP_CONCAT(CONCAT(e.nom, ' ', e.prenom) SEPARATOR ', ') AS enfants_noms
+                    FROM parents p
+                    LEFT JOIN eleve e ON e.id_parent = p.id_parent
+                    WHERE p.nomPere LIKE %s OR p.prenomPere LIKE %s
+                       OR p.nomMere LIKE %s OR p.prenomMere LIKE %s
+                       OR p.telephonePere LIKE %s OR p.telephoneMere LIKE %s
+                    GROUP BY p.id_parent
+                    ORDER BY p.nomPere, p.nomMere
+                    LIMIT 20
+                """, [like_q, like_q, like_q, like_q, like_q, like_q])
+                rows = cur.fetchall()
+
+                result = []
+                for r in rows:
+                    result.append({
+                        'id_parent': r['id_parent'],
+                        'nomPere': r.get('nomPere') or '',
+                        'postnomPere': r.get('postnomPere') or '',
+                        'prenomPere': r.get('prenomPere') or '',
+                        'telephonePere': r.get('telephonePere') or '',
+                        'emailPere': r.get('emailPere') or '',
+                        'nomMere': r.get('nomMere') or '',
+                        'postnomMere': r.get('postnomMere') or '',
+                        'prenomMere': r.get('prenomMere') or '',
+                        'telephoneMere': r.get('telephoneMere') or '',
+                        'emailMere': r.get('emailMere') or '',
+                        'nb_enfants': r.get('nb_enfants', 0),
+                        'enfants_noms': r.get('enfants_noms') or '',
+                    })
+                return JsonResponse({'success': True, 'parents': result})
+        finally:
+            conn.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
 @require_http_methods(["POST"])
 def dashboard_add_eleve(request):
     """Add a single student: insert into eleve + eleve_inscription in db_monecole."""
@@ -4029,14 +4088,13 @@ def dashboard_add_eleve(request):
         date_naissance = data.get('date_naissance')
         genre = data.get('genre', '').strip()
         classe_par_annee_id = data.get('classe_par_annee_id') or data.get('classe_par_annee_id')
-        nom_pere = data.get('nom_pere', '').strip()
-        prenom_pere = data.get('prenom_pere', '').strip()
-        nom_mere = data.get('nom_mere', '').strip()
-        prenom_mere = data.get('prenom_mere', '').strip()
-        email_parent = data.get('email_parent', '').strip()
         telephone = data.get('telephone', '').strip()
         ref_administrative_naissance = data.get('ref_administrative_naissance', '').strip()
         ref_administrative_residence = data.get('ref_administrative_residence', '').strip()
+
+        # Parent: either link to existing or create new
+        id_parent = data.get('id_parent')  # existing parent ID
+        parent_data = data.get('parent')   # {nomPere, prenomPere, telephonePere, emailPere, nomMere, prenomMere, telephoneMere, emailMere}
 
         if not all([nom, prenom, date_naissance, genre, classe_par_annee_id, id_etablissement]):
             return JsonResponse({'success': False, 'error': 'Champs obligatoires manquants.'}, status=400)
@@ -4063,17 +4121,35 @@ def dashboard_add_eleve(request):
                 if not ca:
                     return JsonResponse({'success': False, 'error': 'Classe active introuvable.'}, status=404)
 
+                # Handle parent: create new if needed
+                if not id_parent and parent_data:
+                    cur.execute("""
+                        INSERT INTO parents (nomPere, postnomPere, prenomPere, telephonePere, emailPere, pere_en_vie,
+                                             nomMere, postnomMere, prenomMere, telephoneMere, emailMere, mere_en_vie)
+                        VALUES (%s, %s, %s, %s, %s, 1, %s, %s, %s, %s, %s, 1)
+                    """, [
+                        parent_data.get('nomPere') or None,
+                        parent_data.get('postnomPere') or None,
+                        parent_data.get('prenomPere') or None,
+                        parent_data.get('telephonePere') or None,
+                        parent_data.get('emailPere') or None,
+                        parent_data.get('nomMere') or None,
+                        parent_data.get('postnomMere') or None,
+                        parent_data.get('prenomMere') or None,
+                        parent_data.get('telephoneMere') or None,
+                        parent_data.get('emailMere') or None,
+                    ])
+                    id_parent = cur.lastrowid
+
                 # Insert into eleve
                 cur.execute("""
                     INSERT INTO eleve (numero_serie, nom, prenom, genre, date_naissance, id_etablissement,
-                                       email_parent, telephone, nom_pere, prenom_pere, nom_mere, prenom_mere,
+                                       telephone, id_parent,
                                        ref_administrative_naissance, ref_administrative_residence)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, [
                     numero_serie or None, full_nom, prenom, genre, date_naissance, id_etablissement,
-                    email_parent or None, telephone or None,
-                    nom_pere or None, prenom_pere or None,
-                    nom_mere or None, prenom_mere or None,
+                    telephone or None, id_parent or None,
                     ref_administrative_naissance or None, ref_administrative_residence or None
                 ])
                 id_eleve = cur.lastrowid
@@ -4917,14 +4993,15 @@ def dashboard_eleves_list(request):
 
                 cur.execute("""
                     SELECT e.id_eleve, e.numero_serie, e.nom, e.prenom, e.genre,
-                           e.date_naissance, e.nom_pere, e.prenom_pere,
-                           e.nom_mere, e.prenom_mere, e.email_parent, e.telephone,
-                           e.imageUrl,
+                           e.date_naissance, e.telephone, e.imageUrl, e.id_parent,
                            e.ref_administrative_naissance, e.ref_administrative_residence,
+                           p.nomPere, p.postnomPere, p.prenomPere, p.telephonePere, p.emailPere,
+                           p.nomMere, p.postnomMere, p.prenomMere, p.telephoneMere, p.emailMere,
                            ei.id_inscription, ei.date_inscription, ei.redoublement,
                            ei.status, ei.isDelegue
                     FROM eleve e
                     JOIN eleve_inscription ei ON ei.id_eleve_id = e.id_eleve
+                    LEFT JOIN parents p ON p.id_parent = e.id_parent
                     WHERE ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
                       AND ei.id_etablissement = %s AND ei.status = 1
                     ORDER BY e.nom, e.prenom
@@ -4952,11 +5029,12 @@ def dashboard_eleves_list(request):
                         'prenom': stu.get('prenom') or '',
                         'genre': stu.get('genre') or '',
                         'date_naissance': dn_str,
-                        'nom_pere': stu.get('nom_pere') or '',
-                        'prenom_pere': stu.get('prenom_pere') or '',
-                        'nom_mere': stu.get('nom_mere') or '',
-                        'prenom_mere': stu.get('prenom_mere') or '',
-                        'email_parent': stu.get('email_parent') or '',
+                        'id_parent': stu.get('id_parent') or 0,
+                        'nom_pere': stu.get('nomPere') or '',
+                        'prenom_pere': stu.get('prenomPere') or '',
+                        'nom_mere': stu.get('nomMere') or '',
+                        'prenom_mere': stu.get('prenomMere') or '',
+                        'email_parent': stu.get('emailPere') or '',
                         'telephone': stu.get('telephone') or '',
                         'imageUrl': stu.get('imageUrl') or '',
                         'id_inscription': stu.get('id_inscription'),
@@ -4991,8 +5069,7 @@ def dashboard_update_eleve(request):
         # Allowed fields for update
         allowed_fields = {
             'numero_serie', 'nom', 'postnom', 'prenom', 'genre',
-            'date_naissance', 'nom_pere', 'prenom_pere',
-            'nom_mere', 'prenom_mere', 'email_parent', 'telephone',
+            'date_naissance', 'telephone', 'id_parent',
             'ref_administrative_naissance', 'ref_administrative_residence'
         }
 

@@ -50,6 +50,7 @@ urlpatterns = [
 
     # ============ API DASHBOARD (copiées depuis eSchool) ============
     # Dashboard — Student Management
+    path('api/dashboard/search-parents/', api_views.search_parents, name='search_parents'),
     path('api/dashboard/add-eleve/', api_views.dashboard_add_eleve, name='dashboard_add_eleve'),
     path('api/dashboard/eleve-template/', api_views.dashboard_eleve_template, name='dashboard_eleve_template'),
     path('api/dashboard/import-eleves/', api_views.dashboard_import_eleves, name='dashboard_import_eleves'),

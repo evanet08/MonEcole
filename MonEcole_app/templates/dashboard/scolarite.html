@@ -230,6 +230,36 @@
 .addr-resolved-item{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:6px;font-size:.62rem;font-weight:600}
 .addr-resolved-arrow{color:#cbd5e1;font-size:.5rem}
 
+/* Parent Selector */
+.parent-selector{border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;background:#fafbfc}
+.parent-search-wrap{position:relative}
+.parent-search-wrap input{width:100%;padding:6px 10px 6px 28px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.7rem;background:#fff;transition:border .2s}
+.parent-search-wrap input:focus{border-color:#6366f1;outline:none;box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.parent-search-wrap .search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:.6rem}
+.parent-results{max-height:180px;overflow-y:auto;margin-top:6px;display:none}
+.parent-results.visible{display:block}
+.parent-result{padding:8px 10px;border-radius:8px;cursor:pointer;transition:all .15s;border:1px solid transparent;margin-bottom:3px}
+.parent-result:hover{background:#eef2ff;border-color:#c7d2fe}
+.parent-result .pr-names{font-size:.7rem;font-weight:600;color:#1e293b}
+.parent-result .pr-phone{font-size:.6rem;color:#6366f1;font-weight:500}
+.parent-result .pr-children{font-size:.58rem;color:#64748b;margin-top:2px}
+.parent-result .pr-children i{color:#f59e0b;margin-right:2px}
+.parent-selected{padding:8px 10px;border-radius:10px;background:#eef2ff;border:1.5px solid #c7d2fe;display:none;align-items:center;gap:8px}
+.parent-selected.visible{display:flex}
+.parent-selected .ps-info{flex:1;font-size:.68rem;color:#1e293b;font-weight:600}
+.parent-selected .ps-phone{font-size:.6rem;color:#6366f1;font-weight:500}
+.parent-selected .ps-clear{width:24px;height:24px;border-radius:6px;border:none;background:#fee2e2;color:#ef4444;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.55rem;transition:all .2s}
+.parent-selected .ps-clear:hover{background:#fecaca}
+.parent-new-btn{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;border:1px dashed #a5b4fc;background:#f5f3ff;color:#4338ca;font-size:.62rem;font-weight:600;cursor:pointer;transition:all .2s;margin-top:6px}
+.parent-new-btn:hover{background:#eef2ff;border-color:#6366f1}
+.parent-new-form{display:none;margin-top:8px;padding:10px;border-radius:10px;background:#fff;border:1px solid #e2e8f0}
+.parent-new-form.visible{display:block}
+.parent-new-form .pnf-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.parent-new-form .pnf-grid label{font-size:.58rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px;display:block}
+.parent-new-form .pnf-grid input{width:100%;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:.68rem;background:#fafbfc}
+.parent-new-form .pnf-grid input:focus{border-color:#6366f1;outline:none}
+.parent-new-form .pnf-section-title{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px;display:flex;align-items:center;gap:4px}
+
 /* Section visibility */
 .etab-section{display:none}
 .etab-section.active-section{display:block}
@@ -374,12 +404,49 @@
                     <div><label>Prénom *</label><input id="elevePrenom" placeholder="Prénom"></div>
                     <div><label>Date Naissance *</label><input id="eleveDN" type="text" placeholder="jj/mm/aaaa" maxlength="10"></div>
                     <div><label>Genre *</label><select id="eleveGenre"><option value="">--</option><option value="M">Masculin</option><option value="F">Féminin</option></select></div>
-                    <div><label>Nom Père</label><input id="elevePereNom" placeholder="Nom père"></div>
-                    <div><label>Prénom Père</label><input id="elevePerePrenom" placeholder="Prénom père"></div>
-                    <div><label>Nom Mère</label><input id="eleveMereNom" placeholder="Nom mère"></div>
-                    <div><label>Prénom Mère</label><input id="eleveMerePrenom" placeholder="Prénom mère"></div>
-                    <div><label>Email Parent</label><input id="eleveParentEmail" type="email" placeholder="email@..."></div>
                     <div><label>Téléphone</label><input id="eleveTelephone" placeholder="+243..."></div>
+                </div>
+                <!-- Parent Section -->
+                <div style="margin-top:10px;padding-top:10px;border-top:1.5px solid #e2e8f0">
+                    <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6366f1;margin-bottom:8px;display:flex;align-items:center;gap:4px"><i class="fas fa-user-friends" style="font-size:.55rem"></i> Parents / Tuteur</div>
+                    <div class="parent-selector" id="parentSelectorAdd">
+                        <!-- Search -->
+                        <div class="parent-search-wrap">
+                            <i class="fas fa-search search-icon"></i>
+                            <input id="parentSearchInput" placeholder="Chercher un parent existant (nom, prénom ou téléphone)..." oninput="onParentSearch(this.value)" autocomplete="off">
+                        </div>
+                        <div class="parent-results" id="parentSearchResults"></div>
+                        <!-- Selected parent display -->
+                        <div class="parent-selected" id="parentSelectedDisplay">
+                            <div>
+                                <div class="ps-info" id="parentSelectedInfo">—</div>
+                                <div class="ps-phone" id="parentSelectedPhone"></div>
+                            </div>
+                            <button class="ps-clear" onclick="clearSelectedParent()" title="Changer"><i class="fas fa-times"></i></button>
+                        </div>
+                        <input type="hidden" id="selectedParentId" value="">
+                        <!-- New parent button -->
+                        <button type="button" class="parent-new-btn" id="btnNewParent" onclick="toggleNewParentForm()"><i class="fas fa-plus"></i> Nouveau parent</button>
+                        <!-- New parent mini-form -->
+                        <div class="parent-new-form" id="newParentForm">
+                            <div class="pnf-section-title" style="color:#3b82f6"><i class="fas fa-male"></i> Père</div>
+                            <div class="pnf-grid">
+                                <div><label>Nom</label><input id="npNomPere" placeholder="Nom"></div>
+                                <div><label>Postnom</label><input id="npPostnomPere" placeholder="Postnom"></div>
+                                <div><label>Prénom</label><input id="npPrenomPere" placeholder="Prénom"></div>
+                                <div><label>Téléphone</label><input id="npTelPere" placeholder="+243..."></div>
+                                <div><label>Email</label><input id="npEmailPere" type="email" placeholder="email@..."></div>
+                            </div>
+                            <div class="pnf-section-title" style="color:#ec4899;margin-top:10px"><i class="fas fa-female"></i> Mère</div>
+                            <div class="pnf-grid">
+                                <div><label>Nom</label><input id="npNomMere" placeholder="Nom"></div>
+                                <div><label>Postnom</label><input id="npPostnomMere" placeholder="Postnom"></div>
+                                <div><label>Prénom</label><input id="npPrenomMere" placeholder="Prénom"></div>
+                                <div><label>Téléphone</label><input id="npTelMere" placeholder="+243..."></div>
+                                <div><label>Email</label><input id="npEmailMere" type="email" placeholder="email@..."></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;padding-top:10px;border-top:1.5px solid #e2e8f0">
                     <div>
@@ -2667,44 +2734,62 @@ async function saveEleve(){
     const dn=_toIsoDate(document.getElementById('eleveDN').value);
     const genre=document.getElementById('eleveGenre').value;
     const classeId=selectedClasseActiveId;
-    const pereNom=document.getElementById('elevePereNom').value.trim();
-    const perePrenom=document.getElementById('elevePerePrenom').value.trim();
-    const mereNom=document.getElementById('eleveMereNom').value.trim();
-    const merePrenom=document.getElementById('eleveMerePrenom').value.trim();
-    const parentEmail=document.getElementById('eleveParentEmail').value.trim();
     const telephone=document.getElementById('eleveTelephone').value.trim();
     if(!nom||!prenom||!dn||!genre||!classeId){showToast('Remplissez les champs obligatoires (*) et sélectionnez une classe','error');return}
     const csrfToken=document.querySelector('[name=csrfmiddlewaretoken]')?.value||'{{ csrf_token }}';
+
+    // Build payload
+    const payload={
+        id_etablissement:parseInt(ELEVE_ETAB_ID),
+        id_annee:parseInt(CA_ANNEE_ID),
+        numero_serie:numeroSerie,nom,postnom,prenom,date_naissance:dn,genre,
+        classe_par_annee_id:parseInt(classeId),
+        telephone,
+        ref_administrative_naissance:document.getElementById('addEleveRefNaissance').value||'',
+        ref_administrative_residence:document.getElementById('addEleveRefResidence').value||''
+    };
+
+    // Parent: existing or new
+    const selectedPId=document.getElementById('selectedParentId').value;
+    if(selectedPId){
+        payload.id_parent=parseInt(selectedPId);
+    } else {
+        const np={
+            nomPere:document.getElementById('npNomPere').value.trim(),
+            postnomPere:document.getElementById('npPostnomPere').value.trim(),
+            prenomPere:document.getElementById('npPrenomPere').value.trim(),
+            telephonePere:document.getElementById('npTelPere').value.trim(),
+            emailPere:document.getElementById('npEmailPere').value.trim(),
+            nomMere:document.getElementById('npNomMere').value.trim(),
+            postnomMere:document.getElementById('npPostnomMere').value.trim(),
+            prenomMere:document.getElementById('npPrenomMere').value.trim(),
+            telephoneMere:document.getElementById('npTelMere').value.trim(),
+            emailMere:document.getElementById('npEmailMere').value.trim(),
+        };
+        if(np.nomPere||np.nomMere) payload.parent=np;
+    }
+
     try{
         const res=await fetch('/api/dashboard/add-eleve/',{
             method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken},
-            body:JSON.stringify({
-                id_etablissement:parseInt(ELEVE_ETAB_ID),
-                id_annee:parseInt(CA_ANNEE_ID),
-                numero_serie:numeroSerie,nom,postnom,prenom,date_naissance:dn,genre,
-                classe_par_annee_id:parseInt(classeId),
-                nom_pere:pereNom,prenom_pere:perePrenom,
-                nom_mere:mereNom,prenom_mere:merePrenom,
-                email_parent:parentEmail,telephone,
-                ref_administrative_naissance:document.getElementById('addEleveRefNaissance').value||'',
-                ref_administrative_residence:document.getElementById('addEleveRefResidence').value||''
-            })
+            body:JSON.stringify(payload)
         });
         const data=await res.json();
         if(data.success){
             showToast('Élève '+nom+' '+prenom+' enregistré avec succès!','success');
             // Reset form
-            ['eleveNom','elevePostnom','elevePrenom','eleveDN','elevePereNom','elevePerePrenom','eleveMereNom','eleveMerePrenom','eleveParentEmail','eleveTelephone'].forEach(id=>{document.getElementById(id).value=''});
+            ['eleveNumSerie','eleveNom','elevePostnom','elevePrenom','eleveDN','eleveTelephone'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
             document.getElementById('eleveGenre').value='';
             document.getElementById('addEleveRefNaissance').value='';
             document.getElementById('addEleveRefResidence').value='';
+            clearSelectedParent();
+            resetNewParentForm();
             initAddFormCascade('addEleveAddrBirth','addEleveRefNaissance','');
             initAddFormCascade('addEleveAddrResidence','addEleveRefResidence','');
             // Refresh grid + stats
             if(selectedClasseActiveId) loadElevesList().then(()=>{
                 renderTransferList();
             });
-            // Refresh ALL stats: header cards + charts
             refreshAllStats();
         }else{
             showToast(data.error||'Erreur lors de l\'enregistrement.','error');
@@ -3967,6 +4052,89 @@ async function executeDeleteInscriptions() {
     } catch(e) {
         showToast('Erreur de connexion', 'error');
     }
+}
+
+
+/* =================================================================
+   PARENT SEARCH / SELECT / CREATE
+   ================================================================= */
+let _parentSearchTimeout=null;
+
+function onParentSearch(q){
+    clearTimeout(_parentSearchTimeout);
+    const results=document.getElementById('parentSearchResults');
+    if(q.trim().length<2){results.classList.remove('visible');results.innerHTML='';return}
+    _parentSearchTimeout=setTimeout(async()=>{
+        try{
+            const res=await fetch('/api/dashboard/search-parents/?q='+encodeURIComponent(q.trim()));
+            const data=await res.json();
+            if(!data.success||!data.parents.length){
+                results.innerHTML='<div style="padding:6px 10px;font-size:.62rem;color:#94a3b8;font-style:italic">Aucun parent trouvé — créez-en un nouveau</div>';
+                results.classList.add('visible');
+                return;
+            }
+            results.innerHTML=data.parents.map(p=>{
+                const pere=[p.nomPere,p.postnomPere,p.prenomPere].filter(Boolean).join(' ');
+                const mere=[p.nomMere,p.postnomMere,p.prenomMere].filter(Boolean).join(' ');
+                const names=[];
+                if(pere) names.push('<i class="fas fa-male" style="color:#3b82f6;font-size:.5rem"></i> '+pere);
+                if(mere) names.push('<i class="fas fa-female" style="color:#ec4899;font-size:.5rem"></i> '+mere);
+                const phone=p.telephonePere||p.telephoneMere||'';
+                const childLabel=p.nb_enfants>0?'<i class="fas fa-child"></i> '+p.nb_enfants+' enfant'+(p.nb_enfants>1?'s':'')+' inscrit'+(p.nb_enfants>1?'s':''):'<i class="fas fa-child"></i> Aucun enfant';
+                const enfantsDetail=p.enfants_noms?(' : '+p.enfants_noms):'';
+                return '<div class="parent-result" onclick=\'selectParent('+JSON.stringify(p).replace(/'/g,"&#39;")+')\'>'+
+                    '<div class="pr-names">'+names.join(' &nbsp;|&nbsp; ')+'</div>'+
+                    (phone?'<div class="pr-phone"><i class="fas fa-phone" style="font-size:.45rem;margin-right:3px"></i>'+phone+'</div>':'')+
+                    '<div class="pr-children">'+childLabel+enfantsDetail+'</div>'+
+                '</div>';
+            }).join('');
+            results.classList.add('visible');
+        }catch(e){console.error('parentSearch',e)}
+    },300);
+}
+
+function selectParent(p){
+    document.getElementById('selectedParentId').value=p.id_parent;
+    const pere=[p.nomPere,p.postnomPere,p.prenomPere].filter(Boolean).join(' ');
+    const mere=[p.nomMere,p.postnomMere,p.prenomMere].filter(Boolean).join(' ');
+    const parts=[];
+    if(pere) parts.push('Père: '+pere);
+    if(mere) parts.push('Mère: '+mere);
+    document.getElementById('parentSelectedInfo').textContent=parts.join(' | ')||'Parent #'+p.id_parent;
+    document.getElementById('parentSelectedPhone').textContent=p.telephonePere||p.telephoneMere||'';
+    document.getElementById('parentSelectedDisplay').classList.add('visible');
+    document.getElementById('parentSearchResults').classList.remove('visible');
+    document.getElementById('parentSearchInput').style.display='none';
+    document.getElementById('btnNewParent').style.display='none';
+    document.getElementById('newParentForm').classList.remove('visible');
+}
+
+function clearSelectedParent(){
+    document.getElementById('selectedParentId').value='';
+    document.getElementById('parentSelectedDisplay').classList.remove('visible');
+    document.getElementById('parentSearchInput').style.display='';
+    document.getElementById('parentSearchInput').value='';
+    document.getElementById('btnNewParent').style.display='';
+}
+
+function toggleNewParentForm(){
+    const f=document.getElementById('newParentForm');
+    f.classList.toggle('visible');
+    if(f.classList.contains('visible')){
+        document.getElementById('parentSearchInput').style.display='none';
+        document.getElementById('parentSearchResults').classList.remove('visible');
+    } else {
+        document.getElementById('parentSearchInput').style.display='';
+    }
+}
+
+function resetNewParentForm(){
+    ['npNomPere','npPostnomPere','npPrenomPere','npTelPere','npEmailPere','npNomMere','npPostnomMere','npPrenomMere','npTelMere','npEmailMere'].forEach(id=>{
+        const el=document.getElementById(id);if(el)el.value='';
+    });
+    document.getElementById('newParentForm').classList.remove('visible');
+    document.getElementById('parentSearchInput').style.display='';
+    document.getElementById('btnNewParent').style.display='';
 }
 
 
