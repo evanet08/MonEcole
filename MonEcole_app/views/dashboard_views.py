@@ -1625,9 +1625,9 @@ def api_communication_contacts(request):
 
                 # Nom de la classe
                 cur.execute("""
-                    SELECT c.nom as classe_nom, cy.cycle as cycle_nom
+                    SELECT c.nom as classe_nom, cy.nom as cycle_nom
                     FROM countryStructure.classes c
-                    LEFT JOIN countryStructure.cycles cy ON cy.id_cycle = c.id_cycle_id
+                    LEFT JOIN countryStructure.cycles cy ON cy.id_cycle = c.cycle_id
                     WHERE c.id_classe = %s
                 """, [classe_id])
                 cls_row = cur.fetchone()
@@ -1637,24 +1637,27 @@ def api_communication_contacts(request):
 
                 # Élèves inscrits dans cette classe
                 cur.execute("""
-                    SELECT e.id_eleve, e.nom, e.postnom, e.prenom, e.genre,
-                           e.id_parent, e.email_parent, e.telephone
+                    SELECT e.id_eleve, e.nom, e.prenom, e.genre,
+                           e.id_parent, e.telephone
                     FROM eleve_inscription ei
                     JOIN eleve e ON e.id_eleve = ei.id_eleve_id
-                    WHERE ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                    WHERE ei.classe_id = %s
+                      AND (COALESCE(ei.groupe,'') = COALESCE(%s,''))
+                      AND (COALESCE(ei.section_id,0) = COALESCE(%s,0))
                       AND ei.status = 1 AND ei.id_etablissement = %s
                     ORDER BY e.nom, e.prenom
                 """, [classe_id, groupe, section_id, etab_id])
                 students = []
-                for s in cur.fetchall():
-                    # Résoudre parent via id_parent
+                student_rows = cur.fetchall()
+                for s in student_rows:
+                    # Résoudre parent via id_parent -> table parents
                     parent_info = {}
-                    if s[5]:  # id_parent
+                    if s[4]:  # id_parent
                         cur.execute("""
                             SELECT nomPere, prenomPere, telephonePere, emailPere,
                                    nomMere, prenomMere, telephoneMere, emailMere
                             FROM parents WHERE id_parent = %s
-                        """, [s[5]])
+                        """, [s[4]])
                         prow = cur.fetchone()
                         if prow:
                             parent_info = {
@@ -1666,12 +1669,10 @@ def api_communication_contacts(request):
                     students.append({
                         'id_eleve': s[0],
                         'nom': s[1] or '',
-                        'postnom': s[2] or '',
-                        'prenom': s[3] or '',
-                        'genre': s[4] or 'M',
-                        'id_parent': s[5],
-                        'email_parent': s[6] or '',
-                        'telephone': s[7] or '',
+                        'prenom': s[2] or '',
+                        'genre': s[3] or 'M',
+                        'id_parent': s[4],
+                        'telephone': s[5] or '',
                         'parent': parent_info,
                     })
 
