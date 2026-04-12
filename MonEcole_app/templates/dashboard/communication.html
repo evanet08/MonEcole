@@ -3,10 +3,18 @@
 {% block meta_description %}Module Communication — Messagerie interne — {{ etab.nom }}{% endblock %}
 {% block page_indicator %}Communication{% endblock %}
 
+{% block sidebar_items %}
+<!-- Sidebar masquée pour Communication -->
+{% endblock %}
+
 {% block page_css %}
 <style>
+/* ═══ Masquer la sidebar des modules ═══ */
+.sidebar { display: none !important; }
+.content-area { padding: 0 !important; }
+.body-row { overflow: hidden; }
 /* ═══ COMMUNICATION WhatsApp-style — Full Height ═══ */
-.wa-wrap{display:flex;height:calc(100vh - 70px);border-radius:14px;overflow:hidden;border:1px solid rgba(0,0,0,.08);background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.06)}
+.wa-wrap{display:flex;height:calc(100vh - var(--topbar-height, 50px));border-radius:0;overflow:hidden;border:none;background:#fff}
 .wa-sidebar{width:320px;min-width:260px;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;background:#fff;transition:all .3s}
 .wa-sb-head{padding:14px 16px;background:linear-gradient(135deg,#075e54,#128c7e);color:#fff;font-size:.82rem;font-weight:700;display:flex;align-items:center;gap:8px;flex-shrink:0}
 .wa-sb-head i{font-size:1rem;opacity:.9}
@@ -53,7 +61,7 @@
 .wa-date-sep span{background:rgba(225,219,211,.9);padding:4px 14px;border-radius:8px;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.05)}
 /* ═══ Responsive ═══ */
 @media(max-width:768px){
-    .wa-wrap{height:calc(100vh - 60px);border-radius:0;border:none}
+    .wa-wrap{height:calc(100vh - 48px)}
     .wa-sidebar{width:100%;position:absolute;top:0;left:0;bottom:0;z-index:10;transition:transform .3s ease}
     .wa-sidebar.hidden{transform:translateX(-100%)}
     .wa-chat{width:100%}
