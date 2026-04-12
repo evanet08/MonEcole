@@ -1546,68 +1546,76 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
         row_domaine = [Paragraph(f"<font color='black'><b>{domaine_nom}</b></font>", style_center)]
         table_data.append(row_domaine + [None] * 22)
 
-        for cpc in groupe['cours']:
-            nom_cours = cpc.id_cours.cours
-            ponderation = cpc.maxima_periode if cpc.maxima_periode is not None else "-"
-            max_exam = cpc.maxima_exam if cpc.maxima_exam is not None else "-"
-            maxima_tj = cpc.maxima_tj if cpc.maxima_tj is not None else "-"
-            # Max Trim = maxima_tj + maxima_exam
-            if maxima_tj != "-" and max_exam != "-":
-                max_trim_val = float(maxima_tj) + float(max_exam)
-            else:
-                max_trim_val = "-"
-            max_annee = max_trim_val * 3 if max_trim_val != "-" else "-"
+        # Support sous-domaines: itérer par sous-domaine si disponible
+        sous_domaines = groupe.get('sous_domaines', [{'nom': None, 'cours': groupe['cours']}])
+        for sd in sous_domaines:
+            # Afficher l'en-tête du sous-domaine s'il en a un
+            if sd['nom']:
+                row_sd = [Paragraph(f"<font color='#333'><i>{sd['nom']}</i></font>", style_center)]
+                table_data.append(row_sd + [None] * 22)
 
-            row = [Paragraph(nom_cours, style_normal)]
-            id_cpc = cpc.id_cours_id
-            notes_cours_periodes = notes_periodes.get(id_cpc, {})
-            notes_cours_exam = notes_exam.get(id_cpc, {})
-
-            exam_notes = {
-                5: notes_cours_exam.get(trimestres_data[0][0], "-"),   
-                12: notes_cours_exam.get(trimestres_data[1][0], "-"),  
-                19: notes_cours_exam.get(trimestres_data[2][0], "-"),  
-            }
-            for col in range(1, 24):
-                if col in [1, 8, 15]:          
-                    row.append(Paragraph(str(ponderation), style_center))
-                elif col in [4, 11, 18]:       
-                    row.append(Paragraph(str(max_exam), style_center))
-                elif col in [5, 12, 19]:      
-                    note_ex = exam_notes.get(col, "-")
-                    # Echec examen: rouge si < 50% du max examen
-                    echec_ex = False
-                    if note_ex != "-" and max_exam != "-":
-                        try:
-                            echec_ex = float(note_ex) < float(max_exam) / 2
-                        except (ValueError, TypeError):
-                            pass
-                    if echec_ex:
-                        row.append(Paragraph(f"<font color='red'>{note_ex}</font>", style_center))
-                    else:
-                        row.append(Paragraph(str(note_ex), style_center))
-                elif col in [6, 13, 20]:    
-                    row.append(Paragraph(str(max_trim_val), style_center)) 
-                elif col == 22:                
-                    row.append(Paragraph(str(float(max_annee) if max_trim_val != "-" else "-"), style_center))
-                elif col == 23:               
-                    row.append(Paragraph("-", style_center))
-                elif col in [2, 3, 9, 10, 16, 17]: 
-                    note_val = notes_cours_periodes.get(col, "-")
-                    # Echec période: rouge si < 50% du max période
-                    echec_p = False
-                    if note_val != "-" and ponderation != "-":
-                        try:
-                            echec_p = float(note_val) < float(ponderation) / 2
-                        except (ValueError, TypeError):
-                            pass
-                    if echec_p:
-                        row.append(Paragraph(f"<font color='red'>{note_val}</font>", style_center))
-                    else:
-                        row.append(Paragraph(str(note_val), style_center))
+            for cpc in sd['cours']:
+                nom_cours = cpc.id_cours.cours
+                ponderation = cpc.maxima_periode if cpc.maxima_periode is not None else "-"
+                max_exam = cpc.maxima_exam if cpc.maxima_exam is not None else "-"
+                maxima_tj = cpc.maxima_tj if cpc.maxima_tj is not None else "-"
+                # Max Trim = maxima_tj + maxima_exam
+                if maxima_tj != "-" and max_exam != "-":
+                    max_trim_val = float(maxima_tj) + float(max_exam)
                 else:
-                    row.append(Paragraph("-", style_center))
-            table_data.append(row)
+                    max_trim_val = "-"
+                max_annee = max_trim_val * 3 if max_trim_val != "-" else "-"
+
+                row = [Paragraph(nom_cours, style_normal)]
+                id_cpc = cpc.id_cours_id
+                notes_cours_periodes = notes_periodes.get(id_cpc, {})
+                notes_cours_exam = notes_exam.get(id_cpc, {})
+
+                exam_notes = {
+                    5: notes_cours_exam.get(trimestres_data[0][0], "-"),   
+                    12: notes_cours_exam.get(trimestres_data[1][0], "-"),  
+                    19: notes_cours_exam.get(trimestres_data[2][0], "-"),  
+                }
+                for col in range(1, 24):
+                    if col in [1, 8, 15]:          
+                        row.append(Paragraph(str(ponderation), style_center))
+                    elif col in [4, 11, 18]:       
+                        row.append(Paragraph(str(max_exam), style_center))
+                    elif col in [5, 12, 19]:      
+                        note_ex = exam_notes.get(col, "-")
+                        # Echec examen: rouge si < 50% du max examen
+                        echec_ex = False
+                        if note_ex != "-" and max_exam != "-":
+                            try:
+                                echec_ex = float(note_ex) < float(max_exam) / 2
+                            except (ValueError, TypeError):
+                                pass
+                        if echec_ex:
+                            row.append(Paragraph(f"<font color='red'>{note_ex}</font>", style_center))
+                        else:
+                            row.append(Paragraph(str(note_ex), style_center))
+                    elif col in [6, 13, 20]:    
+                        row.append(Paragraph(str(max_trim_val), style_center)) 
+                    elif col == 22:                
+                        row.append(Paragraph(str(float(max_annee) if max_trim_val != "-" else "-"), style_center))
+                    elif col == 23:               
+                        row.append(Paragraph("-", style_center))
+                    elif col in [2, 3, 9, 10, 16, 17]: 
+                        note_val = notes_cours_periodes.get(col, "-")
+                        # Echec période: rouge si < 50% du max période
+                        echec_p = False
+                        if note_val != "-" and ponderation != "-":
+                            try:
+                                echec_p = float(note_val) < float(ponderation) / 2
+                            except (ValueError, TypeError):
+                                pass
+                        if echec_p:
+                            row.append(Paragraph(f"<font color='red'>{note_val}</font>", style_center))
+                        else:
+                            row.append(Paragraph(str(note_val), style_center))
+                    else:
+                        row.append(Paragraph("-", style_center))
+                table_data.append(row)
         row_sous_total = [Paragraph("<b>Sous Total</b>", style_normal)] + [None] * 22
         table_data.append(row_sous_total)
     table_data.append([None] * 23)
@@ -1731,12 +1739,27 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
         col_index = col_num - 1      
         if 0 <= ligne_index < len(table_data) and 0 <= col_index < len(table_data[ligne_index]):
             table_style.add('BACKGROUND', (col_index, ligne_index), (col_index, ligne_index), gris_fonce)
-    lignes_a_fusionner = [3, 8, 12, 19, 22, 25, 29, 33, 37, 40]
-    for ligne_num in lignes_a_fusionner:
-        index_ligne = ligne_num - 1
-        if 0 <= index_ligne < len(table_data):
-            table_style.add('SPAN', (0, index_ligne), (-1, index_ligne))
-            table_style.add('BACKGROUND', (0, index_ligne), (-1, index_ligne), colors.lightblue)    
+    # ── Fusion/Background dynamique des lignes de domaine et sous-domaine ──
+    for ridx, row in enumerate(table_data):
+        if ridx < 2 or not row or not row[0]:
+            continue
+        texte = str(row[0]) if row[0] else ""
+        if not texte:
+            continue
+        # Détection ligne domaine: <b> tag, pas "Sous Total", pas les lignes finales
+        is_domaine = ("<b>" in texte and "Sous Total" not in texte 
+                      and "MAXIMA" not in texte and "POURCENTAGE" not in texte
+                      and "PLACE" not in texte and "CONDUITE" not in texte
+                      and "APPLICATION" not in texte and "SIGNATURE" not in texte)
+        # Détection sous-domaine: <i> tag
+        is_sous_domaine = "<i>" in texte and "<b>" not in texte
+        
+        if is_domaine:
+            table_style.add('SPAN', (0, ridx), (-1, ridx))
+            table_style.add('BACKGROUND', (0, ridx), (-1, ridx), colors.lightblue)
+        elif is_sous_domaine:
+            table_style.add('SPAN', (0, ridx), (-1, ridx))
+            table_style.add('BACKGROUND', (0, ridx), (-1, ridx), colors.Color(0.85, 0.88, 0.95))  # lavender léger
     # ── Ligne PLACE : texte bleu foncé + gras (trouver dynamiquement) ──
     for ridx, row in enumerate(table_data):
         texte_check = str(row[0]) if row and row[0] else ""

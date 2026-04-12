@@ -525,103 +525,107 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
             domaine_index += 1
             ligne_courante += 1  
 
-        for cpc in groupe['cours']:
-            nom_cours = cpc.id_cours.cours
-            ponderation = cpc.maxima_tj if cpc.maxima_tj is not None else "-"
-            exam = cpc.maxima_exam if cpc.maxima_exam is not None else "-"
-            row = [Paragraph(nom_cours, style_normal)]
-            id_cpc = cpc.id_cours_id
-            notes_cours_periodes = notes_periodes.get(id_cpc, {})
+        # Support sous-domaines: itérer par sous-domaine si disponible
+        sous_domaines = groupe.get('sous_domaines', [{'nom': None, 'cours': groupe['cours']}])
+        for sd in sous_domaines:
+            # Afficher l'en-tête du sous-domaine s'il en a un
+            if sd['nom']:
+                row_sd = [Paragraph(f"<font color='#333'><i>{sd['nom']}</i></font>", style_center_bold)]
+                table_data.append(row_sd + [None] * 19)
 
-            row = [Paragraph(nom_cours, style_normal)]
-            id_cpc = cpc.id_cours_id
-            notes_cours_periodes = notes_periodes.get(id_cpc, {})
-            notes_cours_exam = notes_exam.get(id_cpc, {})
-           
-            exam_notes = {
-                5: notes_cours_exam.get(trimestres_data[0][0], "-"),   
-                12: notes_cours_exam.get(trimestres_data[1][0], "-"),  
-            }
-            val_exam_t1 = "0"
-            val_exam_t2 = "0"
-            val_tot_sem_t1 = "0"
-            val_tot_sem_t2 = "0"
+            for cpc in sd['cours']:
+                nom_cours = cpc.id_cours.cours
+                ponderation = cpc.maxima_tj if cpc.maxima_tj is not None else "-"
+                exam = cpc.maxima_exam if cpc.maxima_exam is not None else "-"
+                row = [Paragraph(nom_cours, style_normal)]
+                id_cpc = cpc.id_cours_id
+                notes_cours_periodes = notes_periodes.get(id_cpc, {})
+                notes_cours_exam = notes_exam.get(id_cpc, {})
+               
+                exam_notes = {
+                    5: notes_cours_exam.get(trimestres_data[0][0], "-"),   
+                    12: notes_cours_exam.get(trimestres_data[1][0], "-"),  
+                }
+                val_exam_t1 = "0"
+                val_exam_t2 = "0"
+                val_tot_sem_t1 = "0"
+                val_tot_sem_t2 = "0"
 
-            for col in range(1, 20):
-                if col in [2, 3, 9, 10]:
-                    note_val = notes_cours_periodes.get(col, "-")
-                    row.append(Paragraph(str(note_val), style_center))
+                for col in range(1, 20):
+                    if col in [2, 3, 9, 10]:
+                        note_val = notes_cours_periodes.get(col, "-")
+                        row.append(Paragraph(str(note_val), style_center))
 
-                elif col in [1, 8]:
-                    row.append(Paragraph(str(ponderation), style_center_bold))
+                    elif col in [1, 8]:
+                        row.append(Paragraph(str(ponderation), style_center_bold))
 
-                elif col in [4, 11]:
-                    exam_val = exam if exam != "-" else "0"
-                    row.append(Paragraph(str(exam_val), style_center_bold))
-                    if col == 4:
-                        val_exam_t1 = exam_val
-                    if col == 11:
-                        val_exam_t2 = exam_val
-                elif col in [5, 12]:      
-                    note_ex = exam_notes.get(col, "-")
-                    row.append(Paragraph(str(note_ex), style_center))
-                elif col == 6: 
-                    # Max TOT.SEM = Max TJ (ponderation) + Max Exam
-                    pond_val = float(ponderation) if ponderation != "-" else 0.0
-                    val_tot_sem_t1 = pond_val + float(val_exam_t1)
-                    display_tot_sem = str(int(val_tot_sem_t1)) if val_tot_sem_t1 == int(val_tot_sem_t1) else str(val_tot_sem_t1)
-                    row.append(Paragraph(display_tot_sem, style_center_bold))
+                    elif col in [4, 11]:
+                        exam_val = exam if exam != "-" else "0"
+                        row.append(Paragraph(str(exam_val), style_center_bold))
+                        if col == 4:
+                            val_exam_t1 = exam_val
+                        if col == 11:
+                            val_exam_t2 = exam_val
+                    elif col in [5, 12]:      
+                        note_ex = exam_notes.get(col, "-")
+                        row.append(Paragraph(str(note_ex), style_center))
+                    elif col == 6: 
+                        # Max TOT.SEM = Max TJ (ponderation) + Max Exam
+                        pond_val = float(ponderation) if ponderation != "-" else 0.0
+                        val_tot_sem_t1 = pond_val + float(val_exam_t1)
+                        display_tot_sem = str(int(val_tot_sem_t1)) if val_tot_sem_t1 == int(val_tot_sem_t1) else str(val_tot_sem_t1)
+                        row.append(Paragraph(display_tot_sem, style_center_bold))
 
-                elif col == 13: 
-                    # Max TOT.SEM = Max TJ (ponderation) + Max Exam
-                    pond_val = float(ponderation) if ponderation != "-" else 0.0
-                    val_tot_sem_t2 = pond_val + float(val_exam_t2)
-                    display_tot_sem = str(int(val_tot_sem_t2)) if val_tot_sem_t2 == int(val_tot_sem_t2) else str(val_tot_sem_t2)
-                    row.append(Paragraph(display_tot_sem, style_center_bold))
+                    elif col == 13: 
+                        # Max TOT.SEM = Max TJ (ponderation) + Max Exam
+                        pond_val = float(ponderation) if ponderation != "-" else 0.0
+                        val_tot_sem_t2 = pond_val + float(val_exam_t2)
+                        display_tot_sem = str(int(val_tot_sem_t2)) if val_tot_sem_t2 == int(val_tot_sem_t2) else str(val_tot_sem_t2)
+                        row.append(Paragraph(display_tot_sem, style_center_bold))
 
-                elif col == 7:  
-                    tot_s1 = 0.0
-                    try:
-                        tot_s1 += float(row[2].text or 0) if len(row) > 2 and row[2] else 0.0
-                        tot_s1 += float(row[3].text or 0) if len(row) > 3 and row[3] else 0.0
-                        tot_s1 += float(row[5].text or 0) if len(row) > 5 and row[5] else 0.0
-                    except:
+                    elif col == 7:  
                         tot_s1 = 0.0
-                    row.append(Paragraph(smart_format(tot_s1), style_center))
+                        try:
+                            tot_s1 += float(row[2].text or 0) if len(row) > 2 and row[2] else 0.0
+                            tot_s1 += float(row[3].text or 0) if len(row) > 3 and row[3] else 0.0
+                            tot_s1 += float(row[5].text or 0) if len(row) > 5 and row[5] else 0.0
+                        except:
+                            tot_s1 = 0.0
+                        row.append(Paragraph(smart_format(tot_s1), style_center))
 
-                elif col == 14: 
-                    tot_s2 = 0.0
-                    try:
-                        tot_s2 += float(row[9].text or 0) if len(row) > 9 and row[9] else 0.0
-                        tot_s2 += float(row[10].text or 0) if len(row) > 10 and row[10] else 0.0
-                        tot_s2 += float(row[12].text or 0) if len(row) > 12 and row[12] else 0.0
-                    except:
+                    elif col == 14: 
                         tot_s2 = 0.0
-                    row.append(Paragraph(smart_format(tot_s2), style_center))
+                        try:
+                            tot_s2 += float(row[9].text or 0) if len(row) > 9 and row[9] else 0.0
+                            tot_s2 += float(row[10].text or 0) if len(row) > 10 and row[10] else 0.0
+                            tot_s2 += float(row[12].text or 0) if len(row) > 12 and row[12] else 0.0
+                        except:
+                            tot_s2 = 0.0
+                        row.append(Paragraph(smart_format(tot_s2), style_center))
 
-                elif col == 15:
-                    # TOTAL GENERAL col 15 = Max Total (TOT.SEM Max S1 + TOT.SEM Max S2)
-                    try:
-                        tot_max = float(row[6].text or 0) + float(row[13].text or 0)
-                    except:
-                        tot_max = 0.0
-                    row.append(Paragraph(smart_format(tot_max), style_center_bold))
+                    elif col == 15:
+                        # TOTAL GENERAL col 15 = Max Total (TOT.SEM Max S1 + TOT.SEM Max S2)
+                        try:
+                            tot_max = float(row[6].text or 0) + float(row[13].text or 0)
+                        except:
+                            tot_max = 0.0
+                        row.append(Paragraph(smart_format(tot_max), style_center_bold))
 
-                elif col == 16:
-                    # TOTAL GENERAL col 16 = Total Obtenu (TOT S1 + TOT S2)
-                    try:
-                        tot_gen = float(row[7].text or 0) + float(row[14].text or 0)
-                    except:
-                        tot_gen = 0.0
-                    row.append(Paragraph(smart_format(tot_gen), style_center))
+                    elif col == 16:
+                        # TOTAL GENERAL col 16 = Total Obtenu (TOT S1 + TOT S2)
+                        try:
+                            tot_gen = float(row[7].text or 0) + float(row[14].text or 0)
+                        except:
+                            tot_gen = 0.0
+                        row.append(Paragraph(smart_format(tot_gen), style_center))
 
-                elif col in [17, 18, 19]:
-                    row.append(None)
+                    elif col in [17, 18, 19]:
+                        row.append(None)
 
-                else:
-                    row.append(Paragraph("-", style_center))
+                    else:
+                        row.append(Paragraph("-", style_center))
 
-            table_data.append(row)
+                table_data.append(row)
 
 
         row_sous_total = [Paragraph("<b>Sous Total</b>", style_normal_bold)] + [None] * 19

@@ -353,6 +353,9 @@ class Domaine(models.Model):
     nom = models.CharField(max_length=150)
     code = models.CharField(max_length=30, blank=True, default='')
     pays = models.ForeignKey(Pays, on_delete=models.CASCADE, related_name='domaines')
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True,
+                               db_column='parent_id', related_name='sous_domaines')
+    ordre = models.PositiveIntegerField(default=0)
 
     class Meta:
         db_table = 'domaines'
