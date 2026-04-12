@@ -387,6 +387,7 @@
         <!-- Sub-tabs -->
         <div class="eleve-tabs" style="display:flex;gap:0;margin-bottom:10px;border-bottom:2px solid #e2e8f0">
             <button class="eleve-tab active" id="tabInscEnreg" onclick="switchInscTab('enreg')"><i class="fas fa-user-plus"></i> Enregistrement</button>
+            <button class="eleve-tab" id="tabInscImport" onclick="switchInscTab('import')"><i class="fas fa-file-upload"></i> Importation</button>
             <button class="eleve-tab" id="tabInscProfil" onclick="switchInscTab('profil')"><i class="fas fa-id-card"></i> Profil Élève</button>
             <button class="eleve-tab" id="tabInscParents" onclick="switchInscTab('parents')"><i class="fas fa-user-friends"></i> Compléter Parents</button>
             <button class="eleve-tab" id="tabInscModif" onclick="switchInscTab('modif')"><i class="fas fa-exchange-alt"></i> Modifier Inscription</button>
@@ -465,19 +466,34 @@
                     <button class="eleve-btn eleve-btn-add" onclick="saveEleve()" id="btnSaveEleve" disabled style="opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-save"></i> Enregistrer</button>
                 </div>
             </div>
-            <!-- Import Excel sub-section -->
-            <div class="dash-section" style="margin-top:12px">
-                <div class="dash-section-title" style="font-size:.72rem"><i class="fas fa-file-excel" style="color:#059669"></i> Importation par fichier Excel</div>
-                <div class="dash-section-sub">Téléchargez le modèle, remplissez-le et importez-le</div>
-                <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+        </div>
+
+        <!-- ═══════ TAB 2: IMPORTATION (Excel import) ═══════ -->
+        <div id="inscPanelImport" style="display:none">
+            <div class="dash-section">
+                <div class="dash-section-title"><i class="fas fa-file-excel" style="color:#059669"></i> Importation par fichier Excel</div>
+                <div class="dash-section-sub">Téléchargez le modèle, remplissez-le avec les données des élèves (sans parents) et importez-le</div>
+                <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
                     <button class="eleve-btn eleve-btn-download" id="btnDownloadTemplate" onclick="downloadTemplate()" disabled style="opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-file-download"></i> Télécharger Modèle</button>
                     <button class="eleve-btn eleve-btn-import" id="btnImportEleves" onclick="document.getElementById('importEleveFile').click()" disabled style="opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-file-upload"></i> Importer Fichier</button>
                     <input type="file" id="importEleveFile" accept=".xlsx,.xls,.csv" onchange="importEleves(this)" style="display:none">
                 </div>
+                <div class="eleve-import-zone" style="margin-top:16px" onclick="document.getElementById('importEleveFile').click()">
+                    <i class="fas fa-cloud-upload-alt" style="font-size:2rem;margin-bottom:8px;display:block;opacity:.6"></i>
+                    Glissez un fichier Excel ici ou cliquez pour sélectionner
+                </div>
+                <div style="margin-top:14px;padding:12px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+                    <div style="font-size:.65rem;font-weight:700;color:#64748b;margin-bottom:6px"><i class="fas fa-info-circle" style="color:#3b82f6;margin-right:4px"></i>Informations</div>
+                    <ul style="font-size:.6rem;color:#64748b;margin:0;padding-left:16px;line-height:1.6">
+                        <li>Le modèle contient les colonnes : N° Série, Nom, Postnom, Prénom, Date de Naissance, Genre, Téléphone</li>
+                        <li>Les informations parents se complètent séparément via l'onglet <b style="color:#8b5cf6">Compléter Parents</b></li>
+                        <li>Si l'élève existe déjà, ses données seront mises à jour</li>
+                    </ul>
+                </div>
             </div>
         </div>
 
-        <!-- ═══════ TAB 2: PROFIL ÉLÈVE (grid + edit) ═══════ -->
+        <!-- ═══════ TAB 3: PROFIL ÉLÈVE (grid + edit) ═══════ -->
         <div id="inscPanelProfil" style="display:none">
             <div id="elevesGridSection" class="dash-section" style="margin-bottom:.8rem">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
@@ -2382,7 +2398,7 @@ function switchScolSection(section){
 
 /* ===== INSCRIPTION SUB-TABS ===== */
 function switchInscTab(tab){
-    ['enreg','profil','parents','modif','reinsc'].forEach(function(t){
+    ['enreg','import','profil','parents','modif','reinsc'].forEach(function(t){
         var btn=document.getElementById('tabInsc'+t.charAt(0).toUpperCase()+t.slice(1));
         var panel=document.getElementById('inscPanel'+t.charAt(0).toUpperCase()+t.slice(1));
         if(btn)btn.classList.toggle('active',t===tab);
