@@ -1552,18 +1552,18 @@ def api_communication_contacts(request):
         'custom_groups': [],
     }
 
+    current_pers = int(pers_id) if pers_id else 0
+
+    # ── 1. Tout le personnel en fonction, classé par type ──
     try:
         with connections['default'].cursor() as cur:
-            current_pers = int(pers_id) if pers_id else 0
-
-            # ── 1. Tout le personnel en fonction, classé par type ──
             cur.execute("""
                 SELECT p.id_personnel, p.nom, p.postnom, p.prenom, p.email,
                        p.imageUrl, p.genre,
                        COALESCE(pt.type, 'Autre') as type_nom,
                        COALESCE(pt.sigle, '?') as type_sigle,
                        p.isDirecteur, p.isDAF, p.isMaitresse,
-                       CASE WHEN ac.cnt > 0 THEN 1 ELSE 0 END as is_teacher
+                       CASE WHEN ac_sub.cnt > 0 THEN 1 ELSE 0 END as is_teacher
                 FROM personnel p
                 LEFT JOIN personnel_type pt ON pt.id_type_personnel = p.id_personnel_type_id
                 LEFT JOIN (
@@ -1571,7 +1571,7 @@ def api_communication_contacts(request):
                     FROM attribution_cours
                     WHERE id_etablissement = %s
                     GROUP BY id_personnel_id
-                ) ac ON ac.id_personnel_id = p.id_personnel
+                ) ac_sub ON ac_sub.id_personnel_id = p.id_personnel
                 WHERE p.id_etablissement = %s
                   AND p.en_fonction = 1
                   AND p.id_personnel != %s
@@ -1599,12 +1599,16 @@ def api_communication_contacts(request):
                         'is_teacher': bool(row[12]),
                     })
             result['personnel_types'] = sorted(list(types_seen))
+    except Exception as e:
+        import traceback; traceback.print_exc()
 
-            # ── 2. Classes de l'enseignant (via attribution_cours) + élèves ──
+    # ── 2. Classes de l'enseignant (via attribution_cours) + élèves ──
+    try:
+        with connections['default'].cursor() as cur:
             cur.execute("""
                 SELECT DISTINCT eac.id, eac.classe_id, eac.groupe, eac.section_id
                 FROM attribution_cours ac
-                JOIN countryStructure.etablissements_annees_classes eac ON eac.id = ac.id_classe
+                JOIN countryStructure.etablissements_annees_classes eac ON eac.id = ac.id_classe_id
                 WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s
             """, [current_pers, etab_id])
             class_rows = cur.fetchall()
@@ -1672,8 +1676,12 @@ def api_communication_contacts(request):
                     'n_eleves': len(students),
                     'students': students,
                 })
+    except Exception as e:
+        import traceback; traceback.print_exc()
 
-            # ── 3. Groupes personnalisés ──
+    # ── 3. Groupes personnalisés ──
+    try:
+        with connections['default'].cursor() as cur:
             cur.execute("""
                 SELECT g.id_group, g.name, g.description, g.avatar_color, g.created_by,
                        (SELECT COUNT(*) FROM communication_group_member WHERE id_group = g.id_group) as n_members
@@ -1705,11 +1713,8 @@ def api_communication_contacts(request):
                     'n_members': gr[5],
                     'members': members,
                 })
-
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        import traceback; traceback.print_exc()
 
     return JsonResponse({'success': True, 'personnel_id': pers_id, **result})
 
