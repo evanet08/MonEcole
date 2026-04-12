@@ -236,12 +236,12 @@ async function initCommunication(){
 
                 // Élèves individuels
                 (cl.students||[]).forEach(s=>{
-                    const nm=`${s.nom} ${s.postnom||''} ${s.prenom}`.replace(/\s+/g,' ').trim();
+                    const nm=`${s.nom} ${s.prenom}`.replace(/\s+/g,' ').trim();
                     // Construire le sous-titre avec info parent
                     let sub = cl.full_name;
                     if(s.parent?.pere?.email) sub += ` · ✉ ${s.parent.pere.email}`;
                     else if(s.parent?.mere?.email) sub += ` · ✉ ${s.parent.mere.email}`;
-                    else if(s.email_parent) sub += ` · ✉ ${s.email_parent}`;
+                    else if(s.parent?.pere?.tel) sub += ` · ☎ ${s.parent.pere.tel}`;
 
                     waContacts.push({
                         id:'stu_'+s.id_eleve,
@@ -356,11 +356,31 @@ function renderWaContacts(filter){
     h+=renderFlat(tchrGroups,'Général','users','teachers');
     h+=renderFlat(customGroups,'Mes Groupes','users-cog','custom');
 
-    // Classes (accordion, open by default)
-    h+=renderAccordion(classes,'Groupes Classe','users','groups',true);
-
-    // Élèves / Parents (accordion, open by default)
-    h+=renderAccordion(students,'Élèves / Parents','user-graduate','students',true);
+    // Classes avec élèves imbriqués en accordéon
+    if(classes.length){
+        h+=`<div class="wa-section-label groups"><i class="fas fa-users"></i> Groupes Classe & Élèves <span class="wa-count">${classes.length}</span></div>`;
+        classes.forEach(cls=>{
+            const clStudents=filtered.filter(x=>x.type==='student'&&x.target_classe_id===cls.eac_id);
+            const aid='waClsAcc'+(accId++);
+            // Classe row (cliquable pour envoyer à tous les parents)
+            h+=contactRow(cls);
+            // Sous-accordéon : élèves de cette classe
+            if(clStudents.length){
+                h+=`<div class="wa-section-label students" style="padding-left:28px;font-size:.5rem" onclick="toggleAccordion('${aid}')">
+                    <i class="fas fa-user-graduate"></i> Élèves (${clStudents.length})
+                    <i class="fas fa-chevron-right wa-chevron" id="${aid}_chev"></i>
+                </div>`;
+                h+=`<div class="wa-accordion-body collapsed" id="${aid}" style="max-height:0">`;
+                clStudents.forEach(s=>{
+                    h+=`<div class="wa-contact ${waActiveContact&&waActiveContact.id===s.id?'active':''}" onclick="openWaChat('${s.id}')" style="padding-left:32px">
+                        <div class="wa-contact-avatar" style="background:${s.color};width:28px;height:28px;font-size:.5rem"><i class="fas fa-${s.icon}"></i></div>
+                        <div class="wa-contact-info"><div class="wa-contact-name" style="font-size:.68rem">${s.name}</div><div class="wa-contact-sub">${s.sub}</div></div>
+                    </div>`;
+                });
+                h+='</div>';
+            }
+        });
+    }
 
     // Personnel par type (accordions, collapsed by default)
     const typeOrder=['Directeur','Préfet des études','Enseignant','secretaire','Administrateur','Autre'];
