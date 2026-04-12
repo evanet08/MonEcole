@@ -904,7 +904,8 @@ async function startVisio(){
         const d = await r.json();
         if(!d.success){ showToast(d.error||'Erreur','error'); return; }
 
-        // Envoyer un message auto
+        // Envoyer un message auto avec le vrai lien de l'établissement
+        const visioLink = d.share_link || d.jitsi_url;
         fetch('/api/communication/send/', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
@@ -915,7 +916,7 @@ async function startVisio(){
                 target_classe_id: waActiveContact.target_classe_id || null,
                 target_personnel_id: waActiveContact.target_personnel_id || null,
                 target_group_id: waActiveContact.target_group_id || null,
-                message: `📹 Appel vidéo démarré — Rejoignez ici : ${d.jitsi_url}`
+                message: `📹 Appel vidéo démarré — Rejoignez ici : ${visioLink}`
             })
         }).catch(() => {});
 

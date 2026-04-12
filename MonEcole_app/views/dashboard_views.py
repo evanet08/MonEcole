@@ -2317,6 +2317,11 @@ def api_communication_visio(request):
     # Info du personnel courant
     _, sender_name = _get_sender_info(pers_id, etab_id)
 
+    # Construire le lien de partage avec le vrai sous-domaine
+    scheme = 'https' if request.is_secure() else 'http'
+    host = request.get_host()  # ex: collegealfajiri.monecole.pro
+    share_link = f"{scheme}://{host}/dashboard/communication/"
+
     return JsonResponse({
         'success': True,
         'room_name': room_name,
@@ -2324,6 +2329,7 @@ def api_communication_visio(request):
         'subject': f"Appel — {contact_name}",
         'jitsi_domain': 'meet.jit.si',
         'jitsi_url': f"https://meet.jit.si/{room_name}",
+        'share_link': share_link,
     })
 
 
@@ -2400,12 +2406,10 @@ def api_communication_meeting_create(request):
         traceback.print_exc()
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
-    # Construire le lien de partage
-    from django.conf import settings
-    base_url = getattr(settings, 'BASE_URL', '')
-    if not base_url:
-        base_url = 'https://monecole.pro'
-    share_url = f"{base_url}/dashboard/communication/?join={share_token}"
+    # Construire le lien de partage avec le vrai sous-domaine
+    scheme = 'https' if request.is_secure() else 'http'
+    host = request.get_host()  # ex: collegealfajiri.monecole.pro
+    share_url = f"{scheme}://{host}/dashboard/communication/?join={share_token}"
 
     return JsonResponse({
         'success': True,
