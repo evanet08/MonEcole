@@ -73,6 +73,11 @@ class Communication(models.Model):
     # Contenu
     subject = models.CharField(max_length=255, blank=True, default='')
     message = models.TextField()
+
+    # Pièces jointes (photos, documents)
+    attachment_url = models.CharField(max_length=500, null=True, blank=True)
+    attachment_name = models.CharField(max_length=255, null=True, blank=True)
+    attachment_type = models.CharField(max_length=50, null=True, blank=True)  # image, document, pdf, etc.
     
     # Fil de discussion (pour regrouper les messages dans une conversation)
     thread_id = models.CharField(max_length=100, blank=True, default='', db_index=True)

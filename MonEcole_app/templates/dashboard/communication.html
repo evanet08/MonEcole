@@ -316,7 +316,8 @@ async function openWaChat(contactId){
     </div>`;
     h+='<div class="wa-messages" id="waMessagesArea"><div style="text-align:center;color:#94a3b8;font-size:.65rem;margin:auto"><i class="fas fa-spinner fa-spin" style="display:block;margin-bottom:4px"></i>Chargement...</div></div>';
     h+=`<div id="waSubjectBar" style="display:none;padding:6px 14px;background:#f8fafc;border-top:1px solid #e2e8f0;z-index:1"><div style="display:flex;align-items:center;gap:6px"><i class="fas fa-tag" style="color:#128c7e;font-size:.65rem"></i><input type="text" id="waSubjectInput" placeholder="Sujet du message (optionnel)..." style="flex:1;padding:6px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:.68rem;outline:none"><button onclick="toggleSubjectBar()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:.8rem">×</button></div></div>`;
-    h+=`<div class="wa-input-bar"><button onclick="toggleSubjectBar()" style="width:36px;height:36px;border-radius:50%;border:none;background:#f1f5f9;color:#64748b;cursor:pointer;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s" title="Sujet"><i class="fas fa-tag"></i></button><input type="text" id="waInput" placeholder="Écrivez un message..." onkeydown="if(event.key==='Enter')sendWaMsg()"><button onclick="sendWaMsg()"><i class="fas fa-paper-plane"></i></button></div>`;
+    h+=`<div id="waAttachPreview" style="display:none;padding:6px 14px;background:#f0fdf4;border-top:1px solid #dcfce7;z-index:1"><div style="display:flex;align-items:center;gap:8px"><i class="fas fa-paperclip" style="color:#128c7e"></i><span id="waAttachName" style="flex:1;font-size:.68rem;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span><span id="waAttachSize" style="font-size:.58rem;color:#94a3b8"></span><button onclick="clearAttachment()" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.8rem" title="Retirer">×</button></div></div>`;
+    h+=`<div class="wa-input-bar"><input type="file" id="waFileInput" style="display:none" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.txt,.zip,.rar" onchange="onFileSelected(this)"><button onclick="toggleSubjectBar()" style="width:36px;height:36px;border-radius:50%;border:none;background:#f1f5f9;color:#64748b;cursor:pointer;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s" title="Sujet"><i class="fas fa-tag"></i></button><button onclick="document.getElementById('waFileInput').click()" style="width:36px;height:36px;border-radius:50%;border:none;background:#f1f5f9;color:#64748b;cursor:pointer;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s" title="Joindre un fichier"><i class="fas fa-paperclip"></i></button><input type="text" id="waInput" placeholder="Écrivez un message..." onkeydown="if(event.key==='Enter')sendWaMsg()"><button onclick="sendWaMsg()"><i class="fas fa-paper-plane"></i></button></div>`;
     p.innerHTML=h;
     try{
         const r=await fetch(`/api/communication/?thread_id=${encodeURIComponent(threadId)}`);
@@ -356,7 +357,20 @@ function renderWaMessages(msgs){
         h+=`<div class="wa-msg ${dir}">`;
         if(dir==='recv'&&m.sender_name)h+=`<div class="wa-msg-sender">${m.sender_name}</div>`;
         if(m.subject)h+=`<div style="font-size:.58rem;font-weight:700;color:#075e54;margin-bottom:2px">📌 ${m.subject}</div>`;
-        h+=`<div>${m.message}</div><div class="wa-msg-time">${m.time||''} ${statusIcon}</div></div>`;
+        // Pièce jointe
+        if(m.attachment){
+            const att=m.attachment;
+            if(att.type==='image'){
+                h+=`<div style="margin:4px 0"><a href="${att.url}" target="_blank"><img src="${att.url}" style="max-width:240px;max-height:200px;border-radius:8px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.1)" loading="lazy"></a></div>`;
+            } else {
+                const icon = att.type==='pdf'?'fa-file-pdf':att.type==='document'?'fa-file-word':'fa-file';
+                const col = att.type==='pdf'?'#ef4444':att.type==='document'?'#2563eb':'#64748b';
+                h+=`<a href="${att.url}" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(0,0,0,.04);border-radius:8px;margin:4px 0;text-decoration:none;transition:background .15s" onmouseover="this.style.background='rgba(0,0,0,.08)'" onmouseout="this.style.background='rgba(0,0,0,.04)'"><i class="fas ${icon}" style="font-size:1.2rem;color:${col}"></i><div style="flex:1;min-width:0"><div style="font-size:.68rem;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${att.name}</div><div style="font-size:.5rem;color:#94a3b8">Cliquez pour télécharger</div></div><i class="fas fa-download" style="color:#94a3b8;font-size:.65rem"></i></a>`;
+            }
+        }
+        if(m.message && m.message !== '📎 Pièce jointe') h+=`<div>${m.message}</div>`;
+        else if(!m.attachment) h+=`<div>${m.message}</div>`;
+        h+=`<div class="wa-msg-time">${m.time||''} ${statusIcon}</div></div>`;
     });
     area.innerHTML=h;
     area.scrollTop=area.scrollHeight;
@@ -365,45 +379,85 @@ function renderWaMessages(msgs){
 function showWaSidebar(){const sb=document.getElementById('waSidebar');if(sb)sb.classList.remove('hidden');}
 function toggleSubjectBar(){const bar=document.getElementById('waSubjectBar');if(bar)bar.style.display=bar.style.display==='none'?'':'none';}
 
+let pendingFile = null;
+function onFileSelected(input){
+    if(!input.files||!input.files[0])return;
+    const f=input.files[0];
+    if(f.size>10*1024*1024){showToast('Fichier trop volumineux (max 10MB)','error');input.value='';return;}
+    pendingFile=f;
+    const preview=document.getElementById('waAttachPreview');
+    const nameEl=document.getElementById('waAttachName');
+    const sizeEl=document.getElementById('waAttachSize');
+    if(preview)preview.style.display='';
+    if(nameEl)nameEl.textContent=f.name;
+    if(sizeEl){
+        const kb=Math.round(f.size/1024);
+        sizeEl.textContent=kb>1024?`${(kb/1024).toFixed(1)} MB`:`${kb} KB`;
+    }
+}
+function clearAttachment(){
+    pendingFile=null;
+    const preview=document.getElementById('waAttachPreview');
+    const input=document.getElementById('waFileInput');
+    if(preview)preview.style.display='none';
+    if(input)input.value='';
+}
+
 async function sendWaMsg(){
     if(!waActiveContact)return;
     const inp=document.getElementById('waInput');
-    const txt=inp.value.trim();if(!txt)return;inp.value='';
+    const txt=inp.value.trim();
+    if(!txt&&!pendingFile)return;
+    inp.value='';
     const threadId=getThreadId(waActiveContact);
     const subjectInp=document.getElementById('waSubjectInput');
     const subject=(subjectInp&&subjectInp.value.trim())||'';
     const area=document.getElementById('waMessagesArea');
+    const hasFile=!!pendingFile;
+    const fileName=pendingFile?pendingFile.name:'';
+
+    // Optimistic UI
     if(area){
         const empty=area.querySelector('div[style*="margin:auto"]');if(empty)empty.remove();
         const now=new Date();const time=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
         const el=document.createElement('div');el.className='wa-msg sent';
         let h='';
         if(subject)h+=`<div style="font-size:.58rem;font-weight:700;color:#075e54;margin-bottom:2px">📌 ${subject}</div>`;
-        h+=`<div>${txt}</div><div class="wa-msg-time">${time} <span class="msg-status"><i class="fas fa-clock"></i></span></div>`;
+        if(hasFile)h+=`<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:rgba(0,0,0,.04);border-radius:6px;margin:3px 0;font-size:.65rem"><i class="fas fa-paperclip" style="color:#128c7e"></i> ${fileName}</div>`;
+        if(txt)h+=`<div>${txt}</div>`;
+        h+=`<div class="wa-msg-time">${time} <span class="msg-status"><i class="fas fa-clock"></i></span></div>`;
         el.innerHTML=h;area.appendChild(el);area.scrollTop=area.scrollHeight;
     }
+
     try{
-        const body={
-            thread_id:threadId,
-            scope:waActiveContact.scope||'individual',
-            target_eleve_id:waActiveContact.target_eleve_id||null,
-            target_classe_id:waActiveContact.target_classe_id||null,
-            target_personnel_id:waActiveContact.target_personnel_id||null,
-            target_group_id:waActiveContact.target_group_id||null,
-            subject:subject,
-            message:txt
-        };
-        const r=await fetch('/api/communication/send/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify(body)});
+        let r;
+        if(hasFile){
+            // FormData pour upload fichier
+            const fd=new FormData();
+            fd.append('thread_id',threadId);
+            fd.append('scope',waActiveContact.scope||'individual');
+            fd.append('target_eleve_id',waActiveContact.target_eleve_id||'');
+            fd.append('target_classe_id',waActiveContact.target_classe_id||'');
+            fd.append('target_personnel_id',waActiveContact.target_personnel_id||'');
+            fd.append('target_group_id',waActiveContact.target_group_id||'');
+            fd.append('subject',subject);
+            fd.append('message',txt);
+            fd.append('attachment',pendingFile);
+            r=await fetch('/api/communication/send/',{method:'POST',headers:{'X-CSRFToken':getCsrfToken()},body:fd});
+        } else {
+            const body={thread_id:threadId,scope:waActiveContact.scope||'individual',target_eleve_id:waActiveContact.target_eleve_id||null,target_classe_id:waActiveContact.target_classe_id||null,target_personnel_id:waActiveContact.target_personnel_id||null,target_group_id:waActiveContact.target_group_id||null,subject:subject,message:txt};
+            r=await fetch('/api/communication/send/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify(body)});
+        }
+        clearAttachment();
         const d=await r.json();
         if(d.success){
             const lastMsg=area?.querySelector('.wa-msg.sent:last-child .msg-status');
             if(lastMsg)lastMsg.innerHTML='<i class="fas fa-check-double"></i>';
-            waThreadsCache[threadId]={thread_id:threadId,last_message:txt.substring(0,60),last_time:d.message?.time||'',unread:0};
+            waThreadsCache[threadId]={thread_id:threadId,last_message:(txt||'📎').substring(0,60),last_time:d.message?.time||'',unread:0};
             renderWaContacts();
             const em=d.email||{};
             if(em.sent>0) showToast(`✉️ ${em.sent} email${em.sent>1?'s':''} envoyé${em.sent>1?'s':''}`,'success');
-            else if(em.total_parents>0) showToast('Message enregistré','success');
-            else showToast('Message enregistré','success');
+            else showToast('Message envoyé','success');
         }else{showToast(d.error||'Erreur','error');}
     }catch(e){showToast('Erreur réseau','error');}
 }

@@ -1723,6 +1723,7 @@ def api_communication_messages(request):
     ).order_by('created_at').values(
         'id_communication', 'sender_name', 'sender_personnel_id', 'sender_eleve_id',
         'sender_parent_id', 'scope', 'direction', 'message', 'subject',
+        'attachment_url', 'attachment_name', 'attachment_type',
         'status', 'is_read', 'created_at'
     )
 
@@ -1731,7 +1732,7 @@ def api_communication_messages(request):
     for m in messages:
         # Direction relative : si c'est moi qui ai envoyé → 'out', sinon → 'in'
         relative_dir = 'out' if m['sender_personnel_id'] == current_pers else 'in'
-        msgs_list.append({
+        msg_data = {
             'id': m['id_communication'],
             'sender_name': m['sender_name'],
             'sender_personnel_id': m['sender_personnel_id'],
@@ -1744,7 +1745,14 @@ def api_communication_messages(request):
             'is_read': m['is_read'],
             'created_at': m['created_at'].strftime('%Y-%m-%d %H:%M:%S') if m['created_at'] else '',
             'time': m['created_at'].strftime('%H:%M') if m['created_at'] else '',
-        })
+        }
+        if m['attachment_url']:
+            msg_data['attachment'] = {
+                'url': m['attachment_url'],
+                'name': m['attachment_name'] or '',
+                'type': m['attachment_type'] or 'file',
+            }
+        msgs_list.append(msg_data)
 
     # Mark messages as read (ceux envoyés par d'autres)
     Communication.objects.filter(
@@ -1763,33 +1771,89 @@ def api_communication_messages(request):
 def api_communication_send(request):
     """
     POST /api/communication/send/
-    Envoie un message. Résout les parents via eleve.id_parent → parents table.
+    Envoie un message avec pièce jointe optionnelle.
+    Accepte JSON ou FormData (multipart) pour les fichiers.
     """
     from MonEcole_app.models.communication import Communication
+    import os
 
     pers_id, etab_id = _get_personnel_id(request)
     if not etab_id:
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
 
-    try:
-        data = json.loads(request.body)
-    except Exception:
-        return JsonResponse({'success': False, 'error': 'JSON invalide'}, status=400)
+    # Accepter JSON ou FormData
+    content_type = request.content_type or ''
+    if 'multipart' in content_type:
+        data = request.POST.dict()
+        uploaded_file = request.FILES.get('attachment')
+    else:
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            return JsonResponse({'success': False, 'error': 'JSON invalide'}, status=400)
+        uploaded_file = None
 
     message_text = (data.get('message') or '').strip()
-    if not message_text:
+    if not message_text and not uploaded_file:
         return JsonResponse({'success': False, 'error': 'Message vide'}, status=400)
+    if not message_text:
+        message_text = '📎 Pièce jointe'
 
     thread_id = data.get('thread_id', '')
     scope = data.get('scope', 'individual')
-    target_eleve_id = data.get('target_eleve_id')
-    target_classe_id = data.get('target_classe_id')
-    target_personnel_id = data.get('target_personnel_id')
-    target_group_id = data.get('target_group_id')
+    target_eleve_id = data.get('target_eleve_id') or None
+    target_classe_id = data.get('target_classe_id') or None
+    target_personnel_id = data.get('target_personnel_id') or None
+    target_group_id = data.get('target_group_id') or None
     subject = data.get('subject', '')
+
+    # Convertir les IDs string "null" en None
+    def _clean_id(val):
+        if val in ('null', 'None', '', '0', 0):
+            return None
+        try:
+            return int(val)
+        except (TypeError, ValueError):
+            return None
+    target_eleve_id = _clean_id(target_eleve_id)
+    target_classe_id = _clean_id(target_classe_id)
+    target_personnel_id = _clean_id(target_personnel_id)
+    target_group_id = _clean_id(target_group_id)
 
     sender_id, sender_name = _get_sender_info(pers_id, etab_id)
     annee_id = _get_annee_id(etab_id)
+
+    # Gérer l'upload du fichier
+    attachment_url = None
+    attachment_name = None
+    attachment_type = None
+    if uploaded_file:
+        # Limiter la taille (10MB max)
+        if uploaded_file.size > 10 * 1024 * 1024:
+            return JsonResponse({'success': False, 'error': 'Fichier trop volumineux (max 10MB)'}, status=400)
+
+        # Déterminer le type
+        ext = os.path.splitext(uploaded_file.name)[1].lower()
+        if ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'):
+            attachment_type = 'image'
+        elif ext in ('.pdf',):
+            attachment_type = 'pdf'
+        elif ext in ('.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.odt', '.ods'):
+            attachment_type = 'document'
+        else:
+            attachment_type = 'file'
+
+        # Sauvegarder dans media/communication/
+        import time
+        upload_dir = os.path.join('media', 'communication', str(etab_id))
+        os.makedirs(upload_dir, exist_ok=True)
+        safe_name = f"{int(time.time())}_{uploaded_file.name.replace(' ', '_')}"
+        file_path = os.path.join(upload_dir, safe_name)
+        with open(file_path, 'wb+') as dest:
+            for chunk in uploaded_file.chunks():
+                dest.write(chunk)
+        attachment_url = f'/{file_path}'
+        attachment_name = uploaded_file.name
 
     comm = Communication.objects.create(
         id_etablissement=etab_id,
@@ -1804,6 +1868,9 @@ def api_communication_send(request):
         target_group_id=target_group_id if target_group_id else None,
         subject=subject,
         message=message_text,
+        attachment_url=attachment_url,
+        attachment_name=attachment_name,
+        attachment_type=attachment_type,
         thread_id=thread_id,
         status='sent',
     )
@@ -1899,16 +1966,24 @@ def api_communication_send(request):
         traceback.print_exc()
         email_result['errors'].append(str(e))
 
+    msg_resp = {
+        'id': comm.id_communication,
+        'sender_name': comm.sender_name,
+        'direction': 'out',
+        'message': comm.message,
+        'time': comm.created_at.strftime('%H:%M') if comm.created_at else '',
+        'created_at': comm.created_at.strftime('%Y-%m-%d %H:%M:%S') if comm.created_at else '',
+    }
+    if comm.attachment_url:
+        msg_resp['attachment'] = {
+            'url': comm.attachment_url,
+            'name': comm.attachment_name or '',
+            'type': comm.attachment_type or 'file',
+        }
+
     return JsonResponse({
         'success': True,
-        'message': {
-            'id': comm.id_communication,
-            'sender_name': comm.sender_name,
-            'direction': 'out',
-            'message': comm.message,
-            'time': comm.created_at.strftime('%H:%M') if comm.created_at else '',
-            'created_at': comm.created_at.strftime('%Y-%m-%d %H:%M:%S') if comm.created_at else '',
-        },
+        'message': msg_resp,
         'email': {
             'sent': email_result.get('sent', 0),
             'failed': email_result.get('failed', 0),
