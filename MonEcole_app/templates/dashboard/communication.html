@@ -439,6 +439,7 @@ async function openWaChat(contactId){
         <div class="wa-contact-avatar" style="background:${waActiveContact.color};width:36px;height:36px;font-size:.65rem"><i class="fas fa-${waActiveContact.icon}"></i></div>
         <div style="flex:1"><div>${waActiveContact.name}</div><div style="font-size:.55rem;font-weight:400;opacity:.8">${typeDesc[waActiveContact.type]||'Contact'}</div></div>
         <button class="wa-visio-btn" onclick="startVisio()" title="Appel vidéo"><i class="fas fa-video"></i></button>
+        ${waActiveContact.type==='custom_group'?`<button class="wa-visio-btn" onclick="showManageGroupModal()" title="Gérer le groupe" style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:4px 10px;border-radius:8px;cursor:pointer;font-size:.65rem"><i class="fas fa-user-plus"></i></button>`:''}
         <div>${scopeTag(waActiveContact.scope)}</div>
     </div>`;
     h+='<div class="wa-messages" id="waMessagesArea"><div style="text-align:center;color:#94a3b8;font-size:.65rem;margin:auto"><i class="fas fa-spinner fa-spin" style="display:block;margin-bottom:4px"></i>Chargement...</div></div>';
@@ -682,6 +683,110 @@ async function submitCreateGroup(){
                 target_group_id:g.id_group,is_owner:true,members:[]
             });
             renderWaContacts();
+        }else{showToast(d.error||'Erreur','error');}
+    }catch(e){showToast('Erreur réseau','error');}
+}
+
+/* ═══ GÉRER LES MEMBRES D'UN GROUPE ═══ */
+function showManageGroupModal(){
+    if(!waActiveContact||waActiveContact.type!=='custom_group')return;
+    document.getElementById('manageGrpModal')?.remove();
+    const grp = waActiveContact;
+    const members = grp.members || [];
+    const isOwner = grp.is_owner;
+
+    let h=`<div class="wa-modal-overlay" id="manageGrpModal" onclick="if(event.target===this)this.remove()">
+    <div class="wa-modal">
+        <h3><i class="fas fa-users-cog"></i> ${grp.name} <button class="wa-modal-close" onclick="document.getElementById('manageGrpModal').remove()">×</button></h3>
+        <div style="display:grid;gap:12px">
+            <div>
+                <label>Membres actuels (${members.length})</label>
+                <div id="mgrCurrentMembers" style="max-height:180px;overflow-y:auto;margin-top:4px">
+                    ${members.map(m=>{
+                        const canRemove = isOwner && m.id_personnel !== PERSONNEL_INFO?.id_personnel;
+                        return `<div class="colleague-item" style="justify-content:space-between">
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <div class="ci-avatar" style="background:#7c3aed">${(m.nom||'?').charAt(0)}</div>
+                                <div><div style="font-weight:600">${m.nom}</div><div style="font-size:.55rem;color:#94a3b8">${m.email||''}</div></div>
+                            </div>
+                            ${canRemove?`<button onclick="removeGroupMember(${grp.group_id},${m.id_personnel})" style="background:#fff1f2;color:#ef4444;border:none;padding:3px 8px;border-radius:6px;cursor:pointer;font-size:.55rem;font-weight:600"><i class="fas fa-times"></i> Retirer</button>`:'<span style="font-size:.5rem;color:#94a3b8;font-style:italic">Vous</span>'}
+                        </div>`;
+                    }).join('')||'<div style="padding:8px;text-align:center;color:#94a3b8;font-size:.65rem">Aucun membre</div>'}
+                </div>
+            </div>
+            <div>
+                <label>Ajouter des membres</label>
+                <input type="text" id="mgrAddSearch" placeholder="Rechercher un collègue..." oninput="filterMgrAdd()">
+                <div id="mgrAddList" style="max-height:200px;overflow-y:auto;margin-top:4px"></div>
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
+            ${isOwner?`<button class="wa-modal-btn" style="background:#fff1f2;color:#ef4444;margin-right:auto" onclick="deleteGroup(${grp.group_id})"><i class="fas fa-trash"></i> Supprimer</button>`:''}
+            <button class="wa-modal-btn secondary" onclick="document.getElementById('manageGrpModal').remove()">Fermer</button>
+        </div>
+    </div></div>`;
+    document.body.insertAdjacentHTML('beforeend',h);
+    filterMgrAdd();
+}
+
+function filterMgrAdd(){
+    const f=(document.getElementById('mgrAddSearch')?.value||'').toLowerCase();
+    const list=document.getElementById('mgrAddList');if(!list)return;
+    const grp=waActiveContact;
+    const memberIds=new Set((grp.members||[]).map(m=>m.id_personnel));
+    const available=allColleagues.filter(c=>!memberIds.has(c.id_personnel)&&(!f||`${c.nom} ${c.prenom}`.toLowerCase().includes(f)));
+    list.innerHTML=available.slice(0,30).map(c=>{
+        const nm=`${c.nom} ${c.prenom}`.trim();
+        const col=c.genre==='F'?'#ec4899':'#7c3aed';
+        return `<div class="colleague-item" onclick="addGroupMember(${grp.group_id},${c.id_personnel},'${nm.replace(/'/g,"\\\\'")}','${c.email||''}')">
+            <div class="ci-avatar" style="background:${col}">${nm.charAt(0)}</div>
+            <div style="flex:1"><div style="font-weight:600">${nm}</div><div style="font-size:.55rem;color:#94a3b8">${c.email||''}</div></div>
+            <i class="fas fa-plus-circle" style="color:#128c7e;font-size:.8rem"></i>
+        </div>`;
+    }).join('')||'<div style="padding:8px;text-align:center;color:#94a3b8;font-size:.65rem">Aucun collègue disponible</div>';
+}
+
+async function addGroupMember(groupId, personnelId, name, email){
+    try{
+        const r=await fetch('/api/communication/groups/update/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({id_group:groupId,action:'add_members',members:[personnelId]})});
+        const d=await r.json();
+        if(d.success){
+            // Mettre à jour localement
+            if(!waActiveContact.members)waActiveContact.members=[];
+            waActiveContact.members.push({id_personnel:personnelId,nom:name,email:email});
+            showToast(`${name} ajouté au groupe`,'success');
+            document.getElementById('manageGrpModal')?.remove();
+            showManageGroupModal(); // Rafraîchir la modal
+        }else{showToast(d.error||'Erreur','error');}
+    }catch(e){showToast('Erreur réseau','error');}
+}
+
+async function removeGroupMember(groupId, personnelId){
+    if(!confirm('Retirer ce membre du groupe ?'))return;
+    try{
+        const r=await fetch('/api/communication/groups/update/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({id_group:groupId,action:'remove_member',member_id:personnelId})});
+        const d=await r.json();
+        if(d.success){
+            waActiveContact.members=(waActiveContact.members||[]).filter(m=>m.id_personnel!==personnelId);
+            showToast('Membre retiré','success');
+            document.getElementById('manageGrpModal')?.remove();
+            showManageGroupModal();
+        }else{showToast(d.error||'Erreur','error');}
+    }catch(e){showToast('Erreur réseau','error');}
+}
+
+async function deleteGroup(groupId){
+    if(!confirm('Supprimer définitivement ce groupe ? Cette action est irréversible.'))return;
+    try{
+        const r=await fetch('/api/communication/groups/update/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({id_group:groupId,action:'delete'})});
+        const d=await r.json();
+        if(d.success){
+            showToast('Groupe supprimé','success');
+            document.getElementById('manageGrpModal')?.remove();
+            waContacts=waContacts.filter(c=>c.id!=='cgrp_'+groupId);
+            waActiveContact=null;
+            renderWaContacts();
+            document.getElementById('waChatPanel').innerHTML='<div class="wa-chat-bg"></div><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;z-index:1"><div style="color:#94a3b8;font-size:.75rem">Groupe supprimé</div></div>';
         }else{showToast(d.error||'Erreur','error');}
     }catch(e){showToast('Erreur réseau','error');}
 }
