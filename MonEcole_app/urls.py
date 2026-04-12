@@ -12,6 +12,8 @@ from MonEcole_app.views.dashboard_views import (
     api_communication_teachers,
     api_communication_group_create, api_communication_group_update,
     api_communication_heartbeat, api_communication_visio,
+    api_communication_meeting_create, api_communication_meetings_list,
+    api_communication_meeting_join, api_communication_meeting_cancel,
 )
 from MonEcole_app.views import api_views
 from MonEcole_app.views.pdf import generer_bulletin_pdf
@@ -57,6 +59,10 @@ urlpatterns = [
     path('api/communication/groups/update/', api_communication_group_update, name='api_communication_group_update'),
     path('api/communication/heartbeat/', api_communication_heartbeat, name='api_communication_heartbeat'),
     path('api/communication/visio/', api_communication_visio, name='api_communication_visio'),
+    path('api/communication/meetings/create/', api_communication_meeting_create, name='api_communication_meeting_create'),
+    path('api/communication/meetings/', api_communication_meetings_list, name='api_communication_meetings_list'),
+    path('api/communication/meetings/join/', api_communication_meeting_join, name='api_communication_meeting_join'),
+    path('api/communication/meetings/cancel/', api_communication_meeting_cancel, name='api_communication_meeting_cancel'),
     # Legacy routes (backward compatibility)
     path('api/enseignant/communication/', api_communication_messages),
     path('api/enseignant/communication/send/', api_communication_send),

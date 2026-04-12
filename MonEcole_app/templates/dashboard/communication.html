@@ -96,6 +96,18 @@
 .wa-visio-head button{background:rgba(255,255,255,.15);border:none;color:#fff;padding:6px 16px;border-radius:8px;cursor:pointer;font-size:.7rem;font-weight:600;margin-left:auto;transition:all .2s}
 .wa-visio-head button:hover{background:#ef4444}
 .wa-visio-frame{flex:1;border:none;width:100%;height:100%;background:#1a1a2e}
+/* ═══ Meetings ═══ */
+.wa-meeting-card{padding:10px 14px;border-bottom:1px solid #f1f5f9;cursor:pointer;transition:background .15s}
+.wa-meeting-card:hover{background:#f0fdf4}
+.wa-meeting-title{font-size:.72rem;font-weight:700;color:#0f172a}
+.wa-meeting-meta{font-size:.58rem;color:#64748b;display:flex;align-items:center;gap:6px;margin-top:2px}
+.wa-meeting-status{display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:4px;font-size:.48rem;font-weight:700;text-transform:uppercase}
+.wa-meeting-status.scheduled{background:#dbeafe;color:#1d4ed8}.wa-meeting-status.live{background:#dcfce7;color:#16a34a;animation:pulse-online 1.5s infinite}.wa-meeting-status.ended{background:#f1f5f9;color:#64748b}.wa-meeting-status.cancelled{background:#fecaca;color:#dc2626}
+.wa-meeting-actions{display:flex;gap:4px;margin-top:6px}
+.wa-meeting-actions button{padding:3px 8px;border:none;border-radius:5px;font-size:.55rem;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:3px}
+.wa-meeting-actions .join-btn{background:#128c7e;color:#fff}.wa-meeting-actions .join-btn:hover{background:#0e7a6e}
+.wa-meeting-actions .copy-btn{background:#f1f5f9;color:#64748b}.wa-meeting-actions .copy-btn:hover{background:#e2e8f0}
+.wa-meeting-actions .cancel-btn{background:#fff1f2;color:#ef4444}.wa-meeting-actions .cancel-btn:hover{background:#fecaca}
 /* ═══ Responsive ═══ */
 @media(max-width:768px){
     .wa-wrap{height:calc(100vh - 48px)}
@@ -117,6 +129,8 @@
         <div class="wa-sb-head">
             <i class="fas fa-comments"></i> Messages <span class="wa-online-count" id="waOnlineCount"></span>
             <div class="wa-sb-actions">
+                <button onclick="showScheduleMeetingModal()" title="Planifier une réunion"><i class="fas fa-calendar-plus"></i></button>
+                <button onclick="toggleMeetingsList()" title="Mes réunions"><i class="fas fa-video"></i></button>
                 <button onclick="showCreateGroupModal()" title="Nouveau groupe"><i class="fas fa-users-cog"></i></button>
             </div>
         </div>
@@ -618,7 +632,65 @@ function startHeartbeat(){
 }
 startHeartbeat();
 
-/* ═══ VISIOCONFERENCE — Jitsi Meet ═══ */
+/* ═══ VISIOCONFERENCE — Jitsi Meet IFrame API (sans pubs) ═══ */
+function launchJitsi(roomName, displayName, subject){
+    document.getElementById('visioOverlay')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'visioOverlay';
+    overlay.className = 'wa-visio-overlay';
+    overlay.innerHTML = `
+        <div class="wa-visio-head">
+            <i class="fas fa-video" style="font-size:1rem"></i>
+            <span>${subject || 'Réunion'}</span>
+            <button onclick="closeVisio()"><i class="fas fa-phone-slash"></i> Raccrocher</button>
+        </div>
+        <div id="jitsiContainer" style="flex:1;width:100%"></div>
+    `;
+    document.body.appendChild(overlay);
+
+    // Charger Jitsi IFrame API
+    if(window.JitsiMeetExternalAPI){
+        _initJitsi(roomName, displayName, subject);
+    } else {
+        const s = document.createElement('script');
+        s.src = 'https://meet.jit.si/external_api.js';
+        s.onload = () => _initJitsi(roomName, displayName, subject);
+        document.head.appendChild(s);
+    }
+}
+
+function _initJitsi(roomName, displayName, subject){
+    window._jitsiApi = new JitsiMeetExternalAPI('meet.jit.si', {
+        roomName: roomName,
+        parentNode: document.getElementById('jitsiContainer'),
+        width: '100%',
+        height: '100%',
+        userInfo: { displayName: displayName },
+        configOverwrite: {
+            prejoinPageEnabled: false,
+            disableThirdPartyRequests: true,
+            disableDeepLinking: true,
+            hideConferenceSubject: false,
+            subject: subject || 'Réunion MonEcole',
+            startWithAudioMuted: false,
+            startWithVideoMuted: false,
+            enableClosePage: false,
+            disableInviteFunctions: true,
+        },
+        interfaceConfigOverwrite: {
+            SHOW_JITSI_WATERMARK: false,
+            SHOW_WATERMARK_FOR_GUESTS: false,
+            SHOW_BRAND_WATERMARK: false,
+            SHOW_PROMOTIONAL_CLOSE_PAGE: false,
+            DISABLE_JOIN_LEAVE_NOTIFICATIONS: false,
+            HIDE_INVITE_MORE_HEADER: true,
+            MOBILE_APP_PROMO: false,
+            SHOW_CHROME_EXTENSION_BANNER: false,
+        }
+    });
+    window._jitsiApi.addListener('readyToClose', closeVisio);
+}
+
 async function startVisio(){
     if(!waActiveContact){ showToast('Sélectionnez un contact d\'abord','error'); return; }
     const threadId = getThreadId(waActiveContact);
@@ -627,50 +699,244 @@ async function startVisio(){
         const d = await r.json();
         if(!d.success){ showToast(d.error||'Erreur','error'); return; }
 
-        // Envoyer un message auto dans la conversation
-        const body = {
-            thread_id: threadId,
-            scope: waActiveContact.scope || 'individual',
-            target_eleve_id: waActiveContact.target_eleve_id || null,
-            target_classe_id: waActiveContact.target_classe_id || null,
-            target_personnel_id: waActiveContact.target_personnel_id || null,
-            target_group_id: waActiveContact.target_group_id || null,
-            subject: '',
-            message: `📹 Appel vidéo démarré — Rejoignez ici : ${d.jitsi_url}`
-        };
+        // Envoyer un message auto
         fetch('/api/communication/send/', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
-            body: JSON.stringify(body)
+            body: JSON.stringify({
+                thread_id: threadId,
+                scope: waActiveContact.scope || 'individual',
+                target_eleve_id: waActiveContact.target_eleve_id || null,
+                target_classe_id: waActiveContact.target_classe_id || null,
+                target_personnel_id: waActiveContact.target_personnel_id || null,
+                target_group_id: waActiveContact.target_group_id || null,
+                message: `📹 Appel vidéo démarré — Rejoignez ici : ${d.jitsi_url}`
+            })
         }).catch(() => {});
 
-        // Ouvrir la modal visio
-        document.getElementById('visioOverlay')?.remove();
-        const overlay = document.createElement('div');
-        overlay.id = 'visioOverlay';
-        overlay.className = 'wa-visio-overlay';
-        overlay.innerHTML = `
-            <div class="wa-visio-head">
-                <i class="fas fa-video" style="font-size:1rem"></i>
-                <span>${d.subject}</span>
-                <button onclick="closeVisio()"><i class="fas fa-phone-slash"></i> Raccrocher</button>
-            </div>
-            <iframe class="wa-visio-frame" src="https://${d.jitsi_domain}/${d.room_name}#userInfo.displayName=%22${encodeURIComponent(d.display_name)}%22&config.prejoinPageEnabled=false" allow="camera;microphone;fullscreen;display-capture;autoplay" allowfullscreen></iframe>
-        `;
-        document.body.appendChild(overlay);
-    } catch(e) {
-        showToast('Erreur de connexion','error');
-    }
+        launchJitsi(d.room_name, d.display_name, d.subject);
+    } catch(e) { showToast('Erreur de connexion','error'); }
 }
 
 function closeVisio(){
-    const overlay = document.getElementById('visioOverlay');
-    if(overlay) overlay.remove();
+    if(window._jitsiApi){ try{ window._jitsiApi.dispose(); }catch(e){} window._jitsiApi=null; }
+    document.getElementById('visioOverlay')?.remove();
 }
 
-// Raccourci clavier Escape pour fermer la visio
 document.addEventListener('keydown', e => {
     if(e.key === 'Escape' && document.getElementById('visioOverlay')) closeVisio();
 });
+
+/* ═══ SCHEDULED MEETINGS ═══ */
+let meetingsCache = [];
+
+function showScheduleMeetingModal(){
+    document.getElementById('meetingModal')?.remove();
+    const now = new Date();
+    const defDate = now.toISOString().slice(0,16);
+    let h = `<div class="wa-modal-overlay" id="meetingModal" onclick="if(event.target===this)this.remove()">
+    <div class="wa-modal">
+        <h3><i class="fas fa-calendar-plus"></i> Planifier une réunion <button class="wa-modal-close" onclick="document.getElementById('meetingModal').remove()">×</button></h3>
+        <div style="display:grid;gap:12px">
+            <div><label>Titre de la réunion *</label><input type="text" id="mtgTitle" placeholder="Ex: Réunion pédagogique"></div>
+            <div><label>Description</label><input type="text" id="mtgDesc" placeholder="Description optionnelle..."></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div><label>Date et heure *</label><input type="datetime-local" id="mtgDate" value="${defDate}" style="font-size:.72rem"></div>
+                <div><label>Durée</label><select id="mtgDuration" style="width:100%;padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;outline:none">
+                    <option value="30">30 min</option><option value="60" selected>1 heure</option><option value="90">1h30</option><option value="120">2 heures</option><option value="180">3 heures</option>
+                </select></div>
+            </div>
+            <div><label>Inviter des collègues</label>
+                <input type="text" id="mtgInvSearch" placeholder="Rechercher..." oninput="filterMtgInvitees()">
+                <div id="mtgSelectedInvitees" style="margin:6px 0;display:flex;flex-wrap:wrap;gap:2px"></div>
+                <div id="mtgInviteesList" style="max-height:160px;overflow-y:auto;margin-top:4px"></div>
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
+            <button class="wa-modal-btn secondary" onclick="document.getElementById('meetingModal').remove()">Annuler</button>
+            <button class="wa-modal-btn primary" onclick="submitScheduleMeeting()"><i class="fas fa-calendar-check"></i> Planifier</button>
+        </div>
+    </div></div>`;
+    document.body.insertAdjacentHTML('beforeend', h);
+    window._mtgSelectedInvitees = [];
+    filterMtgInvitees();
+}
+
+function filterMtgInvitees(){
+    const f = (document.getElementById('mtgInvSearch')?.value || '').toLowerCase();
+    const list = document.getElementById('mtgInviteesList'); if(!list) return;
+    const sel = window._mtgSelectedInvitees || [];
+    const filtered = allColleagues.filter(c => !f || `${c.nom} ${c.prenom}`.toLowerCase().includes(f));
+    list.innerHTML = filtered.map(c => {
+        const nm = `${c.nom} ${c.prenom}`.trim();
+        const isSel = sel.includes(c.id_personnel);
+        const col = c.genre === 'F' ? '#ec4899' : '#7c3aed';
+        return `<div class="colleague-item ${isSel?'selected':''}" onclick="toggleMtgInvitee(${c.id_personnel},'${nm.replace(/'/g,"\\'")}')"><div class="ci-avatar" style="background:${col}">${nm.charAt(0)}</div><div style="flex:1"><div style="font-weight:600">${nm}</div></div><i class="fas ${isSel?'fa-check-circle':'fa-circle'}" style="color:${isSel?'#128c7e':'#e2e8f0'};font-size:.8rem"></i></div>`;
+    }).join('') || '<div style="padding:8px;text-align:center;color:#94a3b8;font-size:.65rem">Aucun collègue</div>';
+}
+
+function toggleMtgInvitee(id, name){
+    const sel = window._mtgSelectedInvitees;
+    const i = sel.indexOf(id);
+    if(i >= 0) sel.splice(i, 1); else sel.push(id);
+    filterMtgInvitees();
+    const c = document.getElementById('mtgSelectedInvitees');
+    if(c) c.innerHTML = sel.map(id => {
+        const col = allColleagues.find(c => c.id_personnel === id);
+        const nm = col ? `${col.nom} ${col.prenom}`.trim() : `#${id}`;
+        return `<span class="member-chip">${nm} <span class="remove" onclick="event.stopPropagation();toggleMtgInvitee(${id},'')">×</span></span>`;
+    }).join('');
+}
+
+async function submitScheduleMeeting(){
+    const title = (document.getElementById('mtgTitle')?.value || '').trim();
+    if(!title){ showToast('Donnez un titre','error'); return; }
+    const description = (document.getElementById('mtgDesc')?.value || '').trim();
+    const scheduled_at = document.getElementById('mtgDate')?.value || '';
+    if(!scheduled_at){ showToast('Choisissez une date','error'); return; }
+    const duration_minutes = parseInt(document.getElementById('mtgDuration')?.value || '60');
+    const invitees = window._mtgSelectedInvitees || [];
+
+    try{
+        const r = await fetch('/api/communication/meetings/create/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+            body: JSON.stringify({title, description, scheduled_at, duration_minutes, invitees})
+        });
+        const d = await r.json();
+        if(d.success){
+            document.getElementById('meetingModal')?.remove();
+            showToast(`Réunion "${title}" planifiée !`, 'success');
+            // Afficher le lien de partage
+            showShareLinkModal(d.meeting);
+        } else { showToast(d.error || 'Erreur', 'error'); }
+    } catch(e){ showToast('Erreur réseau', 'error'); }
+}
+
+function showShareLinkModal(meeting){
+    document.getElementById('shareLinkModal')?.remove();
+    const h = `<div class="wa-modal-overlay" id="shareLinkModal" onclick="if(event.target===this)this.remove()">
+    <div class="wa-modal">
+        <h3><i class="fas fa-link" style="color:#128c7e"></i> Réunion planifiée ! <button class="wa-modal-close" onclick="document.getElementById('shareLinkModal').remove()">×</button></h3>
+        <div style="padding:16px;background:#f0fdf4;border-radius:12px;margin-bottom:12px">
+            <div style="font-size:.85rem;font-weight:700;color:#0f172a">${meeting.title}</div>
+            <div style="font-size:.68rem;color:#64748b;margin-top:4px"><i class="fas fa-clock"></i> ${meeting.scheduled_at?.replace('T',' à ')} — ${meeting.duration_minutes} min</div>
+            <div style="font-size:.68rem;color:#64748b;margin-top:2px"><i class="fas fa-user"></i> Organisé par ${meeting.created_by_name||'Moi'}</div>
+        </div>
+        <div><label>Lien de partage (copiez et partagez)</label>
+            <div style="display:flex;gap:6px;margin-top:4px">
+                <input type="text" id="shareLinkInput" value="${meeting.share_url}" readonly style="flex:1;font-size:.68rem;background:#f8fafc">
+                <button class="wa-modal-btn primary" onclick="copyShareLink()" style="white-space:nowrap"><i class="fas fa-copy"></i> Copier</button>
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
+            <button class="wa-modal-btn secondary" onclick="document.getElementById('shareLinkModal').remove()">Fermer</button>
+            <button class="wa-modal-btn primary" onclick="document.getElementById('shareLinkModal').remove();joinMeetingByRoom('${meeting.room_name}','${(meeting.title||'').replace(/'/g,"\\'")}')"><i class="fas fa-video"></i> Rejoindre maintenant</button>
+        </div>
+    </div></div>`;
+    document.body.insertAdjacentHTML('beforeend', h);
+}
+
+function copyShareLink(){
+    const inp = document.getElementById('shareLinkInput');
+    if(inp){ inp.select(); document.execCommand('copy'); showToast('Lien copié !','success'); }
+}
+
+async function toggleMeetingsList(){
+    const contacts = document.getElementById('waContactsList');
+    // Toggle : si déjà affiché, revenir aux contacts
+    if(contacts?.dataset.mode === 'meetings'){
+        contacts.dataset.mode = 'contacts';
+        renderWaContacts();
+        return;
+    }
+    contacts.dataset.mode = 'meetings';
+    contacts.innerHTML = '<div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement des réunions...</div>';
+    try{
+        const r = await fetch('/api/communication/meetings/');
+        const d = await r.json();
+        if(d.success){
+            meetingsCache = d.meetings || [];
+            renderMeetingsList();
+        } else { contacts.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8">Erreur</div>'; }
+    } catch(e){ contacts.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8">Erreur réseau</div>'; }
+}
+
+function renderMeetingsList(){
+    const c = document.getElementById('waContactsList'); if(!c) return;
+    if(!meetingsCache.length){
+        c.innerHTML = '<div style="padding:24px;text-align:center;color:#94a3b8"><i class="fas fa-calendar-times" style="font-size:2rem;display:block;margin-bottom:8px;opacity:.2"></i><div style="font-size:.72rem;font-weight:600">Aucune réunion</div><div style="font-size:.6rem;margin-top:4px">Cliquez sur <i class="fas fa-calendar-plus"></i> pour planifier</div></div>';
+        return;
+    }
+    const upcoming = meetingsCache.filter(m => m.status === 'scheduled' || m.status === 'live');
+    const past = meetingsCache.filter(m => m.status === 'ended' || m.status === 'cancelled');
+    let h = '<div class="wa-section-label groups" style="justify-content:space-between"><span><i class="fas fa-video"></i> Mes Réunions</span><span style="font-size:.5rem;cursor:pointer;opacity:.6" onclick="toggleMeetingsList()">← Retour</span></div>';
+    if(upcoming.length){
+        h += '<div class="wa-section-label" style="color:#16a34a;background:#f0fdf4;font-size:.52rem"><i class="fas fa-calendar-check"></i> À venir / En cours</div>';
+        upcoming.forEach(m => h += renderMeetingCard(m));
+    }
+    if(past.length){
+        h += '<div class="wa-section-label" style="color:#94a3b8;background:#f8fafc;font-size:.52rem"><i class="fas fa-history"></i> Terminées</div>';
+        past.forEach(m => h += renderMeetingCard(m));
+    }
+    c.innerHTML = h;
+}
+
+function renderMeetingCard(m){
+    const statusLabels = {scheduled:'📅 Planifiée', live:'🟢 En cours', ended:'Terminée', cancelled:'Annulée'};
+    const statusCls = m.status;
+    let actions = '';
+    if(m.status === 'scheduled' || m.status === 'live'){
+        actions += `<button class="join-btn" onclick="joinMeetingByRoom('${m.room_name}','${m.title.replace(/'/g,"\\'")}')"><i class="fas fa-video"></i> Rejoindre</button>`;
+        actions += `<button class="copy-btn" onclick="navigator.clipboard.writeText('${m.share_url}');showToast('Lien copié!','success')"><i class="fas fa-link"></i> Copier lien</button>`;
+        if(m.is_owner) actions += `<button class="cancel-btn" onclick="cancelMeeting(${m.id_meeting})"><i class="fas fa-times"></i></button>`;
+    }
+    return `<div class="wa-meeting-card">
+        <div class="wa-meeting-title">${m.title}</div>
+        <div class="wa-meeting-meta"><span class="wa-meeting-status ${statusCls}">${statusLabels[m.status]||m.status}</span><i class="fas fa-clock"></i> ${m.scheduled_display} &middot; ${m.duration_minutes}min &middot; <i class="fas fa-users"></i> ${m.n_invitees}</div>
+        <div style="font-size:.55rem;color:#94a3b8;margin-top:2px">Organisé par ${m.creator_name}</div>
+        ${actions?`<div class="wa-meeting-actions">${actions}</div>`:''}
+    </div>`;
+}
+
+function joinMeetingByRoom(roomName, title){
+    const name = PERSONNEL_INFO?.nom_complet || 'Participant';
+    launchJitsi(roomName, name, title);
+}
+
+async function cancelMeeting(id){
+    if(!confirm('Annuler cette réunion ?')) return;
+    try{
+        const r = await fetch('/api/communication/meetings/cancel/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+            body: JSON.stringify({id_meeting: id})
+        });
+        const d = await r.json();
+        if(d.success){ showToast('Réunion annulée','success'); toggleMeetingsList(); }
+        else showToast(d.error||'Erreur','error');
+    } catch(e){ showToast('Erreur','error'); }
+}
+
+// Auto-join si ?join=token dans l'URL
+(function checkAutoJoin(){
+    const params = new URLSearchParams(window.location.search);
+    const joinToken = params.get('join');
+    if(!joinToken) return;
+    // Nettoyer l'URL
+    window.history.replaceState({}, '', window.location.pathname);
+    (async function(){
+        try{
+            const r = await fetch(`/api/communication/meetings/join/?token=${encodeURIComponent(joinToken)}`);
+            const d = await r.json();
+            if(d.success){
+                showToast(`Rejoindre : ${d.meeting.title}`, 'success');
+                setTimeout(() => {
+                    launchJitsi(d.meeting.room_name, d.display_name, d.meeting.title);
+                }, 500);
+            } else { showToast(d.error || 'Réunion non trouvée', 'error'); }
+        } catch(e){ showToast('Erreur de connexion', 'error'); }
+    })();
+})();
 </script>
 {% endblock %}

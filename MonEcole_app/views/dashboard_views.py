@@ -2300,3 +2300,238 @@ def api_communication_visio(request):
         'jitsi_domain': 'meet.jit.si',
         'jitsi_url': f"https://meet.jit.si/{room_name}",
     })
+
+
+# ── Scheduled Meetings API ──
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required(login_url='login')
+def api_communication_meeting_create(request):
+    """POST /api/communication/meetings/create/ — Planifier une réunion."""
+    import hashlib, secrets
+
+    pers_id, etab_id = _get_personnel_id(request)
+    if not etab_id or not pers_id:
+        return JsonResponse({'success': False, 'error': 'Non autorisé'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({'success': False, 'error': 'JSON invalide'}, status=400)
+
+    title = (data.get('title') or '').strip()
+    if not title:
+        return JsonResponse({'success': False, 'error': 'Titre requis'}, status=400)
+
+    description = (data.get('description') or '').strip()
+    scheduled_at = data.get('scheduled_at', '')
+    duration = int(data.get('duration_minutes', 60) or 60)
+    invitee_ids = data.get('invitees', [])
+
+    if not scheduled_at:
+        return JsonResponse({'success': False, 'error': 'Date et heure requises'}, status=400)
+
+    # Générer un nom de salle unique + token de partage
+    share_token = secrets.token_urlsafe(16)[:24]
+    raw = f"monecole_meeting_{etab_id}_{share_token}"
+    room_hash = hashlib.sha256(raw.encode()).hexdigest()[:16]
+    room_name = f"MonEcole_Meet_{room_hash}"
+
+    _, sender_name = _get_sender_info(pers_id, etab_id)
+
+    try:
+        with connections['default'].cursor() as cur:
+            cur.execute("""
+                INSERT INTO communication_meeting
+                    (id_etablissement, title, description, room_name, created_by,
+                     scheduled_at, duration_minutes, status, share_token)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'scheduled', %s)
+            """, [etab_id, title, description, room_name, pers_id,
+                  scheduled_at, duration, share_token])
+            meeting_id = cur.lastrowid
+
+            # Ajouter le créateur comme invité (accepté)
+            cur.execute("""
+                INSERT INTO communication_meeting_invitee (id_meeting, id_personnel, rsvp)
+                VALUES (%s, %s, 'accepted')
+            """, [meeting_id, pers_id])
+
+            # Ajouter les invités
+            for inv_id in invitee_ids:
+                try:
+                    inv_id = int(inv_id)
+                    if inv_id != pers_id:
+                        cur.execute("""
+                            INSERT IGNORE INTO communication_meeting_invitee
+                                (id_meeting, id_personnel, rsvp)
+                            VALUES (%s, %s, 'pending')
+                        """, [meeting_id, inv_id])
+                except (ValueError, Exception):
+                    pass
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+    # Construire le lien de partage
+    from django.conf import settings
+    base_url = getattr(settings, 'BASE_URL', '')
+    if not base_url:
+        base_url = 'https://monecole.pro'
+    share_url = f"{base_url}/dashboard/communication/?join={share_token}"
+
+    return JsonResponse({
+        'success': True,
+        'meeting': {
+            'id_meeting': meeting_id,
+            'title': title,
+            'room_name': room_name,
+            'scheduled_at': scheduled_at,
+            'duration_minutes': duration,
+            'share_token': share_token,
+            'share_url': share_url,
+            'jitsi_url': f"https://meet.jit.si/{room_name}",
+            'created_by_name': sender_name,
+        }
+    })
+
+
+@require_http_methods(["GET"])
+@login_required(login_url='login')
+def api_communication_meetings_list(request):
+    """GET /api/communication/meetings/ — Mes réunions (planifiées + passées)."""
+    pers_id, etab_id = _get_personnel_id(request)
+    if not etab_id:
+        return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
+
+    current_pers = int(pers_id) if pers_id else 0
+    meetings = []
+
+    try:
+        with connections['default'].cursor() as cur:
+            cur.execute("""
+                SELECT m.id_meeting, m.title, m.description, m.room_name,
+                       m.created_by, m.scheduled_at, m.duration_minutes,
+                       m.status, m.share_token,
+                       CONCAT(COALESCE(p.nom,''), ' ', COALESCE(p.prenom,'')) as creator_name,
+                       (SELECT COUNT(*) FROM communication_meeting_invitee WHERE id_meeting = m.id_meeting) as n_invitees,
+                       (SELECT rsvp FROM communication_meeting_invitee WHERE id_meeting = m.id_meeting AND id_personnel = %s) as my_rsvp
+                FROM communication_meeting m
+                JOIN personnel p ON p.id_personnel = m.created_by
+                WHERE m.id_etablissement = %s
+                  AND (m.created_by = %s
+                       OR EXISTS (SELECT 1 FROM communication_meeting_invitee mi
+                                  WHERE mi.id_meeting = m.id_meeting AND mi.id_personnel = %s))
+                ORDER BY m.scheduled_at DESC
+                LIMIT 50
+            """, [current_pers, etab_id, current_pers, current_pers])
+
+            for row in cur.fetchall():
+                from django.conf import settings as django_settings
+                base_url = getattr(django_settings, 'BASE_URL', 'https://monecole.pro')
+                meetings.append({
+                    'id_meeting': row[0],
+                    'title': row[1],
+                    'description': row[2] or '',
+                    'room_name': row[3],
+                    'created_by': row[4],
+                    'scheduled_at': row[5].strftime('%Y-%m-%dT%H:%M') if row[5] else '',
+                    'scheduled_display': row[5].strftime('%d/%m/%Y à %H:%M') if row[5] else '',
+                    'duration_minutes': row[6],
+                    'status': row[7],
+                    'share_token': row[8],
+                    'creator_name': (row[9] or '').strip(),
+                    'n_invitees': row[10],
+                    'my_rsvp': row[11] or 'pending',
+                    'is_owner': row[4] == current_pers,
+                    'share_url': f"{base_url}/dashboard/communication/?join={row[8]}",
+                    'jitsi_url': f"https://meet.jit.si/{row[3]}",
+                })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+    return JsonResponse({'success': True, 'meetings': meetings})
+
+
+@require_http_methods(["GET"])
+@login_required(login_url='login')
+def api_communication_meeting_join(request):
+    """GET /api/communication/meetings/join/?token=... — Rejoindre via token."""
+    import hashlib
+
+    pers_id, etab_id = _get_personnel_id(request)
+    token = request.GET.get('token', '')
+    if not token:
+        return JsonResponse({'success': False, 'error': 'Token requis'}, status=400)
+
+    try:
+        with connections['default'].cursor() as cur:
+            cur.execute("""
+                SELECT m.id_meeting, m.title, m.room_name, m.scheduled_at,
+                       m.duration_minutes, m.status,
+                       CONCAT(COALESCE(p.nom,''), ' ', COALESCE(p.prenom,'')) as creator_name
+                FROM communication_meeting m
+                JOIN personnel p ON p.id_personnel = m.created_by
+                WHERE m.share_token = %s
+                LIMIT 1
+            """, [token])
+            row = cur.fetchone()
+            if not row:
+                return JsonResponse({'success': False, 'error': 'Réunion non trouvée'}, status=404)
+
+            _, display_name = _get_sender_info(pers_id, etab_id) if pers_id else (None, 'Participant')
+
+            return JsonResponse({
+                'success': True,
+                'meeting': {
+                    'id_meeting': row[0],
+                    'title': row[1],
+                    'room_name': row[2],
+                    'scheduled_at': row[3].strftime('%d/%m/%Y à %H:%M') if row[3] else '',
+                    'duration_minutes': row[4],
+                    'status': row[5],
+                    'creator_name': (row[6] or '').strip(),
+                },
+                'display_name': display_name or 'Participant',
+                'jitsi_domain': 'meet.jit.si',
+            })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required(login_url='login')
+def api_communication_meeting_cancel(request):
+    """POST /api/communication/meetings/cancel/ — Annuler une réunion."""
+    pers_id, etab_id = _get_personnel_id(request)
+    if not pers_id:
+        return JsonResponse({'success': False, 'error': 'Non autorisé'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({'success': False, 'error': 'JSON invalide'}, status=400)
+
+    meeting_id = data.get('id_meeting')
+    if not meeting_id:
+        return JsonResponse({'success': False, 'error': 'id_meeting requis'}, status=400)
+
+    try:
+        with connections['default'].cursor() as cur:
+            cur.execute("""
+                UPDATE communication_meeting
+                SET status = 'cancelled'
+                WHERE id_meeting = %s AND created_by = %s AND id_etablissement = %s
+            """, [meeting_id, pers_id, etab_id])
+            if cur.rowcount == 0:
+                return JsonResponse({'success': False, 'error': 'Réunion non trouvée ou non autorisé'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+    return JsonResponse({'success': True})
