@@ -41,10 +41,10 @@ style_normal.alignment = 0
 def get_trimestres(id_annee, id_campus, id_cycle, id_classe):
     
     try:
-        campus = Campus.objects.get(id_campus=id_campus)
+        campus = Campus.objects.get(idCampus=id_campus)
         localisation = campus.localisation.upper() 
-    except Campus.DoesNotExist:
-        return None
+    except Exception:
+        localisation = 'RDC'  # Fallback safe — ne pas bloquer la génération
 
     try:
         eac = EtablissementAnneeClasse.objects.select_related('etablissement_annee').get(id=id_classe)
