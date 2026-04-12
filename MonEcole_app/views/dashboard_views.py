@@ -1614,8 +1614,8 @@ def api_communication_contacts(request):
                 JOIN countryStructure.etablissements_annees_classes eac
                     ON eac.etablissement_annee_id = ea.id
                     AND eac.classe_id = ac.classe_id
-                    AND eac.groupe <=> ac.groupe
-                    AND eac.section_id <=> ac.section_id
+                    AND (COALESCE(eac.groupe COLLATE utf8mb4_general_ci,'') = COALESCE(ac.groupe,''))
+                    AND (COALESCE(eac.section_id,0) = COALESCE(ac.section_id,0))
                 WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s
             """, [current_pers, etab_id])
             class_rows = cur.fetchall()
