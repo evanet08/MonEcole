@@ -4972,10 +4972,60 @@ def dashboard_eleves_list(request):
     import sys
     id_etablissement = request.GET.get('id_etablissement')
     classe_par_annee_id = request.GET.get('classe_par_annee_id') or request.GET.get('classe_par_annee_id')
-    print(f"[dashboard_eleves_list] CALLED: id_etablissement={id_etablissement}, classe_par_annee_id={classe_par_annee_id}", file=sys.stderr, flush=True)
+    search_query = request.GET.get('search', '').strip()
+    print(f"[dashboard_eleves_list] CALLED: id_etablissement={id_etablissement}, classe_par_annee_id={classe_par_annee_id}, search={search_query}", file=sys.stderr, flush=True)
 
-    if not id_etablissement or not classe_par_annee_id:
-        return JsonResponse({'success': False, 'error': 'id_etablissement et classe_par_annee_id requis'}, status=400)
+    if not id_etablissement:
+        return JsonResponse({'success': False, 'error': 'id_etablissement requis'}, status=400)
+
+    # Search mode: find students by name across all classes
+    if search_query and not classe_par_annee_id:
+        try:
+            conn = _get_spoke_connection()
+            try:
+                with conn.cursor() as cur:
+                    like_q = f'%{search_query}%'
+                    cur.execute("""
+                        SELECT e.id_eleve, e.numero_serie, e.nom, e.prenom, e.genre,
+                               e.date_naissance, e.telephone, e.id_parent,
+                               p.nomPere, p.prenomPere, p.nomMere, p.prenomMere,
+                               ei.id_inscription
+                        FROM eleve e
+                        JOIN eleve_inscription ei ON ei.id_eleve_id = e.id_eleve
+                        LEFT JOIN parents p ON p.id_parent = e.id_parent
+                        WHERE ei.id_etablissement = %s AND ei.status = 1
+                          AND (e.nom LIKE %s OR e.prenom LIKE %s OR e.matricule LIKE %s)
+                        ORDER BY e.nom, e.prenom
+                        LIMIT 50
+                    """, [id_etablissement, like_q, like_q, like_q])
+                    students = cur.fetchall()
+                    result = []
+                    for stu in students:
+                        dn = stu.get('date_naissance')
+                        dn_str = dn.strftime('%Y-%m-%d') if dn and hasattr(dn, 'strftime') else (str(dn) if dn else '')
+                        full_nom = stu.get('nom') or ''
+                        nom_parts = full_nom.split(' ', 1)
+                        result.append({
+                            'id_eleve': stu['id_eleve'],
+                            'id_inscription': stu.get('id_inscription'),
+                            'nom': nom_parts[0] if nom_parts else '',
+                            'postnom': nom_parts[1] if len(nom_parts) > 1 else '',
+                            'prenom': stu.get('prenom') or '',
+                            'genre': stu.get('genre') or '',
+                            'date_naissance': dn_str,
+                            'nom_pere': stu.get('nomPere') or '',
+                            'prenom_pere': stu.get('prenomPere') or '',
+                        })
+                    return JsonResponse({'success': True, 'eleves': result, 'total': len(result)})
+            finally:
+                conn.close()
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+    if not classe_par_annee_id:
+        return JsonResponse({'success': False, 'error': 'classe_par_annee_id requis'}, status=400)
 
     try:
         conn = _get_spoke_connection()

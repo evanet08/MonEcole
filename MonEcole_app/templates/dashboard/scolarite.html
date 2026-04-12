@@ -386,16 +386,19 @@
     <div id="scolInscription" style="display:none">
         <!-- Sub-tabs -->
         <div class="eleve-tabs" style="display:flex;gap:0;margin-bottom:10px;border-bottom:2px solid #e2e8f0">
-            <button class="eleve-tab active" id="tabInscSaisie" onclick="switchInscTab('saisie')"><i class="fas fa-keyboard"></i> Par Saisie</button>
-            <button class="eleve-tab" id="tabInscImport" onclick="switchInscTab('import')"><i class="fas fa-file-upload"></i> Par Importation</button>
-            <button class="eleve-tab" id="tabInscModif" onclick="switchInscTab('modif')"><i class="fas fa-exchange-alt"></i> Modifier Une Inscription</button>
+            <button class="eleve-tab active" id="tabInscEnreg" onclick="switchInscTab('enreg')"><i class="fas fa-user-plus"></i> Enregistrement</button>
+            <button class="eleve-tab" id="tabInscProfil" onclick="switchInscTab('profil')"><i class="fas fa-id-card"></i> Profil Élève</button>
+            <button class="eleve-tab" id="tabInscModif" onclick="switchInscTab('modif')"><i class="fas fa-exchange-alt"></i> Modifier Inscription</button>
+            <button class="eleve-tab" id="tabInscReinsc" onclick="switchInscTab('reinsc')"><i class="fas fa-redo-alt"></i> Réinscrire</button>
         </div>
-        <!-- Sub-tab: Par Saisie -->
-        <div id="inscPanelSaisie">
-            <div class="eleve-actions">
-                <button class="eleve-btn eleve-btn-add" id="btnAddEleve" onclick="toggleAddEleveForm()" disabled style="opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-user-plus"></i> Ajouter</button>
+
+        <!-- ═══════ TAB 1: ENREGISTREMENT (new student + import) ═══════ -->
+        <div id="inscPanelEnreg">
+            <div class="dash-section" style="margin-bottom:10px">
+                <div class="dash-section-title"><i class="fas fa-user-plus" style="color:#059669"></i> Enregistrer un Nouvel Élève</div>
+                <div class="dash-section-sub">Saisissez les informations du nouvel élève et associez-le à un parent</div>
             </div>
-            <div id="addEleveForm" class="eleve-form" style="display:none">
+            <div id="addEleveForm" class="eleve-form" style="display:block;border:1.5px solid #d1d5db;background:#fafbfc">
                 <div style="font-size:.75rem;font-weight:700;color:#1e293b;margin-bottom:8px"><i class="fas fa-user-plus" style="color:#059669;margin-right:4px"></i> Nouvel Élève — <span id="addEleveClasseLabel" style="color:#4338ca"></span></div>
                 <div class="eleve-form-grid">
                     <div><label>N° Série</label><input id="eleveNumSerie" placeholder="N° série"></div>
@@ -410,13 +413,11 @@
                 <div style="margin-top:10px;padding-top:10px;border-top:1.5px solid #e2e8f0">
                     <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6366f1;margin-bottom:8px;display:flex;align-items:center;gap:4px"><i class="fas fa-user-friends" style="font-size:.55rem"></i> Parents / Tuteur</div>
                     <div class="parent-selector" id="parentSelectorAdd">
-                        <!-- Search -->
                         <div class="parent-search-wrap">
                             <i class="fas fa-search search-icon"></i>
                             <input id="parentSearchInput" placeholder="Chercher un parent existant (nom, prénom ou téléphone)..." oninput="onParentSearch(this.value)" autocomplete="off">
                         </div>
                         <div class="parent-results" id="parentSearchResults"></div>
-                        <!-- Selected parent display -->
                         <div class="parent-selected" id="parentSelectedDisplay">
                             <div>
                                 <div class="ps-info" id="parentSelectedInfo">—</div>
@@ -425,9 +426,7 @@
                             <button class="ps-clear" onclick="clearSelectedParent()" title="Changer"><i class="fas fa-times"></i></button>
                         </div>
                         <input type="hidden" id="selectedParentId" value="">
-                        <!-- New parent button -->
                         <button type="button" class="parent-new-btn" id="btnNewParent" onclick="toggleNewParentForm()"><i class="fas fa-plus"></i> Nouveau parent</button>
-                        <!-- New parent mini-form -->
                         <div class="parent-new-form" id="newParentForm">
                             <div class="pnf-section-title" style="color:#3b82f6"><i class="fas fa-male"></i> Père</div>
                             <div class="pnf-grid">
@@ -448,6 +447,7 @@
                         </div>
                     </div>
                 </div>
+                <!-- Addresses -->
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;padding-top:10px;border-top:1.5px solid #e2e8f0">
                     <div>
                         <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#2563eb;margin-bottom:6px;display:flex;align-items:center;gap:4px"><i class="fas fa-baby" style="font-size:.55rem"></i> Lieu de Naissance</div>
@@ -461,10 +461,23 @@
                     </div>
                 </div>
                 <div class="eleve-form-actions">
-                    <button class="eleve-btn" style="background:#94a3b8;color:#fff" onclick="toggleAddEleveForm()"><i class="fas fa-times"></i> Annuler</button>
-                    <button class="eleve-btn eleve-btn-add" onclick="saveEleve()"><i class="fas fa-save"></i> Enregistrer</button>
+                    <button class="eleve-btn eleve-btn-add" onclick="saveEleve()" id="btnSaveEleve" disabled style="opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-save"></i> Enregistrer</button>
                 </div>
             </div>
+            <!-- Import Excel sub-section -->
+            <div class="dash-section" style="margin-top:12px">
+                <div class="dash-section-title" style="font-size:.72rem"><i class="fas fa-file-excel" style="color:#059669"></i> Importation par fichier Excel</div>
+                <div class="dash-section-sub">Téléchargez le modèle, remplissez-le et importez-le</div>
+                <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+                    <button class="eleve-btn eleve-btn-download" id="btnDownloadTemplate" onclick="downloadTemplate()" disabled style="opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-file-download"></i> Télécharger Modèle</button>
+                    <button class="eleve-btn eleve-btn-import" id="btnImportEleves" onclick="document.getElementById('importEleveFile').click()" disabled style="opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-file-upload"></i> Importer Fichier</button>
+                    <input type="file" id="importEleveFile" accept=".xlsx,.xls,.csv" onchange="importEleves(this)" style="display:none">
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════ TAB 2: PROFIL ÉLÈVE (grid + edit) ═══════ -->
+        <div id="inscPanelProfil" style="display:none">
             <div id="elevesGridSection" class="dash-section" style="margin-bottom:.8rem">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
                     <div class="dash-section-title" style="margin-bottom:0"><i class="fas fa-list"></i> Liste des Élèves <span id="gridClasseLabel" style="color:#4338ca"></span> <span id="gridElevesCount" style="font-weight:400;color:#64748b;font-size:.7rem">(0)</span></div>
@@ -483,7 +496,7 @@
                         <button class="eleve-btn" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;font-size:.65rem" onclick="loadElevesList()" title="Rafraîchir"><i class="fas fa-sync-alt"></i></button>
                     </div>
                 </div>
-                <!-- ✦ DELETE SELECTION TOOLBAR ✦ -->
+                <!-- DELETE SELECTION TOOLBAR -->
                 <div id="deleteSelectionBar" style="display:none;background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1.5px solid #fca5a5;border-radius:10px;padding:8px 14px;margin-bottom:8px;align-items:center;gap:10px;flex-wrap:wrap">
                     <div style="display:flex;align-items:center;gap:8px;flex:1">
                         <input type="checkbox" id="deleteSelectAll" onchange="toggleDeleteSelectAll(this.checked)" style="accent-color:#dc2626;width:16px;height:16px">
@@ -498,23 +511,8 @@
                 <input type="file" id="photoUploadInput" accept="image/*" style="display:none" onchange="uploadStudentPhoto(this)">
             </div>
         </div>
-        <!-- Sub-tab: Par Importation -->
-        <div id="inscPanelImport" style="display:none">
-            <div class="dash-section">
-                <div class="dash-section-title"><i class="fas fa-file-excel"></i> Importation par fichier Excel</div>
-                <div class="dash-section-sub">Téléchargez le modèle, remplissez-le et importez-le</div>
-                <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
-                    <button class="eleve-btn eleve-btn-download" id="btnDownloadTemplate" onclick="downloadTemplate()" disabled style="opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-file-download"></i> Télécharger Modèle</button>
-                    <button class="eleve-btn eleve-btn-import" id="btnImportEleves" onclick="document.getElementById('importEleveFile').click()" disabled style="opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-file-upload"></i> Importer Fichier</button>
-                    <input type="file" id="importEleveFile" accept=".xlsx,.xls,.csv" onchange="importEleves(this)" style="display:none">
-                </div>
-                <div class="eleve-import-zone" style="margin-top:16px" onclick="document.getElementById('importEleveFile').click()">
-                    <i class="fas fa-cloud-upload-alt" style="font-size:2rem;margin-bottom:8px;display:block;opacity:.6"></i>
-                    Glissez un fichier Excel ici ou cliquez pour sélectionner
-                </div>
-            </div>
-        </div>
-        <!-- Sub-tab: Modifier Une Inscription -->
+
+        <!-- ═══════ TAB 3: MODIFIER UNE INSCRIPTION (transfer) ═══════ -->
         <div id="inscPanelModif" style="display:none">
             <div class="dash-section">
                 <div class="dash-section-title"><i class="fas fa-exchange-alt"></i> Modifier une Inscription</div>
@@ -529,6 +527,38 @@
                     <button class="eleve-btn" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:.7rem;padding:7px 18px" onclick="executeTransfer()" id="btnTransfer" disabled><i class="fas fa-exchange-alt" style="margin-right:4px"></i>Transférer</button>
                 </div>
                 <div id="transferElevesList" style="max-height:450px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px"></div>
+            </div>
+        </div>
+
+        <!-- ═══════ TAB 4: RÉINSCRIRE UN ÉLÈVE EXISTANT ═══════ -->
+        <div id="inscPanelReinsc" style="display:none">
+            <div class="dash-section">
+                <div class="dash-section-title"><i class="fas fa-redo-alt" style="color:#8b5cf6"></i> Réinscrire un Élève Existant</div>
+                <div class="dash-section-sub">Recherchez un élève déjà enregistré pour l'inscrire dans une nouvelle classe (année suivante, redoublement...)</div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin:14px 0;align-items:end">
+                    <div>
+                        <label style="font-size:.6rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:4px">Rechercher un élève</label>
+                        <div style="position:relative">
+                            <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:.6rem"></i>
+                            <input id="reinscSearchInput" placeholder="Nom, prénom ou matricule..." oninput="onReinscSearch(this.value)" autocomplete="off" style="width:100%;padding:7px 10px 7px 28px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.7rem;background:#fff">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:.6rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:4px">Classe de destination</label>
+                        <select id="reinscDestClasse" style="padding:7px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;font-weight:600;min-width:200px">
+                            <option value="">— Choisir —</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="reinscSearchResults" style="max-height:400px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px"></div>
+                <!-- Selected for re-enrollment -->
+                <div id="reinscSelectedBar" style="display:none;margin-top:10px;background:linear-gradient(135deg,#f5f3ff,#eef2ff);border:1.5px solid #c7d2fe;border-radius:10px;padding:10px 14px;align-items:center;gap:10px;flex-wrap:wrap">
+                    <div style="flex:1">
+                        <span style="font-size:.68rem;font-weight:700;color:#4338ca"><i class="fas fa-user-check" style="margin-right:4px"></i><span id="reinscSelectedCount">0</span> élève(s) sélectionné(s)</span>
+                    </div>
+                    <label style="font-size:.65rem;display:flex;align-items:center;gap:4px;color:#64748b;font-weight:600"><input type="checkbox" id="reinscRedouble" style="accent-color:#f59e0b"> Redoublement</label>
+                    <button class="eleve-btn" onclick="executeReinscription()" style="background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;font-size:.7rem;padding:7px 18px"><i class="fas fa-redo-alt" style="margin-right:4px"></i>Réinscrire</button>
+                </div>
             </div>
         </div>
     </div>
@@ -2327,13 +2357,15 @@ function switchScolSection(section){
 
 /* ===== INSCRIPTION SUB-TABS ===== */
 function switchInscTab(tab){
-    ['saisie','import','modif'].forEach(function(t){
+    ['enreg','profil','modif','reinsc'].forEach(function(t){
         var btn=document.getElementById('tabInsc'+t.charAt(0).toUpperCase()+t.slice(1));
         var panel=document.getElementById('inscPanel'+t.charAt(0).toUpperCase()+t.slice(1));
         if(btn)btn.classList.toggle('active',t===tab);
         if(panel)panel.style.display=t===tab?'block':'none';
     });
+    if(tab==='profil'&&selectedClasseActiveId) loadElevesList();
     if(tab==='modif'){renderTransferList();populateTransferDestClasses();}
+    if(tab==='reinsc') populateReinscDestClasses();
 }
 
 /* ===== Legacy compatibility ===== */
@@ -2609,7 +2641,7 @@ function executeTransfer(){
 function onClasseFilterChange(){
     const sel=document.getElementById('selectClasseEleve');
     const val=sel.value;
-    const btnAdd=document.getElementById('btnAddEleve');
+    const btnSave=document.getElementById('btnSaveEleve');
     const btnDl=document.getElementById('btnDownloadTemplate');
     const btnImp=document.getElementById('btnImportEleves');
     const infoBar=document.getElementById('selectedClasseInfo');
@@ -2618,30 +2650,26 @@ function onClasseFilterChange(){
     if(val){
         selectedClasseActiveId=val;
         selectedClasseLabel=sel.options[sel.selectedIndex].textContent;
-        [btnAdd,btnDl,btnImp].forEach(b=>{b.disabled=false;b.style.opacity='1';b.style.cursor='pointer';b.title=''});
+        [btnSave,btnDl,btnImp].forEach(b=>{if(b){b.disabled=false;b.style.opacity='1';b.style.cursor='pointer';b.title=''}});
         if(infoBar){infoBar.style.display='flex'}
         if(classeLbl)classeLbl.textContent=selectedClasseLabel;
         if(addLbl)addLbl.textContent=selectedClasseLabel;
         document.getElementById('gridClasseLabel').textContent=selectedClasseLabel;
         // Pre-load grid data + refresh modif tab
         loadElevesList().then(()=>{
-            // If tab modif is active, re-render it
             if(document.getElementById('inscPanelModif')?.style.display==='block'){
                 renderTransferList();populateTransferDestClasses();
             }
         });
     }else{
         selectedClasseActiveId=null;selectedClasseLabel='';
-        [btnAdd,btnDl,btnImp].forEach(b=>{b.disabled=true;b.style.opacity='.5';b.style.cursor='not-allowed';b.title='Sélectionnez d\'abord une classe'});
+        [btnSave,btnDl,btnImp].forEach(b=>{if(b){b.disabled=true;b.style.opacity='.5';b.style.cursor='not-allowed';b.title='Sélectionnez d\'abord une classe'}});
         if(infoBar){infoBar.style.display='none'}
-        document.getElementById('addEleveForm').style.display='none';
         currentElevesList=[];
         const gc=document.getElementById('elevesGridContainer');
         if(gc) gc.innerHTML='';
     }
-    // Refresh stats charts
     refreshElevesStats(val||null);
-    // Re-render effectifs par classe: filtered when class selected, all when none
     renderClasse('classeTableEleves', val ? parseInt(val) : null);
 }
 
@@ -4052,6 +4080,98 @@ async function executeDeleteInscriptions() {
     } catch(e) {
         showToast('Erreur de connexion', 'error');
     }
+}
+
+
+/* =================================================================
+   RÉINSCRIRE UN ÉLÈVE EXISTANT
+   ================================================================= */
+let _reinscTimeout=null;
+let reinscSelectedIds=new Set();
+
+function populateReinscDestClasses(){
+    const sel=document.getElementById('reinscDestClasse');
+    if(!sel||sel.options.length>1) return;
+    const src=document.getElementById('selectClasseEleve');
+    if(!src) return;
+    Array.from(src.options).forEach(o=>{
+        if(o.value){
+            const opt=document.createElement('option');opt.value=o.value;opt.textContent=o.textContent;
+            sel.appendChild(opt);
+        }
+    });
+}
+
+function onReinscSearch(q){
+    clearTimeout(_reinscTimeout);
+    const container=document.getElementById('reinscSearchResults');
+    if(q.trim().length<2){container.innerHTML='<div style="padding:20px;text-align:center;font-size:.65rem;color:#94a3b8"><i class="fas fa-search" style="font-size:1.2rem;display:block;margin-bottom:6px;opacity:.4"></i>Tapez au moins 2 caractères pour chercher</div>';return}
+    _reinscTimeout=setTimeout(async()=>{
+        try{
+            const res=await fetch('/api/dashboard/eleves-list/?id_etablissement='+ELEVE_ETAB_ID+'&search='+encodeURIComponent(q.trim()));
+            const data=await res.json();
+            if(!data.success){container.innerHTML='<div style="padding:12px;text-align:center;font-size:.65rem;color:#ef4444">Erreur</div>';return}
+            if(!data.eleves||!data.eleves.length){container.innerHTML='<div style="padding:12px;text-align:center;font-size:.65rem;color:#94a3b8">Aucun élève trouvé</div>';return}
+            container.innerHTML=data.eleves.map(e=>{
+                const checked=reinscSelectedIds.has(e.id_eleve)?'checked':'';
+                return '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #f1f5f9;transition:background .15s;cursor:pointer" onclick="toggleReinscSelect('+e.id_eleve+',this)">'+
+                    '<input type="checkbox" '+checked+' style="accent-color:#8b5cf6;width:15px;height:15px;pointer-events:none">'+
+                    '<div style="flex:1">'+
+                        '<div style="font-size:.7rem;font-weight:600;color:#1e293b">'+[e.nom,e.postnom,e.prenom].filter(Boolean).join(' ')+'</div>'+
+                        '<div style="font-size:.58rem;color:#64748b">'+e.genre+' • '+e.date_naissance+(e.nom_pere?' • Père: '+e.nom_pere:'')+'</div>'+
+                    '</div>'+
+                '</div>';
+            }).join('');
+        }catch(err){console.error('reinscSearch',err)}
+    },300);
+}
+
+function toggleReinscSelect(idEleve,row){
+    if(reinscSelectedIds.has(idEleve)){
+        reinscSelectedIds.delete(idEleve);
+        if(row)row.style.background='';
+        const cb=row?.querySelector('input[type=checkbox]');if(cb)cb.checked=false;
+    } else {
+        reinscSelectedIds.add(idEleve);
+        if(row)row.style.background='#f5f3ff';
+        const cb=row?.querySelector('input[type=checkbox]');if(cb)cb.checked=true;
+    }
+    const cnt=reinscSelectedIds.size;
+    const bar=document.getElementById('reinscSelectedBar');
+    if(bar) bar.style.display=cnt>0?'flex':'none';
+    document.getElementById('reinscSelectedCount').textContent=cnt;
+}
+
+async function executeReinscription(){
+    const destId=document.getElementById('reinscDestClasse').value;
+    if(!destId){showToast('Sélectionnez une classe de destination','error');return}
+    if(!reinscSelectedIds.size){showToast('Sélectionnez au moins un élève','error');return}
+    const redouble=document.getElementById('reinscRedouble').checked?1:0;
+    const csrfToken=document.querySelector('[name=csrfmiddlewaretoken]')?.value||'{{ csrf_token }}';
+    try{
+        // Reuse the transfer API for re-inscription
+        const res=await fetch('/api/dashboard/transfer-eleves/',{
+            method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken},
+            body:JSON.stringify({
+                id_etablissement:parseInt(ELEVE_ETAB_ID),
+                id_annee:parseInt(CA_ANNEE_ID),
+                inscription_ids:Array.from(reinscSelectedIds),
+                dest_classe_par_annee_id:parseInt(destId),
+                redoublement:redouble
+            })
+        });
+        const data=await res.json();
+        if(data.success){
+            showToast(reinscSelectedIds.size+' élève(s) réinscrit(s) avec succès!','success');
+            reinscSelectedIds.clear();
+            document.getElementById('reinscSelectedBar').style.display='none';
+            document.getElementById('reinscSearchInput').value='';
+            document.getElementById('reinscSearchResults').innerHTML='';
+            refreshAllStats();
+        } else {
+            showToast(data.error||'Erreur','error');
+        }
+    }catch(e){showToast('Erreur connexion','error')}
 }
 
 
