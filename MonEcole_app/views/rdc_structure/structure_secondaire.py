@@ -127,30 +127,31 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
     dots_mid = '<font size="3" color="#aaaaaa">' + ' .' * 50 + '</font>'
     dots_short = '<font size="3" color="#aaaaaa">' + ' .' * 30 + '</font>'
 
-    right_w = 116.4*mm
+    right_w = 97*mm
 
-    right_rows = [
-        [Paragraph(f"ELEVE : <b>{nom_upper} {prenom_title}</b> {dots_mid}  SEXE : <b>{sexe}</b> {dots_short}", p_style)],
-        [Paragraph(f"NE(E) A : {dots_mid}  LE <b>{date_str if date_str else '..... / ..... / ..........'}</b> {dots_short}", p_style)],
-        [Paragraph(f"CLASSE : <b>{classe_name}</b> {dots_long}", p_style)],
-        [Paragraph("N° PERM. :", p_style), nperm_squares_table],
+    # Sub-colonnes internes : col_a (label+nom+dots) + col_b (SEXE / LE date)
+    col_b_w = 25*mm
+    col_a_w = right_w - col_b_w - nb_cases*4*mm - 1*mm
+    nperm_col_w = nb_cases*4*mm + 1*mm
+
+    final_rows = [
+        [Paragraph(f"ELEVE : <b>{nom_upper} {prenom_title}</b> {dots_mid}", p_style),
+         Paragraph(f"SEXE : <b>{sexe}</b> {dots_short}", p_style), None],
+        [Paragraph(f"NE(E) A : {dots_mid}", p_style),
+         Paragraph(f"LE <b>{date_str if date_str else '..... / ..... / ..........'}</b> {dots_short}", p_style), None],
+        [Paragraph(f"CLASSE : <b>{classe_name}</b> {dots_long}", p_style), None, None],
+        [Paragraph("N° PERM. :", p_style), None, nperm_squares_table],
     ]
 
-    final_rows = []
-    for i in range(3):
-        final_rows.append([right_rows[i][0], None])
-    final_rows.append(right_rows[3])
-
-    right_table = Table(final_rows, colWidths=[right_w - nb_cases*4*mm - 1*mm, nb_cases*4*mm + 1*mm], rowHeights=[4.5*mm]*3 + [6*mm])
+    right_table = Table(final_rows, colWidths=[col_a_w, col_b_w, nperm_col_w], rowHeights=[4.5*mm]*3 + [6*mm])
     right_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 2),
         ('RIGHTPADDING', (0, 0), (-1, -1), 1),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('SPAN', (0, 0), (1, 0)),
-        ('SPAN', (0, 1), (1, 1)),
-        ('SPAN', (0, 2), (1, 2)),
+        ('SPAN', (0, 2), (2, 2)),  # CLASSE spans all 3 columns
+        ('SPAN', (0, 3), (1, 3)),  # N° PERM label spans first 2 cols
     ]))
 
     return right_table
@@ -162,8 +163,8 @@ def create_line2_section__secondaire_rdc(elements, left_table, right_table):
     if isinstance(right_table, tuple):
         right_table = right_table[0]
 
-    left_w = 80*mm
-    right_w = 120*mm
+    left_w = 100*mm   # 50%
+    right_w = 100*mm   # 50%
     line2_data = [[left_table, right_table]]
     line2_table = Table(line2_data, colWidths=[left_w, right_w])
 
