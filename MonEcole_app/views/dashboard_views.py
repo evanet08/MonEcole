@@ -2458,8 +2458,8 @@ def api_communication_meetings_list(request):
             """, [current_pers, etab_id, current_pers, current_pers])
 
             for row in cur.fetchall():
-                from django.conf import settings as django_settings
-                base_url = getattr(django_settings, 'BASE_URL', 'https://monecole.pro')
+                scheme = 'https' if request.is_secure() else 'http'
+                host = request.get_host()
                 meetings.append({
                     'id_meeting': row[0],
                     'title': row[1],
@@ -2475,7 +2475,7 @@ def api_communication_meetings_list(request):
                     'n_invitees': row[10],
                     'my_rsvp': row[11] or 'pending',
                     'is_owner': row[4] == current_pers,
-                    'share_url': f"{base_url}/dashboard/communication/?join={row[8]}",
+                    'share_url': f"{scheme}://{host}/dashboard/communication/?join={row[8]}",
                     'jitsi_url': f"https://meet.jit.si/{row[3]}",
                 })
 

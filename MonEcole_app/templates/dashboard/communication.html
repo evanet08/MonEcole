@@ -1092,15 +1092,21 @@ function renderMeetingCard(m){
     const statusLabels = {scheduled:'📅 Planifiée', live:'🟢 En cours', ended:'Terminée', cancelled:'Annulée'};
     const statusCls = m.status;
     let actions = '';
+    let linkBlock = '';
     if(m.status === 'scheduled' || m.status === 'live'){
-        actions += `<button class="join-btn" onclick="joinMeetingByRoom('${m.room_name}','${m.title.replace(/'/g,"\\'")}')"><i class="fas fa-video"></i> Rejoindre</button>`;
-        actions += `<button class="copy-btn" onclick="navigator.clipboard.writeText('${m.share_url}');showToast('Lien copié!','success')"><i class="fas fa-link"></i> Copier lien</button>`;
+        actions += `<button class="join-btn" onclick="joinMeetingByRoom('${m.room_name}','${m.title.replace(/'/g,"\\\\'")}')" style="flex:1"><i class="fas fa-video"></i> Rejoindre</button>`;
+        actions += `<button class="copy-btn" onclick="navigator.clipboard.writeText('${m.share_url}');showToast('Lien copié!','success')"><i class="fas fa-copy"></i> Copier</button>`;
         if(m.is_owner) actions += `<button class="cancel-btn" onclick="cancelMeeting(${m.id_meeting})"><i class="fas fa-times"></i></button>`;
+        linkBlock = `<div style="margin-top:6px;padding:5px 8px;background:#f0fdf4;border:1px solid #dcfce7;border-radius:6px;display:flex;align-items:center;gap:6px">
+            <i class="fas fa-link" style="color:#128c7e;font-size:.55rem;flex-shrink:0"></i>
+            <a href="${m.share_url}" style="font-size:.5rem;color:#128c7e;word-break:break-all;text-decoration:none;flex:1" title="Cliquez pour rejoindre">${m.share_url}</a>
+        </div>`;
     }
     return `<div class="wa-meeting-card">
         <div class="wa-meeting-title">${m.title}</div>
         <div class="wa-meeting-meta"><span class="wa-meeting-status ${statusCls}">${statusLabels[m.status]||m.status}</span><i class="fas fa-clock"></i> ${m.scheduled_display} &middot; ${m.duration_minutes}min &middot; <i class="fas fa-users"></i> ${m.n_invitees}</div>
         <div style="font-size:.55rem;color:#94a3b8;margin-top:2px">Organisé par ${m.creator_name}</div>
+        ${linkBlock}
         ${actions?`<div class="wa-meeting-actions">${actions}</div>`:''}
     </div>`;
 }
