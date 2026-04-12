@@ -1634,6 +1634,8 @@ def api_communication_contacts(request):
                 classe_nom = cls_row[0] if cls_row else f"Classe #{classe_id}"
                 cycle_nom = cls_row[1] if cls_row else ''
                 full_name = f"{cycle_nom} — {classe_nom}" if cycle_nom else classe_nom
+                if groupe:
+                    full_name += f" ({groupe})"
 
                 # Élèves inscrits dans cette classe
                 cur.execute("""
