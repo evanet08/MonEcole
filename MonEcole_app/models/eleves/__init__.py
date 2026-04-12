@@ -1,3 +1,3 @@
 
 from .eleve import *
-# from .parent import *
+from .parent import *
