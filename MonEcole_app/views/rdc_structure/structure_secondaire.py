@@ -109,7 +109,7 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
             ('BOX', (i,0), (i,0), 0.5, colors.black),
         ]))
 
-    p_style = ParagraphStyle(name='InfoRightP2', fontSize=8, leading=10, alignment=0, fontName='Helvetica-Bold')
+    p_style = ParagraphStyle(name='InfoRightP2', fontSize=7, leading=9, alignment=0, fontName='Helvetica-Bold')
 
     nom_upper = (eleve.nom or '').upper()
     prenom_title = (eleve.prenom or '').title()
@@ -123,17 +123,31 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
         except:
             date_slashes = str(eleve.date_naissance)
 
-    # Dots: dense real periods that fill all remaining space
-    d_long = '.' * 80
-    d_mid = '.' * 55
-    d_short = '.' * 15
-
     right_w = 116.4*mm
 
+    # Calcul dynamique des pointillés pour remplir exactement la largeur
+    char_w = 1.3  # mm approx per char at 7pt Helvetica-Bold
+    usable_w = 116.0  # mm
+
+    eleve_txt = f"ELEVE :  {nom_upper} {prenom_title} "
+    sexe_txt = f"  SEXE : {sexe} "
+    eleve_used = len(eleve_txt) * char_w + len(sexe_txt) * char_w
+    dots_eleve = max(5, int((usable_w - eleve_used) * 0.6 / char_w))
+    dots_sexe = max(3, int((usable_w - eleve_used) * 0.3 / char_w))
+
+    nea_txt = f"NE(E) A : "
+    le_txt = f"   LE  {date_slashes} "
+    nea_used = len(nea_txt) * char_w + len(le_txt) * char_w
+    dots_nea = max(5, int((usable_w - nea_used) * 0.6 / char_w))
+    dots_le = max(3, int((usable_w - nea_used) * 0.3 / char_w))
+
+    classe_txt = f"CLASSE : {classe_name} "
+    dots_classe = max(5, int((usable_w - len(classe_txt) * char_w) / char_w))
+
     right_rows = [
-        [Paragraph(f"ELEVE :  {nom_upper} {prenom_title} {d_mid}  SEXE : {sexe} {d_short}", p_style)],
-        [Paragraph(f"NE(E) A : {d_mid}   LE  {date_slashes} {d_short}", p_style)],
-        [Paragraph(f"CLASSE : {classe_name} {d_long}", p_style)],
+        [Paragraph(f"ELEVE :  {nom_upper} {prenom_title} {'.' * dots_eleve}{sexe_txt}{'.' * dots_sexe}", p_style)],
+        [Paragraph(f"NE(E) A : {'.' * dots_nea}{le_txt}{'.' * dots_le}", p_style)],
+        [Paragraph(f"CLASSE : {classe_name} {'.' * dots_classe}", p_style)],
         [Paragraph("N° PERM. :", p_style), nperm_squares_table],
     ]
 

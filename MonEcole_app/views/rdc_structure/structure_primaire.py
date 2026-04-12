@@ -212,16 +212,16 @@ def create_line2_left(elements, style_normal, id_campus=None):
         ]))
 
     # Style formulaire officiel : label en gras, valeur inline + pointillés réels
-    p_style = ParagraphStyle(name='InfoLeftP', fontSize=8, leading=10, alignment=0, fontName='Helvetica-Bold')
-    d = '.' * 50
+    p_style = ParagraphStyle(name='InfoLeftP', fontSize=7, leading=9, alignment=0, fontName='Helvetica-Bold')
 
     left_w = 77.6*mm
 
+    # Pointillés calibrés par ligne pour remplir exactement jusqu'au bord droit
     left_rows = [
-        [Paragraph(f"PROVINCE EDUC. : {province_display or 'SUD-KIVU'} {d}", p_style)],
-        [Paragraph(f"VILLE : {ville_display or 'BUKAVU'} {d}", p_style)],
-        [Paragraph(f"COMMUNE/TER. : {commune_display or ''} {d}", p_style)],
-        [Paragraph(f"ECOLE : {ecole_display or ''} {d}", p_style)],
+        [Paragraph(f"PROVINCE EDUC. : {province_display or 'SUD-KIVU'} {'.' * 20}", p_style)],
+        [Paragraph(f"VILLE : {ville_display or 'BUKAVU'} {'.' * 35}", p_style)],
+        [Paragraph(f"COMMUNE/TER. : {commune_display or ''} {'.' * 30}", p_style)],
+        [Paragraph(f"ECOLE : {ecole_display or ''} {'.' * 35}", p_style)],
         [Paragraph("CODE :", p_style), code_squares_table],
     ]
 
@@ -346,13 +346,12 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
             ('BOX', (i,0), (i,0), 0.5, colors.black),
         ]))
 
-    p_style = ParagraphStyle(name='InfoRightP', fontSize=8, leading=10, alignment=0, fontName='Helvetica-Bold')
+    p_style = ParagraphStyle(name='InfoRightP', fontSize=7, leading=9, alignment=0, fontName='Helvetica-Bold')
 
     nom_upper = (eleve.nom or '').upper()
     prenom_title = (eleve.prenom or '').title()
     sexe = (eleve.genre or '').upper()
     
-    date_str = ''
     date_slashes = '...../ ..... /........'
     if eleve.date_naissance:
         try:
@@ -361,17 +360,35 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
         except:
             date_slashes = str(eleve.date_naissance)
 
-    # Dots: dense real periods that fill all remaining space
-    d_long = '.' * 80
-    d_mid = '.' * 55
-    d_short = '.' * 15
-
     right_w = 116.4*mm
 
+    # Calcul dynamique des pointillés pour remplir exactement la largeur
+    # Chaque char Helvetica-Bold 7pt ≈ 1.3mm largeur moyenne
+    char_w = 1.3  # mm approx
+    usable_w = 116.0  # mm (right_w minus padding)
+
+    # Ligne ELEVE
+    eleve_txt = f"ELEVE :  {nom_upper} {prenom_title} "
+    sexe_txt = f"  SEXE : {sexe} "
+    eleve_used = len(eleve_txt) * char_w + len(sexe_txt) * char_w
+    dots_eleve = max(5, int((usable_w - eleve_used) * 0.6 / char_w))
+    dots_sexe = max(3, int((usable_w - eleve_used) * 0.3 / char_w))
+
+    # Ligne NE(E) A
+    nea_txt = f"NE(E) A : "
+    le_txt = f"   LE  {date_slashes} "
+    nea_used = len(nea_txt) * char_w + len(le_txt) * char_w
+    dots_nea = max(5, int((usable_w - nea_used) * 0.6 / char_w))
+    dots_le = max(3, int((usable_w - nea_used) * 0.3 / char_w))
+
+    # Ligne CLASSE
+    classe_txt = f"CLASSE : {classe_name} "
+    dots_classe = max(5, int((usable_w - len(classe_txt) * char_w) / char_w))
+
     right_rows = [
-        [Paragraph(f"ELEVE :  {nom_upper} {prenom_title} {d_mid}  SEXE : {sexe} {d_short}", p_style)],
-        [Paragraph(f"NE(E) A : {d_mid}   LE  {date_slashes} {d_short}", p_style)],
-        [Paragraph(f"CLASSE : {classe_name} {d_long}", p_style)],
+        [Paragraph(f"ELEVE :  {nom_upper} {prenom_title} {'.' * dots_eleve}{sexe_txt}{'.' * dots_sexe}", p_style)],
+        [Paragraph(f"NE(E) A : {'.' * dots_nea}{le_txt}{'.' * dots_le}", p_style)],
+        [Paragraph(f"CLASSE : {classe_name} {'.' * dots_classe}", p_style)],
         [Paragraph("N° PERM. :", p_style), nperm_squares_table],
     ]
 
