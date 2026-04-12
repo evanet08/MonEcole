@@ -359,7 +359,7 @@
                            href="{{ mod.url }}"
                            style="border-radius:8px; font-size:0.8rem;">
                             <div style="width:26px; height:26px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:white; font-size:0.68rem;
-                                background: {% if mod.page == 'administration' %}linear-gradient(135deg,#db2777,#f472b6){% elif mod.page == 'scolarite' %}linear-gradient(135deg,#0d9488,#2dd4bf){% elif mod.page == 'evaluations' %}linear-gradient(135deg,#7c3aed,#a78bfa){% elif mod.page == 'enseignements' %}linear-gradient(135deg,#ea580c,#fb923c){% elif mod.page == 'espace_enseignant' %}linear-gradient(135deg,#4338ca,#6366f1){% else %}linear-gradient(135deg,#475569,#94a3b8){% endif %};">
+                                background: {% if mod.page == 'administration' %}linear-gradient(135deg,#db2777,#f472b6){% elif mod.page == 'scolarite' %}linear-gradient(135deg,#0d9488,#2dd4bf){% elif mod.page == 'evaluations' %}linear-gradient(135deg,#7c3aed,#a78bfa){% elif mod.page == 'enseignements' %}linear-gradient(135deg,#ea580c,#fb923c){% elif mod.page == 'espace_enseignant' %}linear-gradient(135deg,#4338ca,#6366f1){% elif mod.page == 'communication' %}linear-gradient(135deg,#e11d48,#f43f5e){% else %}linear-gradient(135deg,#475569,#94a3b8){% endif %};">
                                 <i class="{{ mod.icon }}"></i>
                             </div>
                             <span>{{ mod.label }}</span>
@@ -409,7 +409,7 @@
                 <!-- Default: module links dynamiques -->
                 {% for mod in user_modules %}
                 <a href="{{ mod.url }}" class="nav-item {% if mod.page == active_module %}active{% endif %}" title="{{ mod.label }}">
-                    <i class="{{ mod.icon }}" style="color:{% if mod.page == 'administration' %}#60a5fa{% elif mod.page == 'enseignements' %}#34d399{% elif mod.page == 'evaluations' %}#f59e0b{% elif mod.page == 'scolarite' %}#a78bfa{% elif mod.page == 'espace_enseignant' %}#818cf8{% else %}#94a3b8{% endif %}"></i>
+                    <i class="{{ mod.icon }}" style="color:{% if mod.page == 'administration' %}#60a5fa{% elif mod.page == 'enseignements' %}#34d399{% elif mod.page == 'evaluations' %}#f59e0b{% elif mod.page == 'scolarite' %}#a78bfa{% elif mod.page == 'espace_enseignant' %}#818cf8{% elif mod.page == 'communication' %}#f43f5e{% else %}#94a3b8{% endif %}"></i>
                     <span>{{ mod.label }}</span>
                 </a>
                 {% empty %}

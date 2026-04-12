@@ -836,6 +836,90 @@ def espace_enseignant_view(request):
     return render(request, 'dashboard/espace_enseignant.html', context)
 
 
+# ============================================================
+# COMMUNICATION — Module standalone (accessible à tous)
+# ============================================================
+
+@login_required(login_url='login')
+def communication_view(request):
+    """Page Communication — Module standalone accessible à tout utilisateur connecté."""
+    context = _get_dashboard_context(request)
+    if context is None:
+        return render(request, 'dashboard/no_tenant.html')
+
+    context['active_page'] = 'communication'
+    _add_module_context(context, request, 'communication')
+
+    # Identifier le personnel connecté (même logique que espace_enseignant)
+    etab_id = context['etab']['id_etablissement']
+    personnel_id = None
+    personnel_info = {}
+
+    try:
+        from MonEcole_app.models.personnel import Personnel
+        pers_id = request.session.get('personnel_id')
+        pers = None
+        if pers_id:
+            pers = Personnel.objects.filter(
+                id_personnel=pers_id, id_etablissement=etab_id
+            ).first()
+
+        if not pers and request.user.email:
+            try:
+                pers = Personnel.objects.filter(
+                    email__iexact=request.user.email, id_etablissement=etab_id
+                ).first()
+            except Exception:
+                pass
+
+        if pers:
+            personnel_id = pers.id_personnel
+            try:
+                with connections['default'].cursor() as cur:
+                    cur.execute(
+                        "SELECT nom, postnom, prenom, email, telephone, imageUrl FROM personnel WHERE id_personnel = %s",
+                        [pers.id_personnel]
+                    )
+                    sql_row = cur.fetchone()
+                    if sql_row:
+                        personnel_info = {
+                            'id': pers.id_personnel,
+                            'nom': sql_row[0] or pers.nom or '',
+                            'prenom': sql_row[2] or pers.prenom or '',
+                            'email': sql_row[3] or pers.email or '',
+                            'matricule': pers.matricule,
+                            'telephone': sql_row[4] or '',
+                            'imageUrl': sql_row[5] or '',
+                        }
+                    else:
+                        personnel_info = {
+                            'id': pers.id_personnel,
+                            'nom': pers.nom or '',
+                            'prenom': pers.prenom or '',
+                            'email': pers.email or '',
+                            'matricule': pers.matricule,
+                            'telephone': str(pers.telephone) if pers.telephone else '',
+                            'imageUrl': pers.imageUrl.url if pers.imageUrl else '',
+                        }
+            except Exception:
+                personnel_info = {
+                    'id': pers.id_personnel,
+                    'nom': pers.nom or '',
+                    'prenom': pers.prenom or '',
+                    'email': pers.email or '',
+                    'matricule': pers.matricule,
+                    'telephone': str(pers.telephone) if pers.telephone else '',
+                    'imageUrl': pers.imageUrl.url if pers.imageUrl else '',
+                }
+    except Exception:
+        import traceback
+        traceback.print_exc()
+
+    context['personnel_id'] = personnel_id or 0
+    context['personnel_info'] = json.dumps(personnel_info, ensure_ascii=False, default=str)
+
+    return render(request, 'dashboard/communication.html', context)
+
 @require_http_methods(["GET"])
 @login_required(login_url='login')
 def api_enseignant_debug(request):

@@ -4,7 +4,8 @@ from MonEcole_app.views import auth_views
 from MonEcole_app.views.dashboard_views import (
     administration_view, enseignements_view,
     evaluations_view, scolarite_view,
-    espace_enseignant_view, api_enseignant_dashboard, api_enseignant_debug,
+    espace_enseignant_view, communication_view,
+    api_enseignant_dashboard, api_enseignant_debug,
     api_enseignant_presences,
     api_communication_messages, api_communication_send, api_communication_threads,
     api_communication_teachers,
@@ -36,17 +37,23 @@ urlpatterns = [
     path('dashboard/evaluations/', evaluations_view, name='dashboard_evaluations'),
     path('dashboard/scolarite/', scolarite_view, name='dashboard_scolarite'),
     path('dashboard/enseignant/', espace_enseignant_view, name='dashboard_enseignant'),
+    path('dashboard/communication/', communication_view, name='dashboard_communication'),
 
     # API Enseignant
     path('api/enseignant/dashboard/', api_enseignant_dashboard, name='api_enseignant_dashboard'),
     path('api/enseignant/debug/', api_enseignant_debug, name='api_enseignant_debug'),
     path('api/enseignant/presences/', api_enseignant_presences, name='api_enseignant_presences'),
 
-    # API Communication
-    path('api/enseignant/communication/', api_communication_messages, name='api_communication_messages'),
-    path('api/enseignant/communication/send/', api_communication_send, name='api_communication_send'),
-    path('api/enseignant/communication/threads/', api_communication_threads, name='api_communication_threads'),
-    path('api/enseignant/communication/teachers/', api_communication_teachers, name='api_communication_teachers'),
+    # API Communication (standalone module)
+    path('api/communication/', api_communication_messages, name='api_communication_messages'),
+    path('api/communication/send/', api_communication_send, name='api_communication_send'),
+    path('api/communication/threads/', api_communication_threads, name='api_communication_threads'),
+    path('api/communication/teachers/', api_communication_teachers, name='api_communication_teachers'),
+    # Legacy routes (backward compatibility)
+    path('api/enseignant/communication/', api_communication_messages),
+    path('api/enseignant/communication/send/', api_communication_send),
+    path('api/enseignant/communication/threads/', api_communication_threads),
+    path('api/enseignant/communication/teachers/', api_communication_teachers),
 
     # ============ API DASHBOARD (copiées depuis eSchool) ============
     # Dashboard — Student Management

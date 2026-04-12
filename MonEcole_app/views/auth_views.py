@@ -86,6 +86,21 @@ def _load_user_modules(request, personnel):
                 import traceback
                 traceback.print_exc()
 
+        # ── Auto-inject Communication (module 7) — accessible à TOUS ──
+        COMMUNICATION_ID = 7
+        if COMMUNICATION_ID not in seen_ids:
+            mod_info = MODULE_ID_TO_PAGE.get(COMMUNICATION_ID)
+            if mod_info:
+                seen_ids.add(COMMUNICATION_ID)
+                modules.append({
+                    'id': COMMUNICATION_ID,
+                    'name': 'Communication',
+                    'page': mod_info['page'],
+                    'url': mod_info['url'],
+                    'icon': mod_info['icon'],
+                    'label': mod_info['label'],
+                })
+
         # Dédupliquer par page
         seen_pages = set()
         unique_modules = []

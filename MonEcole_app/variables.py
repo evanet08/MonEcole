@@ -42,6 +42,7 @@ MODULE_URL_MAPPING = {
     'Evaluation': 'dashboard_evaluations',
     'Enseignement': 'dashboard_enseignements',
     'Espace_Enseignant': 'dashboard_enseignant',
+    'Communication': 'dashboard_communication',
     'Recouvrement': 'dashboard_administration',
     'Bibliotheque': 'dashboard_administration',
     'Direction': 'dashboard_administration',
@@ -55,7 +56,7 @@ MODULE_ID_TO_PAGE = {
     4: {'page': 'enseignements', 'url': '/dashboard/enseignements/', 'icon': 'fas fa-chalkboard-teacher', 'label': 'Enseignements'},
     5: {'page': 'espace_enseignant', 'url': '/dashboard/enseignant/', 'icon': 'fas fa-chalkboard', 'label': 'Espace Enseignant'},
     6: {'page': 'administration', 'url': '/dashboard/administration/', 'icon': 'fas fa-money-bill', 'label': 'Recouvrement'},
-    7: {'page': 'administration', 'url': '/dashboard/administration/', 'icon': 'fas fa-book', 'label': 'Bibliothèque'},
+    7: {'page': 'communication', 'url': '/dashboard/communication/', 'icon': 'fas fa-comments', 'label': 'Communication'},
     8: {'page': 'administration', 'url': '/dashboard/administration/', 'icon': 'fas fa-crown', 'label': 'Direction'},
 }
 
