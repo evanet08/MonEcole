@@ -136,7 +136,7 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
     text_w = right_w - nperm_box_w
 
     sexe_col_w = 30*mm
-    eleve_col_w = text_w - sexe_col_w
+    eleve_col_w = right_w - sexe_col_w  # full spanned width, not text_w
 
     eleve_inner = Table(
         [[Paragraph(f"ELEVE : <b>{nom_upper} {prenom_title}</b>{dots_mid if not nom_upper else ''}", p_style),

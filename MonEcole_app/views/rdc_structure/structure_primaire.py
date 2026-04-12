@@ -343,7 +343,7 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
 
     # Position fixe pour SEXE / LE date : 30mm à droite
     sexe_col_w = 30*mm
-    eleve_col_w = text_w - sexe_col_w
+    eleve_col_w = right_w - sexe_col_w  # full spanned width, not text_w
 
     # Mini-table ELEVE : [nom + dots | SEXE + dots]
     eleve_inner = Table(
