@@ -13,6 +13,10 @@
     <i class="fas fa-user-plus" style="color:#059669"></i>
     <span>Inscription</span>
 </a>
+<a href="#" class="nav-item" title="Profils et Parents" onclick="event.preventDefault();switchScolSection('profils')">
+    <i class="fas fa-id-card" style="color:#8b5cf6"></i>
+    <span>Profils</span>
+</a>
 <a href="#" class="nav-item" title="Dossier Administratif" onclick="event.preventDefault();switchScolSection('dossier')">
     <i class="fas fa-folder-open" style="color:#d97706"></i>
     <span>Dossier</span>
@@ -388,8 +392,6 @@
         <div class="eleve-tabs" style="display:flex;gap:0;margin-bottom:10px;border-bottom:2px solid #e2e8f0">
             <button class="eleve-tab active" id="tabInscEnreg" onclick="switchInscTab('enreg')"><i class="fas fa-user-plus"></i> Enregistrement</button>
             <button class="eleve-tab" id="tabInscImport" onclick="switchInscTab('import')"><i class="fas fa-file-upload"></i> Importation</button>
-            <button class="eleve-tab" id="tabInscProfil" onclick="switchInscTab('profil')"><i class="fas fa-id-card"></i> Profil Élève</button>
-            <button class="eleve-tab" id="tabInscParents" onclick="switchInscTab('parents')"><i class="fas fa-user-friends"></i> Compléter Parents</button>
             <button class="eleve-tab" id="tabInscModif" onclick="switchInscTab('modif')"><i class="fas fa-exchange-alt"></i> Modifier Inscription</button>
             <button class="eleve-tab" id="tabInscReinsc" onclick="switchInscTab('reinsc')"><i class="fas fa-redo-alt"></i> Réinscrire</button>
         </div>
@@ -493,67 +495,7 @@
             </div>
         </div>
 
-        <!-- ═══════ TAB 3: PROFIL ÉLÈVE (grid + edit) ═══════ -->
-        <div id="inscPanelProfil" style="display:none">
-            <div id="elevesGridSection" class="dash-section" style="margin-bottom:.8rem">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
-                    <div class="dash-section-title" style="margin-bottom:0"><i class="fas fa-list"></i> Liste des Élèves <span id="gridClasseLabel" style="color:#4338ca"></span> <span id="gridElevesCount" style="font-weight:400;color:#64748b;font-size:.7rem">(0)</span></div>
-                    <div style="display:flex;gap:4px;align-items:center">
-                        <div style="position:relative">
-                            <button class="eleve-btn" style="background:linear-gradient(135deg,#6366f1,#a78bfa);color:#fff;font-size:.65rem" onclick="toggleColumnSelector()" id="btnColSelector"><i class="fas fa-columns"></i> Colonnes</button>
-                            <div id="columnSelectorDropdown" style="display:none;position:absolute;right:0;top:100%;z-index:100;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.15);padding:10px;min-width:240px;max-height:400px;overflow-y:auto">
-                                <div style="font-size:.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #f1f5f9"><i class="fas fa-eye" style="margin-right:3px"></i> Colonnes Visibles</div>
-                                <div id="columnCheckboxes"></div>
-                                <div style="margin-top:6px;padding-top:6px;border-top:1px solid #f1f5f9;display:flex;gap:4px">
-                                    <button style="flex:1;padding:4px;border:none;border-radius:5px;background:#eef2ff;color:#4338ca;font-size:.62rem;font-weight:600;cursor:pointer" onclick="selectAllColumns(true)">Tout cocher</button>
-                                    <button style="flex:1;padding:4px;border:none;border-radius:5px;background:#f1f5f9;color:#64748b;font-size:.62rem;font-weight:600;cursor:pointer" onclick="selectAllColumns(false)">Tout décocher</button>
-                                </div>
-                            </div>
-                        </div>
-                        <button class="eleve-btn" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;font-size:.65rem" onclick="loadElevesList()" title="Rafraîchir"><i class="fas fa-sync-alt"></i></button>
-                    </div>
-                </div>
-                <!-- DELETE SELECTION TOOLBAR -->
-                <div id="deleteSelectionBar" style="display:none;background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1.5px solid #fca5a5;border-radius:10px;padding:8px 14px;margin-bottom:8px;align-items:center;gap:10px;flex-wrap:wrap">
-                    <div style="display:flex;align-items:center;gap:8px;flex:1">
-                        <input type="checkbox" id="deleteSelectAll" onchange="toggleDeleteSelectAll(this.checked)" style="accent-color:#dc2626;width:16px;height:16px">
-                        <label for="deleteSelectAll" style="font-size:.7rem;font-weight:600;color:#991b1b;cursor:pointer">Tout sélectionner</label>
-                        <span id="deleteSelCount" style="font-size:.68rem;font-weight:700;color:#dc2626;background:#fff;padding:3px 10px;border-radius:12px;border:1px solid #fca5a5">0 sélectionné(s)</span>
-                    </div>
-                    <button class="eleve-btn" onclick="executeDeleteInscriptions()" id="btnDeleteSelected" disabled style="background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;font-size:.7rem;padding:6px 16px;opacity:.5;cursor:not-allowed">
-                        <i class="fas fa-trash-alt" style="margin-right:4px"></i>Supprimer la sélection
-                    </button>
-                </div>
-                <div id="elevesGridContainer" style="overflow-x:auto;max-height:500px;overflow-y:auto;border-radius:8px;border:1px solid #e2e8f0"></div>
-                <input type="file" id="photoUploadInput" accept="image/*" style="display:none" onchange="uploadStudentPhoto(this)">
-            </div>
-        </div>
-
-        <!-- ═══════ TAB 3: COMPLÉTER PARENTS (bulk update) ═══════ -->
-        <div id="inscPanelParents" style="display:none">
-            <div class="dash-section">
-                <div class="dash-section-title"><i class="fas fa-user-friends" style="color:#8b5cf6"></i> Compléter les Informations Parents</div>
-                <div class="dash-section-sub">Téléchargez la liste des élèves, complétez les colonnes parents dans Excel, puis réimportez le fichier</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px">
-                    <!-- Step 1: Download -->
-                    <div style="padding:16px;border-radius:12px;border:1.5px solid #c7d2fe;background:linear-gradient(135deg,#f5f3ff,#eef2ff)">
-                        <div style="font-size:.7rem;font-weight:700;color:#4338ca;margin-bottom:8px;display:flex;align-items:center;gap:6px"><span style="background:#4338ca;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem">1</span> Télécharger le modèle</div>
-                        <p style="font-size:.62rem;color:#64748b;margin:0 0 10px;line-height:1.4">Les élèves inscrits dans la classe sélectionnée seront exportés avec les colonnes <b style="color:#3b82f6">Père</b> et <b style="color:#ec4899">Mère</b> à compléter.</p>
-                        <button class="eleve-btn" id="btnDlParentTemplate" onclick="downloadParentTemplate()" disabled style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:.68rem;opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-file-download" style="margin-right:4px"></i>Télécharger le modèle Parents</button>
-                    </div>
-                    <!-- Step 2: Import -->
-                    <div style="padding:16px;border-radius:12px;border:1.5px solid #bbf7d0;background:linear-gradient(135deg,#f0fdf4,#ecfdf5)">
-                        <div style="font-size:.7rem;font-weight:700;color:#059669;margin-bottom:8px;display:flex;align-items:center;gap:6px"><span style="background:#059669;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem">2</span> Importer le fichier complété</div>
-                        <p style="font-size:.62rem;color:#64748b;margin:0 0 10px;line-height:1.4">Après avoir rempli les informations parents, réimportez le fichier. Les parents existants seront reconnus par <b>nom + téléphone</b>.</p>
-                        <button class="eleve-btn" id="btnImportParents" onclick="document.getElementById('importParentFile').click()" disabled style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;font-size:.68rem;opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-file-upload" style="margin-right:4px"></i>Importer le fichier Parents</button>
-                        <input type="file" id="importParentFile" accept=".xlsx,.xls" onchange="importParentUpdates(this)" style="display:none">
-                    </div>
-                </div>
-                <div id="parentImportResult" style="display:none;margin-top:12px;padding:10px 14px;border-radius:10px;font-size:.68rem"></div>
-            </div>
-        </div>
-
-        <!-- ═══════ TAB 4: MODIFIER UNE INSCRIPTION (transfer) ═══════ -->
+        <!-- ═══════ TAB 3: MODIFIER UNE INSCRIPTION (transfer) ═══════ -->
         <div id="inscPanelModif" style="display:none">
             <div class="dash-section">
                 <div class="dash-section-title"><i class="fas fa-exchange-alt"></i> Modifier une Inscription</div>
@@ -604,7 +546,87 @@
         </div>
     </div>
 
-    <!-- ==================== SECTION 3: DOSSIER ADMINISTRATIF ==================== -->
+    <!-- ==================== SECTION 3: PROFILS ET PARENTS ==================== -->
+    <div id="scolProfils" style="display:none">
+        <!-- Class selector shared with inscription -->
+        <div class="dash-section" style="padding:10px 16px;margin-bottom:10px;background:linear-gradient(135deg,#f5f3ff,#eef2ff);border:1.5px solid #c7d2fe">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <i class="fas fa-id-card" style="color:#8b5cf6;font-size:.8rem"></i>
+                <span style="font-size:.72rem;font-weight:700;color:#4338ca">Profils et Parents</span>
+                <span style="font-size:.6rem;color:#64748b">—</span>
+                <span style="font-size:.62rem;color:#64748b">Classe :</span>
+                <span id="profilsClasseLabel" style="font-size:.72rem;font-weight:700;color:#6366f1">—</span>
+            </div>
+        </div>
+
+        <!-- Sub-tabs -->
+        <div class="eleve-tabs" style="display:flex;gap:0;margin-bottom:10px;border-bottom:2px solid #e2e8f0">
+            <button class="eleve-tab active" id="tabProfilEleve" onclick="switchProfilTab('eleve')"><i class="fas fa-id-card"></i> Profil Élève</button>
+            <button class="eleve-tab" id="tabProfilParents" onclick="switchProfilTab('parents')"><i class="fas fa-user-friends"></i> Compléter Parents</button>
+        </div>
+
+        <!-- ═══════ PROFIL TAB 1: PROFIL ÉLÈVE (grid + edit) ═══════ -->
+        <div id="profilPanelEleve">
+            <div id="elevesGridSection" class="dash-section" style="margin-bottom:.8rem">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+                    <div class="dash-section-title" style="margin-bottom:0"><i class="fas fa-list"></i> Liste des Élèves <span id="gridClasseLabel" style="color:#4338ca"></span> <span id="gridElevesCount" style="font-weight:400;color:#64748b;font-size:.7rem">(0)</span></div>
+                    <div style="display:flex;gap:4px;align-items:center">
+                        <div style="position:relative">
+                            <button class="eleve-btn" style="background:linear-gradient(135deg,#6366f1,#a78bfa);color:#fff;font-size:.65rem" onclick="toggleColumnSelector()" id="btnColSelector"><i class="fas fa-columns"></i> Colonnes</button>
+                            <div id="columnSelectorDropdown" style="display:none;position:absolute;right:0;top:100%;z-index:100;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.15);padding:10px;min-width:240px;max-height:400px;overflow-y:auto">
+                                <div style="font-size:.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #f1f5f9"><i class="fas fa-eye" style="margin-right:3px"></i> Colonnes Visibles</div>
+                                <div id="columnCheckboxes"></div>
+                                <div style="margin-top:6px;padding-top:6px;border-top:1px solid #f1f5f9;display:flex;gap:4px">
+                                    <button style="flex:1;padding:4px;border:none;border-radius:5px;background:#eef2ff;color:#4338ca;font-size:.62rem;font-weight:600;cursor:pointer" onclick="selectAllColumns(true)">Tout cocher</button>
+                                    <button style="flex:1;padding:4px;border:none;border-radius:5px;background:#f1f5f9;color:#64748b;font-size:.62rem;font-weight:600;cursor:pointer" onclick="selectAllColumns(false)">Tout décocher</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="eleve-btn" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;font-size:.65rem" onclick="loadElevesList()" title="Rafraîchir"><i class="fas fa-sync-alt"></i></button>
+                    </div>
+                </div>
+                <!-- DELETE SELECTION TOOLBAR -->
+                <div id="deleteSelectionBar" style="display:none;background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1.5px solid #fca5a5;border-radius:10px;padding:8px 14px;margin-bottom:8px;align-items:center;gap:10px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:8px;flex:1">
+                        <input type="checkbox" id="deleteSelectAll" onchange="toggleDeleteSelectAll(this.checked)" style="accent-color:#dc2626;width:16px;height:16px">
+                        <label for="deleteSelectAll" style="font-size:.7rem;font-weight:600;color:#991b1b;cursor:pointer">Tout sélectionner</label>
+                        <span id="deleteSelCount" style="font-size:.68rem;font-weight:700;color:#dc2626;background:#fff;padding:3px 10px;border-radius:12px;border:1px solid #fca5a5">0 sélectionné(s)</span>
+                    </div>
+                    <button class="eleve-btn" onclick="executeDeleteInscriptions()" id="btnDeleteSelected" disabled style="background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;font-size:.7rem;padding:6px 16px;opacity:.5;cursor:not-allowed">
+                        <i class="fas fa-trash-alt" style="margin-right:4px"></i>Supprimer la sélection
+                    </button>
+                </div>
+                <div id="elevesGridContainer" style="overflow-x:auto;max-height:500px;overflow-y:auto;border-radius:8px;border:1px solid #e2e8f0"></div>
+                <input type="file" id="photoUploadInput" accept="image/*" style="display:none" onchange="uploadStudentPhoto(this)">
+            </div>
+        </div>
+
+        <!-- ═══════ PROFIL TAB 2: COMPLÉTER PARENTS (bulk update) ═══════ -->
+        <div id="profilPanelParents" style="display:none">
+            <div class="dash-section">
+                <div class="dash-section-title"><i class="fas fa-user-friends" style="color:#8b5cf6"></i> Compléter les Informations Parents</div>
+                <div class="dash-section-sub">Téléchargez la liste des élèves, complétez les colonnes parents dans Excel, puis réimportez le fichier</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px">
+                    <!-- Step 1: Download -->
+                    <div style="padding:16px;border-radius:12px;border:1.5px solid #c7d2fe;background:linear-gradient(135deg,#f5f3ff,#eef2ff)">
+                        <div style="font-size:.7rem;font-weight:700;color:#4338ca;margin-bottom:8px;display:flex;align-items:center;gap:6px"><span style="background:#4338ca;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem">1</span> Télécharger le modèle</div>
+                        <p style="font-size:.62rem;color:#64748b;margin:0 0 10px;line-height:1.4">Les élèves inscrits dans la classe sélectionnée seront exportés avec les colonnes <b style="color:#3b82f6">Père</b> et <b style="color:#ec4899">Mère</b> à compléter.</p>
+                        <button class="eleve-btn" id="btnDlParentTemplate" onclick="downloadParentTemplate()" disabled style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:.68rem;opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-file-download" style="margin-right:4px"></i>Télécharger le modèle Parents</button>
+                    </div>
+                    <!-- Step 2: Import -->
+                    <div style="padding:16px;border-radius:12px;border:1.5px solid #bbf7d0;background:linear-gradient(135deg,#f0fdf4,#ecfdf5)">
+                        <div style="font-size:.7rem;font-weight:700;color:#059669;margin-bottom:8px;display:flex;align-items:center;gap:6px"><span style="background:#059669;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem">2</span> Importer le fichier complété</div>
+                        <p style="font-size:.62rem;color:#64748b;margin:0 0 10px;line-height:1.4">Après avoir rempli les informations parents, réimportez le fichier. Les parents existants seront reconnus par <b>nom + téléphone</b>.</p>
+                        <button class="eleve-btn" id="btnImportParents" onclick="document.getElementById('importParentFile').click()" disabled style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;font-size:.68rem;opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-file-upload" style="margin-right:4px"></i>Importer le fichier Parents</button>
+                        <input type="file" id="importParentFile" accept=".xlsx,.xls" onchange="importParentUpdates(this)" style="display:none">
+                    </div>
+                </div>
+                <div id="parentImportResult" style="display:none;margin-top:12px;padding:10px 14px;border-radius:10px;font-size:.68rem"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SECTION 4: DOSSIER ADMINISTRATIF ==================== -->
     <div id="scolDossier" style="display:none">
         <!-- Document Types Management -->
         <div class="dash-section">
@@ -2385,28 +2407,45 @@ let selectedClasseActiveId=null, selectedClasseLabel='';
 
 /* ===== SIDEBAR SECTION NAVIGATION ===== */
 function switchScolSection(section){
-    var sections=['scolAccueil','scolInscription','scolDossier'];
+    var sections=['scolAccueil','scolInscription','scolProfils','scolDossier'];
+    var names=['accueil','inscription','profils','dossier'];
     var links=document.querySelectorAll('.nav-item');
     sections.forEach(function(id,i){
         var el=document.getElementById(id);
-        if(el) el.style.display=(id==='scol'+section.charAt(0).toUpperCase()+section.slice(1))?'block':'none';
-        if(links[i]) links[i].classList.toggle('active',i===['accueil','inscription','dossier'].indexOf(section));
+        if(el) el.style.display=(names[i]===section)?'block':'none';
+        if(links[i]) links[i].classList.toggle('active',names[i]===section);
     });
     if(section==='dossier'){loadDocTypes();populateDossierEleves();}
+    if(section==='profils'){
+        // Sync class label
+        var lbl=document.getElementById('profilsClasseLabel');
+        if(lbl) lbl.textContent=selectedClasseLabel||'—';
+        if(selectedClasseActiveId&&currentElevesList.length===0) loadElevesList();
+    }
     if(section==='inscription'&&selectedClasseActiveId&&currentElevesList.length===0)loadElevesList();
 }
 
 /* ===== INSCRIPTION SUB-TABS ===== */
 function switchInscTab(tab){
-    ['enreg','import','profil','parents','modif','reinsc'].forEach(function(t){
+    ['enreg','import','modif','reinsc'].forEach(function(t){
         var btn=document.getElementById('tabInsc'+t.charAt(0).toUpperCase()+t.slice(1));
         var panel=document.getElementById('inscPanel'+t.charAt(0).toUpperCase()+t.slice(1));
         if(btn)btn.classList.toggle('active',t===tab);
         if(panel)panel.style.display=t===tab?'block':'none';
     });
-    if(tab==='profil'&&selectedClasseActiveId) loadElevesList();
     if(tab==='modif'){renderTransferList();populateTransferDestClasses();}
     if(tab==='reinsc') populateReinscDestClasses();
+}
+
+/* ===== PROFILS SUB-TABS ===== */
+function switchProfilTab(tab){
+    ['eleve','parents'].forEach(function(t){
+        var btn=document.getElementById('tabProfil'+t.charAt(0).toUpperCase()+t.slice(1));
+        var panel=document.getElementById('profilPanel'+t.charAt(0).toUpperCase()+t.slice(1));
+        if(btn)btn.classList.toggle('active',t===tab);
+        if(panel)panel.style.display=t===tab?'block':'none';
+    });
+    if(tab==='eleve'&&selectedClasseActiveId) loadElevesList();
 }
 
 /* ===== Legacy compatibility ===== */
@@ -2698,6 +2737,7 @@ function onClasseFilterChange(){
         if(classeLbl)classeLbl.textContent=selectedClasseLabel;
         if(addLbl)addLbl.textContent=selectedClasseLabel;
         document.getElementById('gridClasseLabel').textContent=selectedClasseLabel;
+        var plbl=document.getElementById('profilsClasseLabel');if(plbl)plbl.textContent=selectedClasseLabel;
         // Pre-load grid data + refresh modif tab
         loadElevesList().then(()=>{
             if(document.getElementById('inscPanelModif')?.style.display==='block'){
