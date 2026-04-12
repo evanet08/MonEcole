@@ -141,14 +141,19 @@ def create_header(elements, logo_path, emblem_path, style_title, style_center, e
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
     ]))
     elements.append(header_table)
+    elements.append(Spacer(1, 1*mm))
 
 
 def create_line2_left(elements, style_normal, id_campus=None):
-    """Left info section — 40% du bulletin, format officiel RDC."""
+    """Left info section — 40% du bulletin, format officiel RDC.
+    Labels en gras, valeurs après les deux-points, format formulaire avec pointillés."""
     
-    # Retrieve matricule + nom école
+    # Retrieve matricule + nom école + administrative data
     matricule = ""
     ecole_display = ""
+    province_display = ""
+    ville_display = ""
+    commune_display = ""
     if id_campus:
         try:
             campus = Campus.objects.get(idCampus=id_campus)
@@ -165,10 +170,27 @@ def create_line2_left(elements, style_normal, id_campus=None):
                             matricule = str(row[0]).strip()
                         if row[1]:
                             ecole_display = str(row[1]).strip().upper()
+                # Try to get province/ville/commune from ref_administrative
+                try:
+                    cursor.execute("""
+                        SELECT ra3.nom as commune, ra2.nom as ville, ra1.nom as province
+                        FROM etablissements e
+                        LEFT JOIN ref_administratives ra3 ON ra3.id = e.ref_administrative_id
+                        LEFT JOIN ref_administratives ra2 ON ra2.id = ra3.parent_id
+                        LEFT JOIN ref_administratives ra1 ON ra1.id = ra2.parent_id
+                        WHERE e.id_etablissement = %s
+                    """, [campus.id_etablissement])
+                    geo_row = cursor.fetchone()
+                    if geo_row:
+                        commune_display = (geo_row[0] or '').strip().upper()
+                        ville_display = (geo_row[1] or '').strip().upper()
+                        province_display = (geo_row[2] or '').strip().upper()
+                except Exception:
+                    pass
         except Exception:
             pass
 
-    # CODE boxes
+    # CODE boxes — format officiel (cases individuelles séparées)
     nb_cases = len(matricule) if matricule else 7
     matricule_cells = [list(matricule)] if matricule else [[''] * nb_cases]
     code_squares_table = Table(matricule_cells, colWidths=[4*mm]*nb_cases, rowHeights=5*mm)
@@ -189,40 +211,43 @@ def create_line2_left(elements, style_normal, id_campus=None):
             ('BOX', (i,0), (i,0), 0.5, colors.black),
         ]))
 
-    # Styles — libellés NORMAL, valeurs GRAS, valeurs au-dessus des pointillés
-    lbl_style = ParagraphStyle(name='InfoLabel', fontSize=7, leading=8, alignment=0, fontName='Helvetica')
-    colon_style = ParagraphStyle(name='InfoColon', fontSize=7, leading=8, alignment=1, fontName='Helvetica')
+    # Style formulaire officiel : label en gras, valeur inline
+    p_style = ParagraphStyle(name='InfoLeftP', fontSize=7, leading=8.5, alignment=0, fontName='Helvetica')
+    dots = '<font size="3" color="#999999">' + ' .' * 40 + '</font>'
 
-    # Helper: valeur en gras sans pointillés
-    def val_bold(value):
-        return Paragraph(f"<b>{value}</b>", ParagraphStyle(
-            name='ValBold', fontSize=7, leading=8, alignment=0, fontName='Helvetica-Bold'))
+    left_w = 77.6*mm
 
-    left_w = 77.6*mm  # 40% de 194mm
-    lbl_w = 32*mm
-    col_w = 3*mm
-    val_w = left_w - lbl_w - col_w
-
-    left_data = [
-        [Paragraph("PROVINCE EDUC.", lbl_style), Paragraph(":", colon_style), val_bold("SUD-KIVU")],
-        [Paragraph("VILLE", lbl_style), Paragraph(":", colon_style), val_bold("BUKAVU")],
-        [Paragraph("COMMUNE/TER.", lbl_style), Paragraph(":", colon_style), val_bold("D'IBANDA")],
-        [Paragraph("ECOLE", lbl_style), Paragraph(":", colon_style), val_bold(ecole_display or "")],
-        [Paragraph("CODE", lbl_style), Paragraph(":", colon_style), code_squares_table],
+    left_rows = [
+        [Paragraph(f"<b>PROVINCE EDUC. :</b> {province_display or 'SUD-KIVU'} {dots}", p_style)],
+        [Paragraph(f"<b>VILLE :</b> {ville_display or 'BUKAVU'} {dots}", p_style)],
+        [Paragraph(f"<b>COMMUNE/TER. :</b> {commune_display or ''} {dots}", p_style)],
+        [Paragraph(f"<b>ECOLE :</b> {ecole_display or ''} {dots}", p_style)],
+        [Paragraph("<b>CODE :</b>", p_style), code_squares_table],
     ]
-    left_table = Table(left_data, colWidths=[lbl_w, col_w, val_w], rowHeights=[4.5*mm]*4 + [6*mm])
+
+    final_left_rows = []
+    for i in range(4):
+        final_left_rows.append([left_rows[i][0], None])
+    final_left_rows.append(left_rows[4])
+
+    code_box_w = nb_cases * 4 * mm + 1*mm
+    left_table = Table(final_left_rows, colWidths=[left_w - code_box_w, code_box_w], rowHeights=[4.5*mm]*4 + [6*mm])
     left_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
         ('RIGHTPADDING', (0, 0), (-1, -1), 1),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('SPAN', (0, 0), (1, 0)),
+        ('SPAN', (0, 1), (1, 1)),
+        ('SPAN', (0, 2), (1, 2)),
+        ('SPAN', (0, 3), (1, 3)),
     ]))
     return left_table  
 
 def create_nid_section(elements, style_normal, eleve=None, id_campus=None):
-    """N.ID section: numero_serie_eleve - matricule_ecole displayed in bold detached boxes."""
-    # Build the NID string: numero_serie - matricule
+    """N° ID. section: numero_serie + matricule ecole in continuous boxes (format officiel).
+    All characters displayed in individual bordered boxes, no separator dashes."""
     nid_value = ""
     numero_serie = ""
     matricule = ""
@@ -247,18 +272,18 @@ def create_nid_section(elements, style_normal, eleve=None, id_campus=None):
             pass
 
     if numero_serie and matricule:
-        nid_value = f"{numero_serie}-{matricule}"
+        nid_value = f"{numero_serie}{matricule}"
     elif numero_serie:
         nid_value = numero_serie
     elif matricule:
         nid_value = matricule
 
-    # Create individual character boxes (bold, detached)
-    nb_cases = max(len(nid_value), 20)  # minimum 20 boxes
-    chars = list(nid_value.ljust(nb_cases))  # pad with spaces if shorter
+    # Fixed 20 boxes minimum — continuous, no separators
+    nb_cases = max(len(nid_value), 20)
+    chars = list(nid_value.ljust(nb_cases))
 
     nid_squares = [chars]
-    nid_squares_table = Table(nid_squares, colWidths=[4*mm]*nb_cases, rowHeights=4*mm)
+    nid_squares_table = Table(nid_squares, colWidths=[4.2*mm]*nb_cases, rowHeights=4.5*mm)
     nid_squares_table.setStyle(TableStyle([
         ('BOX', (0,0), (-1,-1), 0, colors.white),
         ('INNERGRID', (0,0), (-1,-1), 0, colors.white),
@@ -276,20 +301,23 @@ def create_nid_section(elements, style_normal, eleve=None, id_campus=None):
             ('BOX', (i,0), (i,0), 0.5, colors.black),
         ]))
 
-    nid_label_style = ParagraphStyle(name='NIDLabel', fontSize=6, leading=8, alignment=1, fontName='Helvetica-Bold')
-    nid_data = [[Paragraph("N\u00b0ID.", nid_label_style), nid_squares_table]]
-    nid_table = Table(nid_data, colWidths=[12*mm, nb_cases*4*mm + 4*mm], hAlign='CENTER')
+    nid_label_style = ParagraphStyle(name='NIDLabel', fontSize=7, leading=9, alignment=0, fontName='Helvetica-Bold')
+    nid_data = [[Paragraph("N° ID.", nid_label_style), nid_squares_table]]
+    nid_row_w = nb_cases * 4.2 * mm + 4*mm
+    nid_table = Table(nid_data, colWidths=[14*mm, nid_row_w], hAlign='LEFT')
     nid_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 1),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 1),
+        ('TOPPADDING', (0,0), (-1,-1), 2),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+        ('LEFTPADDING', (0,0), (0,0), 4),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.black),
     ]))
     elements.append(nid_table)
 
 
 def create_line2_right(elements, eleve, style_normal, id_classe):
-    """Right info section — format image officiel: labels gras inline avec pointillés."""
+    """Right info section — format officiel: labels gras inline avec pointillés."""
     try:
         eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
         classe_name = eac.classe.classe.strip().upper()
@@ -318,8 +346,7 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
             ('BOX', (i,0), (i,0), 0.5, colors.black),
         ]))
 
-    # Style — labels normal, valeurs en gras via <b>
-    p_style = ParagraphStyle(name='InfoRightP', fontSize=7, leading=8, alignment=0, fontName='Helvetica')
+    p_style = ParagraphStyle(name='InfoRightP', fontSize=7, leading=8.5, alignment=0, fontName='Helvetica')
 
     nom_upper = (eleve.nom or '').upper()
     prenom_title = (eleve.prenom or '').title()
@@ -333,20 +360,18 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
         except:
             date_str = str(eleve.date_naissance)
 
-    dots_long = '<font size="3" color="#aaaaaa">' + ' .' * 80 + '</font>'
-    dots_mid = '<font size="3" color="#aaaaaa">' + ' .' * 50 + '</font>'
-    dots_short = '<font size="3" color="#aaaaaa">' + ' .' * 30 + '</font>'
+    dots = '<font size="3" color="#999999">' + ' .' * 40 + '</font>'
+    dots_short = '<font size="3" color="#999999">' + ' .' * 20 + '</font>'
 
     right_w = 116.4*mm
 
     right_rows = [
-        [Paragraph(f"ELEVE : <b>{nom_upper} {prenom_title}</b> {dots_mid}  SEXE : <b>{sexe}</b> {dots_short}", p_style)],
-        [Paragraph(f"NE(E) A : {dots_mid}  LE <b>{date_str if date_str else '..... / ..... / ..........'}</b> {dots_short}", p_style)],
-        [Paragraph(f"CLASSE : <b>{classe_name}</b> {dots_long}", p_style)],
-        [Paragraph("N° PERM. :", p_style), nperm_squares_table],
+        [Paragraph(f"<b>ELEVE :</b> {nom_upper} {prenom_title} {dots}  <b>SEXE :</b> {sexe} {dots_short}", p_style)],
+        [Paragraph(f"<b>NE(E) A :</b> {dots}  <b>LE</b> {date_str if date_str else '..... / ..... / ..........'} {dots_short}", p_style)],
+        [Paragraph(f"<b>CLASSE :</b> {classe_name} {dots}", p_style)],
+        [Paragraph("<b>N° PERM. :</b>", p_style), nperm_squares_table],
     ]
 
-    # Rows 1-3: single full-width paragraph. Row 4: label + boxes
     final_rows = []
     for i in range(3):
         final_rows.append([right_rows[i][0], None])
@@ -355,7 +380,7 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
     right_table = Table(final_rows, colWidths=[right_w - nb_cases*4*mm - 1*mm, nb_cases*4*mm + 1*mm], rowHeights=[4.5*mm]*3 + [6*mm])
     right_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
         ('RIGHTPADDING', (0, 0), (-1, -1), 1),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
@@ -367,20 +392,19 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
     return right_table
 
 def create_line2_section(elements, left_table, right_table):
-    """Combine left (40%) + right (60%) avec séparateur vertical."""
+    """Combine left (40%) + right (60%) avec séparateur vertical et bordure."""
     if isinstance(right_table, tuple):
         right_table = right_table[0]
 
-    left_w = 80*mm   # 40%
-    right_w = 120*mm  # 60%
+    left_w = 80*mm
+    right_w = 120*mm
     line2_data = [[left_table, right_table]]
     line2_table = Table(line2_data, colWidths=[left_w, right_w])
 
     line2_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (0, 0), 'TOP'),
         ('VALIGN', (1, 0), (1, 0), 'MIDDLE'),
-        ('LINEABOVE', (0, 0), (-1, 0), 0.5, colors.black),
-        ('LINEBELOW', (0, -1), (-1, -1), 0.5, colors.black),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
         ('LINEBEFORE', (1, 0), (1, -1), 0.3, colors.black),
         ('TOPPADDING', (0, 0), (-1, -1), 1),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
@@ -399,9 +423,27 @@ def create_bulletin_title(elements, style_title,id_annee,id_classe):
     except:
         # messages.error(request, "Classe ou année introuvable.")
         return HttpResponse('<script>history.back();</script>', status=404)
-    elements.append(Spacer(1, 2*mm))
-    elements.append(Paragraph(f"<font color='black'><b>BULLETIN DE L'ELEVE DE DEGRE ({classe_name}) | Année Scolaire: {annee_obj.annee}</b></font>", style_title))
-    elements.append(Spacer(1, 2*mm))
+    elements.append(Spacer(1, 1.5*mm))
+    annee_display = annee_obj.annee.strip().replace('-', ' - ') if annee_obj and annee_obj.annee else ''
+    title_style_left = ParagraphStyle(name='TitleLeftP', fontSize=7.5, leading=9, alignment=0, fontName='Times-Bold')
+    title_style_right = ParagraphStyle(name='TitleRightP', fontSize=7.5, leading=9, alignment=2, fontName='Times-Bold')
+    title_data = [
+        [Paragraph(f"<font color='black'><b>BULLETIN DE L'ELEVE DEGRE ELEMENTAIRE ({classe_name})</b></font>", title_style_left),
+         Paragraph(f"<font color='black'><b>ANNEE  SCOLAIRE {annee_display}</b></font>", title_style_right)]
+    ]
+    title_table = Table(title_data, colWidths=[120*mm, 80*mm])
+    title_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(title_table)
+    elements.append(Spacer(1, 1.5*mm))
 
 def get_periodes_par_trimestre(trimestres_data, id_annee, id_campus, id_cycle, id_classe):
     periodes_labels = []
