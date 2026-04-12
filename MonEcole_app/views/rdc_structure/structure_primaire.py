@@ -347,8 +347,8 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
 
     # Mini-table ELEVE : [nom + dots | SEXE + dots]
     eleve_inner = Table(
-        [[Paragraph(f"ELEVE : <b>{nom_upper} {prenom_title}</b> {dots_mid}", p_style),
-          Paragraph(f"SEXE : <b>{sexe}</b> {dots_short}", p_style)]],
+        [[Paragraph(f"ELEVE : <b>{nom_upper} {prenom_title}</b>{dots_mid if not nom_upper else ''}", p_style),
+          Paragraph(f"SEXE : <b>{sexe}</b>{dots_short if not sexe else ''}", p_style)]],
         colWidths=[eleve_col_w, sexe_col_w], rowHeights=[4.5*mm]
     )
     eleve_inner.setStyle(TableStyle([
@@ -362,7 +362,7 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
     # Mini-table NE(E) A : [lieu + dots | LE date + dots]
     nea_inner = Table(
         [[Paragraph(f"NE(E) A : {dots_mid}", p_style),
-          Paragraph(f"LE <b>{date_str if date_str else '..... / ..... / ..........'}</b> {dots_short}", p_style)]],
+          Paragraph(f"LE <b>{date_str if date_str else '..... / ..... / ..........'}</b>{dots_short if not date_str else ''}", p_style)]],
         colWidths=[eleve_col_w, sexe_col_w], rowHeights=[4.5*mm]
     )
     nea_inner.setStyle(TableStyle([
@@ -376,7 +376,7 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
     final_rows = [
         [eleve_inner, None],
         [nea_inner, None],
-        [Paragraph(f"CLASSE : <b>{classe_name}</b> {dots_long}", p_style), None],
+        [Paragraph(f"CLASSE : <b>{classe_name}</b>{dots_long if not classe_name else ''}", p_style), None],
         [Paragraph("N° PERM. :", p_style), nperm_squares_table],
     ]
 
