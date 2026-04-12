@@ -59,6 +59,8 @@ urlpatterns = [
     path('api/dashboard/update-eleve/', api_views.dashboard_update_eleve, name='dashboard_update_eleve'),
     path('api/dashboard/upload-photo/', api_views.dashboard_upload_photo, name='dashboard_upload_photo'),
     path('api/dashboard/delete-inscriptions/', api_views.delete_inscriptions, name='delete_inscriptions'),
+    path('api/dashboard/parent-update-template/', api_views.parent_update_template, name='parent_update_template'),
+    path('api/dashboard/import-parent-updates/', api_views.import_parent_updates, name='import_parent_updates'),
 
     # Campus CRUD
     path('api/dashboard/campus-list/', api_views.dashboard_campus_list, name='dashboard_campus_list'),

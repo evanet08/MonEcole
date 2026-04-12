@@ -4214,8 +4214,7 @@ def dashboard_eleve_template(request):
     headers = [
         'N° Série', 'Nom', 'Postnom', 'Prénom',
         'Année Naissance', 'Mois Naissance', 'Jour Naissance',
-        'Genre (M/F)', 'Nom Père', 'Prénom Père',
-        'Nom Mère', 'Prénom Mère', 'Email Parent', 'Téléphone'
+        'Genre (M/F)', 'Téléphone'
     ]
 
     # Resolve class name and fetch existing students
@@ -4252,8 +4251,7 @@ def dashboard_eleve_template(request):
                     if bk:
                         cur.execute("""
                             SELECT e.numero_serie, e.nom, e.prenom, e.genre,
-                                   e.date_naissance, e.nom_pere, e.prenom_pere,
-                                   e.nom_mere, e.prenom_mere, e.email_parent, e.telephone
+                                   e.date_naissance, e.telephone
                             FROM eleve e
                             JOIN eleve_inscription ei ON ei.id_eleve_id = e.id_eleve
                             WHERE ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
@@ -4318,11 +4316,6 @@ def dashboard_eleve_template(request):
                 dn_month,
                 dn_day,
                 stu['genre'] or '',
-                stu.get('nom_pere') or '',
-                stu.get('prenom_pere') or '',
-                stu.get('nom_mere') or '',
-                stu.get('prenom_mere') or '',
-                stu.get('email_parent') or '',
                 stu.get('telephone') or '',
             ]
             for col, val in enumerate(row_data, 1):
@@ -4445,8 +4438,7 @@ def dashboard_import_eleves(request):
             col_map = {
                 'numero_serie': 0, 'nom': 1, 'postnom': 2, 'prenom': 3,
                 'annee_naissance': 4, 'mois_naissance': 5, 'jour_naissance': 6,
-                'genre': 7, 'nom_pere': 8, 'prenom_pere': 9,
-                'nom_mere': 10, 'prenom_mere': 11, 'email_parent': 12, 'telephone': 13
+                'genre': 7, 'telephone': 8
             }
             has_split_date = True
 
@@ -4589,26 +4581,20 @@ def dashboard_import_eleves(request):
                         prenom_pere = str(_cell(row, 'prenom_pere') or '').strip()
                         nom_mere = str(_cell(row, 'nom_mere') or '').strip()
                         prenom_mere = str(_cell(row, 'prenom_mere') or '').strip()
-                        email_parent = str(_cell(row, 'email_parent') or '').strip()
                         telephone = str(_cell(row, 'telephone') or '').strip()
 
                         if not nom or not prenom:
                             errors.append(f"Ligne {i}: nom ou prénom manquant")
                             continue
 
-                        # Date and genre: only required for NEW students, not for updates
-                        # (we'll check below after we know if it's an insert or update)
-
                         full_nom = f"{nom} {postnom}".strip() if postnom else nom
 
-                        # Check if student already exists (match by nom + prenom + nom_pere + nom_mere + etablissement)
+                        # Check if student already exists (match by nom + prenom + etablissement)
                         cur.execute("""
                             SELECT id_eleve FROM eleve
-                            WHERE nom = %s AND prenom = %s
-                              AND COALESCE(nom_pere,'') = %s AND COALESCE(nom_mere,'') = %s
-                              AND id_etablissement = %s
+                            WHERE nom = %s AND prenom = %s AND id_etablissement = %s
                             LIMIT 1
-                        """, [full_nom, prenom, nom_pere, nom_mere, id_etablissement])
+                        """, [full_nom, prenom, id_etablissement])
                         existing = cur.fetchone()
 
                         if existing:
@@ -4621,18 +4607,8 @@ def dashboard_import_eleves(request):
                                 set_parts.append("genre = %s"); set_vals.append(genre)
                             if date_naissance:
                                 set_parts.append("date_naissance = %s"); set_vals.append(date_naissance)
-                            if email_parent:
-                                set_parts.append("email_parent = %s"); set_vals.append(email_parent)
                             if telephone:
                                 set_parts.append("telephone = %s"); set_vals.append(telephone)
-                            if nom_pere:
-                                set_parts.append("nom_pere = %s"); set_vals.append(nom_pere)
-                            if prenom_pere:
-                                set_parts.append("prenom_pere = %s"); set_vals.append(prenom_pere)
-                            if nom_mere:
-                                set_parts.append("nom_mere = %s"); set_vals.append(nom_mere)
-                            if prenom_mere:
-                                set_parts.append("prenom_mere = %s"); set_vals.append(prenom_mere)
                             if set_parts:
                                 set_vals.append(existing['id_eleve'])
                                 cur.execute(f"UPDATE eleve SET {', '.join(set_parts)} WHERE id_eleve = %s", set_vals)
@@ -4651,7 +4627,6 @@ def dashboard_import_eleves(request):
                             ])
                             existing_inscription = cur.fetchone()
                             if not existing_inscription:
-                                # Create the missing inscription for this class
                                 cur.execute("""
                                     INSERT INTO eleve_inscription
                                     (date_inscription, redoublement, status, isDelegue,
@@ -4674,16 +4649,14 @@ def dashboard_import_eleves(request):
                                 errors.append(f"Ligne {i}: genre invalide '{genre}' pour {nom} {prenom} (M ou F)")
                                 continue
 
-                            # INSERT new student
+                            # INSERT new student (without parent data)
                             cur.execute("""
                                 INSERT INTO eleve (numero_serie, nom, prenom, genre, date_naissance, id_etablissement,
-                                                   email_parent, telephone, nom_pere, prenom_pere, nom_mere, prenom_mere)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                                   telephone)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s)
                             """, [
                                 numero_serie or None, full_nom, prenom, genre, date_naissance, id_etablissement,
-                                email_parent or None, telephone or None,
-                                nom_pere or None, prenom_pere or None,
-                                nom_mere or None, prenom_mere or None
+                                telephone or None
                             ])
                             id_eleve = cur.lastrowid
 
@@ -4715,6 +4688,304 @@ def dashboard_import_eleves(request):
                 'updated': updated,
                 'errors': errors[:20],
                 'total_eleves': total
+            })
+        finally:
+            conn.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ============================================================
+# API — Parent Update Template (export students with parent columns)
+# ============================================================
+@require_http_methods(["GET"])
+def parent_update_template(request):
+    """Generate Excel with existing students + empty parent columns for bulk update."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, Protection
+
+    id_etablissement = request.GET.get('id_etablissement')
+    classe_par_annee_id = request.GET.get('classe_par_annee_id')
+
+    if not id_etablissement or not classe_par_annee_id:
+        return JsonResponse({'success': False, 'error': 'Paramètres manquants'}, status=400)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Compléter Parents"
+
+    header_fill = PatternFill(start_color="4338CA", end_color="4338CA", fill_type="solid")
+    locked_fill = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
+    pere_fill = PatternFill(start_color="DBEAFE", end_color="DBEAFE", fill_type="solid")
+    mere_fill = PatternFill(start_color="FCE7F3", end_color="FCE7F3", fill_type="solid")
+    header_font = Font(name='Arial', bold=True, color="FFFFFF", size=10)
+    locked_font = Font(name='Arial', size=10, color="64748B")
+    data_font = Font(name='Arial', size=10)
+    border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+
+    headers = [
+        'ID Élève', 'Nom', 'Postnom', 'Prénom', 'Genre',
+        'Nom Père', 'Postnom Père', 'Prénom Père', 'Tél. Père', 'Email Père',
+        'Nom Mère', 'Postnom Mère', 'Prénom Mère', 'Tél. Mère', 'Email Mère'
+    ]
+
+    classe_label = ''
+    students = []
+    try:
+        conn = _get_spoke_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT cl.nom as classe_nom,
+                           COALESCE(s.nom, '') as section_nom,
+                           COALESCE(eac.groupe, '') as groupe
+                    FROM countryStructure.etablissements_annees_classes eac
+                    JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id
+                    LEFT JOIN countryStructure.sections s ON s.id_section = eac.section_id
+                    WHERE eac.id = %s
+                """, [classe_par_annee_id])
+                row = cur.fetchone()
+                if row:
+                    classe_label = row['classe_nom']
+                    if row['section_nom']: classe_label += ' - ' + row['section_nom']
+                    if row['groupe']: classe_label += ' (' + row['groupe'] + ')'
+
+                cur.execute("""
+                    SELECT eac.classe_id, eac.groupe, eac.section_id
+                    FROM countryStructure.etablissements_annees_classes eac WHERE eac.id = %s
+                """, [classe_par_annee_id])
+                bk = cur.fetchone()
+                if bk:
+                    cur.execute("""
+                        SELECT e.id_eleve, e.nom, e.prenom, e.genre,
+                               p.nomPere, p.postnomPere, p.prenomPere, p.telephonePere, p.emailPere,
+                               p.nomMere, p.postnomMere, p.prenomMere, p.telephoneMere, p.emailMere
+                        FROM eleve e
+                        JOIN eleve_inscription ei ON ei.id_eleve_id = e.id_eleve
+                        LEFT JOIN parents p ON p.id_parent = e.id_parent
+                        WHERE ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                          AND ei.id_etablissement = %s AND ei.status = 1
+                        ORDER BY e.nom, e.prenom
+                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], id_etablissement])
+                    students = cur.fetchall()
+        finally:
+            conn.close()
+    except Exception:
+        pass
+
+    # Info row
+    info_font = Font(name='Arial', bold=True, color="4338CA", size=9)
+    ws.cell(row=1, column=1, value=f"Classe: {classe_label} — Complétez les colonnes Parents (colonnes vertes)").font = info_font
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+
+    # Headers
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=2, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+
+    # Pere/Mere header colors
+    for col in range(6, 11):  # Père columns
+        ws.cell(row=2, column=col).fill = PatternFill(start_color="3B82F6", end_color="3B82F6", fill_type="solid")
+    for col in range(11, 16):  # Mère columns
+        ws.cell(row=2, column=col).fill = PatternFill(start_color="EC4899", end_color="EC4899", fill_type="solid")
+
+    # Column widths
+    widths = [10, 18, 16, 16, 8, 18, 16, 16, 16, 22, 18, 16, 16, 16, 22]
+    for i, w in enumerate(widths, 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+
+    # Data rows
+    for idx, stu in enumerate(students):
+        r = 3 + idx
+        nom_parts = (stu['nom'] or '').split(' ', 1)
+        nom_val = nom_parts[0] if nom_parts else ''
+        postnom_val = nom_parts[1] if len(nom_parts) > 1 else ''
+
+        locked_row = [
+            stu['id_eleve'], nom_val, postnom_val, stu['prenom'] or '', stu['genre'] or ''
+        ]
+        parent_row = [
+            stu.get('nomPere') or '', stu.get('postnomPere') or '', stu.get('prenomPere') or '',
+            stu.get('telephonePere') or '', stu.get('emailPere') or '',
+            stu.get('nomMere') or '', stu.get('postnomMere') or '', stu.get('prenomMere') or '',
+            stu.get('telephoneMere') or '', stu.get('emailMere') or '',
+        ]
+
+        # Locked columns (student identity)
+        for col, val in enumerate(locked_row, 1):
+            cell = ws.cell(row=r, column=col, value=val)
+            cell.font = locked_font
+            cell.fill = locked_fill
+            cell.border = border
+
+        # Parent columns (editable)
+        for col, val in enumerate(parent_row, 6):
+            cell = ws.cell(row=r, column=col, value=val)
+            cell.font = data_font
+            cell.border = border
+            if col <= 10:
+                cell.fill = PatternFill(start_color="EFF6FF", end_color="EFF6FF", fill_type="solid")
+            else:
+                cell.fill = PatternFill(start_color="FDF2F8", end_color="FDF2F8", fill_type="solid")
+
+    # Meta sheet
+    ws_meta = wb.create_sheet("_Meta")
+    ws_meta.cell(row=1, column=1, value="classe_par_annee_id")
+    ws_meta.cell(row=1, column=2, value=int(classe_par_annee_id))
+    ws_meta.cell(row=2, column=1, value="type")
+    ws_meta.cell(row=2, column=2, value="parent_update")
+    ws_meta.sheet_state = 'hidden'
+
+    from io import BytesIO
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    response = HttpResponse(
+        buffer.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    fname = f"completer_parents_{classe_label.replace(' ','_')}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{fname}"'
+    return response
+
+
+# ============================================================
+# API — Import Parent Updates from Excel
+# ============================================================
+@require_http_methods(["POST"])
+def import_parent_updates(request):
+    """Import parent data from Excel and create/link parents to students."""
+    try:
+        import openpyxl
+
+        file = request.FILES.get('file')
+        id_etablissement = request.POST.get('id_etablissement')
+
+        if not file or not id_etablissement:
+            return JsonResponse({'success': False, 'error': 'Fichier et établissement requis.'}, status=400)
+
+        id_etablissement = int(id_etablissement)
+        wb = openpyxl.load_workbook(file, read_only=False)
+        ws = wb.active
+
+        # Find data start (skip info row)
+        data_start = 3  # row 1=info, row 2=headers, row 3+=data
+        rows = list(ws.iter_rows(min_row=data_start, values_only=True))
+        if not rows:
+            return JsonResponse({'success': False, 'error': 'Le fichier est vide.'}, status=400)
+
+        conn = _get_spoke_connection()
+        updated = 0
+        created_parents = 0
+        errors = []
+        try:
+            with conn.cursor() as cur:
+                for i, row in enumerate(rows, data_start):
+                    try:
+                        if not row or len(row) < 10:
+                            continue
+                        non_empty = [c for c in row if c is not None and str(c).strip()]
+                        if not non_empty:
+                            continue
+
+                        id_eleve = row[0]
+                        if not id_eleve:
+                            continue
+                        id_eleve = int(id_eleve)
+
+                        # Parent data
+                        nom_pere = str(row[5] or '').strip()
+                        postnom_pere = str(row[6] or '').strip()
+                        prenom_pere = str(row[7] or '').strip()
+                        tel_pere = str(row[8] or '').strip()
+                        email_pere = str(row[9] or '').strip()
+                        nom_mere = str(row[10] or '').strip() if len(row) > 10 else ''
+                        postnom_mere = str(row[11] or '').strip() if len(row) > 11 else ''
+                        prenom_mere = str(row[12] or '').strip() if len(row) > 12 else ''
+                        tel_mere = str(row[13] or '').strip() if len(row) > 13 else ''
+                        email_mere = str(row[14] or '').strip() if len(row) > 14 else ''
+
+                        if not nom_pere and not nom_mere:
+                            continue  # No parent data provided
+
+                        # Check if parent already exists (match by nomPere + prenomPere + telephonePere)
+                        existing_parent = None
+                        if nom_pere and tel_pere:
+                            cur.execute("""
+                                SELECT id_parent FROM parents
+                                WHERE nomPere = %s AND prenomPere = %s AND telephonePere = %s
+                                LIMIT 1
+                            """, [nom_pere, prenom_pere, tel_pere])
+                            existing_parent = cur.fetchone()
+                        elif nom_pere and prenom_pere:
+                            cur.execute("""
+                                SELECT id_parent FROM parents
+                                WHERE nomPere = %s AND prenomPere = %s AND nomMere = %s AND prenomMere = %s
+                                LIMIT 1
+                            """, [nom_pere, prenom_pere, nom_mere, prenom_mere])
+                            existing_parent = cur.fetchone()
+
+                        if existing_parent:
+                            parent_id = existing_parent['id_parent']
+                            # Update parent with any new info
+                            cur.execute("""
+                                UPDATE parents SET
+                                    postnomPere = CASE WHEN %s != '' THEN %s ELSE postnomPere END,
+                                    telephonePere = CASE WHEN %s != '' THEN %s ELSE telephonePere END,
+                                    emailPere = CASE WHEN %s != '' THEN %s ELSE emailPere END,
+                                    nomMere = CASE WHEN %s != '' THEN %s ELSE nomMere END,
+                                    postnomMere = CASE WHEN %s != '' THEN %s ELSE postnomMere END,
+                                    prenomMere = CASE WHEN %s != '' THEN %s ELSE prenomMere END,
+                                    telephoneMere = CASE WHEN %s != '' THEN %s ELSE telephoneMere END,
+                                    emailMere = CASE WHEN %s != '' THEN %s ELSE emailMere END
+                                WHERE id_parent = %s
+                            """, [
+                                postnom_pere, postnom_pere,
+                                tel_pere, tel_pere,
+                                email_pere, email_pere,
+                                nom_mere, nom_mere,
+                                postnom_mere, postnom_mere,
+                                prenom_mere, prenom_mere,
+                                tel_mere, tel_mere,
+                                email_mere, email_mere,
+                                parent_id
+                            ])
+                        else:
+                            # Create new parent
+                            cur.execute("""
+                                INSERT INTO parents (nomPere, postnomPere, prenomPere, telephonePere, emailPere,
+                                                     nomMere, postnomMere, prenomMere, telephoneMere, emailMere)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            """, [
+                                nom_pere or '', postnom_pere or '', prenom_pere or '', tel_pere or '', email_pere or '',
+                                nom_mere or '', postnom_mere or '', prenom_mere or '', tel_mere or '', email_mere or ''
+                            ])
+                            parent_id = cur.lastrowid
+                            created_parents += 1
+
+                        # Link student to parent
+                        cur.execute("UPDATE eleve SET id_parent = %s WHERE id_eleve = %s", [parent_id, id_eleve])
+                        updated += 1
+
+                    except Exception as row_err:
+                        errors.append(f"Ligne {i}: {str(row_err)}")
+
+                conn.commit()
+
+            return JsonResponse({
+                'success': True,
+                'updated': updated,
+                'created_parents': created_parents,
+                'errors': errors[:20]
             })
         finally:
             conn.close()
