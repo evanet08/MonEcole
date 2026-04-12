@@ -216,14 +216,28 @@ def create_line2_left(elements, style_normal, id_campus=None):
 
     left_w = 77.6*mm
 
-    # Pointillés calibrés par ligne pour remplir exactement jusqu'au bord droit
-    left_rows = [
-        [Paragraph(f"PROVINCE EDUC. : {province_display or 'SUD-KIVU'} {'.' * 20}", p_style)],
-        [Paragraph(f"VILLE : {ville_display or 'BUKAVU'} {'.' * 35}", p_style)],
-        [Paragraph(f"COMMUNE/TER. : {commune_display or ''} {'.' * 30}", p_style)],
-        [Paragraph(f"ECOLE : {ecole_display or ''} {'.' * 35}", p_style)],
-        [Paragraph("CODE :", p_style), code_squares_table],
+    # Calcul dynamique des pointillés : remplir exactement jusqu'au bord droit
+    # Helvetica-Bold 7pt: "." fait environ 2.8pt de large = ~1mm
+    # Caractère moyen ~3.5pt = ~1.24mm
+    char_w_mm = 1.24  # largeur moyenne d'un caractère en mm
+    dot_w_mm = 1.0    # largeur d'un point "." en mm 
+    usable_left = 77.6 - 4  # minus padding (3 left + 1 right)
+
+    lines_left = [
+        (f"PROVINCE EDUC. : {province_display or 'SUD-KIVU'} ", province_display or 'SUD-KIVU'),
+        (f"VILLE : {ville_display or 'BUKAVU'} ", ville_display or 'BUKAVU'),
+        (f"COMMUNE/TER. : {commune_display or ''} ", commune_display or ''),
+        (f"ECOLE : {ecole_display or ''} ", ecole_display or ''),
     ]
+
+    left_rows = []
+    for txt, val in lines_left:
+        text_width_mm = len(txt) * char_w_mm
+        remaining_mm = usable_left - text_width_mm
+        n_dots = max(3, int(remaining_mm / dot_w_mm))
+        left_rows.append([Paragraph(f"{txt}{'.' * n_dots}", p_style)])
+
+    left_rows.append([Paragraph("CODE :", p_style), code_squares_table])
 
     final_left_rows = []
     for i in range(4):
