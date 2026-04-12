@@ -123,49 +123,51 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
         except:
             date_slashes = str(eleve.date_naissance)
 
-    right_w = 116.4*mm
+    # Colonnes: col0 = label+dots, col1 = boxes (N° PERM)
+    col1_w = nb_cases * 4 * mm + 1*mm
+    col0_w = 116.4*mm - col1_w
 
-    # Calcul dynamique des pointillés pour remplir exactement la largeur
-    char_w = 1.3  # mm approx per char at 7pt Helvetica-Bold
-    usable_w = 116.0  # mm
+    # Calcul dynamique des pointillés
+    char_w = 0.88
+    dot_w = 0.88
+    usable_c0 = col0_w / mm - 4
+    usable_full = 116.4 - 4
 
-    eleve_txt = f"ELEVE :  {nom_upper} {prenom_title} "
-    sexe_txt = f"  SEXE : {sexe} "
-    eleve_used = len(eleve_txt) * char_w + len(sexe_txt) * char_w
-    dots_eleve = max(5, int((usable_w - eleve_used) * 0.6 / char_w))
-    dots_sexe = max(3, int((usable_w - eleve_used) * 0.3 / char_w))
+    # Ligne ELEVE (spanned - full width)
+    eleve_label = f"ELEVE : {nom_upper} {prenom_title} "
+    sexe_part = f" SEXE : {sexe} "
+    eleve_total_chars = len(eleve_label) + len(sexe_part)
+    eleve_remaining = usable_full - eleve_total_chars * char_w
+    dots_eleve = max(3, int(eleve_remaining * 0.65 / dot_w))
+    dots_sexe = max(3, int(eleve_remaining * 0.30 / dot_w))
 
-    nea_txt = f"NE(E) A : "
-    le_txt = f"   LE  {date_slashes} "
-    nea_used = len(nea_txt) * char_w + len(le_txt) * char_w
-    dots_nea = max(5, int((usable_w - nea_used) * 0.6 / char_w))
-    dots_le = max(3, int((usable_w - nea_used) * 0.3 / char_w))
+    # Ligne NE(E) A (col0 only) + LE date (col1 aligned with boxes)
+    nea_label = f"NE(E) A : "
+    nea_remaining = usable_c0 - len(nea_label) * char_w
+    dots_nea = max(3, int(nea_remaining / dot_w))
 
-    classe_txt = f"CLASSE : {classe_name} "
-    dots_classe = max(5, int((usable_w - len(classe_txt) * char_w) / char_w))
+    # Ligne CLASSE (spanned - full width)
+    classe_label = f"CLASSE : {classe_name} "
+    classe_remaining = usable_full - len(classe_label) * char_w
+    dots_classe = max(5, int(classe_remaining / dot_w))
 
-    right_rows = [
-        [Paragraph(f"ELEVE :  {nom_upper} {prenom_title} {'.' * dots_eleve}{sexe_txt}{'.' * dots_sexe}", p_style)],
-        [Paragraph(f"NE(E) A : {'.' * dots_nea}{le_txt}{'.' * dots_le}", p_style)],
-        [Paragraph(f"CLASSE : {classe_name} {'.' * dots_classe}", p_style)],
+    final_rows = [
+        [Paragraph(f"ELEVE : {nom_upper} {prenom_title} {'.' * dots_eleve}{sexe_part}{'.' * dots_sexe}", p_style), None],
+        [Paragraph(f"NE(E) A : {'.' * dots_nea}", p_style),
+         Paragraph(f"LE {date_slashes} {'.' * 5}", p_style)],
+        [Paragraph(f"CLASSE : {classe_name} {'.' * dots_classe}", p_style), None],
         [Paragraph("N° PERM. :", p_style), nperm_squares_table],
     ]
 
-    final_rows = []
-    for i in range(3):
-        final_rows.append([right_rows[i][0], None])
-    final_rows.append(right_rows[3])
-
-    right_table = Table(final_rows, colWidths=[right_w - nb_cases*4*mm - 1*mm, nb_cases*4*mm + 1*mm], rowHeights=[4.5*mm]*3 + [6*mm])
+    right_table = Table(final_rows, colWidths=[col0_w, col1_w], rowHeights=[4.5*mm]*3 + [6*mm])
     right_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 3),
         ('RIGHTPADDING', (0, 0), (-1, -1), 1),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('SPAN', (0, 0), (1, 0)),
-        ('SPAN', (0, 1), (1, 1)),
-        ('SPAN', (0, 2), (1, 2)),
+        ('SPAN', (0, 0), (1, 0)),  # ELEVE row spans both columns
+        ('SPAN', (0, 2), (1, 2)),  # CLASSE row spans both columns
     ]))
 
     return right_table
