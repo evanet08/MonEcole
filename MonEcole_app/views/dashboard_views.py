@@ -1492,18 +1492,224 @@ def api_enseignant_presences(request):
 
 
 # ============================================================
-# COMMUNICATION API
+# COMMUNICATION API — Module standalone
 # ============================================================
+
+def _get_personnel_id(request):
+    """Helper : renvoie (personnel_id, etab_id) depuis la session."""
+    etab_id = _get_etab_id(request)
+    pers_id = request.session.get('personnel_id')
+    return pers_id, etab_id
+
+
+def _get_sender_info(pers_id, etab_id):
+    """Retourne (sender_id, sender_name) par SQL direct."""
+    try:
+        with connections['default'].cursor() as cur:
+            cur.execute(
+                "SELECT id_personnel, COALESCE(nom,''), COALESCE(postnom,''), COALESCE(prenom,'') "
+                "FROM personnel WHERE id_personnel = %s AND id_etablissement = %s LIMIT 1",
+                [pers_id, etab_id]
+            )
+            row = cur.fetchone()
+            if row:
+                name = f"{row[1]} {row[3]}".strip()
+                return row[0], name or f"Personnel #{row[0]}"
+    except Exception:
+        pass
+    return pers_id, ''
+
+
+def _get_annee_id(etab_id):
+    """Retourne l'id de l'année active."""
+    try:
+        from MonEcole_app.models.country_structure import Etablissement as Etab
+        from MonEcole_app.models.annee import Annee as AnneeModel
+        etab_obj = Etab.objects.select_related('pays').filter(id_etablissement=etab_id).first()
+        if etab_obj:
+            annee = AnneeModel.objects.filter(pays_id=etab_obj.pays_id, isOpen=True).order_by('-annee').first()
+            return annee.id_annee if annee else None
+    except Exception:
+        pass
+    return None
+
+
+@require_http_methods(["GET"])
+@login_required(login_url='login')
+def api_communication_contacts(request):
+    """
+    GET /api/communication/contacts/
+    Retourne TOUS les contacts organisés par catégorie en un seul appel.
+    Catégories : direction, colleagues, classes (avec élèves), custom_groups.
+    """
+    pers_id, etab_id = _get_personnel_id(request)
+    if not etab_id:
+        return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
+
+    result = {
+        'colleagues': [],
+        'classes': [],
+        'custom_groups': [],
+    }
+
+    try:
+        with connections['default'].cursor() as cur:
+            current_pers = int(pers_id) if pers_id else 0
+
+            # ── 1. Collègues (tous le personnel en fonction) ──
+            cur.execute("""
+                SELECT p.id_personnel, p.nom, p.postnom, p.prenom, p.email,
+                       p.imageUrl, p.genre,
+                       CASE WHEN ac.cnt > 0 THEN 1 ELSE 0 END as is_teacher
+                FROM personnel p
+                LEFT JOIN (
+                    SELECT id_personnel_id, COUNT(*) as cnt
+                    FROM attribution_cours
+                    WHERE id_etablissement = %s
+                    GROUP BY id_personnel_id
+                ) ac ON ac.id_personnel_id = p.id_personnel
+                WHERE p.id_etablissement = %s
+                  AND p.en_fonction = 1
+                  AND p.id_personnel != %s
+                ORDER BY p.nom, p.prenom
+            """, [etab_id, etab_id, current_pers])
+            for row in cur.fetchall():
+                nm = f"{row[1] or ''} {row[3] or ''}".strip()
+                if nm:
+                    result['colleagues'].append({
+                        'id_personnel': row[0],
+                        'nom': row[1] or '',
+                        'postnom': row[2] or '',
+                        'prenom': row[3] or '',
+                        'email': row[4] or '',
+                        'imageUrl': row[5] or '',
+                        'genre': row[6] or 'M',
+                        'is_teacher': bool(row[7]),
+                    })
+
+            # ── 2. Classes de l'enseignant (via attribution_cours) + élèves ──
+            cur.execute("""
+                SELECT DISTINCT eac.id, eac.classe_id, eac.groupe, eac.section_id
+                FROM attribution_cours ac
+                JOIN countryStructure.etablissements_annees_classes eac ON eac.id = ac.id_classe
+                WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s
+            """, [current_pers, etab_id])
+            class_rows = cur.fetchall()
+
+            for cr in class_rows:
+                eac_id, classe_id, groupe, section_id = cr
+
+                # Nom de la classe
+                cur.execute("""
+                    SELECT c.nom as classe_nom, cy.cycle as cycle_nom
+                    FROM countryStructure.classes c
+                    LEFT JOIN countryStructure.cycles cy ON cy.id_cycle = c.id_cycle_id
+                    WHERE c.id_classe = %s
+                """, [classe_id])
+                cls_row = cur.fetchone()
+                classe_nom = cls_row[0] if cls_row else f"Classe #{classe_id}"
+                cycle_nom = cls_row[1] if cls_row else ''
+                full_name = f"{cycle_nom} — {classe_nom}" if cycle_nom else classe_nom
+
+                # Élèves inscrits dans cette classe
+                cur.execute("""
+                    SELECT e.id_eleve, e.nom, e.postnom, e.prenom, e.genre,
+                           e.id_parent, e.email_parent, e.telephone
+                    FROM eleve_inscription ei
+                    JOIN eleve e ON e.id_eleve = ei.id_eleve_id
+                    WHERE ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.status = 1 AND ei.id_etablissement = %s
+                    ORDER BY e.nom, e.prenom
+                """, [classe_id, groupe, section_id, etab_id])
+                students = []
+                for s in cur.fetchall():
+                    # Résoudre parent via id_parent
+                    parent_info = {}
+                    if s[5]:  # id_parent
+                        cur.execute("""
+                            SELECT nomPere, prenomPere, telephonePere, emailPere,
+                                   nomMere, prenomMere, telephoneMere, emailMere
+                            FROM parents WHERE id_parent = %s
+                        """, [s[5]])
+                        prow = cur.fetchone()
+                        if prow:
+                            parent_info = {
+                                'pere': {'nom': prow[0] or '', 'prenom': prow[1] or '',
+                                         'tel': prow[2] or '', 'email': prow[3] or ''},
+                                'mere': {'nom': prow[4] or '', 'prenom': prow[5] or '',
+                                         'tel': prow[6] or '', 'email': prow[7] or ''},
+                            }
+                    students.append({
+                        'id_eleve': s[0],
+                        'nom': s[1] or '',
+                        'postnom': s[2] or '',
+                        'prenom': s[3] or '',
+                        'genre': s[4] or 'M',
+                        'id_parent': s[5],
+                        'email_parent': s[6] or '',
+                        'telephone': s[7] or '',
+                        'parent': parent_info,
+                    })
+
+                result['classes'].append({
+                    'eac_id': eac_id,
+                    'classe_nom': classe_nom,
+                    'cycle_nom': cycle_nom,
+                    'full_name': full_name,
+                    'n_eleves': len(students),
+                    'students': students,
+                })
+
+            # ── 3. Groupes personnalisés ──
+            cur.execute("""
+                SELECT g.id_group, g.name, g.description, g.avatar_color, g.created_by,
+                       (SELECT COUNT(*) FROM communication_group_member WHERE id_group = g.id_group) as n_members
+                FROM communication_group g
+                WHERE g.id_etablissement = %s
+                  AND (g.created_by = %s
+                       OR EXISTS (SELECT 1 FROM communication_group_member gm
+                                  WHERE gm.id_group = g.id_group AND gm.id_personnel = %s))
+                ORDER BY g.name
+            """, [etab_id, current_pers, current_pers])
+            for gr in cur.fetchall():
+                # Charger les membres
+                cur.execute("""
+                    SELECT gm.id_personnel, p.nom, p.prenom, p.email
+                    FROM communication_group_member gm
+                    JOIN personnel p ON p.id_personnel = gm.id_personnel
+                    WHERE gm.id_group = %s
+                    ORDER BY p.nom
+                """, [gr[0]])
+                members = [{'id_personnel': m[0], 'nom': f"{m[1] or ''} {m[2] or ''}".strip(), 'email': m[3] or ''} for m in cur.fetchall()]
+
+                result['custom_groups'].append({
+                    'id_group': gr[0],
+                    'name': gr[1],
+                    'description': gr[2] or '',
+                    'avatar_color': gr[3] or '#128c7e',
+                    'created_by': gr[4],
+                    'is_owner': gr[4] == current_pers,
+                    'n_members': gr[5],
+                    'members': members,
+                })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+    return JsonResponse({'success': True, 'personnel_id': pers_id, **result})
+
 
 @require_http_methods(["GET"])
 @login_required(login_url='login')
 def api_communication_messages(request):
     """
-    GET /api/enseignant/communication/?thread_id=...
-    Renvoie les messages d'un thread de conversation.
+    GET /api/communication/?thread_id=...
+    Renvoie les messages d'un thread, avec direction relative à l'utilisateur courant.
     """
     from MonEcole_app.models.communication import Communication
-    etab_id = _get_etab_id(request)
+    pers_id, etab_id = _get_personnel_id(request)
     if not etab_id:
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
 
@@ -1516,19 +1722,22 @@ def api_communication_messages(request):
         thread_id=thread_id
     ).order_by('created_at').values(
         'id_communication', 'sender_name', 'sender_personnel_id', 'sender_eleve_id',
-        'scope', 'direction', 'message', 'subject',
+        'sender_parent_id', 'scope', 'direction', 'message', 'subject',
         'status', 'is_read', 'created_at'
     )
 
+    current_pers = int(pers_id) if pers_id else 0
     msgs_list = []
     for m in messages:
+        # Direction relative : si c'est moi qui ai envoyé → 'out', sinon → 'in'
+        relative_dir = 'out' if m['sender_personnel_id'] == current_pers else 'in'
         msgs_list.append({
             'id': m['id_communication'],
             'sender_name': m['sender_name'],
             'sender_personnel_id': m['sender_personnel_id'],
             'sender_eleve_id': m['sender_eleve_id'],
             'scope': m['scope'],
-            'direction': m['direction'],
+            'direction': relative_dir,
             'message': m['message'],
             'subject': m['subject'],
             'status': m['status'],
@@ -1537,12 +1746,13 @@ def api_communication_messages(request):
             'time': m['created_at'].strftime('%H:%M') if m['created_at'] else '',
         })
 
-    # Mark incoming messages as read
+    # Mark messages as read (ceux envoyés par d'autres)
     Communication.objects.filter(
         id_etablissement=etab_id,
         thread_id=thread_id,
-        direction='in',
         is_read=False
+    ).exclude(
+        sender_personnel_id=current_pers
     ).update(is_read=True, read_at=__import__('django.utils.timezone', fromlist=['now']).now())
 
     return JsonResponse({'success': True, 'messages': msgs_list})
@@ -1552,14 +1762,12 @@ def api_communication_messages(request):
 @login_required(login_url='login')
 def api_communication_send(request):
     """
-    POST /api/enseignant/communication/send/
-    Envoie un message depuis l'enseignant.
-    Body JSON: { thread_id, scope, target_eleve_id?, target_classe_id?, message }
+    POST /api/communication/send/
+    Envoie un message. Résout les parents via eleve.id_parent → parents table.
     """
     from MonEcole_app.models.communication import Communication
-    from MonEcole_app.models.personnel import Personnel
 
-    etab_id = _get_etab_id(request)
+    pers_id, etab_id = _get_personnel_id(request)
     if not etab_id:
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
 
@@ -1577,43 +1785,11 @@ def api_communication_send(request):
     target_eleve_id = data.get('target_eleve_id')
     target_classe_id = data.get('target_classe_id')
     target_personnel_id = data.get('target_personnel_id')
+    target_group_id = data.get('target_group_id')
     subject = data.get('subject', '')
 
-    # Identifier l'enseignant
-    pers_id = request.session.get('personnel_id')
-    pers = Personnel.objects.filter(id_personnel=pers_id, id_etablissement=etab_id).first() if pers_id else None
-    if not pers:
-        # Fallback: chercher par email
-        try:
-            from django.db import connections
-            with connections['default'].cursor() as cur:
-                cur.execute(
-                    "SELECT id_personnel, CONCAT(COALESCE(nom,''), ' ', COALESCE(prenom,'')) as full_name FROM personnel WHERE id_personnel = %s AND id_etablissement = %s LIMIT 1",
-                    [pers_id, etab_id]
-                )
-                row = cur.fetchone()
-                sender_id = row[0] if row else None
-                sender_name = (row[1] or '').strip() if row else request.user.get_full_name()
-        except Exception:
-            sender_id = None
-            sender_name = request.user.get_full_name() or ''
-    else:
-        sender_id = pers.id_personnel
-        sender_name = f"{pers.nom or ''} {pers.prenom or ''}".strip() or pers.matricule
-
-    # Année active
-    annee_id = None
-    try:
-        from MonEcole_app.models.country_structure import Etablissement as Etab, Pays as PaysModel
-        from MonEcole_app.models.annee import Annee as AnneeModel
-        etab_obj = Etab.objects.select_related('pays').filter(id_etablissement=etab_id).first()
-        if etab_obj:
-            annee_active = AnneeModel.objects.filter(
-                pays_id=etab_obj.pays_id, isOpen=True
-            ).order_by('-annee').first()
-            annee_id = annee_active.id_annee if annee_active else None
-    except Exception:
-        pass
+    sender_id, sender_name = _get_sender_info(pers_id, etab_id)
+    annee_id = _get_annee_id(etab_id)
 
     comm = Communication.objects.create(
         id_etablissement=etab_id,
@@ -1625,6 +1801,7 @@ def api_communication_send(request):
         target_eleve_id=target_eleve_id if target_eleve_id else None,
         target_classe_id=target_classe_id if target_classe_id else None,
         target_personnel_id=target_personnel_id if target_personnel_id else None,
+        target_group_id=target_group_id if target_group_id else None,
         subject=subject,
         message=message_text,
         thread_id=thread_id,
@@ -1633,50 +1810,42 @@ def api_communication_send(request):
 
     # ── Envoi d'email aux parents via Brevo ──
     email_result = {'sent': 0, 'failed': 0, 'errors': []}
+    parent_emails = []
     try:
         from MonEcole_app.email_service import send_brevo_email, build_parent_email_html
-        import pymysql
+        from MonEcole_app.models.country_structure import Etablissement as Etab
 
-        # Récupérer le nom de l'école
         school_name = 'MonEcole'
         try:
-            etab_obj2 = Etab.objects.filter(id_etablissement=etab_id).first()
-            if etab_obj2:
-                school_name = etab_obj2.nom or school_name
+            etab_obj = Etab.objects.filter(id_etablissement=etab_id).first()
+            if etab_obj:
+                school_name = etab_obj.nom or school_name
         except Exception:
             pass
 
-        # Collecter les emails parents
-        parent_emails = []
-        db_settings = connections['default'].settings_dict
-        conn = pymysql.connect(
-            host=db_settings.get('HOST', 'localhost') or 'localhost',
-            user=db_settings['USER'],
-            password=db_settings['PASSWORD'],
-            port=int(db_settings.get('PORT', 3306) or 3306),
-            database=db_settings['NAME'],
-            charset='utf8mb4',
-            cursorclass=pymysql.cursors.DictCursor,
-            connect_timeout=5,
-        )
-
-        with conn.cursor() as cur:
+        # Résoudre les emails parents via id_parent (table parents)
+        with connections['default'].cursor() as cur:
             if scope == 'individual' and target_eleve_id:
-                # Email du parent d'un élève spécifique
-                cur.execute(
-                    "SELECT email_parent, nom, prenom FROM eleve WHERE id_eleve = %s AND email_parent IS NOT NULL AND email_parent != ''",
-                    [target_eleve_id]
-                )
-                rows = cur.fetchall()
-                for r in rows:
-                    parent_emails.append({
-                        'email': r['email_parent'],
-                        'name': f"Parent de {r['nom'] or ''} {r['prenom'] or ''}".strip()
-                    })
+                cur.execute("""
+                    SELECT e.nom, e.prenom, e.id_parent, e.email_parent,
+                           p.emailPere, p.emailMere, p.nomPere, p.nomMere
+                    FROM eleve e
+                    LEFT JOIN parents p ON p.id_parent = e.id_parent
+                    WHERE e.id_eleve = %s
+                """, [target_eleve_id])
+                row = cur.fetchone()
+                if row:
+                    eleve_name = f"{row[0] or ''} {row[1] or ''}".strip()
+                    # Priorité : emailPere/emailMere de la table parents, sinon email_parent de eleve
+                    if row[4]:  # emailPere
+                        parent_emails.append({'email': row[4], 'name': f"Père de {eleve_name}"})
+                    if row[5]:  # emailMere
+                        parent_emails.append({'email': row[5], 'name': f"Mère de {eleve_name}"})
+                    if not row[4] and not row[5] and row[3]:  # fallback email_parent
+                        parent_emails.append({'email': row[3], 'name': f"Parent de {eleve_name}"})
 
             elif scope == 'class' and target_classe_id:
-                # Emails de tous les parents d'une classe
-                # Resolve EAC.id → business keys
+                # Résoudre classe EAC → business keys
                 cur.execute("""
                     SELECT eac.classe_id, eac.groupe, eac.section_id
                     FROM countryStructure.etablissements_annees_classes eac WHERE eac.id = %s
@@ -1684,43 +1853,32 @@ def api_communication_send(request):
                 bk = cur.fetchone()
                 if bk:
                     cur.execute("""
-                        SELECT DISTINCT e.email_parent, e.nom, e.prenom
+                        SELECT DISTINCT e.nom, e.prenom, e.id_parent, e.email_parent,
+                               p.emailPere, p.emailMere, p.nomPere, p.nomMere
                         FROM eleve_inscription ei
                         JOIN eleve e ON e.id_eleve = ei.id_eleve_id
+                        LEFT JOIN parents p ON p.id_parent = e.id_parent
                         WHERE ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
-                          AND ei.status = 1
-                          AND ei.id_etablissement = %s
-                          AND e.email_parent IS NOT NULL
-                          AND e.email_parent != ''
-                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], etab_id])
-                rows = cur.fetchall()
-                for r in rows:
-                    parent_emails.append({
-                        'email': r['email_parent'],
-                        'name': f"Parent de {r['nom'] or ''} {r['prenom'] or ''}".strip()
-                    })
+                          AND ei.status = 1 AND ei.id_etablissement = %s
+                    """, [bk[0], bk[1], bk[2], etab_id])
+                    for row in cur.fetchall():
+                        eleve_name = f"{row[0] or ''} {row[1] or ''}".strip()
+                        if row[4]:
+                            parent_emails.append({'email': row[4], 'name': f"Père de {eleve_name}"})
+                        if row[5]:
+                            parent_emails.append({'email': row[5], 'name': f"Mère de {eleve_name}"})
+                        if not row[4] and not row[5] and row[3]:
+                            parent_emails.append({'email': row[3], 'name': f"Parent de {eleve_name}"})
 
-            elif scope == 'etab':
-                # Tous les parents de l'établissement
-                cur.execute("""
-                    SELECT DISTINCT e.email_parent, e.nom, e.prenom
-                    FROM eleve_inscription ei
-                    JOIN eleve e ON e.id_eleve = ei.id_eleve_id
-                    WHERE ei.status = 1
-                      AND ei.id_etablissement = %s
-                      AND e.email_parent IS NOT NULL
-                      AND e.email_parent != ''
-                """, [etab_id])
-                rows = cur.fetchall()
-                for r in rows:
-                    parent_emails.append({
-                        'email': r['email_parent'],
-                        'name': f"Parent de {r['nom'] or ''} {r['prenom'] or ''}".strip()
-                    })
+        # Dédupliquer
+        seen_emails = set()
+        unique_parent_emails = []
+        for pe in parent_emails:
+            if pe['email'] and pe['email'].lower() not in seen_emails:
+                seen_emails.add(pe['email'].lower())
+                unique_parent_emails.append(pe)
+        parent_emails = unique_parent_emails
 
-        conn.close()
-
-        # Envoyer si des emails trouvés
         if parent_emails:
             email_subject = subject or f"Communication de {sender_name}"
             html_body = build_parent_email_html(sender_name, message_text, school_name)
@@ -1732,12 +1890,9 @@ def api_communication_send(request):
                 from_name=school_name,
                 fail_silently=True,
             )
-            # Mettre à jour le statut du message
             if email_result.get('sent', 0) > 0:
                 comm.status = 'delivered'
                 comm.save(update_fields=['status'])
-        else:
-            email_result['errors'].append('Aucun email parent trouvé')
 
     except Exception as e:
         import traceback
@@ -1749,7 +1904,7 @@ def api_communication_send(request):
         'message': {
             'id': comm.id_communication,
             'sender_name': comm.sender_name,
-            'direction': comm.direction,
+            'direction': 'out',
             'message': comm.message,
             'time': comm.created_at.strftime('%H:%M') if comm.created_at else '',
             'created_at': comm.created_at.strftime('%Y-%m-%d %H:%M:%S') if comm.created_at else '',
@@ -1757,7 +1912,7 @@ def api_communication_send(request):
         'email': {
             'sent': email_result.get('sent', 0),
             'failed': email_result.get('failed', 0),
-            'total_parents': len(parent_emails) if 'parent_emails' in dir() else 0,
+            'total_parents': len(parent_emails),
             'errors': email_result.get('errors', []),
         }
     })
@@ -1767,34 +1922,33 @@ def api_communication_send(request):
 @login_required(login_url='login')
 def api_communication_threads(request):
     """
-    GET /api/enseignant/communication/threads/
-    Renvoie la liste des threads avec le dernier message de chacun.
+    GET /api/communication/threads/
+    Renvoie la liste des threads avec dernier message, relatif au personnel courant.
     """
     from MonEcole_app.models.communication import Communication
     from django.db.models import Max, Count, Q
 
-    etab_id = _get_etab_id(request)
+    pers_id, etab_id = _get_personnel_id(request)
     if not etab_id:
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
 
-    # Get distinct threads with their latest message timestamp
+    current_pers = int(pers_id) if pers_id else 0
+
     threads = Communication.objects.filter(
         id_etablissement=etab_id
     ).values('thread_id').annotate(
         last_msg=Max('created_at'),
         msg_count=Count('id_communication'),
-        unread=Count('id_communication', filter=Q(direction='in', is_read=False))
+        unread=Count('id_communication', filter=Q(is_read=False) & ~Q(sender_personnel_id=current_pers))
     ).order_by('-last_msg')
 
     thread_list = []
     for t in threads:
-        # Get the last message for preview
         last_comm = Communication.objects.filter(
             id_etablissement=etab_id,
             thread_id=t['thread_id']
         ).order_by('-created_at').first()
 
-        # Get first message for subject/scope info
         first_comm = Communication.objects.filter(
             id_etablissement=etab_id,
             thread_id=t['thread_id']
@@ -1804,7 +1958,6 @@ def api_communication_threads(request):
             'thread_id': t['thread_id'],
             'last_message': last_comm.message[:60] if last_comm else '',
             'last_sender': last_comm.sender_name if last_comm else '',
-            'last_direction': last_comm.direction if last_comm else '',
             'last_time': last_comm.created_at.strftime('%H:%M') if last_comm and last_comm.created_at else '',
             'last_date': last_comm.created_at.strftime('%d/%m') if last_comm and last_comm.created_at else '',
             'scope': first_comm.scope if first_comm else 'individual',
@@ -1820,38 +1973,32 @@ def api_communication_threads(request):
 @login_required(login_url='login')
 def api_communication_teachers(request):
     """
-    GET /api/enseignant/communication/teachers/
-    Renvoie la liste des enseignants collègues du même établissement.
+    GET /api/communication/teachers/
+    Renvoie la liste des collègues (rétro-compatibilité).
     """
-    from django.db import connections
-
-    etab_id = _get_etab_id(request)
+    pers_id, etab_id = _get_personnel_id(request)
     if not etab_id:
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
 
-    # Use session-based personnel_id (request.user is Django User, not Personnel)
-    current_personnel_id = request.session.get('personnel_id', 0)
-
+    current_pers = int(pers_id) if pers_id else 0
     teachers = []
     try:
         with connections['default'].cursor() as cur:
             cur.execute("""
-                SELECT p.id_personnel,
-                       CONCAT(COALESCE(p.nom,''), ' ', COALESCE(p.prenom,'')) as nom_complet,
-                       p.email
+                SELECT p.id_personnel, p.nom, p.postnom, p.prenom, p.email
                 FROM personnel p
-                WHERE p.id_etablissement = %s
-                  AND p.en_fonction = 1
-                  AND p.id_personnel != %s
+                WHERE p.id_etablissement = %s AND p.en_fonction = 1 AND p.id_personnel != %s
                 ORDER BY p.nom, p.prenom
-            """, [etab_id, current_personnel_id])
+            """, [etab_id, current_pers])
             for row in cur.fetchall():
-                nm = (row[1] or '').strip()
+                nm = f"{row[1] or ''} {row[3] or ''}".strip()
                 if nm:
                     teachers.append({
                         'id_personnel': row[0],
-                        'nom_complet': nm,
-                        'email': row[2] or '',
+                        'nom': row[1] or '',
+                        'postnom': row[2] or '',
+                        'prenom': row[3] or '',
+                        'email': row[4] or '',
                     })
     except Exception as e:
         import traceback
@@ -1859,4 +2006,126 @@ def api_communication_teachers(request):
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
     return JsonResponse({'success': True, 'teachers': teachers})
+
+
+# ── Custom Groups API ──
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required(login_url='login')
+def api_communication_group_create(request):
+    """POST /api/communication/groups/create/ — Créer un groupe personnalisé."""
+    from MonEcole_app.models.communication import CommunicationGroup, CommunicationGroupMember
+
+    pers_id, etab_id = _get_personnel_id(request)
+    if not etab_id or not pers_id:
+        return JsonResponse({'success': False, 'error': 'Non autorisé'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({'success': False, 'error': 'JSON invalide'}, status=400)
+
+    name = (data.get('name') or '').strip()
+    if not name:
+        return JsonResponse({'success': False, 'error': 'Nom du groupe requis'}, status=400)
+
+    description = (data.get('description') or '').strip()
+    member_ids = data.get('members', [])
+    avatar_color = data.get('avatar_color', '#128c7e')
+
+    group = CommunicationGroup.objects.create(
+        id_etablissement=etab_id,
+        name=name,
+        description=description,
+        created_by=pers_id,
+        avatar_color=avatar_color,
+    )
+
+    # Ajouter le créateur comme membre
+    CommunicationGroupMember.objects.create(id_group=group.id_group, id_personnel=pers_id)
+
+    # Ajouter les autres membres
+    for mid in member_ids:
+        try:
+            mid = int(mid)
+            if mid != pers_id:
+                CommunicationGroupMember.objects.get_or_create(id_group=group.id_group, id_personnel=mid)
+        except (ValueError, Exception):
+            pass
+
+    return JsonResponse({
+        'success': True,
+        'group': {
+            'id_group': group.id_group,
+            'name': group.name,
+            'description': group.description,
+            'avatar_color': group.avatar_color,
+            'n_members': CommunicationGroupMember.objects.filter(id_group=group.id_group).count(),
+        }
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required(login_url='login')
+def api_communication_group_update(request):
+    """POST /api/communication/groups/update/ — Modifier un groupe (ajouter/retirer membres, renommer)."""
+    from MonEcole_app.models.communication import CommunicationGroup, CommunicationGroupMember
+
+    pers_id, etab_id = _get_personnel_id(request)
+    if not etab_id or not pers_id:
+        return JsonResponse({'success': False, 'error': 'Non autorisé'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({'success': False, 'error': 'JSON invalide'}, status=400)
+
+    group_id = data.get('id_group')
+    if not group_id:
+        return JsonResponse({'success': False, 'error': 'id_group requis'}, status=400)
+
+    group = CommunicationGroup.objects.filter(id_group=group_id, id_etablissement=etab_id).first()
+    if not group:
+        return JsonResponse({'success': False, 'error': 'Groupe non trouvé'}, status=404)
+
+    # Seul le créateur peut modifier (ou un membre)
+    is_member = CommunicationGroupMember.objects.filter(id_group=group_id, id_personnel=pers_id).exists()
+    if group.created_by != pers_id and not is_member:
+        return JsonResponse({'success': False, 'error': 'Vous n\'êtes pas membre de ce groupe'}, status=403)
+
+    action = data.get('action', 'update')
+
+    if action == 'rename':
+        new_name = (data.get('name') or '').strip()
+        if new_name:
+            group.name = new_name
+            group.save(update_fields=['name'])
+
+    elif action == 'add_members':
+        for mid in data.get('members', []):
+            try:
+                CommunicationGroupMember.objects.get_or_create(id_group=group_id, id_personnel=int(mid))
+            except Exception:
+                pass
+
+    elif action == 'remove_member':
+        mid = data.get('member_id')
+        if mid and int(mid) != group.created_by:
+            CommunicationGroupMember.objects.filter(id_group=group_id, id_personnel=int(mid)).delete()
+
+    elif action == 'delete':
+        if group.created_by == pers_id:
+            CommunicationGroupMember.objects.filter(id_group=group_id).delete()
+            group.delete()
+            return JsonResponse({'success': True, 'deleted': True})
+        else:
+            return JsonResponse({'success': False, 'error': 'Seul le créateur peut supprimer'}, status=403)
+
+    elif action == 'leave':
+        CommunicationGroupMember.objects.filter(id_group=group_id, id_personnel=pers_id).delete()
+        return JsonResponse({'success': True, 'left': True})
+
+    return JsonResponse({'success': True})
 

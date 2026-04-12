@@ -15,9 +15,12 @@
 .body-row { overflow: hidden; }
 /* ═══ COMMUNICATION WhatsApp-style — Full Height ═══ */
 .wa-wrap{display:flex;height:calc(100vh - var(--topbar-height, 50px));border-radius:0;overflow:hidden;border:none;background:#fff}
-.wa-sidebar{width:320px;min-width:260px;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;background:#fff;transition:all .3s}
+.wa-sidebar{width:340px;min-width:280px;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;background:#fff;transition:all .3s}
 .wa-sb-head{padding:14px 16px;background:linear-gradient(135deg,#075e54,#128c7e);color:#fff;font-size:.82rem;font-weight:700;display:flex;align-items:center;gap:8px;flex-shrink:0}
 .wa-sb-head i{font-size:1rem;opacity:.9}
+.wa-sb-actions{display:flex;gap:4px;margin-left:auto}
+.wa-sb-actions button{background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:.72rem;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.wa-sb-actions button:hover{background:rgba(255,255,255,.3);transform:scale(1.1)}
 .wa-search{padding:8px 10px;border-bottom:1px solid #f1f5f9;background:#f8fafc;flex-shrink:0}
 .wa-search input{width:100%;padding:8px 14px;border:1px solid #e2e8f0;border-radius:22px;font-size:.72rem;outline:none;background:#fff;transition:border .2s}
 .wa-search input:focus{border-color:#128c7e;box-shadow:0 0 0 3px rgba(18,140,126,.1)}
@@ -33,9 +36,9 @@
 .wa-contact-time{font-size:.55rem;color:#94a3b8}
 .wa-unread-badge{background:#25d366;color:#fff;font-size:.5rem;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
 .wa-section-label{padding:6px 14px;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;gap:6px;flex-shrink:0}
-.wa-section-label.groups{color:#128c7e;background:#f0fdf4}.wa-section-label.students{color:#3b82f6;background:#eff6ff}.wa-section-label.teachers{color:#8b5cf6;background:#f5f3ff}.wa-section-label.direction{color:#ea580c;background:#fff7ed}
+.wa-section-label.groups{color:#128c7e;background:#f0fdf4}.wa-section-label.students{color:#3b82f6;background:#eff6ff}.wa-section-label.teachers{color:#8b5cf6;background:#f5f3ff}.wa-section-label.direction{color:#ea580c;background:#fff7ed}.wa-section-label.custom{color:#0891b2;background:#ecfeff}
 .wa-scope-tag{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:6px;font-size:.48rem;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
-.wa-scope-tag.individual{background:#dbeafe;color:#1d4ed8}.wa-scope-tag.class{background:#dcfce7;color:#16a34a}.wa-scope-tag.etab{background:#fef3c7;color:#d97706}.wa-scope-tag.teacher{background:#ede9fe;color:#7c3aed}.wa-scope-tag.direction{background:#ffedd5;color:#ea580c}.wa-scope-tag.teacher_group{background:#ede9fe;color:#7c3aed}
+.wa-scope-tag.individual{background:#dbeafe;color:#1d4ed8}.wa-scope-tag.class{background:#dcfce7;color:#16a34a}.wa-scope-tag.etab{background:#fef3c7;color:#d97706}.wa-scope-tag.teacher{background:#ede9fe;color:#7c3aed}.wa-scope-tag.direction{background:#ffedd5;color:#ea580c}.wa-scope-tag.teacher_group{background:#ede9fe;color:#7c3aed}.wa-scope-tag.custom_group{background:#cffafe;color:#0891b2}
 .wa-chat{flex:1;display:flex;flex-direction:column;background:#ece5dd;position:relative}
 .wa-chat-bg{position:absolute;inset:0;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Ccircle cx='20' cy='20' r='6' fill='%23128c7e'/%3E%3Ccircle cx='60' cy='60' r='4' fill='%23128c7e'/%3E%3Crect x='50' y='10' width='10' height='10' rx='2' fill='%23128c7e'/%3E%3C/svg%3E");pointer-events:none}
 .wa-chat-head{padding:12px 16px;background:linear-gradient(135deg,#075e54,#128c7e);color:#fff;display:flex;align-items:center;gap:10px;font-size:.8rem;font-weight:700;flex-shrink:0;z-index:1;box-shadow:0 2px 8px rgba(0,0,0,.1)}
@@ -59,6 +62,28 @@
 .wa-empty-text{font-weight:600;color:#64748b}.wa-empty-sub{font-size:.65rem;color:#94a3b8}
 .wa-date-sep{text-align:center;margin:8px 0;font-size:.55rem;color:#64748b}
 .wa-date-sep span{background:rgba(225,219,211,.9);padding:4px 14px;border-radius:8px;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.ca-loading{text-align:center;padding:3rem 1rem;color:#94a3b8;font-size:.82rem}
+.ca-loading i{font-size:1.5rem;display:block;margin-bottom:.8rem;opacity:.4}
+/* ═══ Modal ═══ */
+.wa-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s}
+.wa-modal{background:#fff;border-radius:16px;padding:1.5rem;width:460px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:slideUp .25s ease-out}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.wa-modal h3{font-size:.9rem;font-weight:700;margin:0 0 1rem 0;color:#0f172a;display:flex;align-items:center;gap:8px}
+.wa-modal h3 i{color:#128c7e}
+.wa-modal-close{background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8;margin-left:auto}
+.wa-modal input[type=text],.wa-modal textarea{width:100%;padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.72rem;outline:none;transition:border .2s;font-family:inherit}
+.wa-modal input[type=text]:focus,.wa-modal textarea:focus{border-color:#128c7e;box-shadow:0 0 0 3px rgba(18,140,126,.08)}
+.wa-modal label{font-size:.62rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px}
+.wa-modal-btn{padding:8px 18px;border:none;border-radius:8px;font-size:.72rem;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:5px}
+.wa-modal-btn.primary{background:linear-gradient(135deg,#128c7e,#25d366);color:#fff}.wa-modal-btn.primary:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(18,140,126,.3)}
+.wa-modal-btn.secondary{background:#f1f5f9;color:#475569}
+.member-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:#dcfce7;color:#16a34a;border-radius:12px;font-size:.6rem;font-weight:600;margin:2px}
+.member-chip .remove{cursor:pointer;opacity:.6;font-size:.5rem}.member-chip .remove:hover{opacity:1;color:#ef4444}
+.colleague-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;cursor:pointer;transition:all .15s;font-size:.7rem}
+.colleague-item:hover{background:#f0fdf4}
+.colleague-item.selected{background:#dcfce7;border:1px solid #86efac}
+.colleague-item .ci-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;color:#fff;flex-shrink:0}
 /* ═══ Responsive ═══ */
 @media(max-width:768px){
     .wa-wrap{height:calc(100vh - 48px)}
@@ -69,18 +94,20 @@
     .wa-msg{max-width:82%}
 }
 @media(min-width:769px) and (max-width:1024px){
-    .wa-sidebar{width:260px;min-width:220px}
+    .wa-sidebar{width:280px;min-width:240px}
 }
-/* Loading placeholder */
-.ca-loading{text-align:center;padding:3rem 1rem;color:#94a3b8;font-size:.82rem}
-.ca-loading i{font-size:1.5rem;display:block;margin-bottom:.8rem;opacity:.4}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="wa-wrap" id="waWrap">
     <div class="wa-sidebar" id="waSidebar">
-        <div class="wa-sb-head"><i class="fas fa-comments"></i> Messages</div>
+        <div class="wa-sb-head">
+            <i class="fas fa-comments"></i> Messages
+            <div class="wa-sb-actions">
+                <button onclick="showCreateGroupModal()" title="Nouveau groupe"><i class="fas fa-users-cog"></i></button>
+            </div>
+        </div>
         <div class="wa-search"><input type="text" id="waSearchInput" placeholder="Rechercher..." oninput="filterWaContacts()"></div>
         <div class="wa-contacts" id="waContactsList">
             <div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement des contacts...</div>
@@ -99,14 +126,16 @@ const PERSONNEL_ID = {{ personnel_id }};
 const PERSONNEL_INFO = {{ personnel_info|safe }};
 const ETAB_ID = {{ etab.id_etablissement }};
 
-let waContacts=[];let waActiveContact=null;let waThreadsCache={};
+let waContacts=[];let waActiveContact=null;let waThreadsCache={};let allColleagues=[];
+const CC=['#6366f1','#0ea5e9','#10b981','#f59e0b','#ec4899','#8b5cf6','#ef4444','#14b8a6','#f97316','#06b6d4'];
 const SCOPE_LABELS={
     'individual':{label:'Personnalisé',icon:'user',cls:'individual'},
     'class':{label:'Classe',icon:'users',cls:'class'},
     'etab':{label:'Établissement',icon:'school',cls:'etab'},
     'teacher':{label:'Collègue',icon:'chalkboard-teacher',cls:'teacher'},
     'teacher_group':{label:'Entre Enseignants',icon:'chalkboard-teacher',cls:'teacher_group'},
-    'direction':{label:'Direction',icon:'building',cls:'direction'}
+    'direction':{label:'Direction',icon:'building',cls:'direction'},
+    'custom_group':{label:'Groupe',icon:'users-cog',cls:'custom_group'}
 };
 function scopeTag(scope){const s=SCOPE_LABELS[scope]||SCOPE_LABELS['individual'];return `<span class="wa-scope-tag ${s.cls}"><i class="fas fa-${s.icon}"></i> ${s.label}</span>`;}
 
@@ -115,92 +144,126 @@ document.addEventListener('DOMContentLoaded', initCommunication);
 async function initCommunication(){
     waContacts=[];
 
-    // 1️⃣ Groupe "Enseignant et Direction"
-    waContacts.push({id:'grp_direction',type:'direction_group',name:'Enseignant et Direction',sub:'Communication avec la direction',color:'#ea580c',icon:'building',scope:'direction',target_classe_id:null});
+    // 1️⃣ Groupes par défaut (toujours présents)
+    waContacts.push({id:'grp_direction',type:'direction_group',name:'Direction',sub:'Communication avec la direction',color:'#ea580c',icon:'building',scope:'direction',target_classe_id:null});
+    waContacts.push({id:'grp_teachers',type:'teacher_group',name:'Tous les Collègues',sub:'Discussion entre personnel',color:'#8b5cf6',icon:'chalkboard-teacher',scope:'teacher_group',target_classe_id:null});
 
-    // 2️⃣ Groupe "Entre Enseignants"
-    waContacts.push({id:'grp_teachers',type:'teacher_group',name:'Entre Enseignants',sub:'Discussion entre enseignants',color:'#8b5cf6',icon:'chalkboard-teacher',scope:'teacher_group',target_classe_id:null});
+    // 2️⃣ Charger tout depuis l'API unifiée
+    try {
+        const r = await fetch('/api/communication/contacts/');
+        const d = await r.json();
+        if(d.success){
+            allColleagues = d.colleagues || [];
 
-    // 3️⃣ Load teachers list
-    try{
-        const r=await fetch('/api/communication/teachers/');
-        const d=await r.json();
-        if(d.success)(d.teachers||[]).forEach(t=>{
-            if(t.id_personnel !== PERSONNEL_ID){
-                waContacts.push({id:'tchr_'+t.id_personnel,personnel_id:t.id_personnel,type:'teacher',name:`${t.nom||''} ${t.prenom||''}`.trim()||t.email,sub:t.email||'Enseignant',color:'#7c3aed',icon:'chalkboard-teacher',scope:'teacher',target_personnel_id:t.id_personnel,target_classe_id:null});
-            }
-        });
-    }catch(e){console.error('[Communication] Error loading teachers:',e);}
+            // Collègues individuels
+            d.colleagues.forEach((c,i)=>{
+                waContacts.push({
+                    id:'tchr_'+c.id_personnel,
+                    personnel_id:c.id_personnel,
+                    type:'teacher',
+                    name:`${c.nom} ${c.prenom}`.trim(),
+                    sub:c.email||'Collègue',
+                    color:c.genre==='F'?'#ec4899':'#7c3aed',
+                    icon:'chalkboard-teacher',
+                    scope:'teacher',
+                    target_personnel_id:c.id_personnel,
+                    is_teacher:c.is_teacher,
+                    target_classe_id:null
+                });
+            });
 
-    // 4️⃣ Load all classes with students
-    try{
-        // Fetch classes from the API
-        const classesR = await fetch(`/api/dashboard/eleves-list/?id_etablissement=${ETAB_ID}`);
-        const classesD = await classesR.json();
-        // We'll try a different approach - get classes from the dashboard context
-    }catch(e){}
+            // Classes (groupes) + élèves
+            (d.classes||[]).forEach((cl,ci)=>{
+                const clColor = CC[ci % CC.length];
+                waContacts.push({
+                    id:'class_'+cl.eac_id,
+                    eac_id:cl.eac_id,
+                    type:'class',
+                    name:cl.full_name,
+                    sub:`${cl.n_eleves} élèves — Groupe classe`,
+                    color:clColor,
+                    icon:'users',
+                    scope:'class',
+                    target_classe_id:cl.eac_id
+                });
 
-    // Fallback: Load classes via the enseignant dashboard API if personnel is a teacher
-    if(PERSONNEL_ID){
-        try{
-            const r=await fetch('/api/enseignant/dashboard/',{credentials:'same-origin',headers:{'X-CSRFToken':getCsrfToken()}});
-            if(r.ok){
-                const d=await r.json();
-                if(d.success && d.courses){
-                    const cm={};
-                    d.courses.forEach(x=>{if(!cm[x.eac_id])cm[x.eac_id]={nom:`${x.cycle_nom} — ${x.classe_nom}`,eac_id:x.eac_id};});
+                // Élèves individuels
+                (cl.students||[]).forEach(s=>{
+                    const nm=`${s.nom} ${s.postnom||''} ${s.prenom}`.replace(/\s+/g,' ').trim();
+                    // Construire le sous-titre avec info parent
+                    let sub = cl.full_name;
+                    if(s.parent?.pere?.email) sub += ` · ✉ ${s.parent.pere.email}`;
+                    else if(s.parent?.mere?.email) sub += ` · ✉ ${s.parent.mere.email}`;
+                    else if(s.email_parent) sub += ` · ✉ ${s.email_parent}`;
 
-                    // Add class groups
-                    Object.entries(cm).forEach(([id,cl])=>{
-                        waContacts.push({id:'class_'+id,eac_id:parseInt(id),type:'class',name:cl.nom,sub:'Groupe classe — tous les parents',color:'#128c7e',icon:'users',scope:'class',target_classe_id:parseInt(id)});
+                    waContacts.push({
+                        id:'stu_'+s.id_eleve,
+                        eleve_id:s.id_eleve,
+                        type:'student',
+                        name:nm,
+                        sub:sub,
+                        color:s.genre==='F'?'#ec4899':'#3b82f6',
+                        icon:'user-graduate',
+                        scope:'individual',
+                        target_eleve_id:s.id_eleve,
+                        target_classe_id:cl.eac_id,
+                        parent:s.parent
                     });
+                });
+            });
 
-                    // Add individual students
-                    for(const [id,cl] of Object.entries(cm)){
-                        try{
-                            const sr=await fetch(`/api/dashboard/eleves-list/?id_etablissement=${ETAB_ID}&classe_par_annee_id=${id}`);
-                            const sd=await sr.json();
-                            if(sd.success)(sd.eleves||[]).forEach(e=>{
-                                const nm=`${e.nom||''} ${e.postnom||''} ${e.prenom||''}`.trim();
-                                waContacts.push({id:'stu_'+e.id_eleve,eleve_id:e.id_eleve,type:'student',name:nm,sub:cl.nom+(e.email_parent?' · '+e.email_parent:''),color:e.genre==='F'?'#ec4899':'#3b82f6',icon:'user',email:e.email_parent,tel:e.telephone,scope:'individual',target_eleve_id:e.id_eleve,target_classe_id:parseInt(id)});
-                            });
-                        }catch(e){}
-                    }
-                }
-            }
-        }catch(e){console.error('[Communication] Error loading courses:',e);}
-    }
+            // Groupes personnalisés
+            (d.custom_groups||[]).forEach(g=>{
+                waContacts.push({
+                    id:'cgrp_'+g.id_group,
+                    group_id:g.id_group,
+                    type:'custom_group',
+                    name:g.name,
+                    sub:`${g.n_members} membre${g.n_members>1?'s':''} — ${g.description||'Groupe personnalisé'}`,
+                    color:g.avatar_color||'#0891b2',
+                    icon:'users-cog',
+                    scope:'custom_group',
+                    target_group_id:g.id_group,
+                    is_owner:g.is_owner,
+                    members:g.members
+                });
+            });
+        }
+    } catch(e){ console.error('[Communication] Error loading contacts:', e); }
 
-    // Load existing threads
+    // 3️⃣ Charger threads existants
     try{
         const r=await fetch('/api/communication/threads/');
         const d=await r.json();
-        if(d.success)(d.threads||[]).forEach(t=>{
-            waThreadsCache[t.thread_id]={...t};
-        });
+        if(d.success)(d.threads||[]).forEach(t=>{waThreadsCache[t.thread_id]={...t};});
     }catch(e){}
+
     renderWaContacts();
 }
 
-function getThreadId(contact){
-    if(contact.type==='direction_group') return `direction_${ETAB_ID}`;
-    if(contact.type==='teacher_group') return `teachers_${ETAB_ID}`;
-    if(contact.type==='class') return `class_${ETAB_ID}_${contact.eac_id}`;
-    if(contact.type==='teacher') return `tchr_${ETAB_ID}_${contact.personnel_id}`;
-    return `stu_${ETAB_ID}_${contact.eleve_id||contact.id}`;
+function getThreadId(c){
+    if(c.type==='direction_group') return `direction_${ETAB_ID}`;
+    if(c.type==='teacher_group') return `teachers_${ETAB_ID}`;
+    if(c.type==='class') return `class_${ETAB_ID}_${c.eac_id}`;
+    if(c.type==='teacher') return `tchr_${ETAB_ID}_${c.personnel_id}`;
+    if(c.type==='custom_group') return `cgrp_${ETAB_ID}_${c.group_id}`;
+    return `stu_${ETAB_ID}_${c.eleve_id||c.id}`;
 }
 
 function renderWaContacts(filter){
     const c=document.getElementById('waContactsList');if(!c)return;
     const f=(filter||'').toLowerCase();
-    const filtered=waContacts.filter(x=>!f||x.name.toLowerCase().includes(f));
+    const filtered=waContacts.filter(x=>!f||x.name.toLowerCase().includes(f)||x.sub.toLowerCase().includes(f));
+
     const dirGroups=filtered.filter(x=>x.type==='direction_group');
     const tchrGroups=filtered.filter(x=>x.type==='teacher_group');
-    const teachers=filtered.filter(x=>x.type==='teacher');
+    const customGroups=filtered.filter(x=>x.type==='custom_group');
     const classes=filtered.filter(x=>x.type==='class');
+    const teachers=filtered.filter(x=>x.type==='teacher');
     const students=filtered.filter(x=>x.type==='student');
+
     let h='';
-    function renderContactBlock(items,label,iconCls,sectionCls){
+    function renderBlock(items,label,iconCls,sectionCls){
         if(!items.length)return '';
         let o=`<div class="wa-section-label ${sectionCls}"><i class="fas fa-${iconCls}"></i> ${label}</div>`;
         items.forEach(x=>{
@@ -217,11 +280,12 @@ function renderWaContacts(filter){
         });
         return o;
     }
-    h+=renderContactBlock(dirGroups,'Direction','building','direction');
-    h+=renderContactBlock(tchrGroups,'Entre Enseignants','chalkboard-teacher','teachers');
-    h+=renderContactBlock(teachers,'Collègues','chalkboard-teacher','teachers');
-    h+=renderContactBlock(classes,'Groupes Classe','users','groups');
-    h+=renderContactBlock(students,'Élèves / Parents','user-graduate','students');
+    h+=renderBlock(dirGroups,'Direction','building','direction');
+    h+=renderBlock(tchrGroups,'Général','chalkboard-teacher','teachers');
+    h+=renderBlock(customGroups,'Mes Groupes','users-cog','custom');
+    h+=renderBlock(classes,'Mes Classes','users','groups');
+    h+=renderBlock(teachers,'Collègues','chalkboard-teacher','teachers');
+    h+=renderBlock(students,'Élèves / Parents','user-graduate','students');
     c.innerHTML=h||'<div style="padding:20px;text-align:center;color:#94a3b8;font-size:.7rem">Aucun contact</div>';
 }
 
@@ -236,11 +300,12 @@ async function openWaChat(contactId){
     const p=document.getElementById('waChatPanel');
     const threadId=getThreadId(waActiveContact);
     const typeDesc={
-        direction_group:'Communication avec la direction de l\'établissement',
-        teacher_group:'Discussion entre enseignants',
+        direction_group:'Communication avec la direction',
+        teacher_group:'Discussion entre tout le personnel',
         class:'Groupe classe — tous les parents',
         student:'Élève/Parent — message personnalisé',
-        teacher:'Collègue enseignant'
+        teacher:'Collègue — Discussion privée',
+        custom_group:'Groupe personnalisé'
     };
     let h=`<div class="wa-chat-bg"></div>`;
     h+=`<div class="wa-chat-head">
@@ -250,8 +315,8 @@ async function openWaChat(contactId){
         <div>${scopeTag(waActiveContact.scope)}</div>
     </div>`;
     h+='<div class="wa-messages" id="waMessagesArea"><div style="text-align:center;color:#94a3b8;font-size:.65rem;margin:auto"><i class="fas fa-spinner fa-spin" style="display:block;margin-bottom:4px"></i>Chargement...</div></div>';
-    h+=`<div id="waSubjectBar" style="display:none;padding:6px 14px;background:#f8fafc;border-top:1px solid #e2e8f0;z-index:1"><div style="display:flex;align-items:center;gap:6px"><i class="fas fa-tag" style="color:#128c7e;font-size:.65rem"></i><input type="text" id="waSubjectInput" placeholder="Sujet du message (optionnel)..." style="flex:1;padding:6px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:.68rem;outline:none"><button onclick="toggleSubjectBar()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:.8rem" title="Fermer">×</button></div></div>`;
-    h+=`<div class="wa-input-bar"><button onclick="toggleSubjectBar()" style="width:36px;height:36px;border-radius:50%;border:none;background:#f1f5f9;color:#64748b;cursor:pointer;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s" title="Ajouter un sujet"><i class="fas fa-tag"></i></button><input type="text" id="waInput" placeholder="Écrivez un message..." onkeydown="if(event.key==='Enter')sendWaMsg()"><button onclick="sendWaMsg()"><i class="fas fa-paper-plane"></i></button></div>`;
+    h+=`<div id="waSubjectBar" style="display:none;padding:6px 14px;background:#f8fafc;border-top:1px solid #e2e8f0;z-index:1"><div style="display:flex;align-items:center;gap:6px"><i class="fas fa-tag" style="color:#128c7e;font-size:.65rem"></i><input type="text" id="waSubjectInput" placeholder="Sujet du message (optionnel)..." style="flex:1;padding:6px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:.68rem;outline:none"><button onclick="toggleSubjectBar()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:.8rem">×</button></div></div>`;
+    h+=`<div class="wa-input-bar"><button onclick="toggleSubjectBar()" style="width:36px;height:36px;border-radius:50%;border:none;background:#f1f5f9;color:#64748b;cursor:pointer;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s" title="Sujet"><i class="fas fa-tag"></i></button><input type="text" id="waInput" placeholder="Écrivez un message..." onkeydown="if(event.key==='Enter')sendWaMsg()"><button onclick="sendWaMsg()"><i class="fas fa-paper-plane"></i></button></div>`;
     p.innerHTML=h;
     try{
         const r=await fetch(`/api/communication/?thread_id=${encodeURIComponent(threadId)}`);
@@ -263,7 +328,7 @@ async function openWaChat(contactId){
         }
     }catch(e){
         const area=document.getElementById('waMessagesArea');
-        if(area)area.innerHTML='<div style="text-align:center;color:#94a3b8;font-size:.65rem;margin:auto"><i class="fas fa-lock" style="display:block;margin-bottom:4px"></i>Démarrez une conversation</div>';
+        if(area)area.innerHTML='<div style="text-align:center;color:#94a3b8;font-size:.65rem;margin:auto"><i class="fas fa-comments" style="display:block;margin-bottom:4px;font-size:2rem;opacity:.15"></i>Démarrez une conversation</div>';
     }
     document.getElementById('waInput')?.focus();
 }
@@ -271,7 +336,7 @@ async function openWaChat(contactId){
 function renderWaMessages(msgs){
     const area=document.getElementById('waMessagesArea');if(!area)return;
     if(!msgs.length){
-        area.innerHTML='<div style="text-align:center;color:#94a3b8;font-size:.65rem;margin:auto"><i class="fas fa-lock" style="display:block;margin-bottom:4px"></i>Démarrez une conversation</div>';
+        area.innerHTML='<div style="text-align:center;color:#94a3b8;font-size:.65rem;margin:auto"><i class="fas fa-comments" style="display:block;margin-bottom:4px;font-size:2rem;opacity:.15"></i>Démarrez une conversation</div>';
         return;
     }
     let h='';let lastDate='';
@@ -288,89 +353,156 @@ function renderWaMessages(msgs){
         }
         const dir=m.direction==='out'?'sent':'recv';
         const statusIcon=m.direction==='out'?`<span class="msg-status"><i class="fas fa-check-double"></i></span>`:'';
-        const tag=m.scope?scopeTag(m.scope):'';
         h+=`<div class="wa-msg ${dir}">`;
         if(dir==='recv'&&m.sender_name)h+=`<div class="wa-msg-sender">${m.sender_name}</div>`;
         if(m.subject)h+=`<div style="font-size:.58rem;font-weight:700;color:#075e54;margin-bottom:2px">📌 ${m.subject}</div>`;
-        h+=`<div>${m.message}</div><div class="wa-msg-time">${tag} ${m.time||''} ${statusIcon}</div></div>`;
+        h+=`<div>${m.message}</div><div class="wa-msg-time">${m.time||''} ${statusIcon}</div></div>`;
     });
     area.innerHTML=h;
     area.scrollTop=area.scrollHeight;
 }
 
-function showWaSidebar(){
-    const sb=document.getElementById('waSidebar');
-    if(sb)sb.classList.remove('hidden');
-}
-
-function toggleSubjectBar(){
-    const bar=document.getElementById('waSubjectBar');
-    if(bar) bar.style.display = bar.style.display === 'none' ? '' : 'none';
-}
+function showWaSidebar(){const sb=document.getElementById('waSidebar');if(sb)sb.classList.remove('hidden');}
+function toggleSubjectBar(){const bar=document.getElementById('waSubjectBar');if(bar)bar.style.display=bar.style.display==='none'?'':'none';}
 
 async function sendWaMsg(){
     if(!waActiveContact)return;
     const inp=document.getElementById('waInput');
-    const txt=inp.value.trim();
-    if(!txt)return;
-    inp.value='';
+    const txt=inp.value.trim();if(!txt)return;inp.value='';
     const threadId=getThreadId(waActiveContact);
     const subjectInp=document.getElementById('waSubjectInput');
-    const subject=(subjectInp && subjectInp.value.trim()) || '';
+    const subject=(subjectInp&&subjectInp.value.trim())||'';
     const area=document.getElementById('waMessagesArea');
     if(area){
-        const emptyDiv=area.querySelector('div[style*="margin:auto"]');
-        if(emptyDiv)emptyDiv.remove();
-        const now=new Date();
-        const time=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
-        const msgEl=document.createElement('div');
-        msgEl.className='wa-msg sent';
-        let msgHtml = '';
-        if(subject) msgHtml += `<div style="font-size:.58rem;font-weight:700;color:#075e54;margin-bottom:2px">📌 ${subject}</div>`;
-        msgHtml += `<div>${txt}</div><div class="wa-msg-time">${time} <span class="msg-status"><i class="fas fa-clock"></i></span></div>`;
-        msgEl.innerHTML=msgHtml;
-        area.appendChild(msgEl);
-        area.scrollTop=area.scrollHeight;
+        const empty=area.querySelector('div[style*="margin:auto"]');if(empty)empty.remove();
+        const now=new Date();const time=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+        const el=document.createElement('div');el.className='wa-msg sent';
+        let h='';
+        if(subject)h+=`<div style="font-size:.58rem;font-weight:700;color:#075e54;margin-bottom:2px">📌 ${subject}</div>`;
+        h+=`<div>${txt}</div><div class="wa-msg-time">${time} <span class="msg-status"><i class="fas fa-clock"></i></span></div>`;
+        el.innerHTML=h;area.appendChild(el);area.scrollTop=area.scrollHeight;
     }
     try{
-        const r=await fetch('/api/communication/send/',{
-            method:'POST',
-            headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},
-            body:JSON.stringify({
-                thread_id:threadId,
-                scope:waActiveContact.scope||'individual',
-                target_eleve_id:waActiveContact.target_eleve_id||null,
-                target_classe_id:waActiveContact.target_classe_id||null,
-                target_personnel_id:waActiveContact.target_personnel_id||null,
-                subject:subject,
-                message:txt
-            })
-        });
+        const body={
+            thread_id:threadId,
+            scope:waActiveContact.scope||'individual',
+            target_eleve_id:waActiveContact.target_eleve_id||null,
+            target_classe_id:waActiveContact.target_classe_id||null,
+            target_personnel_id:waActiveContact.target_personnel_id||null,
+            target_group_id:waActiveContact.target_group_id||null,
+            subject:subject,
+            message:txt
+        };
+        const r=await fetch('/api/communication/send/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify(body)});
         const d=await r.json();
         if(d.success){
             const lastMsg=area?.querySelector('.wa-msg.sent:last-child .msg-status');
             if(lastMsg)lastMsg.innerHTML='<i class="fas fa-check-double"></i>';
-            waThreadsCache[threadId]={
-                thread_id:threadId,
-                last_message:txt.substring(0,60),
-                last_time:d.message?.time||'',
-                unread:0,msg_count:(waThreadsCache[threadId]?.msg_count||0)+1
-            };
+            waThreadsCache[threadId]={thread_id:threadId,last_message:txt.substring(0,60),last_time:d.message?.time||'',unread:0};
             renderWaContacts();
             const em=d.email||{};
-            if(em.sent>0){
-                showToast(`Message envoyé ✉️ ${em.sent} email${em.sent>1?'s':''} envoyé${em.sent>1?'s':''} aux parents`,'success');
-            }else if(em.total_parents===0){
-                showToast(`Message enregistré (aucun email parent trouvé)`,'info');
-            }else{
-                showToast(`Message enregistré`,'success');
-            }
-        }else{
-            showToast(d.error||'Erreur d\'envoi','error');
-        }
-    }catch(e){
-        showToast('Erreur réseau','error');
-    }
+            if(em.sent>0) showToast(`✉️ ${em.sent} email${em.sent>1?'s':''} envoyé${em.sent>1?'s':''}`,'success');
+            else if(em.total_parents>0) showToast('Message enregistré','success');
+            else showToast('Message enregistré','success');
+        }else{showToast(d.error||'Erreur','error');}
+    }catch(e){showToast('Erreur réseau','error');}
+}
+
+/* ═══ CREATE GROUP MODAL ═══ */
+function showCreateGroupModal(){
+    // Remove existing modal if any
+    document.getElementById('groupModal')?.remove();
+    const colors=['#0891b2','#128c7e','#6366f1','#8b5cf6','#ec4899','#ef4444','#f59e0b','#10b981'];
+    let h=`<div class="wa-modal-overlay" id="groupModal" onclick="if(event.target===this)this.remove()">
+    <div class="wa-modal">
+        <h3><i class="fas fa-users-cog"></i> Nouveau Groupe <button class="wa-modal-close" onclick="document.getElementById('groupModal').remove()">×</button></h3>
+        <div style="display:grid;gap:12px">
+            <div><label>Nom du groupe *</label><input type="text" id="grpName" placeholder="Ex: Comité pédagogique"></div>
+            <div><label>Description</label><input type="text" id="grpDesc" placeholder="Description optionnelle..."></div>
+            <div><label>Couleur</label><div style="display:flex;gap:6px;flex-wrap:wrap" id="grpColorPicker">
+                ${colors.map((c,i)=>`<div onclick="selectGrpColor(this,'${c}')" style="width:28px;height:28px;border-radius:50%;background:${c};cursor:pointer;border:2px solid ${i===0?'#0f172a':'transparent'};transition:all .15s" data-color="${c}"></div>`).join('')}
+            </div></div>
+            <div><label>Membres (collègues)</label>
+                <input type="text" id="grpMemberSearch" placeholder="Rechercher un collègue..." oninput="filterGrpMembers()">
+                <div id="grpSelectedMembers" style="margin:6px 0;display:flex;flex-wrap:wrap;gap:2px"></div>
+                <div id="grpMembersList" style="max-height:200px;overflow-y:auto;margin-top:4px"></div>
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
+            <button class="wa-modal-btn secondary" onclick="document.getElementById('groupModal').remove()">Annuler</button>
+            <button class="wa-modal-btn primary" onclick="submitCreateGroup()"><i class="fas fa-check"></i> Créer</button>
+        </div>
+    </div></div>`;
+    document.body.insertAdjacentHTML('beforeend',h);
+    window._grpSelectedMembers=[];
+    window._grpColor=colors[0];
+    filterGrpMembers();
+}
+
+function selectGrpColor(el,color){
+    window._grpColor=color;
+    el.parentElement.querySelectorAll('div').forEach(d=>d.style.borderColor='transparent');
+    el.style.borderColor='#0f172a';
+}
+
+function filterGrpMembers(){
+    const f=(document.getElementById('grpMemberSearch')?.value||'').toLowerCase();
+    const list=document.getElementById('grpMembersList');if(!list)return;
+    const sel=window._grpSelectedMembers||[];
+    const filtered=allColleagues.filter(c=>!f||`${c.nom} ${c.prenom}`.toLowerCase().includes(f));
+    list.innerHTML=filtered.map(c=>{
+        const nm=`${c.nom} ${c.prenom}`.trim();
+        const isSel=sel.includes(c.id_personnel);
+        const col=c.genre==='F'?'#ec4899':'#7c3aed';
+        return `<div class="colleague-item ${isSel?'selected':''}" onclick="toggleGrpMember(${c.id_personnel},'${nm.replace(/'/g,"\\'")}')">
+            <div class="ci-avatar" style="background:${col}">${nm.charAt(0)}</div>
+            <div style="flex:1"><div style="font-weight:600">${nm}</div><div style="font-size:.55rem;color:#94a3b8">${c.email||''}</div></div>
+            <i class="fas ${isSel?'fa-check-circle':'fa-circle'}" style="color:${isSel?'#128c7e':'#e2e8f0'};font-size:.8rem"></i>
+        </div>`;
+    }).join('')||'<div style="padding:8px;text-align:center;color:#94a3b8;font-size:.65rem">Aucun collègue trouvé</div>';
+}
+
+function toggleGrpMember(id,name){
+    const sel=window._grpSelectedMembers;
+    const i=sel.indexOf(id);
+    if(i>=0)sel.splice(i,1);else sel.push(id);
+    filterGrpMembers();
+    renderGrpSelectedChips();
+}
+
+function renderGrpSelectedChips(){
+    const c=document.getElementById('grpSelectedMembers');if(!c)return;
+    const sel=window._grpSelectedMembers||[];
+    c.innerHTML=sel.map(id=>{
+        const col=allColleagues.find(c=>c.id_personnel===id);
+        const nm=col?`${col.nom} ${col.prenom}`.trim():`#${id}`;
+        return `<span class="member-chip">${nm} <span class="remove" onclick="event.stopPropagation();toggleGrpMember(${id},'')">×</span></span>`;
+    }).join('');
+}
+
+async function submitCreateGroup(){
+    const name=(document.getElementById('grpName')?.value||'').trim();
+    if(!name){showToast('Donnez un nom au groupe','error');return;}
+    const desc=(document.getElementById('grpDesc')?.value||'').trim();
+    const members=window._grpSelectedMembers||[];
+    const color=window._grpColor||'#0891b2';
+    try{
+        const r=await fetch('/api/communication/groups/create/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({name,description:desc,members,avatar_color:color})});
+        const d=await r.json();
+        if(d.success){
+            showToast(`Groupe "${name}" créé`,'success');
+            document.getElementById('groupModal')?.remove();
+            // Ajouter le groupe localement
+            const g=d.group;
+            waContacts.splice(2,0,{
+                id:'cgrp_'+g.id_group,group_id:g.id_group,type:'custom_group',
+                name:g.name,sub:`${g.n_members} membre${g.n_members>1?'s':''}`,
+                color:g.avatar_color,icon:'users-cog',scope:'custom_group',
+                target_group_id:g.id_group,is_owner:true,members:[]
+            });
+            renderWaContacts();
+        }else{showToast(d.error||'Erreur','error');}
+    }catch(e){showToast('Erreur réseau','error');}
 }
 </script>
 {% endblock %}
