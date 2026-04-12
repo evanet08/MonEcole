@@ -127,31 +127,60 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
     dots_mid = '<font size="3" color="#aaaaaa">' + ' .' * 50 + '</font>'
     dots_short = '<font size="3" color="#aaaaaa">' + ' .' * 30 + '</font>'
 
-    right_w = 97*mm
+    dots_long = '<font size="3" color="#aaaaaa">' + ' .' * 60 + '</font>'
+    dots_mid = '<font size="3" color="#aaaaaa">' + ' .' * 35 + '</font>'
+    dots_short = '<font size="3" color="#aaaaaa">' + ' .' * 15 + '</font>'
 
-    # Sub-colonnes internes : col_a (label+nom+dots) + col_b (SEXE / LE date)
-    col_b_w = 25*mm
-    col_a_w = right_w - col_b_w - nb_cases*4*mm - 1*mm
-    nperm_col_w = nb_cases*4*mm + 1*mm
+    right_w = 97*mm
+    nperm_box_w = nb_cases*4*mm + 1*mm
+    text_w = right_w - nperm_box_w
+
+    sexe_col_w = 30*mm
+    eleve_col_w = text_w - sexe_col_w
+
+    eleve_inner = Table(
+        [[Paragraph(f"ELEVE : <b>{nom_upper} {prenom_title}</b> {dots_mid}", p_style),
+          Paragraph(f"SEXE : <b>{sexe}</b> {dots_short}", p_style)]],
+        colWidths=[eleve_col_w, sexe_col_w], rowHeights=[4.5*mm]
+    )
+    eleve_inner.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('LEFTPADDING', (0,0), (-1,-1), 0),
+        ('RIGHTPADDING', (0,0), (-1,-1), 0),
+        ('TOPPADDING', (0,0), (-1,-1), 0),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+    ]))
+
+    nea_inner = Table(
+        [[Paragraph(f"NE(E) A : {dots_mid}", p_style),
+          Paragraph(f"LE <b>{date_str if date_str else '..... / ..... / ..........'}</b> {dots_short}", p_style)]],
+        colWidths=[eleve_col_w, sexe_col_w], rowHeights=[4.5*mm]
+    )
+    nea_inner.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('LEFTPADDING', (0,0), (-1,-1), 0),
+        ('RIGHTPADDING', (0,0), (-1,-1), 0),
+        ('TOPPADDING', (0,0), (-1,-1), 0),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+    ]))
 
     final_rows = [
-        [Paragraph(f"ELEVE : <b>{nom_upper} {prenom_title}</b> {dots_mid}", p_style),
-         Paragraph(f"SEXE : <b>{sexe}</b> {dots_short}", p_style), None],
-        [Paragraph(f"NE(E) A : {dots_mid}", p_style),
-         Paragraph(f"LE <b>{date_str if date_str else '..... / ..... / ..........'}</b> {dots_short}", p_style), None],
-        [Paragraph(f"CLASSE : <b>{classe_name}</b> {dots_long}", p_style), None, None],
-        [Paragraph("N° PERM. :", p_style), None, nperm_squares_table],
+        [eleve_inner, None],
+        [nea_inner, None],
+        [Paragraph(f"CLASSE : <b>{classe_name}</b> {dots_long}", p_style), None],
+        [Paragraph("N° PERM. :", p_style), nperm_squares_table],
     ]
 
-    right_table = Table(final_rows, colWidths=[col_a_w, col_b_w, nperm_col_w], rowHeights=[4.5*mm]*3 + [6*mm])
+    right_table = Table(final_rows, colWidths=[text_w, nperm_box_w], rowHeights=[4.5*mm]*3 + [6*mm])
     right_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 2),
         ('RIGHTPADDING', (0, 0), (-1, -1), 1),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('SPAN', (0, 2), (2, 2)),  # CLASSE spans all 3 columns
-        ('SPAN', (0, 3), (1, 3)),  # N° PERM label spans first 2 cols
+        ('SPAN', (0, 0), (1, 0)),
+        ('SPAN', (0, 1), (1, 1)),
+        ('SPAN', (0, 2), (1, 2)),
     ]))
 
     return right_table
