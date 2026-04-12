@@ -80,7 +80,7 @@ def get_semestres(id_annee, id_campus, id_cycle, id_classe):
 
 
 def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal):
-    """Right info section — format officiel: labels gras inline avec pointillés."""
+    """Right info section — format image officiel: labels gras inline avec pointillés."""
     try:
         eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
         classe_name = eac.classe.classe.strip().upper()
@@ -109,65 +109,48 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
             ('BOX', (i,0), (i,0), 0.5, colors.black),
         ]))
 
-    p_style = ParagraphStyle(name='InfoRightP2', fontSize=7, leading=9, alignment=0, fontName='Helvetica-Bold')
+    p_style = ParagraphStyle(name='InfoRightP2', fontSize=7, leading=8, alignment=0, fontName='Helvetica')
 
     nom_upper = (eleve.nom or '').upper()
     prenom_title = (eleve.prenom or '').title()
     sexe = (eleve.genre or '').upper()
 
-    date_slashes = '...../ ..... /........'
+    date_str = ''
     if eleve.date_naissance:
         try:
             d = eleve.date_naissance
-            date_slashes = f"{d.day:02d} / {d.month:02d} / {d.year}"
+            date_str = f"{d.day:02d} / {d.month:02d} / {d.year}"
         except:
-            date_slashes = str(eleve.date_naissance)
+            date_str = str(eleve.date_naissance)
 
-    # Colonnes: col0 = label+dots, col1 = boxes (N° PERM)
-    col1_w = nb_cases * 4 * mm + 1*mm
-    col0_w = 116.4*mm - col1_w
+    dots_long = '<font size="3" color="#aaaaaa">' + ' .' * 80 + '</font>'
+    dots_mid = '<font size="3" color="#aaaaaa">' + ' .' * 50 + '</font>'
+    dots_short = '<font size="3" color="#aaaaaa">' + ' .' * 30 + '</font>'
 
-    # Calcul dynamique des pointillés
-    char_w = 0.88
-    dot_w = 0.88
-    usable_c0 = col0_w / mm - 4
-    usable_full = 116.4 - 4
+    right_w = 116.4*mm
 
-    # Ligne ELEVE (spanned - full width)
-    eleve_label = f"ELEVE : {nom_upper} {prenom_title} "
-    sexe_part = f" SEXE : {sexe} "
-    eleve_total_chars = len(eleve_label) + len(sexe_part)
-    eleve_remaining = usable_full - eleve_total_chars * char_w
-    dots_eleve = max(3, int(eleve_remaining * 0.65 / dot_w))
-    dots_sexe = max(3, int(eleve_remaining * 0.30 / dot_w))
-
-    # Ligne NE(E) A (col0 only) + LE date (col1 aligned with boxes)
-    nea_label = f"NE(E) A : "
-    nea_remaining = usable_c0 - len(nea_label) * char_w
-    dots_nea = max(3, int(nea_remaining / dot_w))
-
-    # Ligne CLASSE (spanned - full width)
-    classe_label = f"CLASSE : {classe_name} "
-    classe_remaining = usable_full - len(classe_label) * char_w
-    dots_classe = max(5, int(classe_remaining / dot_w))
-
-    final_rows = [
-        [Paragraph(f"ELEVE : {nom_upper} {prenom_title} {'.' * dots_eleve}{sexe_part}{'.' * dots_sexe}", p_style), None],
-        [Paragraph(f"NE(E) A : {'.' * dots_nea}", p_style),
-         Paragraph(f"LE {date_slashes} {'.' * 5}", p_style)],
-        [Paragraph(f"CLASSE : {classe_name} {'.' * dots_classe}", p_style), None],
+    right_rows = [
+        [Paragraph(f"ELEVE : <b>{nom_upper} {prenom_title}</b> {dots_mid}  SEXE : <b>{sexe}</b> {dots_short}", p_style)],
+        [Paragraph(f"NE(E) A : {dots_mid}  LE <b>{date_str if date_str else '..... / ..... / ..........'}</b> {dots_short}", p_style)],
+        [Paragraph(f"CLASSE : <b>{classe_name}</b> {dots_long}", p_style)],
         [Paragraph("N° PERM. :", p_style), nperm_squares_table],
     ]
 
-    right_table = Table(final_rows, colWidths=[col0_w, col1_w], rowHeights=[4.5*mm]*3 + [6*mm])
+    final_rows = []
+    for i in range(3):
+        final_rows.append([right_rows[i][0], None])
+    final_rows.append(right_rows[3])
+
+    right_table = Table(final_rows, colWidths=[right_w - nb_cases*4*mm - 1*mm, nb_cases*4*mm + 1*mm], rowHeights=[4.5*mm]*3 + [6*mm])
     right_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
         ('RIGHTPADDING', (0, 0), (-1, -1), 1),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('SPAN', (0, 0), (1, 0)),  # ELEVE row spans both columns
-        ('SPAN', (0, 2), (1, 2)),  # CLASSE row spans both columns
+        ('SPAN', (0, 0), (1, 0)),
+        ('SPAN', (0, 1), (1, 1)),
+        ('SPAN', (0, 2), (1, 2)),
     ]))
 
     return right_table
@@ -175,7 +158,7 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
 
 
 def create_line2_section__secondaire_rdc(elements, left_table, right_table):
-    """Combine left (40%) + right (60%) avec séparateur vertical et bordure."""
+    """Combine left (40%) + right (60%) avec séparateur vertical."""
     if isinstance(right_table, tuple):
         right_table = right_table[0]
 
@@ -187,7 +170,8 @@ def create_line2_section__secondaire_rdc(elements, left_table, right_table):
     line2_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (0, 0), 'TOP'),
         ('VALIGN', (1, 0), (1, 0), 'MIDDLE'),
-        ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
+        ('LINEABOVE', (0, 0), (-1, 0), 0.5, colors.black),
+        ('LINEBELOW', (0, -1), (-1, -1), 0.5, colors.black),
         ('LINEBEFORE', (1, 0), (1, -1), 0.3, colors.black),
         ('TOPPADDING', (0, 0), (-1, -1), 1),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
@@ -206,28 +190,19 @@ def create_bulletin_title__secondaire_rdc(elements, style_title, style_right,id_
     except:
         # messages.error(request, "Classe ou année introuvable.")
         return HttpResponse('<script>history.back();</script>', status=404)
-    elements.append(Spacer(1, 1.5*mm))
-    # Format annee with dash: "2025-2026" → "2025 - 2026"
-    annee_display = annee_obj.annee.strip().replace('-', ' - ') if annee_obj and annee_obj.annee else ''
-    title_style_left = ParagraphStyle(name='TitleLeft', fontSize=7.5, leading=9, alignment=0, fontName='Times-Bold')
-    title_style_right = ParagraphStyle(name='TitleRight', fontSize=7.5, leading=9, alignment=2, fontName='Times-Bold')
+    elements.append(Spacer(1, 2*mm))
     title_data = [
-        [Paragraph(f"<font color='black'><b>BULLETIN D'EDUCATION DE BASE DE : Classe de {classe_name}</b></font>", title_style_left),
-         Paragraph(f"<font color='black'><b>ANNEE  SCOLAIRE {annee_display}</b></font>", title_style_right)]
+        [Paragraph(f"<font color='black'><b>BULLETIN D'EDUCATION DE BASE DE : Classe de {classe_name}</b></font>", style_title),
+         Paragraph(f"<font color='black'><b>ANNEE SCOLAIRE {annee_obj.annee}</b></font>", style_right)]
     ]
-    title_table = Table(title_data, colWidths=[120*mm, 80*mm])
+    title_table = Table(title_data, colWidths=[100*mm, 100*mm])
     title_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (0, 0), 'LEFT'),
         ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
-        ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
-        ('TOPPADDING', (0, 0), (-1, -1), 2),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-        ('LEFTPADDING', (0, 0), (-1, -1), 4),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
     ]))
     elements.append(title_table)
-    elements.append(Spacer(1, 1.5*mm))
+    elements.append(Spacer(1, 2*mm))
 
 
     # Calcul des sous-totaux et MAXIMA (sans doublon)
