@@ -1922,7 +1922,7 @@ def api_communication_send(request):
         with connections['default'].cursor() as cur:
             if scope == 'individual' and target_eleve_id:
                 cur.execute("""
-                    SELECT e.nom, e.prenom, e.id_parent, e.email_parent,
+                    SELECT e.nom, e.prenom,
                            p.emailPere, p.emailMere, p.nomPere, p.nomMere
                     FROM eleve e
                     LEFT JOIN parents p ON p.id_parent = e.id_parent
@@ -1931,13 +1931,10 @@ def api_communication_send(request):
                 row = cur.fetchone()
                 if row:
                     eleve_name = f"{row[0] or ''} {row[1] or ''}".strip()
-                    # Priorité : emailPere/emailMere de la table parents, sinon email_parent de eleve
-                    if row[4]:  # emailPere
-                        parent_emails.append({'email': row[4], 'name': f"Père de {eleve_name}"})
-                    if row[5]:  # emailMere
-                        parent_emails.append({'email': row[5], 'name': f"Mère de {eleve_name}"})
-                    if not row[4] and not row[5] and row[3]:  # fallback email_parent
-                        parent_emails.append({'email': row[3], 'name': f"Parent de {eleve_name}"})
+                    if row[2]:  # emailPere
+                        parent_emails.append({'email': row[2], 'name': f"Père de {eleve_name}"})
+                    if row[3]:  # emailMere
+                        parent_emails.append({'email': row[3], 'name': f"Mère de {eleve_name}"})
 
             elif scope == 'class' and target_classe_id:
                 # Résoudre classe EAC → business keys
@@ -1948,22 +1945,22 @@ def api_communication_send(request):
                 bk = cur.fetchone()
                 if bk:
                     cur.execute("""
-                        SELECT DISTINCT e.nom, e.prenom, e.id_parent, e.email_parent,
-                               p.emailPere, p.emailMere, p.nomPere, p.nomMere
+                        SELECT DISTINCT e.nom, e.prenom,
+                               p.emailPere, p.emailMere
                         FROM eleve_inscription ei
                         JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                         LEFT JOIN parents p ON p.id_parent = e.id_parent
-                        WHERE ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                        WHERE ei.classe_id = %s
+                          AND (COALESCE(ei.groupe,'') = COALESCE(%s,''))
+                          AND (COALESCE(ei.section_id,0) = COALESCE(%s,0))
                           AND ei.status = 1 AND ei.id_etablissement = %s
                     """, [bk[0], bk[1], bk[2], etab_id])
                     for row in cur.fetchall():
                         eleve_name = f"{row[0] or ''} {row[1] or ''}".strip()
-                        if row[4]:
-                            parent_emails.append({'email': row[4], 'name': f"Père de {eleve_name}"})
-                        if row[5]:
-                            parent_emails.append({'email': row[5], 'name': f"Mère de {eleve_name}"})
-                        if not row[4] and not row[5] and row[3]:
-                            parent_emails.append({'email': row[3], 'name': f"Parent de {eleve_name}"})
+                        if row[2]:
+                            parent_emails.append({'email': row[2], 'name': f"Père de {eleve_name}"})
+                        if row[3]:
+                            parent_emails.append({'email': row[3], 'name': f"Mère de {eleve_name}"})
 
         # Dédupliquer
         seen_emails = set()

@@ -42,6 +42,7 @@
 .wa-section-label .wa-count{margin-left:auto;font-size:.48rem;opacity:.5;font-weight:400}
 .wa-accordion-body{overflow:hidden;transition:max-height .3s ease}
 .wa-accordion-body.collapsed{max-height:0!important;overflow:hidden}
+.wa-accordion-body.nested{border-left:3px solid #3b82f6;margin-left:12px;background:#f8faff}
 .wa-section-label.groups{color:#128c7e;background:#f0fdf4}.wa-section-label.students{color:#3b82f6;background:#eff6ff}.wa-section-label.teachers{color:#8b5cf6;background:#f5f3ff}.wa-section-label.direction{color:#ea580c;background:#fff7ed}.wa-section-label.custom{color:#0891b2;background:#ecfeff}
 .wa-scope-tag{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:6px;font-size:.48rem;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
 .wa-scope-tag.individual{background:#dbeafe;color:#1d4ed8}.wa-scope-tag.class{background:#dcfce7;color:#16a34a}.wa-scope-tag.etab{background:#fef3c7;color:#d97706}.wa-scope-tag.teacher{background:#ede9fe;color:#7c3aed}.wa-scope-tag.direction{background:#ffedd5;color:#ea580c}.wa-scope-tag.teacher_group{background:#ede9fe;color:#7c3aed}.wa-scope-tag.custom_group{background:#cffafe;color:#0891b2}
@@ -366,11 +367,11 @@ function renderWaContacts(filter){
             h+=contactRow(cls);
             // Sous-accordéon : élèves de cette classe
             if(clStudents.length){
-                h+=`<div class="wa-section-label students" style="padding-left:28px;font-size:.5rem" onclick="toggleAccordion('${aid}')">
-                    <i class="fas fa-user-graduate"></i> Élèves (${clStudents.length})
+                h+=`<div class="wa-section-label students" style="padding-left:24px;font-size:.5rem;margin-left:12px" onclick="toggleAccordion('${aid}')">
+                    <i class="fas fa-user-graduate"></i> Élèves / Parents (${clStudents.length})
                     <i class="fas fa-chevron-right wa-chevron" id="${aid}_chev"></i>
                 </div>`;
-                h+=`<div class="wa-accordion-body collapsed" id="${aid}" style="max-height:0">`;
+                h+=`<div class="wa-accordion-body nested collapsed" id="${aid}" style="max-height:0">`;
                 clStudents.forEach(s=>{
                     h+=`<div class="wa-contact ${waActiveContact&&waActiveContact.id===s.id?'active':''}" onclick="openWaChat('${s.id}')" style="padding-left:32px">
                         <div class="wa-contact-avatar" style="background:${s.color};width:28px;height:28px;font-size:.5rem"><i class="fas fa-${s.icon}"></i></div>
