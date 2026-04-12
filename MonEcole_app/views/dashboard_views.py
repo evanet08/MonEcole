@@ -2204,3 +2204,99 @@ def api_communication_group_update(request):
 
     return JsonResponse({'success': True})
 
+
+# ── Presence & Video Conference API ──
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required(login_url='login')
+def api_communication_heartbeat(request):
+    """
+    POST /api/communication/heartbeat/
+    Met à jour la présence de l'utilisateur et retourne la liste des collègues en ligne.
+    Un personnel est considéré "en ligne" s'il a envoyé un heartbeat dans les 2 dernières minutes.
+    """
+    pers_id, etab_id = _get_personnel_id(request)
+    if not etab_id or not pers_id:
+        return JsonResponse({'success': False}, status=400)
+
+    try:
+        with connections['default'].cursor() as cur:
+            # Upsert : mettre à jour ma présence
+            cur.execute("""
+                INSERT INTO personnel_presence (id_personnel, id_etablissement, last_activity, is_online)
+                VALUES (%s, %s, NOW(), 1)
+                ON DUPLICATE KEY UPDATE last_activity = NOW(), is_online = 1, id_etablissement = %s
+            """, [pers_id, etab_id, etab_id])
+
+            # Marquer offline ceux inactifs > 2 minutes
+            cur.execute("""
+                UPDATE personnel_presence
+                SET is_online = 0
+                WHERE id_etablissement = %s AND last_activity < DATE_SUB(NOW(), INTERVAL 2 MINUTE)
+            """, [etab_id])
+
+            # Retourner la liste des collègues en ligne
+            cur.execute("""
+                SELECT pp.id_personnel,
+                       CONCAT(COALESCE(p.nom,''), ' ', COALESCE(p.prenom,'')) as nom,
+                       pp.last_activity
+                FROM personnel_presence pp
+                JOIN personnel p ON p.id_personnel = pp.id_personnel
+                WHERE pp.id_etablissement = %s AND pp.is_online = 1 AND pp.id_personnel != %s
+                ORDER BY p.nom
+            """, [etab_id, pers_id])
+            online = []
+            for row in cur.fetchall():
+                nm = (row[1] or '').strip()
+                if nm:
+                    online.append({
+                        'id_personnel': row[0],
+                        'nom': nm,
+                        'last_activity': row[2].strftime('%H:%M') if row[2] else '',
+                    })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+    return JsonResponse({'success': True, 'online': online, 'count': len(online)})
+
+
+@require_http_methods(["GET"])
+@login_required(login_url='login')
+def api_communication_visio(request):
+    """
+    GET /api/communication/visio/?thread_id=...&contact_name=...
+    Génère une URL Jitsi Meet sécurisée pour un appel vidéo.
+    Utilise le serveur public meet.jit.si (gratuit, pas d'inscription).
+    """
+    import hashlib
+
+    pers_id, etab_id = _get_personnel_id(request)
+    if not etab_id:
+        return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
+
+    thread_id = request.GET.get('thread_id', '')
+    contact_name = request.GET.get('contact_name', 'Réunion')
+
+    if not thread_id:
+        return JsonResponse({'success': False, 'error': 'thread_id requis'}, status=400)
+
+    # Générer un nom de salle unique et déterministe
+    raw = f"monecole_{etab_id}_{thread_id}"
+    room_hash = hashlib.sha256(raw.encode()).hexdigest()[:16]
+    room_name = f"MonEcole_{room_hash}"
+
+    # Info du personnel courant
+    _, sender_name = _get_sender_info(pers_id, etab_id)
+
+    return JsonResponse({
+        'success': True,
+        'room_name': room_name,
+        'display_name': sender_name,
+        'subject': f"Appel — {contact_name}",
+        'jitsi_domain': 'meet.jit.si',
+        'jitsi_url': f"https://meet.jit.si/{room_name}",
+    })

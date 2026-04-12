@@ -11,6 +11,7 @@ from MonEcole_app.views.dashboard_views import (
     api_communication_messages, api_communication_send, api_communication_threads,
     api_communication_teachers,
     api_communication_group_create, api_communication_group_update,
+    api_communication_heartbeat, api_communication_visio,
 )
 from MonEcole_app.views import api_views
 from MonEcole_app.views.pdf import generer_bulletin_pdf
@@ -54,6 +55,8 @@ urlpatterns = [
     path('api/communication/teachers/', api_communication_teachers, name='api_communication_teachers'),
     path('api/communication/groups/create/', api_communication_group_create, name='api_communication_group_create'),
     path('api/communication/groups/update/', api_communication_group_update, name='api_communication_group_update'),
+    path('api/communication/heartbeat/', api_communication_heartbeat, name='api_communication_heartbeat'),
+    path('api/communication/visio/', api_communication_visio, name='api_communication_visio'),
     # Legacy routes (backward compatibility)
     path('api/enseignant/communication/', api_communication_messages),
     path('api/enseignant/communication/send/', api_communication_send),

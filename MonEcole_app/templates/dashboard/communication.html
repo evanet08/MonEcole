@@ -84,6 +84,18 @@
 .colleague-item:hover{background:#f0fdf4}
 .colleague-item.selected{background:#dcfce7;border:1px solid #86efac}
 .colleague-item .ci-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;color:#fff;flex-shrink:0}
+/* ═══ Online Presence ═══ */
+.wa-online-dot{width:10px;height:10px;border-radius:50%;background:#22c55e;border:2px solid #fff;position:absolute;bottom:1px;right:1px;box-shadow:0 0 4px rgba(34,197,94,.5);animation:pulse-online 2s ease-in-out infinite}
+@keyframes pulse-online{0%,100%{box-shadow:0 0 4px rgba(34,197,94,.5)}50%{box-shadow:0 0 10px rgba(34,197,94,.8)}}
+.wa-online-count{font-size:.55rem;font-weight:400;opacity:.8;margin-left:4px}
+/* ═══ Visio ═══ */
+.wa-visio-btn{background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.wa-visio-btn:hover{background:rgba(255,255,255,.3);transform:scale(1.1)}
+.wa-visio-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;display:flex;flex-direction:column;animation:fadeIn .2s}
+.wa-visio-head{display:flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(0,0,0,.6);color:#fff;font-size:.8rem;font-weight:700;flex-shrink:0}
+.wa-visio-head button{background:rgba(255,255,255,.15);border:none;color:#fff;padding:6px 16px;border-radius:8px;cursor:pointer;font-size:.7rem;font-weight:600;margin-left:auto;transition:all .2s}
+.wa-visio-head button:hover{background:#ef4444}
+.wa-visio-frame{flex:1;border:none;width:100%;height:100%;background:#1a1a2e}
 /* ═══ Responsive ═══ */
 @media(max-width:768px){
     .wa-wrap{height:calc(100vh - 48px)}
@@ -103,7 +115,7 @@
 <div class="wa-wrap" id="waWrap">
     <div class="wa-sidebar" id="waSidebar">
         <div class="wa-sb-head">
-            <i class="fas fa-comments"></i> Messages
+            <i class="fas fa-comments"></i> Messages <span class="wa-online-count" id="waOnlineCount"></span>
             <div class="wa-sb-actions">
                 <button onclick="showCreateGroupModal()" title="Nouveau groupe"><i class="fas fa-users-cog"></i></button>
             </div>
@@ -312,6 +324,7 @@ async function openWaChat(contactId){
         <button class="back-btn" onclick="showWaSidebar()"><i class="fas fa-arrow-left"></i></button>
         <div class="wa-contact-avatar" style="background:${waActiveContact.color};width:36px;height:36px;font-size:.65rem"><i class="fas fa-${waActiveContact.icon}"></i></div>
         <div style="flex:1"><div>${waActiveContact.name}</div><div style="font-size:.55rem;font-weight:400;opacity:.8">${typeDesc[waActiveContact.type]||'Contact'}</div></div>
+        <button class="wa-visio-btn" onclick="startVisio()" title="Appel vidéo"><i class="fas fa-video"></i></button>
         <div>${scopeTag(waActiveContact.scope)}</div>
     </div>`;
     h+='<div class="wa-messages" id="waMessagesArea"><div style="text-align:center;color:#94a3b8;font-size:.65rem;margin:auto"><i class="fas fa-spinner fa-spin" style="display:block;margin-bottom:4px"></i>Chargement...</div></div>';
@@ -558,5 +571,106 @@ async function submitCreateGroup(){
         }else{showToast(d.error||'Erreur','error');}
     }catch(e){showToast('Erreur réseau','error');}
 }
+
+/* ═══ HEARTBEAT — Présence en ligne ═══ */
+let onlinePersonnel = new Set();
+let heartbeatTimer = null;
+
+async function sendHeartbeat(){
+    try{
+        const r = await fetch('/api/communication/heartbeat/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+            body: '{}'
+        });
+        const d = await r.json();
+        if(d.success){
+            onlinePersonnel = new Set((d.online||[]).map(o => o.id_personnel));
+            // MAJ compteur
+            const countEl = document.getElementById('waOnlineCount');
+            if(countEl) countEl.textContent = d.count > 0 ? `· ${d.count} en ligne` : '';
+            // MAJ points verts dans la sidebar
+            updateOnlineDots();
+        }
+    } catch(e) { /* silencieux */ }
+}
+
+function updateOnlineDots(){
+    document.querySelectorAll('.wa-contact').forEach(el => {
+        const existingDot = el.querySelector('.wa-online-dot');
+        if(existingDot) existingDot.remove();
+    });
+    waContacts.forEach(c => {
+        if(c.type === 'teacher' && c.personnel_id && onlinePersonnel.has(c.personnel_id)){
+            const contactEl = document.querySelector(`.wa-contact[onclick*="'${c.id}'"] .wa-contact-avatar`);
+            if(contactEl && !contactEl.querySelector('.wa-online-dot')){
+                contactEl.style.position = 'relative';
+                contactEl.insertAdjacentHTML('beforeend', '<div class="wa-online-dot"></div>');
+            }
+        }
+    });
+}
+
+// Démarrer le heartbeat
+function startHeartbeat(){
+    sendHeartbeat();
+    heartbeatTimer = setInterval(sendHeartbeat, 30000);
+}
+startHeartbeat();
+
+/* ═══ VISIOCONFERENCE — Jitsi Meet ═══ */
+async function startVisio(){
+    if(!waActiveContact){ showToast('Sélectionnez un contact d\'abord','error'); return; }
+    const threadId = getThreadId(waActiveContact);
+    try {
+        const r = await fetch(`/api/communication/visio/?thread_id=${encodeURIComponent(threadId)}&contact_name=${encodeURIComponent(waActiveContact.name)}`);
+        const d = await r.json();
+        if(!d.success){ showToast(d.error||'Erreur','error'); return; }
+
+        // Envoyer un message auto dans la conversation
+        const body = {
+            thread_id: threadId,
+            scope: waActiveContact.scope || 'individual',
+            target_eleve_id: waActiveContact.target_eleve_id || null,
+            target_classe_id: waActiveContact.target_classe_id || null,
+            target_personnel_id: waActiveContact.target_personnel_id || null,
+            target_group_id: waActiveContact.target_group_id || null,
+            subject: '',
+            message: `📹 Appel vidéo démarré — Rejoignez ici : ${d.jitsi_url}`
+        };
+        fetch('/api/communication/send/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+            body: JSON.stringify(body)
+        }).catch(() => {});
+
+        // Ouvrir la modal visio
+        document.getElementById('visioOverlay')?.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'visioOverlay';
+        overlay.className = 'wa-visio-overlay';
+        overlay.innerHTML = `
+            <div class="wa-visio-head">
+                <i class="fas fa-video" style="font-size:1rem"></i>
+                <span>${d.subject}</span>
+                <button onclick="closeVisio()"><i class="fas fa-phone-slash"></i> Raccrocher</button>
+            </div>
+            <iframe class="wa-visio-frame" src="https://${d.jitsi_domain}/${d.room_name}#userInfo.displayName=%22${encodeURIComponent(d.display_name)}%22&config.prejoinPageEnabled=false" allow="camera;microphone;fullscreen;display-capture;autoplay" allowfullscreen></iframe>
+        `;
+        document.body.appendChild(overlay);
+    } catch(e) {
+        showToast('Erreur de connexion','error');
+    }
+}
+
+function closeVisio(){
+    const overlay = document.getElementById('visioOverlay');
+    if(overlay) overlay.remove();
+}
+
+// Raccourci clavier Escape pour fermer la visio
+document.addEventListener('keydown', e => {
+    if(e.key === 'Escape' && document.getElementById('visioOverlay')) closeVisio();
+});
 </script>
 {% endblock %}
