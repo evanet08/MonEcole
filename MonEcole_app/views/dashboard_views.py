@@ -1556,12 +1556,16 @@ def api_communication_contacts(request):
         with connections['default'].cursor() as cur:
             current_pers = int(pers_id) if pers_id else 0
 
-            # ── 1. Collègues (tous le personnel en fonction) ──
+            # ── 1. Tout le personnel en fonction, classé par type ──
             cur.execute("""
                 SELECT p.id_personnel, p.nom, p.postnom, p.prenom, p.email,
                        p.imageUrl, p.genre,
+                       COALESCE(pt.type, 'Autre') as type_nom,
+                       COALESCE(pt.sigle, '?') as type_sigle,
+                       p.isDirecteur, p.isDAF, p.isMaitresse,
                        CASE WHEN ac.cnt > 0 THEN 1 ELSE 0 END as is_teacher
                 FROM personnel p
+                LEFT JOIN personnel_type pt ON pt.id_type_personnel = p.id_personnel_type_id
                 LEFT JOIN (
                     SELECT id_personnel_id, COUNT(*) as cnt
                     FROM attribution_cours
@@ -1571,11 +1575,14 @@ def api_communication_contacts(request):
                 WHERE p.id_etablissement = %s
                   AND p.en_fonction = 1
                   AND p.id_personnel != %s
-                ORDER BY p.nom, p.prenom
+                ORDER BY pt.type, p.nom, p.prenom
             """, [etab_id, etab_id, current_pers])
+            types_seen = set()
             for row in cur.fetchall():
                 nm = f"{row[1] or ''} {row[3] or ''}".strip()
                 if nm:
+                    type_nom = row[7] or 'Autre'
+                    types_seen.add(type_nom)
                     result['colleagues'].append({
                         'id_personnel': row[0],
                         'nom': row[1] or '',
@@ -1584,8 +1591,14 @@ def api_communication_contacts(request):
                         'email': row[4] or '',
                         'imageUrl': row[5] or '',
                         'genre': row[6] or 'M',
-                        'is_teacher': bool(row[7]),
+                        'type_nom': type_nom,
+                        'type_sigle': row[8] or '?',
+                        'isDirecteur': bool(row[9]),
+                        'isDAF': bool(row[10]),
+                        'isMaitresse': bool(row[11]),
+                        'is_teacher': bool(row[12]),
                     })
+            result['personnel_types'] = sorted(list(types_seen))
 
             # ── 2. Classes de l'enseignant (via attribution_cours) + élèves ──
             cur.execute("""

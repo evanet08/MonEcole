@@ -152,14 +152,23 @@ const PERSONNEL_ID = {{ personnel_id }};
 const PERSONNEL_INFO = {{ personnel_info|safe }};
 const ETAB_ID = {{ etab.id_etablissement }};
 
-let waContacts=[];let waActiveContact=null;let waThreadsCache={};let allColleagues=[];
+let waContacts=[];let waActiveContact=null;let waThreadsCache={};let allColleagues=[];let personnelTypes=[];
 const CC=['#6366f1','#0ea5e9','#10b981','#f59e0b','#ec4899','#8b5cf6','#ef4444','#14b8a6','#f97316','#06b6d4'];
+const TYPE_META={
+    'Directeur':{icon:'user-tie',color:'#ea580c',sectionCls:'direction'},
+    'secretaire':{icon:'user-edit',color:'#0891b2',sectionCls:'custom'},
+    'Prefet des études':{icon:'user-shield',color:'#7c3aed',sectionCls:'teachers'},
+    'Enseignant':{icon:'chalkboard-teacher',color:'#16a34a',sectionCls:'groups'},
+    'Administrateur':{icon:'user-cog',color:'#6366f1',sectionCls:'teachers'},
+    'Autre':{icon:'user',color:'#64748b',sectionCls:'custom'}
+};
+function getTypeMeta(t){return TYPE_META[t]||TYPE_META['Autre'];}
 const SCOPE_LABELS={
     'individual':{label:'Personnalisé',icon:'user',cls:'individual'},
     'class':{label:'Classe',icon:'users',cls:'class'},
     'etab':{label:'Établissement',icon:'school',cls:'etab'},
-    'teacher':{label:'Collègue',icon:'chalkboard-teacher',cls:'teacher'},
-    'teacher_group':{label:'Entre Enseignants',icon:'chalkboard-teacher',cls:'teacher_group'},
+    'teacher':{label:'Personnel',icon:'chalkboard-teacher',cls:'teacher'},
+    'teacher_group':{label:'Tout le personnel',icon:'chalkboard-teacher',cls:'teacher_group'},
     'direction':{label:'Direction',icon:'building',cls:'direction'},
     'custom_group':{label:'Groupe',icon:'users-cog',cls:'custom_group'}
 };
@@ -180,20 +189,26 @@ async function initCommunication(){
         const d = await r.json();
         if(d.success){
             allColleagues = d.colleagues || [];
+            personnelTypes = d.personnel_types || [];
 
-            // Collègues individuels
+            // Personnel classé par type
             d.colleagues.forEach((c,i)=>{
+                const tm = getTypeMeta(c.type_nom);
+                const sub = c.email || c.type_nom;
                 waContacts.push({
-                    id:'tchr_'+c.id_personnel,
+                    id:'pers_'+c.id_personnel,
                     personnel_id:c.id_personnel,
                     type:'teacher',
+                    personnel_type:c.type_nom,
+                    type_sigle:c.type_sigle,
                     name:`${c.nom} ${c.prenom}`.trim(),
-                    sub:c.email||'Collègue',
-                    color:c.genre==='F'?'#ec4899':'#7c3aed',
-                    icon:'chalkboard-teacher',
+                    sub:sub,
+                    color:c.genre==='F'?'#ec4899':tm.color,
+                    icon:tm.icon,
                     scope:'teacher',
                     target_personnel_id:c.id_personnel,
                     is_teacher:c.is_teacher,
+                    isDirecteur:c.isDirecteur,
                     target_classe_id:null
                 });
             });
@@ -278,6 +293,8 @@ function getThreadId(c){
 
 function renderWaContacts(filter){
     const c=document.getElementById('waContactsList');if(!c)return;
+    if(c.dataset.mode==='meetings')return; // ne pas écraser la vue réunions
+    c.dataset.mode='contacts';
     const f=(filter||'').toLowerCase();
     const filtered=waContacts.filter(x=>!f||x.name.toLowerCase().includes(f)||x.sub.toLowerCase().includes(f));
 
@@ -285,7 +302,6 @@ function renderWaContacts(filter){
     const tchrGroups=filtered.filter(x=>x.type==='teacher_group');
     const customGroups=filtered.filter(x=>x.type==='custom_group');
     const classes=filtered.filter(x=>x.type==='class');
-    const teachers=filtered.filter(x=>x.type==='teacher');
     const students=filtered.filter(x=>x.type==='student');
 
     let h='';
@@ -298,19 +314,34 @@ function renderWaContacts(filter){
             const lastMsg=tc?tc.last_message:x.sub;
             const lastTime=tc?tc.last_time:'';
             const unread=tc?tc.unread:0;
+            const typeBadge=x.type_sigle?`<span style="font-size:.42rem;background:rgba(0,0,0,.06);padding:0 4px;border-radius:3px;color:#64748b;font-weight:600;margin-left:4px">${x.type_sigle}</span>`:'';
             o+=`<div class="wa-contact ${active}" onclick="openWaChat('${x.id}')">
                 <div class="wa-contact-avatar" style="background:${x.color}"><i class="fas fa-${x.icon}"></i></div>
-                <div class="wa-contact-info"><div class="wa-contact-name">${x.name}</div><div class="wa-contact-sub">${lastMsg}</div></div>
+                <div class="wa-contact-info"><div class="wa-contact-name">${x.name}${typeBadge}</div><div class="wa-contact-sub">${lastMsg}</div></div>
                 <div class="wa-contact-meta">${lastTime?`<div class="wa-contact-time">${lastTime}</div>`:''}${unread>0?`<div class="wa-unread-badge">${unread}</div>`:''}</div>
             </div>`;
         });
         return o;
     }
     h+=renderBlock(dirGroups,'Direction','building','direction');
-    h+=renderBlock(tchrGroups,'Général','chalkboard-teacher','teachers');
+    h+=renderBlock(tchrGroups,'Général','users','teachers');
     h+=renderBlock(customGroups,'Mes Groupes','users-cog','custom');
     h+=renderBlock(classes,'Mes Classes','users','groups');
-    h+=renderBlock(teachers,'Collègues','chalkboard-teacher','teachers');
+
+    // Regrouper le personnel par type
+    const typeOrder=['Directeur','Préfet des études','Enseignant','secretaire','Administrateur','Autre'];
+    const persAll=filtered.filter(x=>x.type==='teacher');
+    const typesPresent=[...new Set(persAll.map(x=>x.personnel_type||'Autre'))];
+    typesPresent.sort((a,b)=>{
+        const ai=typeOrder.indexOf(a),bi=typeOrder.indexOf(b);
+        return (ai<0?99:ai)-(bi<0?99:bi);
+    });
+    typesPresent.forEach(tp=>{
+        const items=persAll.filter(x=>(x.personnel_type||'Autre')===tp);
+        const tm=getTypeMeta(tp);
+        h+=renderBlock(items,`${tp}s`,tm.icon,tm.sectionCls);
+    });
+
     h+=renderBlock(students,'Élèves / Parents','user-graduate','students');
     c.innerHTML=h||'<div style="padding:20px;text-align:center;color:#94a3b8;font-size:.7rem">Aucun contact</div>';
 }
