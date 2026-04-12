@@ -109,30 +109,32 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
             ('BOX', (i,0), (i,0), 0.5, colors.black),
         ]))
 
-    p_style = ParagraphStyle(name='InfoRightP2', fontSize=7, leading=8.5, alignment=0, fontName='Helvetica')
+    p_style = ParagraphStyle(name='InfoRightP2', fontSize=8, leading=10, alignment=0, fontName='Helvetica-Bold')
 
     nom_upper = (eleve.nom or '').upper()
     prenom_title = (eleve.prenom or '').title()
     sexe = (eleve.genre or '').upper()
 
-    date_str = ''
+    date_slashes = '...../ ..... /........'
     if eleve.date_naissance:
         try:
             d = eleve.date_naissance
-            date_str = f"{d.day:02d} / {d.month:02d} / {d.year}"
+            date_slashes = f"{d.day:02d} / {d.month:02d} / {d.year}"
         except:
-            date_str = str(eleve.date_naissance)
+            date_slashes = str(eleve.date_naissance)
 
-    dots = '<font size="3" color="#999999">' + ' .' * 40 + '</font>'
-    dots_short = '<font size="3" color="#999999">' + ' .' * 20 + '</font>'
+    # Dots: dense real periods that fill all remaining space
+    d_long = '.' * 80
+    d_mid = '.' * 55
+    d_short = '.' * 15
 
     right_w = 116.4*mm
 
     right_rows = [
-        [Paragraph(f"<b>ELEVE :</b> {nom_upper} {prenom_title} {dots}  <b>SEXE :</b> {sexe} {dots_short}", p_style)],
-        [Paragraph(f"<b>NE(E) A :</b> {dots}  <b>LE</b> {date_str if date_str else '..... / ..... / ..........'} {dots_short}", p_style)],
-        [Paragraph(f"<b>CLASSE :</b> {classe_name} {dots}", p_style)],
-        [Paragraph("<b>N° PERM. :</b>", p_style), nperm_squares_table],
+        [Paragraph(f"ELEVE :  {nom_upper} {prenom_title} {d_mid}  SEXE : {sexe} {d_short}", p_style)],
+        [Paragraph(f"NE(E) A : {d_mid}   LE  {date_slashes} {d_short}", p_style)],
+        [Paragraph(f"CLASSE : {classe_name} {d_long}", p_style)],
+        [Paragraph("N° PERM. :", p_style), nperm_squares_table],
     ]
 
     final_rows = []

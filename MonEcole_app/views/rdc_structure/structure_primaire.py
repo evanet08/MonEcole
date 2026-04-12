@@ -211,18 +211,18 @@ def create_line2_left(elements, style_normal, id_campus=None):
             ('BOX', (i,0), (i,0), 0.5, colors.black),
         ]))
 
-    # Style formulaire officiel : label en gras, valeur inline
-    p_style = ParagraphStyle(name='InfoLeftP', fontSize=7, leading=8.5, alignment=0, fontName='Helvetica')
-    dots = '<font size="3" color="#999999">' + ' .' * 40 + '</font>'
+    # Style formulaire officiel : label en gras, valeur inline + pointillés réels
+    p_style = ParagraphStyle(name='InfoLeftP', fontSize=8, leading=10, alignment=0, fontName='Helvetica-Bold')
+    d = '.' * 50
 
     left_w = 77.6*mm
 
     left_rows = [
-        [Paragraph(f"<b>PROVINCE EDUC. :</b> {province_display or 'SUD-KIVU'} {dots}", p_style)],
-        [Paragraph(f"<b>VILLE :</b> {ville_display or 'BUKAVU'} {dots}", p_style)],
-        [Paragraph(f"<b>COMMUNE/TER. :</b> {commune_display or ''} {dots}", p_style)],
-        [Paragraph(f"<b>ECOLE :</b> {ecole_display or ''} {dots}", p_style)],
-        [Paragraph("<b>CODE :</b>", p_style), code_squares_table],
+        [Paragraph(f"PROVINCE EDUC. : {province_display or 'SUD-KIVU'} {d}", p_style)],
+        [Paragraph(f"VILLE : {ville_display or 'BUKAVU'} {d}", p_style)],
+        [Paragraph(f"COMMUNE/TER. : {commune_display or ''} {d}", p_style)],
+        [Paragraph(f"ECOLE : {ecole_display or ''} {d}", p_style)],
+        [Paragraph("CODE :", p_style), code_squares_table],
     ]
 
     final_left_rows = []
@@ -278,12 +278,12 @@ def create_nid_section(elements, style_normal, eleve=None, id_campus=None):
     elif matricule:
         nid_value = matricule
 
-    # Fixed 20 boxes minimum — continuous, no separators
-    nb_cases = max(len(nid_value), 20)
+    # ~80% de la largeur utile (200mm) = 160mm. Chaque case = 4.2mm → ~36 cases
+    nb_cases = max(len(nid_value), 36)
     chars = list(nid_value.ljust(nb_cases))
 
     nid_squares = [chars]
-    nid_squares_table = Table(nid_squares, colWidths=[4.2*mm]*nb_cases, rowHeights=4.5*mm)
+    nid_squares_table = Table(nid_squares, colWidths=[4.2*mm]*nb_cases, rowHeights=5*mm)
     nid_squares_table.setStyle(TableStyle([
         ('BOX', (0,0), (-1,-1), 0, colors.white),
         ('INNERGRID', (0,0), (-1,-1), 0, colors.white),
@@ -301,10 +301,10 @@ def create_nid_section(elements, style_normal, eleve=None, id_campus=None):
             ('BOX', (i,0), (i,0), 0.5, colors.black),
         ]))
 
-    nid_label_style = ParagraphStyle(name='NIDLabel', fontSize=7, leading=9, alignment=0, fontName='Helvetica-Bold')
+    nid_label_style = ParagraphStyle(name='NIDLabel', fontSize=8, leading=10, alignment=0, fontName='Helvetica-Bold')
     nid_data = [[Paragraph("N° ID.", nid_label_style), nid_squares_table]]
-    nid_row_w = nb_cases * 4.2 * mm + 4*mm
-    nid_table = Table(nid_data, colWidths=[14*mm, nid_row_w], hAlign='LEFT')
+    nid_row_w = nb_cases * 4.2 * mm + 2*mm
+    nid_table = Table(nid_data, colWidths=[14*mm, nid_row_w], hAlign='CENTER')
     nid_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (0, 0), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -346,30 +346,33 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
             ('BOX', (i,0), (i,0), 0.5, colors.black),
         ]))
 
-    p_style = ParagraphStyle(name='InfoRightP', fontSize=7, leading=8.5, alignment=0, fontName='Helvetica')
+    p_style = ParagraphStyle(name='InfoRightP', fontSize=8, leading=10, alignment=0, fontName='Helvetica-Bold')
 
     nom_upper = (eleve.nom or '').upper()
     prenom_title = (eleve.prenom or '').title()
     sexe = (eleve.genre or '').upper()
     
     date_str = ''
+    date_slashes = '...../ ..... /........'
     if eleve.date_naissance:
         try:
             d = eleve.date_naissance
-            date_str = f"{d.day:02d} / {d.month:02d} / {d.year}"
+            date_slashes = f"{d.day:02d} / {d.month:02d} / {d.year}"
         except:
-            date_str = str(eleve.date_naissance)
+            date_slashes = str(eleve.date_naissance)
 
-    dots = '<font size="3" color="#999999">' + ' .' * 40 + '</font>'
-    dots_short = '<font size="3" color="#999999">' + ' .' * 20 + '</font>'
+    # Dots: dense real periods that fill all remaining space
+    d_long = '.' * 80
+    d_mid = '.' * 55
+    d_short = '.' * 15
 
     right_w = 116.4*mm
 
     right_rows = [
-        [Paragraph(f"<b>ELEVE :</b> {nom_upper} {prenom_title} {dots}  <b>SEXE :</b> {sexe} {dots_short}", p_style)],
-        [Paragraph(f"<b>NE(E) A :</b> {dots}  <b>LE</b> {date_str if date_str else '..... / ..... / ..........'} {dots_short}", p_style)],
-        [Paragraph(f"<b>CLASSE :</b> {classe_name} {dots}", p_style)],
-        [Paragraph("<b>N° PERM. :</b>", p_style), nperm_squares_table],
+        [Paragraph(f"ELEVE :  {nom_upper} {prenom_title} {d_mid}  SEXE : {sexe} {d_short}", p_style)],
+        [Paragraph(f"NE(E) A : {d_mid}   LE  {date_slashes} {d_short}", p_style)],
+        [Paragraph(f"CLASSE : {classe_name} {d_long}", p_style)],
+        [Paragraph("N° PERM. :", p_style), nperm_squares_table],
     ]
 
     final_rows = []
