@@ -123,6 +123,23 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
         except:
             date_str = str(eleve.date_naissance)
 
+    # Lieu de naissance: récupérer VILLE/TERRITOIRE (2ème niveau) depuis ref_administrative_naissance
+    lieu_naissance = ''
+    ref_naissance = getattr(eleve, 'ref_administrative_naissance', None) or ''
+    if ref_naissance:
+        try:
+            ids_chain = ref_naissance.split('-')
+            if len(ids_chain) >= 2:
+                ville_id = ids_chain[1]  # 2ème élément = VILLE/TERRITOIRE
+                from django.db import connections
+                with connections['countryStructure'].cursor() as cursor:
+                    cursor.execute('SELECT nom FROM administrativeStructures WHERE id_structure = %s', [ville_id])
+                    row = cursor.fetchone()
+                    if row and row[0]:
+                        lieu_naissance = row[0].upper()
+        except Exception:
+            pass
+
     dots_long = '<font size="3" color="#aaaaaa">' + ' .' * 80 + '</font>'
     dots_mid = '<font size="3" color="#aaaaaa">' + ' .' * 50 + '</font>'
     dots_short = '<font size="3" color="#aaaaaa">' + ' .' * 30 + '</font>'
@@ -152,7 +169,7 @@ def create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
     ]))
 
     nea_inner = Table(
-        [[Paragraph(f"NE(E) A : {dots_mid}", p_style),
+        [[Paragraph(f"NE(E) A : <b>{lieu_naissance}</b>{dots_mid if not lieu_naissance else ''}", p_style),
           Paragraph(f"LE <b>{date_str if date_str else '..... / ..... / ..........'}</b>{dots_short if not date_str else ''}", p_style)]],
         colWidths=[eleve_col_w, sexe_col_w], rowHeights=[4.5*mm]
     )
