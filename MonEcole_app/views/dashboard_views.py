@@ -1606,15 +1606,22 @@ def api_communication_contacts(request):
     try:
         with connections['default'].cursor() as cur:
             cur.execute("""
-                SELECT DISTINCT eac.id, eac.classe_id, eac.groupe, eac.section_id
+                SELECT DISTINCT ac.classe_id, ac.groupe, ac.section_id,
+                       eac.id as eac_id
                 FROM attribution_cours ac
-                JOIN countryStructure.etablissements_annees_classes eac ON eac.id = ac.id_classe_id
+                JOIN countryStructure.etablissements_annees ea
+                    ON ea.etablissement_id = ac.id_etablissement
+                JOIN countryStructure.etablissements_annees_classes eac
+                    ON eac.etablissement_annee_id = ea.id
+                    AND eac.classe_id = ac.classe_id
+                    AND eac.groupe <=> ac.groupe
+                    AND eac.section_id <=> ac.section_id
                 WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s
             """, [current_pers, etab_id])
             class_rows = cur.fetchall()
 
             for cr in class_rows:
-                eac_id, classe_id, groupe, section_id = cr
+                classe_id, groupe, section_id, eac_id = cr
 
                 # Nom de la classe
                 cur.execute("""
