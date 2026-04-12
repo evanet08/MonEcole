@@ -131,14 +131,14 @@ def create_header(elements, logo_path, emblem_path, style_title, style_center, e
     header_data = [
         [logo, Paragraph("<font color='black'><b>REPUBLIQUE DEMOCRATIQUE DU CONGO<br/>MINISTERE DE L'EDUCATION NATIONALE<br/>ET NOUVELLE CITOYENNETE</b></font>", header_title_style), emblem]
     ]
-    header_table = Table(header_data, colWidths=[30*mm, 134*mm, 30*mm], hAlign='LEFT')
+    header_table = Table(header_data, colWidths=[30*mm, 134*mm, 30*mm], rowHeights=[22*mm], hAlign='LEFT')
     header_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('LEFTPADDING', (0, 0), (0, 0), 0),
         ('RIGHTPADDING', (-1, -1), (-1, -1), 0),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
     ]))
     elements.append(header_table)
 
