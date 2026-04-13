@@ -86,11 +86,13 @@ def get_trimestres(id_annee, id_campus, id_cycle, id_classe):
 
 def get_styles():
     styles = getSampleStyleSheet()
-    style_normal = ParagraphStyle(name='NormalSmall', fontSize=4.5, leading=6, alignment=0, fontName='Times-Roman')  
-    style_center = ParagraphStyle(name='CenterSmall', fontSize=4.5, leading=6, alignment=1, fontName='Times-Roman')  
+    style_normal = ParagraphStyle(name='NormalSmall', fontSize=5, leading=6, alignment=0, fontName='Times-Roman')  
+    style_center = ParagraphStyle(name='CenterSmall', fontSize=5, leading=6, alignment=1, fontName='Times-Roman')  
+    style_center_bold = ParagraphStyle(name='CenterSmallBold', fontName='Helvetica-Bold', fontSize=5, leading=6, alignment=1)
+    style_normal_bold = ParagraphStyle(name='NormalSmallBold', fontName='Helvetica-Bold', fontSize=5, leading=6, alignment=0)
     style_title = ParagraphStyle(name='TitleSmall', fontSize=8, leading=9, alignment=1, fontName='Helvetica-Bold')
     style_right = ParagraphStyle(name='RightSmall', fontSize=7, leading=8, alignment=2, fontName='Times-Italic') 
-    return styles, style_normal, style_center, style_title, style_right
+    return styles, style_normal, style_center, style_center_bold, style_normal_bold, style_title, style_right
 
 def check_image_paths(logo_path, emblem_path):
     if logo_path and not os.path.exists(logo_path):
@@ -1431,6 +1433,9 @@ def get_place_for_column(id_annee, id_campus, id_cycle, id_classe, id_eleve, col
         7:  ("trimestre", Deliberation_trimistrielle_resultat, T1, None),
         14: ("trimestre", Deliberation_trimistrielle_resultat, T2, None),
         21: ("trimestre", Deliberation_trimistrielle_resultat, T3, None),
+
+        # TOTAL ANNUEL
+        23: ("annuel", Deliberation_annuelle_resultat, None, None),
     }
 
     if col not in mapping:
@@ -1447,8 +1452,11 @@ def get_place_for_column(id_annee, id_campus, id_cycle, id_classe, id_eleve, col
         "groupe": bk_groupe,
         "section_id": bk_section_id,
         "id_eleve_id": id_eleve,
-        "id_trimestre_id": trimestre_id,
     }
+
+    # Ajouter le trimestre seulement si applicable (pas pour annuel)
+    if trimestre_id is not None:
+        filtre["id_trimestre_id"] = trimestre_id
 
     # filtre supplémentaire seulement pour les périodes
     if type_case == "periode":
@@ -1463,40 +1471,59 @@ def get_place_for_column(id_annee, id_campus, id_cycle, id_classe, id_eleve, col
 
 
 def injecter_places_dans_tableau(table_data, id_annee, id_campus, id_cycle, id_classe, id_eleve, id_trimestre):
-    LIGNE_CIBLE_INDEX = 42  
+    # Trouver dynamiquement la ligne PLACE/NBRE D'ELEVES
+    place_idx = None
+    for idx, row in enumerate(table_data):
+        if len(row) > 0 and isinstance(row[0], Paragraph):
+            texte = row[0].text or ""
+            if "PLACE" in texte:
+                place_idx = idx
+                break
 
-    if len(table_data) <= LIGNE_CIBLE_INDEX:
+    if place_idx is None:
+        logger.warning("[injecter_places_dans_tableau] Ligne PLACE non trouvée")
         return False
 
-    ligne_43 = table_data[LIGNE_CIBLE_INDEX]
-    while len(ligne_43) < 24:
-        ligne_43.append(None)
+    ligne_place = table_data[place_idx]
+    while len(ligne_place) < 24:
+        ligne_place.append(None)
 
     place_style = ParagraphStyle(
-    name='PlaceStyle',
-    parent=style_normal,
-    fontName='Helvetica-Bold',  
-    fontSize=6,
-    leading=8,
-    alignment=1,
-    textColor=colors.HexColor('#0000CC'),  # Bleu très visible
-    spaceBefore=0,
-    spaceAfter=0
-)
+        name='PlaceStyle',
+        parent=style_normal,
+        fontName='Helvetica-Bold',  
+        fontSize=5,
+        leading=6,
+        alignment=1,
+        textColor=colors.HexColor('#0000CC'),
+        spaceBefore=0,
+        spaceAfter=0
+    )
 
-    colonnes_avec_places = [2, 3, 5, 7, 9, 10, 12, 14, 16, 17, 19, 21]
+    colonnes_avec_places = [2, 3, 5, 7, 9, 10, 12, 14, 16, 17, 19, 21, 23]
+    places_injectees = 0
 
     for col in colonnes_avec_places:
         place = get_place_for_column(
             id_annee, id_campus, id_cycle, id_classe,
             id_eleve, col
         )
-        
 
-        ligne_43[col] = Paragraph(f"<font color='#0000CC'><b>{place}</b></font>", place_style)
+        ligne_place[col] = Paragraph(f"<font color='#0000CC'><b>{place}</b></font>", place_style)
+        if place != "-":
+            places_injectees += 1
+
+    return places_injectees > 0
 
 
-def create_notes_table(elements, style_center, style_normal, id_annee, id_campus, id_cycle, id_classe, id_eleve):
+def create_notes_table(elements, style_center, style_normal, id_annee, id_campus, id_cycle, id_classe, id_eleve,
+                       style_center_bold=None, style_normal_bold=None):
+    # Fallback bold styles if not passed
+    if style_center_bold is None:
+        style_center_bold = ParagraphStyle(name='CenterSmallBoldFB', fontName='Helvetica-Bold', fontSize=5, leading=6, alignment=1)
+    if style_normal_bold is None:
+        style_normal_bold = ParagraphStyle(name='NormalSmallBoldFB', fontName='Helvetica-Bold', fontSize=5, leading=6, alignment=0)
+
     table_data = []
     trimestres_data = get_trimestres(id_annee, id_campus, id_cycle, id_classe)
     if trimestres_data and len(trimestres_data) == 3:
@@ -1508,11 +1535,11 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
         nom_trim2 = "SECOND TRIMESTRE"
         nom_trim3 = "TROISIEME TRIMESTRE"
     table_data.append([
-        Paragraph("<font color='black'><b>BRANCHES</b></font>", style_center),
-        Paragraph(f"<font color='black'><b>{nom_trim1}</b></font>", style_center), None, None, None, None, None, None,
-        Paragraph(f"<font color='black'><b>{nom_trim2}</b></font>", style_center), None, None, None, None, None, None,
-        Paragraph(f"<font color='black'><b>{nom_trim3}</b></font>", style_center), None, None, None, None, None, None,
-        Paragraph("<font color='black'><b>TOTAL</b></font>", style_center), None
+        Paragraph("<b>BRANCHES</b>", style_center_bold),
+        Paragraph(f"<b>{nom_trim1}</b>", style_center_bold), None, None, None, None, None, None,
+        Paragraph(f"<b>{nom_trim2}</b>", style_center_bold), None, None, None, None, None, None,
+        Paragraph(f"<b>{nom_trim3}</b>", style_center_bold), None, None, None, None, None, None,
+        Paragraph("<b>TOTAL</b>", style_center_bold), None
     ])
     id_trimestre_actif = None
     for t in trimestres_data:
@@ -1527,23 +1554,23 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
         id_trimestre_actif = trimestres_data[0][0]  
         
     periodes_par_trim = get_periodes_par_trimestre(trimestres_data, id_annee, id_campus, id_cycle, id_classe)
-    sous_header = [Paragraph("BRANCHES", style_center)]
+    sous_header = [Paragraph("<b>BRANCHES</b>", style_center_bold)]
     for i in range(3):
         p1 = periodes_par_trim[i][0] if len(periodes_par_trim[i]) > 0 else "-"
         p2 = periodes_par_trim[i][1] if len(periodes_par_trim[i]) > 1 else "-"
         sous_header.extend([
-            Paragraph("Max per", style_center), Paragraph(p1, style_center), Paragraph(p2, style_center),
-            Paragraph("Max<br/>Exam", style_center), Paragraph("PTS.OBT", style_center),
-            Paragraph("MAX TRIM", style_center), Paragraph("PTS.OBT", style_center),
+            Paragraph("<b>Max per</b>", style_center_bold), Paragraph(p1, style_center), Paragraph(p2, style_center),
+            Paragraph("<b>Max<br/>Exam</b>", style_center_bold), Paragraph("PTS.OBT", style_center),
+            Paragraph("<b>MAX TRIM</b>", style_center_bold), Paragraph("<b>PTS.OBT</b>", style_center_bold),
         ])
-    sous_header.extend([Paragraph("MAX", style_center), Paragraph("PTS.OBT", style_center)])
+    sous_header.extend([Paragraph("<b>MAX</b>", style_center_bold), Paragraph("<b>PTS.OBT</b>", style_center_bold)])
     table_data.append(sous_header)
     domaines_cours = get_cours_classe_rdc(id_annee, id_campus, id_cycle, id_classe)
     notes_periodes = get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
     notes_exam = get_student_exam_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
     for groupe in domaines_cours:
         domaine_nom = groupe['domaine']
-        row_domaine = [Paragraph(f"<font color='black'><b>{domaine_nom}</b></font>", style_center)]
+        row_domaine = [Paragraph(f"<b>{domaine_nom}</b>", style_center_bold)]
         table_data.append(row_domaine + [None] * 22)
 
         # Support sous-domaines: itérer par sous-domaine si disponible
@@ -1577,11 +1604,11 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
                     19: notes_cours_exam.get(trimestres_data[2][0], "-"),  
                 }
                 for col in range(1, 24):
-                    if col in [1, 8, 15]:          
-                        row.append(Paragraph(str(ponderation), style_center))
-                    elif col in [4, 11, 18]:       
-                        row.append(Paragraph(str(max_exam), style_center))
-                    elif col in [5, 12, 19]:      
+                    if col in [1, 8, 15]:          # Max per (bold)
+                        row.append(Paragraph(str(ponderation), style_center_bold))
+                    elif col in [4, 11, 18]:       # Max Exam (bold)
+                        row.append(Paragraph(str(max_exam), style_center_bold))
+                    elif col in [5, 12, 19]:       # PTS.OBT Exam
                         note_ex = exam_notes.get(col, "-")
                         # Echec examen: rouge si < 50% du max examen
                         echec_ex = False
@@ -1594,13 +1621,13 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
                             row.append(Paragraph(f"<font color='red'>{note_ex}</font>", style_center))
                         else:
                             row.append(Paragraph(str(note_ex), style_center))
-                    elif col in [6, 13, 20]:    
-                        row.append(Paragraph(str(max_trim_val), style_center)) 
-                    elif col == 22:                
-                        row.append(Paragraph(str(float(max_annee) if max_trim_val != "-" else "-"), style_center))
-                    elif col == 23:               
+                    elif col in [6, 13, 20]:       # MAX TRIM (bold)
+                        row.append(Paragraph(str(max_trim_val), style_center_bold)) 
+                    elif col == 22:                # MAX annuel (bold)
+                        row.append(Paragraph(str(float(max_annee) if max_trim_val != "-" else "-"), style_center_bold))
+                    elif col == 23:                # PTS.OBT annuel
                         row.append(Paragraph("-", style_center))
-                    elif col in [2, 3, 9, 10, 16, 17]: 
+                    elif col in [2, 3, 9, 10, 16, 17]: # notes de période
                         note_val = notes_cours_periodes.get(col, "-")
                         # Echec période: rouge si < 50% du max période
                         echec_p = False
@@ -1616,7 +1643,7 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
                     else:
                         row.append(Paragraph("-", style_center))
                 table_data.append(row)
-        row_sous_total = [Paragraph("<b>Sous Total</b>", style_normal)] + [None] * 22
+        row_sous_total = [Paragraph("<b>Sous Total</b>", style_normal_bold)] + [None] * 22
         table_data.append(row_sous_total)
     table_data.append([None] * 23)
     lignes_finales = [
@@ -1629,14 +1656,11 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
         "SIGNATURE DU RESPONSABLE"
     ]
     for texte in lignes_finales:
-        if texte == "APPLICATION":
-            table_data.append([Paragraph(f"<b>{texte}</b>", style_normal)] + [None] * 22)
-        else:
-            table_data.append([Paragraph(f"<b>{texte}</b>", style_normal)] + [None] * 22)
-    calculer_sous_totaux_et_maxima(table_data, style_center)
+        table_data.append([Paragraph(f"<b>{texte}</b>", style_normal_bold)] + [None] * 22)
+    calculer_sous_totaux_et_maxima(table_data, style_center_bold)
     calculer_pts_obt_et_somme_finale(table_data, style_center)
-    calculer_somme_pts_obt_maxima(table_data, style_center)
-    calculer_pourcentages(table_data, style_center)
+    calculer_somme_pts_obt_maxima(table_data, style_center_bold)
+    calculer_pourcentages(table_data, style_center_bold)
     calculer_pts_obt_trimestriels_et_annuel(table_data, style_center)
     injecter_places_dans_tableau(
         table_data,
@@ -1654,91 +1678,91 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
         style_center, bulletin_type='primaire'
     )
 
+    num_rows = len(table_data)
     col_widths = [30*mm] + [7.4*mm] * 22
-    table = Table(table_data, colWidths=col_widths, rowHeights=[4*mm] * len(table_data))
+    table = Table(table_data, colWidths=col_widths, rowHeights=[4.5*mm] * num_rows)
+    
+    # ── Colonnes structurelles (Max per, Max Exam, MAX TRIM) en gras ──
+    # Colonnes maxima : 1,4,6,8,11,13,15,18,20,22 (vertical bold)
+    cols_maxima_vert = [1, 4, 6, 8, 11, 13, 15, 18, 20, 22]
+    
     table_style = TableStyle([
-        ('GRID', (0, 0), (-1, -1), 0.3, colors.black),
-        ('FONTSIZE', (0, 0), (-1, -1), 14),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('LEFTPADDING', (0, 0), (-1, -1), 0.5),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 0.5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ('SPAN', (0, 0), (0, 1)),
         ('SPAN', (1, 0), (7, 0)),
         ('SPAN', (8, 0), (14, 0)),
         ('SPAN', (15, 0), (21, 0)),
         ('SPAN', (22, 0), (23, 0)),
     ])
-    gris_fonce = colors.Color(red=0.2, green=0.2, blue=0.2)  
-    cases_a_hachurer = [
-        # Ligne 42
-        (42, 2),
-        (42, 5),
-        (42, 7),
-        (42, 9),
-        (42, 12),
-        (42, 14),
-        (42, 16),
-        (42, 19),
-        (42, 21),
-        (42, 23),
 
-        # Ligne 43
-        (43, 2),
-        (43, 5),
-        (43, 7),
-        (43, 9),
-        (43, 12),
-        (43, 14),
-        (43, 16),
-        (43, 19),
-        (43, 21),
-        (43, 23),
+    # ── Gris foncé (hachage) pour colonnes structurelles ──
+    gris_fonce = colors.Color(0.45, 0.45, 0.45)
+    
+    # Trouver dynamiquement les lignes MAXIMA, POURCENTAGE, PLACE, CONDUITE, etc.
+    maxima_idx = None
+    pourcentage_idx = None
+    place_idx = None
+    conduite_idx = None
+    application_idx = None
+    sig_institeur_idx = None
+    sig_responsable_idx = None
+    
+    for idx, row in enumerate(table_data):
+        if len(row) > 0 and isinstance(row[0], Paragraph):
+            texte = row[0].text or ""
+            if "MAXIMA GENEREAUX" in texte:
+                maxima_idx = idx
+            elif "POURCENTAGE" in texte:
+                pourcentage_idx = idx
+            elif "PLACE" in texte:
+                place_idx = idx
+            elif "CONDUITE" in texte:
+                conduite_idx = idx
+            elif "APPLICATION" in texte:
+                application_idx = idx
+            elif "INSTITEUR" in texte:
+                sig_institeur_idx = idx
+            elif "RESPONSABLE" in texte:
+                sig_responsable_idx = idx
 
-        # Ligne 44
-        (44, 2),
-        (44, 5),
-        (44, 6),
-        (44, 7),
-        (44, 8),
-        (44, 9),
-        (44, 12),
-        (44, 13),
-        (44, 14),
-        (44, 15),
-        (44, 16),
-        (44, 19),
-        (44, 20),
-        (44, 21),
-        (44, 22),
-        (44, 23),
+    # Colonnes structurelles (Max per, Max Exam, MAX TRIM) pour hachage
+    # Pattern comme image 2: colonnes structurelles noires sur lignes finales
+    colonnes_struct = [1, 4, 6, 8, 11, 13, 15, 18, 20]
+    
+    if maxima_idx is not None:
+        # POURCENTAGE et PLACE : hachage sur colonnes Max per (1,8,15)
+        for row_idx in [pourcentage_idx, place_idx]:
+            if row_idx is not None:
+                for col_idx in colonnes_struct:
+                    if col_idx < len(table_data[row_idx]):
+                        table_data[row_idx][col_idx] = None
+                        table_style.add('BACKGROUND', (col_idx, row_idx), (col_idx, row_idx), gris_fonce)
 
-        # Ligne 45
-        (45, 2),
-        (45, 5),
-        (45, 6),
-        (45, 7),
-        (45, 8),
-        (45, 9),
-        (45, 12),
-        (45, 13),
-        (45, 14),
-        (45, 15),
-        (45, 16),
-        (45, 19),
-        (45, 20),
-        (45, 21),
-        (45, 22),
-        (45, 23),
-        (45, 24)
-    ]
-    for ligne_num, col_num in cases_a_hachurer:
-        ligne_index = ligne_num - 1  
-        col_index = col_num - 1      
-        if 0 <= ligne_index < len(table_data) and 0 <= col_index < len(table_data[ligne_index]):
-            table_style.add('BACKGROUND', (col_index, ligne_index), (col_index, ligne_index), gris_fonce)
+        # CONDUITE + APPLICATION : hachage sur TOUTES les colonnes sauf col 0 (label)
+        for row_idx in [conduite_idx, application_idx]:
+            if row_idx is not None:
+                for col_idx in range(1, 23):
+                    if col_idx < len(table_data[row_idx]):
+                        # Garder seulement les colonnes de période (2,3,9,10,16,17) pour CONDUITE
+                        # Tout hachurer sauf les colonnes de données
+                        if col_idx in colonnes_struct or col_idx in [5, 7, 12, 14, 19, 21, 22]:
+                            table_data[row_idx][col_idx] = None
+                            table_style.add('BACKGROUND', (col_idx, row_idx), (col_idx, row_idx), gris_fonce)
+
+        # SIGNATURE DE L'INSTITEUR + RESPONSABLE : fusionner horizontalement
+        for row_idx in [sig_institeur_idx, sig_responsable_idx]:
+            if row_idx is not None:
+                for col_idx in range(1, 23):
+                    if col_idx < len(table_data[row_idx]):
+                        table_data[row_idx][col_idx] = None
+                table_style.add('SPAN', (0, row_idx), (-1, row_idx))
+
     # ── Fusion/Background dynamique des lignes de domaine et sous-domaine ──
     for ridx, row in enumerate(table_data):
         if ridx < 2 or not row or not row[0]:
@@ -1760,16 +1784,26 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
         elif is_sous_domaine:
             table_style.add('SPAN', (0, ridx), (-1, ridx))
             table_style.add('BACKGROUND', (0, ridx), (-1, ridx), colors.Color(0.85, 0.88, 0.95))  # lavender léger
-    # ── Ligne PLACE : texte bleu foncé + gras (trouver dynamiquement) ──
+
+    # ── Ligne PLACE : background bleu clair + texte bleu foncé + gras ──
+    if place_idx is not None:
+        table_style.add('BACKGROUND', (0, place_idx), (-1, place_idx), colors.Color(0.85, 0.92, 1.0))  # bleu clair
+        table_style.add('TEXTCOLOR', (0, place_idx), (-1, place_idx), colors.HexColor('#0000CC'))
+        table_style.add('FONTNAME', (0, place_idx), (-1, place_idx), 'Helvetica-Bold')
+
+    # ── Ligne MAXIMA GENEREAUX : gras (via style déjà appliqué) ──
+    if maxima_idx is not None:
+        table_style.add('FONTNAME', (0, maxima_idx), (-1, maxima_idx), 'Helvetica-Bold')
+
+    # ── Lignes Sous Total : gras ──
     for ridx, row in enumerate(table_data):
-        texte_check = str(row[0]) if row and row[0] else ""
-        if "PLACE" in texte_check.upper():
-            table_style.add('TEXTCOLOR', (0, ridx), (-1, ridx), colors.HexColor('#0000CC'))
-            table_style.add('FONTNAME', (0, ridx), (-1, ridx), 'Helvetica-Bold')
-            break
+        if len(row) > 0 and isinstance(row[0], Paragraph):
+            texte = row[0].text or ""
+            if "Sous Total" in texte:
+                table_style.add('FONTNAME', (0, ridx), (-1, ridx), 'Helvetica-Bold')
 
     # ── Post-traitement : notes < 50% du max ⇒ rouge ──
-    # Colonnes PTS.OBT trimestriels (7, 14, 21) et annuel (23) + leurs max (6, 13, 20, 22)
+    import re
     for row_idx in range(2, len(table_data)):
         row = table_data[row_idx]
         if len(row) < 24:
@@ -1790,8 +1824,6 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
             try:
                 pts_txt = str(row[pts_col]) if row[pts_col] else ""
                 max_txt = str(row[max_col]) if row[max_col] else ""
-                # Extract number from Paragraph
-                import re
                 pts_nums = re.findall(r'[\d.]+', pts_txt)
                 max_nums = re.findall(r'[\d.]+', max_txt)
                 if pts_nums and max_nums:
@@ -1806,7 +1838,6 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
         try:
             pts_txt = str(row[23]) if row[23] else ""
             max_txt = str(row[22]) if row[22] else ""
-            import re
             pts_nums = re.findall(r'[\d.]+', pts_txt)
             max_nums = re.findall(r'[\d.]+', max_txt)
             if pts_nums and max_nums:

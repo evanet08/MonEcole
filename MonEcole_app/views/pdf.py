@@ -229,7 +229,7 @@ def generer_bulletin_pdf(request):
     filename_parts = []
     elements = []
 
-    styles, style_normal, style_center, style_title, style_right = get_styles()
+    styles, style_normal, style_center, style_center_bold, style_normal_bold, style_title, style_right = get_styles()
 
     # ───────────────────────────────────────────────
     # CAS BDI
@@ -417,7 +417,8 @@ def generer_bulletin_pdf(request):
                     create_bulletin_title(elements, style_title, id_annee, id_classe)
                     create_notes_table(
                         elements, style_center, style_normal,
-                        id_annee, idCampus, id_cycle, id_classe, id_eleve
+                        id_annee, idCampus, id_cycle, id_classe, id_eleve,
+                        style_center_bold=style_center_bold, style_normal_bold=style_normal_bold
                     )
                     create_footer(elements, style_normal, style_center, id_classe=id_classe)
 

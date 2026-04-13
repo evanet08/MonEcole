@@ -352,7 +352,7 @@ def generate_bulletin_superieur_secondLevel_rdc(request, eleve_id=103):
     )
     elements = []
 
-    styles, style_normal, style_center, style_title, style_right = get_styles()
+    styles, style_normal, style_center, _scb, _snb, style_title, style_right = get_styles()
 
     institution = Institution.objects.get(id_ecole=3)
     logo_path = institution.logo_ecole.path if institution.logo_ecole else None
