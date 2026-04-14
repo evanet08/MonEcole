@@ -45,6 +45,14 @@ class PersonnelAuthMiddleware:
             request.user = _AnonymousUser()
             return self.get_response(request)
 
+        # Bypass pour appels inter-services (eSchool Hub → MonEcole)
+        HUB_API_KEY = 'eSchoolRDC-Hub-2025-SecretKey'
+        api_key = request.headers.get('X-Hub-Api-Key') or request.GET.get('hub_key') or request.POST.get('hub_key')
+        if api_key == HUB_API_KEY:
+            request.user = _AnonymousUser()
+            request.user.is_authenticated = True  # Mark as authenticated for downstream
+            return self.get_response(request)
+
         personnel_id = request.session.get('personnel_id')
 
         if not personnel_id:
