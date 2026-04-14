@@ -331,9 +331,22 @@ def generer_bulletin_pdf(request):
         from MonEcole_app.models.country_structure import EtablissementAnneeClasse
 
         try:
-            eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
-            classe_name = eac.classe.classe.strip()
-            hub_classe_id = eac.classe_id  # ID de la classe dans le catalogue Hub
+            hub_classe_id = bk_classe_id  # Already the hub business key
+            if id_classe and id_classe != bk_classe_id:
+                # Legacy path: id_classe is an EAC id
+                eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
+                classe_name = eac.classe.classe.strip()
+                hub_classe_id = eac.classe_id
+            else:
+                # Business key path: resolve classe_name from hub
+                from django.db import connections as _conns
+                try:
+                    with _conns['countryStructure'].cursor() as cur:
+                        cur.execute("SELECT nom FROM classes WHERE id_classe = %s", [hub_classe_id])
+                        row = cur.fetchone()
+                        classe_name = row[0].strip() if row else f"Classe {hub_classe_id}"
+                except Exception:
+                    classe_name = f"Classe {hub_classe_id}"
         except EtablissementAnneeClasse.DoesNotExist:
             messages.error(request, "Classe introuvable.")
             return HttpResponse('<script>history.back();</script>', status=404)
@@ -650,8 +663,7 @@ def generer_bulletin_pdf(request):
         nom_fichier = slugify(filename_parts[0])
     else:
         try:
-            eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
-            nom_classe = slugify(eac.classe.classe or "classe")
+            nom_classe = slugify(classe_name) if 'classe_name' in dir() else "classe"
         except:
             nom_classe = "classe"
         nom_fichier = f"Bulletins_{localisation}_{nom_classe}_{id_annee}"
