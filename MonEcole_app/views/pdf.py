@@ -23,9 +23,14 @@ except ImportError:
 
 
 def login_required(view_func):
-    """Session-based login check (non-parameterized for @login_required usage)."""
+    """Session-based login check. Allows bypass via X-Hub-Api-Key for inter-service calls."""
+    HUB_API_KEY = 'eSchoolRDC-Hub-2025-SecretKey'
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
+        # Allow inter-service calls from eSchool hub
+        api_key = request.headers.get('X-Hub-Api-Key') or request.GET.get('hub_key') or request.POST.get('hub_key')
+        if api_key == HUB_API_KEY:
+            return view_func(request, *args, **kwargs)
         if not request.session.get('personnel_id'):
             return redirect('/login/')
         return view_func(request, *args, **kwargs)
