@@ -258,7 +258,8 @@ def generer_bulletin_pdf(request):
 
     # Résoudre l'URL de l'établissement et la source
     etab_host = request.get_host().split(':')[0].lower()
-    is_eschool = 'eschool' in etab_host
+    # Detect eSchool hub calls via API key or hostname
+    is_eschool = bool(request.headers.get('X-Hub-Api-Key')) or 'eschool' in etab_host
 
     styles, style_normal, style_center, style_center_bold, style_normal_bold, style_title, style_right = get_styles()
 
@@ -332,21 +333,49 @@ def generer_bulletin_pdf(request):
 
         try:
             hub_classe_id = bk_classe_id  # Already the hub business key
-            if id_classe and id_classe != bk_classe_id:
-                # Legacy path: id_classe is an EAC id
+            if id_classe and id_classe != bk_classe_id and id_classe > 0:
+                # Legacy path: id_classe is already a valid EAC id
                 eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
                 classe_name = eac.classe.classe.strip()
                 hub_classe_id = eac.classe_id
             else:
-                # Business key path: resolve classe_name from hub
-                from django.db import connections as _conns
+                # Business key path: resolve EAC id from business keys for downstream functions
+                eac_filter = {'classe_id': bk_classe_id}
+                if bk_groupe:
+                    eac_filter['groupe'] = bk_groupe
+                # Find the EAC via id_etablissement from campus
                 try:
-                    with _conns['countryStructure'].cursor() as cur:
-                        cur.execute("SELECT nom FROM classes WHERE id_classe = %s", [hub_classe_id])
-                        row = cur.fetchone()
-                        classe_name = row[0].strip() if row else f"Classe {hub_classe_id}"
+                    campus_obj = Campus.objects.get(idCampus=idCampus)
+                    from MonEcole_app.models.country_structure import EtablissementAnnee
+                    ea = EtablissementAnnee.objects.filter(
+                        etablissement_id=campus_obj.id_etablissement,
+                        annee_id=id_annee
+                    ).first()
+                    if ea:
+                        eac_filter['etablissement_annee_id'] = ea.id
                 except Exception:
-                    classe_name = f"Classe {hub_classe_id}"
+                    pass
+
+                eac = EtablissementAnneeClasse.objects.select_related('classe').filter(
+                    **eac_filter
+                ).first()
+
+                if eac:
+                    id_classe = eac.id  # Set id_classe to EAC id for downstream functions
+                    classe_name = eac.classe.classe.strip()
+                    hub_classe_id = eac.classe_id
+                    logger.warning(f"[BULLETIN PDF] Resolved EAC from bk: id={eac.id}, classe={classe_name}")
+                else:
+                    # No EAC found — resolve classe_name from hub directly
+                    from django.db import connections as _conns
+                    try:
+                        with _conns['countryStructure'].cursor() as cur:
+                            cur.execute("SELECT nom FROM classes WHERE id_classe = %s", [hub_classe_id])
+                            row = cur.fetchone()
+                            classe_name = row[0].strip() if row else f"Classe {hub_classe_id}"
+                    except Exception:
+                        classe_name = f"Classe {hub_classe_id}"
+                    logger.warning(f"[BULLETIN PDF] No EAC found for bk={bk_classe_id}, using classe_name={classe_name}")
         except EtablissementAnneeClasse.DoesNotExist:
             messages.error(request, "Classe introuvable.")
             return HttpResponse('<script>history.back();</script>', status=404)
