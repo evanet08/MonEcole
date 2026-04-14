@@ -451,22 +451,41 @@ def create_bulletin_title(elements, style_title,id_annee,id_classe):
     elements.append(Spacer(1, 2*mm))
 
 def get_periodes_par_trimestre(trimestres_data, id_annee, id_campus, id_cycle, id_classe):
+    """
+    Récupère les noms des périodes par trimestre via requête Hub directe
+    pour éviter le JOIN cross-DB (Annee_periode → RepartitionInstance).
+    """
+    from django.db import connections
+
     periodes_labels = []
 
+    # Résoudre EAC → etab_annee_id
+    try:
+        eac = EtablissementAnneeClasse.objects.get(id=id_classe)
+        etab_annee_id = eac.etablissement_annee_id
+    except EtablissementAnneeClasse.DoesNotExist:
+        return [["-", "-"]] * 3
+
     for trimestre_tuple in trimestres_data:
-        id_trimestre_annee = trimestre_tuple[0] 
-
-        periodes_qs = Annee_periode.objects.filter(
-            id_trimestre_annee_id=id_trimestre_annee,
-            has_parent=True
-        ).select_related('repartition').order_by('id_periode')[:2]  
-
+        config_id_trimestre = trimestre_tuple[0]
 
         labels_trimestre = []
-        for periode in periodes_qs:
-           
-            nom_reel = periode.repartition.nom if hasattr(periode, 'repartition') and periode.repartition else f"Période {len(labels_trimestre) + 1}"
-            labels_trimestre.append(nom_reel)
+        try:
+            with connections['countryStructure'].cursor() as cur:
+                cur.execute("""
+                    SELECT ri.nom
+                    FROM repartition_configs_etab_annee rc
+                    JOIN repartition_instances ri ON ri.id_instance = rc.repartition_id
+                    WHERE rc.etablissement_annee_id = %s
+                      AND rc.parent_id = %s
+                      AND rc.has_parent = 1
+                    ORDER BY rc.id
+                    LIMIT 2
+                """, [etab_annee_id, config_id_trimestre])
+                for row in cur.fetchall():
+                    labels_trimestre.append(row[0])
+        except Exception:
+            pass
 
         while len(labels_trimestre) < 2:
             labels_trimestre.append("-")
@@ -487,8 +506,10 @@ def calculer_pts_obt_trimestriels_et_annuel(table_data, style_center):
         if value is None:
             return 0.0
         try:
+            import re
             text = str(value.text if hasattr(value, 'text') else value).strip()
-            if text in ("", "-", " ", None):
+            text = re.sub(r'<[^>]+>', '', text).strip()
+            if text in ("", "-", " "):
                 return 0.0
             return float(text)
         except (ValueError, AttributeError, TypeError):
@@ -502,9 +523,9 @@ def calculer_pts_obt_trimestriels_et_annuel(table_data, style_center):
         # On arrondit à 2 décimales pour nettoyer les erreurs flottantes
         rounded = round(val, 2)
         
-        if rounded.is_integer():
+        if rounded == int(rounded):
             return str(int(rounded))
-        return f"{rounded:.2f}"
+        return f"{rounded:.2f}".rstrip('0').rstrip('.')
 
     for row_idx, row in enumerate(table_data):
         if row_idx in protected_rows:
@@ -549,8 +570,10 @@ def calculer_sous_totaux_et_maxima(table_data, style_center):
         if value is None:
             return 0.0
         try:
+            import re
             text = str(value.text if hasattr(value, 'text') else value).strip()
-            if text in ("", "-", " ", None):
+            text = re.sub(r'<[^>]+>', '', text).strip()
+            if text in ("", "-", " "):
                 return 0.0
             return float(text)
         except (ValueError, AttributeError, TypeError):
@@ -563,11 +586,9 @@ def calculer_sous_totaux_et_maxima(table_data, style_center):
         
         rounded = round(val, 2)
         
-        if rounded.is_integer():
+        if rounded == int(rounded):
             return str(int(rounded))
-        if force_decimal or rounded * 10 != int(rounded * 10):
-            return f"{rounded:.2f}"
-        return f"{rounded:.1f}"
+        return f"{rounded:.2f}".rstrip('0').rstrip('.')
 
     sous_total_indices = []
     for idx, row in enumerate(table_data):
@@ -680,7 +701,9 @@ def calculer_somme_pts_obt_maxima(table_data, style_center):
             if col >= len(row) or row[col] is None:
                 return 0.0
             try:
+                import re
                 text = str(row[col].text).strip()
+                text = re.sub(r'<[^>]+>', '', text).strip()
                 if text in ("", "-", " "):
                     return 0.0
                 return float(text)
@@ -702,10 +725,10 @@ def calculer_somme_pts_obt_maxima(table_data, style_center):
         
         val_ar = round(valeur, 2)
         
-        if val_ar.is_integer():
+        if val_ar == int(val_ar):
             return str(int(val_ar))
     
-        return f"{val_ar:.2f}"
+        return f"{val_ar:.2f}".rstrip('0').rstrip('.')
 
     mg_row[7]  = Paragraph(format_note(somme_col_7),  style_center)
     mg_row[14] = Paragraph(format_note(somme_col_14), style_center)
@@ -1162,7 +1185,9 @@ def calculer_pts_obt_et_somme_finale(table_data, style_center):
         if value is None:
             return 0.0
         try:
+            import re
             text = str(value.text).strip() if hasattr(value, 'text') else str(value).strip()
+            text = re.sub(r'<[^>]+>', '', text).strip()
             if text in ("", "-", " "):
                 return 0.0
             return float(text)
@@ -1170,13 +1195,13 @@ def calculer_pts_obt_et_somme_finale(table_data, style_center):
             return 0.0
 
     def format_note(val, decimals=2):
-        """Formatage propre : entier si possible, sinon X décimales"""
+        """Formatage propre : entier si possible, sinon décimales sans zéros inutiles"""
         if val <= 0:
             return "-"
         rounded = round(val, decimals)
-        if rounded.is_integer():
+        if rounded == int(rounded):
             return str(int(rounded))
-        return f"{rounded:.{decimals}f}"
+        return f"{rounded:.{decimals}f}".rstrip('0').rstrip('.')
 
     # 1. Traitement ligne par ligne (sauf protégées)
     for row_idx, row in enumerate(table_data):
@@ -1247,6 +1272,16 @@ def calculer_pts_obt_et_somme_finale(table_data, style_center):
 
 
 def calculer_pourcentages(table_data, style_center):
+    """
+    Calcule les pourcentages sur la ligne POURCENTAGE.
+    Formule : pourcentage = PTS.OBT / MAX * 100
+    - Pour les trimestres (cols 7, 14, 21) : PTS.OBT_trim / MAX_TRIM
+    - Pour l'annuel (col 23) : PTS.OBT_annuel / MAX_annuel  
+    - Pour les périodes et exams : somme notes / somme maxima depuis les Sous Total
+    """
+    import logging
+    _logger = logging.getLogger(__name__)
+    
     ligne_pourcentage_idx = None
     for idx, row in enumerate(table_data):
         if len(row) > 0 and isinstance(row[0], Paragraph) and "POURCENTAGE" in row[0].text:
@@ -1263,56 +1298,105 @@ def calculer_pourcentages(table_data, style_center):
             break
 
     if max_gen_idx is None:
-       
         return
 
     def get_val(row_idx, col):
         if row_idx < len(table_data) and col < len(table_data[row_idx]):
+            cell = table_data[row_idx][col]
+            if cell is None:
+                return 0.0
             try:
-                text = table_data[row_idx][col].text.strip()
-                return float(text) if text not in ["", "-", "0"] else 0.0
-            except:
+                text = str(cell.text).strip() if hasattr(cell, 'text') else str(cell).strip()
+                # Nettoyer les tags HTML
+                import re
+                text = re.sub(r'<[^>]+>', '', text).strip()
+                if text in ("", "-"):
+                    return 0.0
+                return float(text)
+            except (ValueError, AttributeError, TypeError):
                 return 0.0
         return 0.0
-    max_per_t1 = get_val(max_gen_idx, 1)
-    max_per_t2 = get_val(max_gen_idx, 8)
-    max_per_t3 = get_val(max_gen_idx, 15)
-    max_exam_t1 = get_val(max_gen_idx, 4)
-    max_exam_t2 = get_val(max_gen_idx, 11)
-    max_exam_t3 = get_val(max_gen_idx, 18)
-    max_trim_t1 = get_val(max_gen_idx, 6)
-    max_trim_t2 = get_val(max_gen_idx, 13)
-    max_trim_t3 = get_val(max_gen_idx, 20)
-    max_annuel = get_val(max_gen_idx, 22)
-    pts_t1 = get_val(max_gen_idx, 7)
-    pts_t2 = get_val(max_gen_idx, 14)
-    pts_t3 = get_val(max_gen_idx, 21)
-    pts_annuel = get_val(max_gen_idx, 23)
+
+    def format_pct(val):
+        """Formater le pourcentage sans zéros inutiles"""
+        if val <= 0:
+            return "0%"
+        rounded = round(val, 2)
+        if rounded == int(rounded):
+            return f"{int(rounded)}%"
+        return f"{rounded:.2f}".rstrip('0').rstrip('.') + "%"
+
     pourcentage_row = table_data[ligne_pourcentage_idx]
     while len(pourcentage_row) < 24:
         pourcentage_row.append(None)
-    # Pondération par période = max TJ trimestre / 2 (2 périodes par trimestre)
-    pond_p_t1 = max_per_t1 / 2 if max_per_t1 > 0 else 0
-    pond_p_t2 = max_per_t2 / 2 if max_per_t2 > 0 else 0
-    pond_p_t3 = max_per_t3 / 2 if max_per_t3 > 0 else 0
-    pourcentage_row[2] = Paragraph(f"{(get_val(max_gen_idx, 2) / pond_p_t1 * 100):.2f}%", style_center) if pond_p_t1 > 0 else Paragraph("0.00%", style_center)
-    pourcentage_row[3] = Paragraph(f"{(get_val(max_gen_idx, 3) / pond_p_t1 * 100):.2f}%", style_center) if pond_p_t1 > 0 else Paragraph("0.00%", style_center)
-    pourcentage_row[9] = Paragraph(f"{(get_val(max_gen_idx, 9) / pond_p_t2 * 100):.2f}%", style_center) if pond_p_t2 > 0 else Paragraph("0.00%", style_center)
-    pourcentage_row[10] = Paragraph(f"{(get_val(max_gen_idx, 10) / pond_p_t2 * 100):.2f}%", style_center) if pond_p_t2 > 0 else Paragraph("0.00%", style_center)
-    pourcentage_row[16] = Paragraph(f"{(get_val(max_gen_idx, 16) / pond_p_t3 * 100):.2f}%", style_center) if pond_p_t3 > 0 else Paragraph("0.00%", style_center)
-    pourcentage_row[17] = Paragraph(f"{(get_val(max_gen_idx, 17) / pond_p_t3 * 100):.2f}%", style_center) if pond_p_t3 > 0 else Paragraph("0.00%", style_center)
 
-    pourcentage_row[5] = Paragraph(f"{(get_val(max_gen_idx, 5) / max_exam_t1 * 100):.2f}%", style_center) if max_exam_t1 > 0 else Paragraph("0.00%", style_center)
-    pourcentage_row[12] = Paragraph(f"{(get_val(max_gen_idx, 12) / max_exam_t2 * 100):.2f}%", style_center) if max_exam_t2 > 0 else Paragraph("0.00%", style_center)
-    pourcentage_row[19] = Paragraph(f"{(get_val(max_gen_idx, 19) / max_exam_t3 * 100):.2f}%", style_center) if max_exam_t3 > 0 else Paragraph("0.00%", style_center)
+    # --- Collecter les totaux depuis les lignes Sous Total ---
+    # Pour chaque colonne, sommer les valeurs des lignes Sous Total
+    sous_total_sums = [0.0] * 24
+    for idx, row in enumerate(table_data):
+        if len(row) > 0 and isinstance(row[0], Paragraph):
+            text = row[0].text or ""
+            if "Sous Total" in text:
+                for col in range(1, 24):
+                    if col < len(row):
+                        sous_total_sums[col] += get_val(idx, col)
 
-    pourcentage_row[7] = Paragraph(f"{(pts_t1 / max_trim_t1 * 100):.2f}%", style_center) if max_trim_t1 > 0 else Paragraph("0.00%", style_center)
-    pourcentage_row[14] = Paragraph(f"{(pts_t2 / max_trim_t2 * 100):.2f}%", style_center) if max_trim_t2 > 0 else Paragraph("0.00%", style_center)
-    pourcentage_row[21] = Paragraph(f"{(pts_t3 / max_trim_t3 * 100):.2f}%", style_center) if max_trim_t3 > 0 else Paragraph("0.00%", style_center)
+    # Maxima depuis la ligne MAXIMA GENEREAUX
+    max_vals = {}
+    for col in range(1, 24):
+        max_vals[col] = get_val(max_gen_idx, col)
 
-    pourcentage_row[23] = Paragraph(f"{(pts_annuel / max_annuel * 100):.2f}%", style_center) if max_annuel > 0 else Paragraph("0.00%", style_center)
+    _logger.warning(f"[POURCENTAGE] sous_total_sums[2]={sous_total_sums[2]}, [3]={sous_total_sums[3]}, [5]={sous_total_sums[5]}")
+    _logger.warning(f"[POURCENTAGE] max_vals[1]={max_vals[1]}, [4]={max_vals[4]}, [6]={max_vals[6]}")
+    _logger.warning(f"[POURCENTAGE] sous_total_sums[7]={sous_total_sums[7]}, max_vals[6]={max_vals[6]}")
 
- 
+    # --- Pourcentages par période (cols 2,3,9,10,16,17) ---
+    # Période : somme_sous_totaux[col] / maxima_genereaux[col_max_per] * 100
+    # col_max_per pour T1=1, T2=8, T3=15
+    period_map = {
+        2: 1, 3: 1,      # T1 periods → max in col 1
+        9: 8, 10: 8,     # T2 periods → max in col 8
+        16: 15, 17: 15,  # T3 periods → max in col 15
+    }
+    for col, max_col in period_map.items():
+        max_per = max_vals.get(max_col, 0)
+        # Chaque période = max_per / 2 (2 périodes par trimestre)
+        max_per_half = max_per / 2 if max_per > 0 else 0
+        if max_per_half > 0:
+            pct = sous_total_sums[col] / max_per_half * 100
+            pourcentage_row[col] = Paragraph(format_pct(pct), style_center)
+        else:
+            pourcentage_row[col] = Paragraph("-", style_center)
+
+    # --- Pourcentages examen (cols 5, 12, 19) ---
+    exam_map = {5: 4, 12: 11, 19: 18}
+    for col, max_col in exam_map.items():
+        max_exam = max_vals.get(max_col, 0)
+        if max_exam > 0:
+            pct = sous_total_sums[col] / max_exam * 100
+            pourcentage_row[col] = Paragraph(format_pct(pct), style_center)
+        else:
+            pourcentage_row[col] = Paragraph("-", style_center)
+
+    # --- Pourcentages trimestre (cols 7, 14, 21) ---
+    trim_map = {7: 6, 14: 13, 21: 20}
+    for col, max_col in trim_map.items():
+        max_trim = max_vals.get(max_col, 0)
+        if max_trim > 0:
+            pct = sous_total_sums[col] / max_trim * 100
+            pourcentage_row[col] = Paragraph(format_pct(pct), style_center)
+        else:
+            pourcentage_row[col] = Paragraph("-", style_center)
+
+    # --- Pourcentage annuel (col 23) ---
+    max_annuel = max_vals.get(22, 0)
+    if max_annuel > 0:
+        pct = sous_total_sums[23] / max_annuel * 100
+        pourcentage_row[23] = Paragraph(format_pct(pct), style_center)
+    else:
+        pourcentage_row[23] = Paragraph("-", style_center)
+
+
 def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe):
     """
     Retourne les notes TJ par cours depuis note_bulletin,
@@ -1393,6 +1477,14 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
 
 
 def get_place_for_column(id_annee, id_campus, id_cycle, id_classe, id_eleve, col):
+    """
+    Récupère le classement depuis les tables de délibération.
+    Utilise config_id (PK de repartition_configs_etab_annee) car c'est ce que
+    execute_deliberation stocke dans id_periode_id / id_trimestre_id.
+    Même pattern que get_place_secondaire.
+    """
+    from django.db import connections
+    from .structure_secondaire import _normalize_place
 
     # Resolve EAC → business keys
     try:
@@ -1400,72 +1492,84 @@ def get_place_for_column(id_annee, id_campus, id_cycle, id_classe, id_eleve, col
         bk_classe_id = eac.classe_id
         bk_groupe = eac.groupe
         bk_section_id = eac.section_id
+        etab_annee_id = eac.etablissement_annee_id
     except EtablissementAnneeClasse.DoesNotExist:
         return "-"
 
-    trimestres_data = get_trimestres(id_annee, id_campus, id_cycle, id_classe)
-
-    if len(trimestres_data) < 3:
-        return "-"
-
-    T1 = trimestres_data[0][0]
-    T2 = trimestres_data[1][0]
-    T3 = trimestres_data[2][0]
-
-    mapping = {
-
-        # PERIODES
-        2:  ("periode", Deliberation_periodique_resultat, T1, "1e P"),
-        3:  ("periode", Deliberation_periodique_resultat, T1, "2e P"),
-
-        9:  ("periode", Deliberation_periodique_resultat, T2, "3e P"),
-        10: ("periode", Deliberation_periodique_resultat, T2, "4e P"),
-
-        16: ("periode", Deliberation_periodique_resultat, T3, "5e P"),
-        17: ("periode", Deliberation_periodique_resultat, T3, "6e P"),
-
-        # EXAMENS
-        5:  ("examen", Deliberation_examen_resultat, T1, None),
-        12: ("examen", Deliberation_examen_resultat, T2, None),
-        19: ("examen", Deliberation_examen_resultat, T3, None),
-
-        # TRIMESTRES
-        7:  ("trimestre", Deliberation_trimistrielle_resultat, T1, None),
-        14: ("trimestre", Deliberation_trimistrielle_resultat, T2, None),
-        21: ("trimestre", Deliberation_trimistrielle_resultat, T3, None),
-
-        # TOTAL ANNUEL
-        23: ("annuel", Deliberation_annuelle_resultat, None, None),
-    }
-
-    if col not in mapping:
-        return "-"
-
-    type_case, model, trimestre_id, periode_label = mapping[col]
-
-    # filtre commun — use business keys
-    filtre = {
-        "id_annee_id": id_annee,
-        "idCampus_id": id_campus,
-        "id_cycle_id": id_cycle,
+    filtre_base = {
         "id_classe_id": bk_classe_id,
         "groupe": bk_groupe,
         "section_id": bk_section_id,
         "id_eleve_id": id_eleve,
     }
 
-    # Ajouter le trimestre seulement si applicable (pas pour annuel)
-    if trimestre_id is not None:
-        filtre["id_trimestre_id"] = trimestre_id
+    # Build code→config_id mapping from Hub
+    code_to_config = {}
+    try:
+        with connections['countryStructure'].cursor() as cur:
+            cur.execute("""
+                SELECT rc.id, ri.code
+                FROM repartition_configs_etab_annee rc
+                JOIN repartition_instances ri ON ri.id_instance = rc.repartition_id
+                WHERE rc.etablissement_annee_id = %s
+            """, [etab_annee_id])
+            for row in cur.fetchall():
+                code_to_config[row[1]] = row[0]
+    except Exception:
+        pass
 
-    # filtre supplémentaire seulement pour les périodes
-    if type_case == "periode":
-        filtre["id_periode__repartition__nom"] = periode_label
+    # Mapping colonne → code de période/trimestre
+    # Primaire: 3 trimestres × 2 périodes = P1..P6, T1..T3
+    col_to_code_periode = {
+        2: "P1", 3: "P2",
+        9: "P3", 10: "P4",
+        16: "P5", 17: "P6",
+    }
+    col_to_code_examen = {
+        5: "T1", 12: "T2", 19: "T3",
+    }
+    col_to_code_trimestre = {
+        7: "T1", 14: "T2", 21: "T3",
+    }
 
-    res = model.objects.filter(**filtre).first()
+    # Colonnes périodes (TJ)
+    if col in col_to_code_periode:
+        code = col_to_code_periode[col]
+        config_id = code_to_config.get(code)
+        if not config_id:
+            return "-"
+        filtre = {**filtre_base, "id_periode_id": config_id}
+        res = Deliberation_periodique_resultat.objects.filter(**filtre).first()
+        raw = res.place.strip() if res and res.place and res.place.strip() else "-"
+        return _normalize_place(raw, Deliberation_periodique_resultat, "id_periode_id", filtre_base, config_id)
 
-    if res and res.place and res.place.strip():
-        return res.place.strip()
+    # Colonnes examen
+    if col in col_to_code_examen:
+        code = col_to_code_examen[col]
+        config_id = code_to_config.get(code)
+        if not config_id:
+            return "-"
+        filtre = {**filtre_base, "id_trimestre_id": config_id}
+        res = Deliberation_examen_resultat.objects.filter(**filtre).first()
+        raw = res.place.strip() if res and res.place and res.place.strip() else "-"
+        return _normalize_place(raw, Deliberation_examen_resultat, "id_trimestre_id", filtre_base, config_id)
+
+    # Colonnes total trimestre
+    if col in col_to_code_trimestre:
+        code = col_to_code_trimestre[col]
+        config_id = code_to_config.get(code)
+        if not config_id:
+            return "-"
+        filtre = {**filtre_base, "id_trimestre_id": config_id}
+        res = Deliberation_trimistrielle_resultat.objects.filter(**filtre).first()
+        raw = res.place.strip() if res and res.place and res.place.strip() else "-"
+        return _normalize_place(raw, Deliberation_trimistrielle_resultat, "id_trimestre_id", filtre_base, config_id)
+
+    # Col 23 = TOTAL ANNUEL
+    if col == 23:
+        res = Deliberation_annuelle_resultat.objects.filter(**filtre_base).first()
+        raw = res.place.strip() if res and res.place and res.place.strip() else "-"
+        return _normalize_place(raw, Deliberation_annuelle_resultat, None, filtre_base)
 
     return "-"
 
@@ -1504,10 +1608,13 @@ def injecter_places_dans_tableau(table_data, id_annee, id_campus, id_cycle, id_c
     places_injectees = 0
 
     for col in colonnes_avec_places:
-        place = get_place_for_column(
-            id_annee, id_campus, id_cycle, id_classe,
-            id_eleve, col
-        )
+        try:
+            place = get_place_for_column(
+                id_annee, id_campus, id_cycle, id_classe,
+                id_eleve, col
+            )
+        except Exception:
+            place = "-"
 
         ligne_place[col] = Paragraph(f"<font color='#0000CC'><b>{place}</b></font>", place_style)
         if place != "-":
@@ -1629,11 +1736,14 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
                         row.append(Paragraph("-", style_center))
                     elif col in [2, 3, 9, 10, 16, 17]: # notes de période
                         note_val = notes_cours_periodes.get(col, "-")
-                        # Echec période: rouge si < 50% du max période
+                        # Echec période: rouge si < 50% du max PAR PÉRIODE
+                        # ponderation = max pour les 2 périodes combinées
+                        # max individuel par période = ponderation / 2
+                        # seuil d'échec = 50% du max individuel = ponderation / 4
                         echec_p = False
                         if note_val != "-" and ponderation != "-":
                             try:
-                                echec_p = float(note_val) < float(ponderation) / 2
+                                echec_p = float(note_val) < float(ponderation) / 4
                             except (ValueError, TypeError):
                                 pass
                         if echec_p:
@@ -1747,13 +1857,10 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
         # CONDUITE + APPLICATION : hachage sur TOUTES les colonnes sauf col 0 (label)
         for row_idx in [conduite_idx, application_idx]:
             if row_idx is not None:
-                for col_idx in range(1, 23):
+                for col_idx in range(1, 24):
                     if col_idx < len(table_data[row_idx]):
-                        # Garder seulement les colonnes de période (2,3,9,10,16,17) pour CONDUITE
-                        # Tout hachurer sauf les colonnes de données
-                        if col_idx in colonnes_struct or col_idx in [5, 7, 12, 14, 19, 21, 22]:
-                            table_data[row_idx][col_idx] = None
-                            table_style.add('BACKGROUND', (col_idx, row_idx), (col_idx, row_idx), gris_fonce)
+                        table_data[row_idx][col_idx] = None
+                        table_style.add('BACKGROUND', (col_idx, row_idx), (col_idx, row_idx), gris_fonce)
 
         # SIGNATURE DE L'INSTITEUR + RESPONSABLE : fusionner horizontalement
         for row_idx in [sig_institeur_idx, sig_responsable_idx]:
@@ -1854,7 +1961,7 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
 
 
 
-def create_footer(elements, style_normal, style_center, id_classe=None):
+def create_footer(elements, style_normal, style_center, id_classe=None, etab_url=''):
     """Footer matching official RDC bulletin format."""
     elements.append(Spacer(1, 5*mm))  # Detach footer from content
     # Retrieve institution info for dynamic footer
@@ -1868,7 +1975,7 @@ def create_footer(elements, style_normal, style_center, id_classe=None):
             from django.db import connections
             with connections['countryStructure'].cursor() as cur:
                 cur.execute(
-                    "SELECT nom, representant, emplacement FROM etablissements WHERE id_etablissement = %s",
+                    "SELECT nom, representant, emplacement, url FROM etablissements WHERE id_etablissement = %s",
                     [etab_id]
                 )
                 row = cur.fetchone()
@@ -1876,6 +1983,8 @@ def create_footer(elements, style_normal, style_center, id_classe=None):
                     ecole_nom = row[0] or ""
                     chef_nom = row[1] or ""
                     ville = row[2] or ""
+                    if not etab_url and row[3]:
+                        etab_url = row[3]
         except Exception:
             pass
 
@@ -1918,8 +2027,9 @@ def create_footer(elements, style_normal, style_center, id_classe=None):
     )
 
     # Row 4: branding
+    branding_url = f"https://{etab_url}" if etab_url else "https://monecole.pro"
     branding = Paragraph(
-        "<i>Proclamation générée par MonEkole (https://monecole.pro)</i>",
+        f"<i>Bulletin généré par MonEkole ({branding_url}) et Authentifié par eSchoolRDC (https://eschool-rdc.pro)</i>",
         style_footer_center
     )
 
@@ -1944,7 +2054,7 @@ def create_footer(elements, style_normal, style_center, id_classe=None):
     elements.append(footer_table)
 
 
-def create_footer_8eme(elements, style_normal, style_center, id_classe=None):
+def create_footer_8eme(elements, style_normal, style_center, id_classe=None, etab_url=''):
     """Footer for 8ème année (Education de Base) — includes RESULTAT FINAL section."""
     elements.append(Spacer(1, 0.5*mm))
 
@@ -1958,13 +2068,15 @@ def create_footer_8eme(elements, style_normal, style_center, id_classe=None):
             from django.db import connections
             with connections['countryStructure'].cursor() as cur:
                 cur.execute(
-                    "SELECT nom, representant, emplacement FROM etablissements WHERE id_etablissement = %s",
+                    "SELECT nom, representant, emplacement, url FROM etablissements WHERE id_etablissement = %s",
                     [etab_id]
                 )
                 row = cur.fetchone()
                 if row:
                     chef_nom = row[1] or ""
                     ville = row[2] or ""
+                    if not etab_url and row[3]:
+                        etab_url = row[3]
         except Exception:
             pass
 
@@ -2043,6 +2155,11 @@ def create_footer_8eme(elements, style_normal, style_center, id_classe=None):
         [note_biffer, None, None],
         # Row 5: NOTE IMPORTANTE (full width)
         [note_importante, None, None],
+        # Row 6: branding (full width)
+        [Paragraph(
+            f"<i>Bulletin généré par MonEkole (https://{etab_url if etab_url else 'monecole.pro'}) et Authentifié par eSchoolRDC (https://eschool-rdc.pro)</i>",
+            style_ft_c
+        ), None, None],
     ]
     footer_table = Table(footer_data, colWidths=[65*mm, 55*mm, 80*mm])
     footer_table.setStyle(TableStyle([
@@ -2052,6 +2169,7 @@ def create_footer_8eme(elements, style_normal, style_center, id_classe=None):
         ('SPAN', (0, 2), (2, 2)),  # passe/double
         ('SPAN', (0, 4), (2, 4)),  # biffer
         ('SPAN', (0, 5), (2, 5)),  # note importante
+        ('SPAN', (0, 6), (2, 6)),  # branding
         # Padding
         ('TOPPADDING', (0, 0), (-1, -1), 1*mm),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0.5*mm),
@@ -2063,7 +2181,7 @@ def create_footer_8eme(elements, style_normal, style_center, id_classe=None):
     elements.append(footer_table)
 
 
-def draw_border(canvas, doc, eleve, margin, watermark_path=None):
+def draw_border(canvas, doc, eleve, margin, watermark_path=None, is_eschool=False):
     canvas.setLineWidth(0.5)
     canvas.rect(margin, margin, A4[0] - 2 * margin, A4[1] - 2 * margin)
     # Watermark: armoirie du pays en filigrane au centre
@@ -2077,6 +2195,17 @@ def draw_border(canvas, doc, eleve, margin, watermark_path=None):
         canvas.drawImage(watermark_path, x, y, width=wm_size, height=wm_size,
                          preserveAspectRatio=True, mask='auto')
         canvas.restoreState()
+    # Filigrane diagonal texte (au-dessus de l'armoire)
+    canvas.saveState()
+    page_w, page_h = A4
+    canvas.setFont('Helvetica-Bold', 38)
+    canvas.setFillColor(colors.Color(0.55, 0.55, 0.55))
+    canvas.setFillAlpha(0.09)
+    canvas.translate(page_w / 2, page_h / 2)
+    canvas.rotate(45)
+    wm_text = "Bulletin ORIGINAL" if is_eschool else "Copie Conforme à l'Original"
+    canvas.drawCentredString(0, 0, wm_text)
+    canvas.restoreState()
     qr_value = f"Généré par  MonEkole App,ce Bulletin est de : {eleve.nom}{eleve.prenom} Conçue par entreprise ICT Group"
     qr_code = qr.QrCodeWidget(qr_value)
     bounds = qr_code.getBounds()

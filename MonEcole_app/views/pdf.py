@@ -229,6 +229,10 @@ def generer_bulletin_pdf(request):
     filename_parts = []
     elements = []
 
+    # Résoudre l'URL de l'établissement et la source
+    etab_host = request.get_host().split(':')[0].lower()
+    is_eschool = 'eschool' in etab_host
+
     styles, style_normal, style_center, style_center_bold, style_normal_bold, style_title, style_right = get_styles()
 
     # ───────────────────────────────────────────────
@@ -380,6 +384,15 @@ def generer_bulletin_pdf(request):
                         elements, style_normal, style_center, style_title,
                         id_annee, idCampus, id_cycle, id_classe, id_eleve
                     )
+                    # Branding maternelle
+                    from reportlab.lib.styles import ParagraphStyle as _PS
+                    from reportlab.platypus import Paragraph as _P
+                    _brand_s = _PS(name='BrandMat', fontSize=4, leading=5, alignment=1, fontName='Times-Roman')
+                    _brand_url = f"https://{etab_host}" if '.' in etab_host else "https://monecole.pro"
+                    elements.append(_P(
+                        f"<i>Bulletin généré par MonEkole ({_brand_url}) et Authentifié par eSchoolRDC (https://eschool-rdc.pro)</i>",
+                        _brand_s
+                    ))
 
                     filename_parts.append(slugify(eleve.nom or f"eleve_{id_eleve}"))
                 except Exception as e:
@@ -420,7 +433,7 @@ def generer_bulletin_pdf(request):
                         id_annee, idCampus, id_cycle, id_classe, id_eleve,
                         style_center_bold=style_center_bold, style_normal_bold=style_normal_bold
                     )
-                    create_footer(elements, style_normal, style_center, id_classe=id_classe)
+                    create_footer(elements, style_normal, style_center, id_classe=id_classe, etab_url=etab_host)
 
                     filename_parts.append(slugify(eleve.nom or f"eleve_{id_eleve}"))
                 except Exception as e:
@@ -484,9 +497,9 @@ def generer_bulletin_pdf(request):
                     # Footer: 8ème année utilise un pied spécifique avec RESULTAT FINAL
                     # Détection via code_model (Hub: bulletin_model)
                     if '8eme' in code_lower or '8ème' in code_lower:
-                        create_footer_8eme(elements, style_normal, style_center, id_classe=id_classe)
+                        create_footer_8eme(elements, style_normal, style_center, id_classe=id_classe, etab_url=etab_host)
                     else:
-                        create_footer__secondaire_rdc(elements, style_normal, style_center, id_classe)
+                        create_footer__secondaire_rdc(elements, style_normal, style_center, id_classe, etab_url=etab_host)
 
                     filename_parts.append(slugify(eleve.nom or f"eleve_{id_eleve}"))
                 except Exception as e:
@@ -529,7 +542,7 @@ def generer_bulletin_pdf(request):
                             elements, style_center, style_normal,
                             id_annee, idCampus, id_cycle, id_classe, id_eleve
                         )
-                        create_footer__secondaire_rdc(elements, style_normal, style_center, id_classe)
+                        create_footer__secondaire_rdc(elements, style_normal, style_center, id_classe, etab_url=etab_host)
 
                         filename_parts.append(slugify(eleve.nom or f"eleve_{id_eleve}"))
                     except Exception as e:
@@ -568,6 +581,15 @@ def generer_bulletin_pdf(request):
                             id_annee, idCampus, id_cycle, id_classe, id_eleve,
                             get_semestres=get_semestres
                         )
+                        # Branding cycle supérieur
+                        from reportlab.lib.styles import ParagraphStyle as _PS2
+                        from reportlab.platypus import Paragraph as _P2
+                        _brand_s2 = _PS2(name='BrandSup', fontSize=4, leading=5, alignment=1, fontName='Times-Roman')
+                        _brand_url2 = f"https://{etab_host}" if '.' in etab_host else "https://monecole.pro"
+                        elements.append(_P2(
+                            f"<i>Bulletin généré par MonEkole ({_brand_url2}) et Authentifié par eSchoolRDC (https://eschool-rdc.pro)</i>",
+                            _brand_s2
+                        ))
 
                         filename_parts.append(slugify(eleve.nom or f"eleve_{id_eleve}"))
                     except Exception as e:
@@ -608,7 +630,7 @@ def generer_bulletin_pdf(request):
             logger.warning(f"[BULLETIN PDF] Could not fetch watermark: {e}")
 
         def on_all_pages(canvas, doc):
-            draw_border(canvas, doc, eleve, margin, watermark_path=watermark_path) 
+            draw_border(canvas, doc, eleve, margin, watermark_path=watermark_path, is_eschool=is_eschool) 
 
         doc.build(elements, onFirstPage=on_all_pages, onLaterPages=on_all_pages)
 

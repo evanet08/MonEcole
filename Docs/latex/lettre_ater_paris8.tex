@@ -1,0 +1,166 @@
+\documentclass[12pt]{article}
+
+%---------------------------------------------------------
+% This package gives us small margins, lettings us use
+% most of the page.
+%---------------------------------------------------------
+\usepackage[letterpaper,margin=1cm,bottom=1cm,top=2cm,nohead]{geometry}
+
+
+%---------------------------------------------------------
+% AMS Packages for math symbols, fonts, environments, etc.
+%---------------------------------------------------------
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{enumitem}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{url}
+
+%--------------------------------------------------------------
+% A command for typesetting and linking an email address.
+%--------------------------------------------------------------
+\newcommand{\email}[1]{\href{mailto:#1}{\tt \textcolor{cornflower}{#1}}}
+
+%--------------------------------------------------------------
+% This package is used to define custom colors.
+%--------------------------------------------------------------
+\usepackage{xcolor}
+
+%--------------------------------------------------------------
+% A few colors for hyperlinks.
+%--------------------------------------------------------------
+\definecolor{plum}{rgb}{0.36078, 0.20784, 0.4}
+\definecolor{chameleon}{rgb}{0.30588, 0.60392, 0.023529}
+\definecolor{cornflower}{rgb}{0.12549, 0.29020, 0.52941}
+\definecolor{scarlet}{rgb}{0.8, 0, 0}
+\definecolor{brick}{rgb}{0.64314, 0, 0}
+
+%---------------------------------------------------------
+% The hyperref package.
+%---------------------------------------------------------
+\usepackage[%
+    pdftitle={The title of your letter},
+    pdfauthor={Your name},
+    pdfsubject={The subject of the letter},
+    pdfkeywords={Any keywords},
+    colorlinks=true,  %display links in different colors
+    linkcolor=cornflower, %internal links
+    citecolor=scarlet, %references to a bibliography
+    urlcolor=chameleon %URLs
+]{hyperref}
+
+%---------------------------------------------------------
+% We need this package to display the logo
+%---------------------------------------------------------
+\usepackage{graphicx}
+
+%---------------------------------------------------------
+% Change the spacing b/t lines and paragraphs.
+%---------------------------------------------------------
+\setlength{\parskip}{0.85em}
+\setlength{\parindent}{1.75em}
+
+\usepackage{afterpage}
+
+\usepackage[strict]{changepage}
+
+\pagestyle{empty}
+
+\begin{document}
+%---------------------------------------------------------
+% The first page should have the letterhead on it.
+%---------------------------------------------------------
+\begin{minipage}[c]{8in}\vskip-2cm
+\begin{flushleft}
+	%\begin{minipage}[c]{3cm}
+	%	\begin{flushleft}
+	%		\includegraphics*[width=3cm]{softi_logo}%
+	%	\end{flushleft}
+	%\end{minipage}
+	\,\,
+	\begin{minipage}[c]{0.25cm}
+		\vrule depth 0.1\textheight
+	\end{minipage}
+	\,
+	\begin{minipage}[c]{8cm}
+		\footnotesize
+		{\sffamily
+			Dr Evariste NTARYAMIRA\\
+			17, Boulevard d'Erkrath \,\vrule depth 0.25em \, 95800 Cergy, France \\
+			evanet08@gmail.com\\
+			+33 (0) 6 80 35 44 21
+		}
+	\end{minipage}
+\end{flushleft}
+\end{minipage}
+
+
+
+%---------------------------------------------------------
+% Use larger margins for the body of the letter.
+%---------------------------------------------------------
+\begin{adjustwidth}{4em}{4em}
+	
+%---------------------------------------------------------
+% Insert today's date.
+%---------------------------------------------------------
+%~\vskip.1cm \hfill 31/03/209
+
+
+%---------------------------------------------------------
+% The Salutation
+%---------------------------------------------------------
+
+
+
+\vskip0cm
+\hfill
+\noindent
+\begin{minipage}[b]{8cm} 
+\begin{center}
+    À Monsieur le Président\\
+    de l'Université Paris 8 
+\end{center}
+\end{minipage}
+
+\vskip.2cm
+{\noindent \textbf{Objet} : Candidature au poste d'ATER numéro ATER1005}
+\vskip.2cm
+
+\noindent Monsieur le Président,
+
+\vskip.1cm
+
+Titulaire d'un doctorat en informatique, passionné par l'enseignement supérieur et les technologies d'intelligence, je vous propose ma candidature pour un poste d'Attaché Temporaire d'Enseignement et de Recherche (ATER) à l'Université Paris 8 pour l'année 2025/2026.
+
+Mon parcours combine plus de huit années d'expérience dans l'enseignement universitaire (Université du Burundi, CY Cergy Paris Université, Université Paris Dauphine) et une expertise solide dans les domaines de la science des données, de l'intelligence artificielle et de l'informatique décisionnelle. J'ai conçu et développé \textbf{BMDSoft}, une plateforme numérique reposant sur une architecture \textbf{hub-spoke} multi-établissements, déployée dans plus de dix universités africaines, qui structure et valorise les données académiques pour la gestion, l'orientation et le pilotage institutionnel.
+
+Ce projet m'a également ouvert un vaste champ de recherche appliquée, en particulier autour de l'exploitation intelligente des données académiques. J'ai ainsi pu développer des travaux en \textbf{analyse prédictive des parcours étudiants}, en mobilisant des approches telles que la régression, les arbres de décision ou encore les réseaux de neurones. Dans le même esprit, j'ai exploré la \textbf{détection précoce du décrochage}, en combinant des méthodes d'apprentissage supervisé et non supervisé pour identifier les signaux faibles d'abandon. Enfin, ces analyses ont abouti à l'\textbf{intégration d'outils décisionnels} sous forme de \textit{tableaux de bord intelligents}, destinés à appuyer les établissements dans leur gouvernance et à renforcer le pilotage des politiques d'accompagnement étudiant.
+
+Ces travaux s'inscrivent pleinement dans les champs actuels de l'IA éducative et de la gouvernance par les données, et rejoignent les objectifs du programme \textbf{HAQAA3} (\textit{Harmonisation of African Higher Education Quality Assurance and Accreditation}, 2023--2028), qui promeut l'assurance qualité et la collecte de données probantes dans l'enseignement supérieur africain. Ils nourrissent une réflexion scientifique sur l'usage éthique et pertinent de l'IA dans les systèmes éducatifs. Actuellement ATER à l'Université Paris Dauphine, je souhaite poursuivre cette dynamique et intégrer votre établissement afin de contribuer activement à vos missions d'enseignement et de recherche, notamment dans les unités tournées vers les systèmes intelligents, l'analyse de données et les infrastructures numériques.
+
+Je vous remercie pour l'attention que vous porterez à ma candidature et me tiens à votre disposition pour toute rencontre ou précision complémentaire.
+
+\vskip.05cm
+\hfill \begin{minipage}[b]{6cm}
+ Fait à Cergy, le 24/04/2025\\\\
+Dr Evariste NTARYAMIRA\\\\
+\centering
+    ~\includegraphics*[width=2cm]{signature.jpg}
+    \end{minipage}
+
+\end{adjustwidth}
+%\changepage{}{}{}{}{}{1cm}{}{}{}
+
+%---------------------------------------------------------
+% The fancyhdr package can insert a web address and
+% email address at the bottom of the page.
+%---------------------------------------------------------
+
+
+
+
+\end{document}

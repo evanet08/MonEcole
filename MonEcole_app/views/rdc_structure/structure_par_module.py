@@ -301,7 +301,7 @@ def recuperer_notes_par_classe_cycle_superieur(annee_id, campus_id, cycle_id, cl
 
 
 
-def draw_border__secondaire_rdc_without_qrcode (canvas, doc, eleve, margin, watermark_path=None):
+def draw_border__secondaire_rdc_without_qrcode (canvas, doc, eleve, margin, watermark_path=None, is_eschool=False):
     canvas.saveState()
     
     canvas.setLineWidth(0.5) 
@@ -326,6 +326,17 @@ def draw_border__secondaire_rdc_without_qrcode (canvas, doc, eleve, margin, wate
         canvas.drawImage(watermark_path, x, y, width=wm_size, height=wm_size,
                          preserveAspectRatio=True, mask='auto')
         canvas.restoreState()
+    # Filigrane diagonal texte (au-dessus de l'armoire)
+    canvas.saveState()
+    page_w, page_h = A4
+    canvas.setFont('Helvetica-Bold', 38)
+    canvas.setFillColor(colors.Color(0.55, 0.55, 0.55))
+    canvas.setFillAlpha(0.09)
+    canvas.translate(page_w / 2, page_h / 2)
+    canvas.rotate(45)
+    wm_text = "Bulletin ORIGINAL" if is_eschool else "Copie Conforme à l'Original"
+    canvas.drawCentredString(0, 0, wm_text)
+    canvas.restoreState()
 
 def generate_bulletin_superieur_secondLevel_rdc(request, eleve_id=103):
     id_classe = 50

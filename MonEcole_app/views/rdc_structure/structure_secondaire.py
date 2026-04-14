@@ -886,7 +886,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
     elements.append(Spacer(1, 0.5*mm))
    
    
-def create_footer__secondaire_rdc(elements, style_normal, style_center, classe_id):
+def create_footer__secondaire_rdc(elements, style_normal, style_center, classe_id, etab_url=''):
     """Footer matching official RDC bulletin format — used by secondaire and cycle supérieur."""
     elements.append(Spacer(1, 5*mm))  # Detach footer from content
     # Retrieve institution info for dynamic footer
@@ -900,7 +900,7 @@ def create_footer__secondaire_rdc(elements, style_normal, style_center, classe_i
             from django.db import connections
             with connections['countryStructure'].cursor() as cur:
                 cur.execute(
-                    "SELECT nom, representant, emplacement FROM etablissements WHERE id_etablissement = %s",
+                    "SELECT nom, representant, emplacement, url FROM etablissements WHERE id_etablissement = %s",
                     [etab_id]
                 )
                 row = cur.fetchone()
@@ -908,6 +908,8 @@ def create_footer__secondaire_rdc(elements, style_normal, style_center, classe_i
                     ecole_nom = row[0] or ""
                     chef_nom = row[1] or ""
                     ville = row[2] or ""
+                    if not etab_url and row[3]:
+                        etab_url = row[3]
         except Exception:
             pass
 
@@ -949,8 +951,9 @@ def create_footer__secondaire_rdc(elements, style_normal, style_center, classe_i
     )
 
     # Row 4: branding
+    branding_url = f"https://{etab_url}" if etab_url else "https://monecole.pro"
     branding = Paragraph(
-        "<i>Proclamation générée par MonEkole (https://monecole.pro)</i>",
+        f"<i>Bulletin généré par MonEkole ({branding_url}) et Authentifié par eSchoolRDC (https://eschool-rdc.pro)</i>",
         style_footer_center
     )
 
@@ -1027,7 +1030,7 @@ def create_footer__secondaire_rdc(elements, style_normal, style_center, classe_i
     # Espace final
     elements.append(Spacer(1, 0.5*mm))
 
-def draw_border__secondaire_rdc(canvas, doc, eleve, margin, watermark_path=None):
+def draw_border__secondaire_rdc(canvas, doc, eleve, margin, watermark_path=None, is_eschool=False):
     canvas.setLineWidth(0.5)
     canvas.rect(margin, margin, A4[0] - 2 * margin, A4[1] - 2 * margin)
     # Watermark: armoirie du pays en filigrane au centre
@@ -1041,6 +1044,17 @@ def draw_border__secondaire_rdc(canvas, doc, eleve, margin, watermark_path=None)
         canvas.drawImage(watermark_path, x, y, width=wm_size, height=wm_size,
                          preserveAspectRatio=True, mask='auto')
         canvas.restoreState()
+    # Filigrane diagonal texte (au-dessus de l'armoire)
+    canvas.saveState()
+    page_w, page_h = A4
+    canvas.setFont('Helvetica-Bold', 38)
+    canvas.setFillColor(colors.Color(0.55, 0.55, 0.55))
+    canvas.setFillAlpha(0.09)
+    canvas.translate(page_w / 2, page_h / 2)
+    canvas.rotate(45)
+    wm_text = "Bulletin ORIGINAL" if is_eschool else "Copie Conforme à l'Original"
+    canvas.drawCentredString(0, 0, wm_text)
+    canvas.restoreState()
     qr_value = f"Généré par Application MonEkole,ce Bulletin est de : {eleve.nom}{eleve.prenom} Conçue par entreprise ICT Group"
     qr_code = qr.QrCodeWidget(qr_value)
     bounds = qr_code.getBounds()

@@ -492,7 +492,7 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     return elements
 
 
-def draw_border__maternelle_rdc(canvas, doc, eleve, margin=5*mm, watermark_path=None):
+def draw_border__maternelle_rdc(canvas, doc, eleve, margin=5*mm, watermark_path=None, is_eschool=False):
     canvas.setLineWidth(0.5)
     canvas.rect(margin, margin, A4[0] - 2 * margin, A4[1] - 2 * margin)
 
@@ -519,6 +519,17 @@ def draw_border__maternelle_rdc(canvas, doc, eleve, margin=5*mm, watermark_path=
         canvas.drawImage(watermark_path, x, y, width=wm_size, height=wm_size,
                          preserveAspectRatio=True, mask='auto')
         canvas.restoreState()
+    # Filigrane diagonal texte (au-dessus de l'armoire)
+    canvas.saveState()
+    page_w, page_h = A4
+    canvas.setFont('Helvetica-Bold', 38)
+    canvas.setFillColor(colors.Color(0.55, 0.55, 0.55))
+    canvas.setFillAlpha(0.09)
+    canvas.translate(page_w / 2, page_h / 2)
+    canvas.rotate(45)
+    wm_text = "Bulletin ORIGINAL" if is_eschool else "Copie Conforme à l'Original"
+    canvas.drawCentredString(0, 0, wm_text)
+    canvas.restoreState()
     
     qr_value = f"Généré par Application MonEkole,ce Bulletin est de : {eleve.nom} {eleve.prenom} Conçue par entreprise ICT Group"
     qr_code = QrCodeWidget(qr_value)
