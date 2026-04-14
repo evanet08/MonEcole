@@ -44,6 +44,10 @@ def generer_bulletin_pdf(request):
         id_cycle  = request.POST.get('id_cycle')
         id_classe = request.POST.get('id_classe')
         id_eleves = request.POST.getlist('id_eleve')
+        # Business keys directes (alternatif à EAC id)
+        bk_classe_id_param = request.POST.get('classe_id')
+        bk_groupe_param = request.POST.get('groupe')
+        bk_section_id_param = request.POST.get('section_id')
     else:
         id_annee  = request.GET.get('id_annee')
         idCampus = request.GET.get('idCampus')
@@ -52,11 +56,28 @@ def generer_bulletin_pdf(request):
         # Support comma-separated IDs: ?id_eleve=2,3,5
         raw_eleves = request.GET.get('id_eleve', '')
         id_eleves = [e.strip() for e in raw_eleves.split(',') if e.strip()]
+        # Business keys directes
+        bk_classe_id_param = request.GET.get('classe_id')
+        bk_groupe_param = request.GET.get('groupe')
+        bk_section_id_param = request.GET.get('section_id')
 
-    logger.warning(f"[BULLETIN PDF] Initial params: annee={id_annee}, campus={idCampus}, cycle={id_cycle}, classe={id_classe}, eleves={id_eleves[:3]}...")
+    logger.warning(f"[BULLETIN PDF] Initial params: annee={id_annee}, campus={idCampus}, cycle={id_cycle}, classe={id_classe}, bk_classe={bk_classe_id_param}, bk_groupe={bk_groupe_param}, eleves={id_eleves[:3]}...")
 
-    # Auto-résolution des paramètres manquants via EAC
-    if id_classe and (not id_annee or not idCampus or not id_cycle):
+    # ── Mode 1: Business keys fournies directement ──
+    bk_classe_id = None
+    bk_groupe = None
+    bk_section_id = None
+
+    if bk_classe_id_param:
+        bk_classe_id = int(bk_classe_id_param)
+        bk_groupe = bk_groupe_param or None
+        bk_section_id = int(bk_section_id_param) if bk_section_id_param else None
+        if not id_classe:
+            id_classe = str(bk_classe_id)
+        logger.warning(f"[BULLETIN PDF] Direct business keys: classe={bk_classe_id}, groupe={bk_groupe}, section={bk_section_id}")
+
+    # ── Mode 2: Auto-résolution via EAC (legacy) ──
+    elif id_classe and (not id_annee or not idCampus or not id_cycle):
         try:
             from MonEcole_app.models.country_structure import EtablissementAnneeClasse
             eac = EtablissementAnneeClasse.objects.select_related(
@@ -71,11 +92,10 @@ def generer_bulletin_pdf(request):
                 etab_id = eac.etablissement_annee.etablissement_id
                 campus = Campus.objects.filter(id_etablissement=etab_id).first()
                 idCampus = str(campus.idCampus) if campus else '1'
-            # Extract business keys for inscription filtering
             bk_classe_id = eac.classe_id
             bk_groupe = eac.groupe
             bk_section_id = eac.section_id
-            logger.warning(f"[BULLETIN PDF] After auto-resolve: annee={id_annee}, campus={idCampus}, cycle={id_cycle}, bk_classe={bk_classe_id}, bk_groupe={bk_groupe}, bk_section={bk_section_id}")
+            logger.warning(f"[BULLETIN PDF] After EAC resolve: annee={id_annee}, campus={idCampus}, cycle={id_cycle}, bk_classe={bk_classe_id}, bk_groupe={bk_groupe}, bk_section={bk_section_id}")
         except Exception as e:
             logger.error(f"[BULLETIN PDF] Auto-resolve FAILED: {e}")
 
@@ -88,7 +108,7 @@ def generer_bulletin_pdf(request):
         id_annee  = int(id_annee)
         idCampus = int(idCampus)
         id_cycle  = int(id_cycle)
-        id_classe = int(id_classe)
+        id_classe_int = int(id_classe) if str(id_classe).isdigit() else 0
         id_eleves = [int(e) for e in id_eleves if e and str(e).isdigit()]
     except ValueError:
         messages.error(request, "Paramètres numériques invalides.")
@@ -98,18 +118,20 @@ def generer_bulletin_pdf(request):
         messages.error(request, "Aucun élève sélectionné.")
         return HttpResponse('<script>history.back();</script>', status=400)
 
-    # Resolve EAC → business keys (if not already done above)
-    if 'bk_classe_id' not in locals():
+    # ── Mode 3: Resolve from EAC if bk still not set ──
+    if not bk_classe_id:
         try:
             from MonEcole_app.models.country_structure import EtablissementAnneeClasse as _EAC
-            _eac = _EAC.objects.get(id=id_classe)
+            _eac = _EAC.objects.get(id=id_classe_int)
             bk_classe_id = _eac.classe_id
             bk_groupe = _eac.groupe
             bk_section_id = _eac.section_id
         except Exception:
-            bk_classe_id = id_classe
+            bk_classe_id = id_classe_int
             bk_groupe = None
             bk_section_id = None
+    
+    id_classe = id_classe_int
 
     # Trier les élèves par classement (1er → dernier)
     # Cascade: annuelle → trimestrielle → periodique
@@ -384,15 +406,6 @@ def generer_bulletin_pdf(request):
                         elements, style_normal, style_center, style_title,
                         id_annee, idCampus, id_cycle, id_classe, id_eleve
                     )
-                    # Branding maternelle
-                    from reportlab.lib.styles import ParagraphStyle as _PS
-                    from reportlab.platypus import Paragraph as _P
-                    _brand_s = _PS(name='BrandMat', fontSize=4, leading=5, alignment=1, fontName='Times-Roman')
-                    _brand_url = f"https://{etab_host}" if '.' in etab_host else "https://monecole.pro"
-                    elements.append(_P(
-                        f"<i>Bulletin généré par MonEkole ({_brand_url}) et Authentifié par eSchoolRDC (https://eschool-rdc.pro)</i>",
-                        _brand_s
-                    ))
 
                     filename_parts.append(slugify(eleve.nom or f"eleve_{id_eleve}"))
                 except Exception as e:
@@ -581,15 +594,6 @@ def generer_bulletin_pdf(request):
                             id_annee, idCampus, id_cycle, id_classe, id_eleve,
                             get_semestres=get_semestres
                         )
-                        # Branding cycle supérieur
-                        from reportlab.lib.styles import ParagraphStyle as _PS2
-                        from reportlab.platypus import Paragraph as _P2
-                        _brand_s2 = _PS2(name='BrandSup', fontSize=4, leading=5, alignment=1, fontName='Times-Roman')
-                        _brand_url2 = f"https://{etab_host}" if '.' in etab_host else "https://monecole.pro"
-                        elements.append(_P2(
-                            f"<i>Bulletin généré par MonEkole ({_brand_url2}) et Authentifié par eSchoolRDC (https://eschool-rdc.pro)</i>",
-                            _brand_s2
-                        ))
 
                         filename_parts.append(slugify(eleve.nom or f"eleve_{id_eleve}"))
                     except Exception as e:
@@ -630,7 +634,7 @@ def generer_bulletin_pdf(request):
             logger.warning(f"[BULLETIN PDF] Could not fetch watermark: {e}")
 
         def on_all_pages(canvas, doc):
-            draw_border(canvas, doc, eleve, margin, watermark_path=watermark_path, is_eschool=is_eschool) 
+            draw_border(canvas, doc, eleve, margin, watermark_path=watermark_path, is_eschool=is_eschool, etab_url=etab_host) 
 
         doc.build(elements, onFirstPage=on_all_pages, onLaterPages=on_all_pages)
 

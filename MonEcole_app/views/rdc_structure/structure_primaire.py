@@ -2026,26 +2026,17 @@ def create_footer(elements, style_normal, style_center, id_classe=None, etab_url
         style_footer
     )
 
-    # Row 4: branding
-    branding_url = f"https://{etab_url}" if etab_url else "https://monecole.pro"
-    branding = Paragraph(
-        f"<i>Bulletin généré par MonEkole ({branding_url}) et Authentifié par eSchoolRDC (https://eschool-rdc.pro)</i>",
-        style_footer_center
-    )
-
     # Build the footer table
     footer_data = [
         [repechage_line, None, None],
         [left_col, center_col, right_col],
         [note_line, None, None],
-        [branding, None, None],
     ]
     footer_table = Table(footer_data, colWidths=[70*mm, 50*mm, 70*mm])
     footer_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('SPAN', (0, 0), (2, 0)),   # repêchage line spans full width
         ('SPAN', (0, 2), (2, 2)),   # note line spans full width
-        ('SPAN', (0, 3), (2, 3)),   # branding spans full width
         ('TOPPADDING', (0, 0), (-1, -1), 2*mm),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 1*mm),
         ('LEFTPADDING', (0, 0), (-1, -1), 2),
@@ -2155,11 +2146,6 @@ def create_footer_8eme(elements, style_normal, style_center, id_classe=None, eta
         [note_biffer, None, None],
         # Row 5: NOTE IMPORTANTE (full width)
         [note_importante, None, None],
-        # Row 6: branding (full width)
-        [Paragraph(
-            f"<i>Bulletin généré par MonEkole (https://{etab_url if etab_url else 'monecole.pro'}) et Authentifié par eSchoolRDC (https://eschool-rdc.pro)</i>",
-            style_ft_c
-        ), None, None],
     ]
     footer_table = Table(footer_data, colWidths=[65*mm, 55*mm, 80*mm])
     footer_table.setStyle(TableStyle([
@@ -2169,7 +2155,6 @@ def create_footer_8eme(elements, style_normal, style_center, id_classe=None, eta
         ('SPAN', (0, 2), (2, 2)),  # passe/double
         ('SPAN', (0, 4), (2, 4)),  # biffer
         ('SPAN', (0, 5), (2, 5)),  # note importante
-        ('SPAN', (0, 6), (2, 6)),  # branding
         # Padding
         ('TOPPADDING', (0, 0), (-1, -1), 1*mm),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0.5*mm),
@@ -2181,32 +2166,64 @@ def create_footer_8eme(elements, style_normal, style_center, id_classe=None, eta
     elements.append(footer_table)
 
 
-def draw_border(canvas, doc, eleve, margin, watermark_path=None, is_eschool=False):
+def draw_border(canvas, doc, eleve, margin, watermark_path=None, is_eschool=False, etab_url=''):
     canvas.setLineWidth(0.5)
     canvas.rect(margin, margin, A4[0] - 2 * margin, A4[1] - 2 * margin)
+    page_w, page_h = A4
     # Watermark: armoirie du pays en filigrane au centre
     if watermark_path and os.path.exists(watermark_path):
         canvas.saveState()
-        canvas.setFillAlpha(0.15)  # Filigrane visible mais ne masque pas les notes
-        page_w, page_h = A4
-        wm_size = 140 * mm  # Grande taille
+        canvas.setFillAlpha(0.15)
+        wm_size = 140 * mm
         x = (page_w - wm_size) / 2
         y = (page_h - wm_size) / 2
         canvas.drawImage(watermark_path, x, y, width=wm_size, height=wm_size,
                          preserveAspectRatio=True, mask='auto')
         canvas.restoreState()
-    # Filigrane diagonal texte (au-dessus de l'armoire)
+    # Filigrane diagonal texte (dessiné AU-DESSUS de l'armoire)
     canvas.saveState()
-    page_w, page_h = A4
-    canvas.setFont('Helvetica-Bold', 38)
-    canvas.setFillColor(colors.Color(0.55, 0.55, 0.55))
-    canvas.setFillAlpha(0.09)
+    wm_text = "BULLETIN ORIGINAL" if is_eschool else "COPIE CONFORME"
+    diagonal = (page_w**2 + page_h**2) ** 0.5
+    target_width = diagonal * 0.40
+    wm_font_size = 45
+    wm_font = 'Helvetica-Bold'
+    canvas.setFont(wm_font, wm_font_size)
+    canvas.setFillColor(colors.HexColor('#4A6FA5'))
+    canvas.setFillAlpha(0.28)
     canvas.translate(page_w / 2, page_h / 2)
     canvas.rotate(45)
-    wm_text = "Bulletin ORIGINAL" if is_eschool else "Copie Conforme à l'Original"
-    canvas.drawCentredString(0, 0, wm_text)
+    # Dessiner chaque caractère avec espacement pour couvrir 60% de la diagonale
+    char_widths = [canvas.stringWidth(c, wm_font, wm_font_size) for c in wm_text]
+    total_natural = sum(char_widths)
+    num_chars = len(wm_text)
+    extra_space = (target_width - total_natural) / max(num_chars - 1, 1) if num_chars > 1 else 0
+    x_start = -target_width / 2
+    for i, ch in enumerate(wm_text):
+        canvas.drawString(x_start, 0, ch)
+        x_start += char_widths[i] + (extra_space if i < num_chars - 1 else 0)
     canvas.restoreState()
-    qr_value = f"Généré par  MonEkole App,ce Bulletin est de : {eleve.nom}{eleve.prenom} Conçue par entreprise ICT Group"
+    # Branding collé à la bordure basse du cadre (à l'intérieur)
+    canvas.saveState()
+    y_brand = margin + 1.2 * mm
+    brand_url = f"https://{etab_url}" if etab_url and '.' in etab_url else "https://monecole.pro"
+    parts = [
+        ("Bulletin g\xe9n\xe9r\xe9 par ", 'Helvetica', 4.5, colors.black),
+        ("MonEkole", 'Helvetica-Bold', 4.5, colors.HexColor('#0000CC')),
+        (f" ({brand_url})", 'Helvetica', 4.5, colors.black),
+        (" et Authentifi\xe9 par ", 'Helvetica', 4.5, colors.black),
+        ("eSchoolRDC", 'Helvetica-Bold', 4.5, colors.HexColor('#0000CC')),
+        (" (https://eschool-rdc.pro)", 'Helvetica', 4.5, colors.black),
+    ]
+    total_w = sum(canvas.stringWidth(t, f, s) for t, f, s, _ in parts)
+    x_brand = (page_w - total_w) / 2
+    for text, font, size, color in parts:
+        canvas.setFont(font, size)
+        canvas.setFillColor(color)
+        canvas.drawString(x_brand, y_brand, text)
+        x_brand += canvas.stringWidth(text, font, size)
+    canvas.restoreState()
+    # QR code
+    qr_value = f"G\xe9n\xe9r\xe9 par  MonEkole App,ce Bulletin est de : {eleve.nom}{eleve.prenom} Con\xe7ue par entreprise ICT Group"
     qr_code = qr.QrCodeWidget(qr_value)
     bounds = qr_code.getBounds()
     qr_width = bounds[2] - bounds[0]
@@ -2215,11 +2232,6 @@ def draw_border(canvas, doc, eleve, margin, watermark_path=None, is_eschool=Fals
     d = Drawing(qr_size, qr_size, transform=[qr_size/qr_width, 0, 0, qr_size/qr_height, 0, 0])
     d.add(qr_code)
     canvas.saveState()
-    canvas.translate(180*mm, 5*mm)  
+    canvas.translate(180*mm, 5*mm)
     d.drawOn(canvas, 0, 0)
     canvas.restoreState()
-
-
-
-
-

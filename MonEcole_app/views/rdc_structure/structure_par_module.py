@@ -301,7 +301,7 @@ def recuperer_notes_par_classe_cycle_superieur(annee_id, campus_id, cycle_id, cl
 
 
 
-def draw_border__secondaire_rdc_without_qrcode (canvas, doc, eleve, margin, watermark_path=None, is_eschool=False):
+def draw_border__secondaire_rdc_without_qrcode (canvas, doc, eleve, margin, watermark_path=None, is_eschool=False, etab_url=''):
     canvas.saveState()
     
     canvas.setLineWidth(0.5) 
@@ -313,29 +313,59 @@ def draw_border__secondaire_rdc_without_qrcode (canvas, doc, eleve, margin, wate
     )
 
     canvas.restoreState()
+    page_w, page_h = A4
     
     # Watermark: armoirie du pays en filigrane au centre
     import os
     if watermark_path and os.path.exists(watermark_path):
         canvas.saveState()
         canvas.setFillAlpha(0.15)
-        page_w, page_h = A4
         wm_size = 140 * mm
         x = (page_w - wm_size) / 2
         y = (page_h - wm_size) / 2
         canvas.drawImage(watermark_path, x, y, width=wm_size, height=wm_size,
                          preserveAspectRatio=True, mask='auto')
         canvas.restoreState()
-    # Filigrane diagonal texte (au-dessus de l'armoire)
+    # Filigrane diagonal texte (dessiné AU-DESSUS de l'armoire)
     canvas.saveState()
-    page_w, page_h = A4
-    canvas.setFont('Helvetica-Bold', 38)
-    canvas.setFillColor(colors.Color(0.55, 0.55, 0.55))
-    canvas.setFillAlpha(0.09)
+    wm_text = "BULLETIN ORIGINAL" if is_eschool else "COPIE CONFORME"
+    diagonal = (page_w**2 + page_h**2) ** 0.5
+    target_width = diagonal * 0.40
+    wm_font_size = 45
+    wm_font = 'Helvetica-Bold'
+    canvas.setFont(wm_font, wm_font_size)
+    canvas.setFillColor(colors.HexColor('#4A6FA5'))
+    canvas.setFillAlpha(0.28)
     canvas.translate(page_w / 2, page_h / 2)
     canvas.rotate(45)
-    wm_text = "Bulletin ORIGINAL" if is_eschool else "Copie Conforme à l'Original"
-    canvas.drawCentredString(0, 0, wm_text)
+    char_widths = [canvas.stringWidth(c, wm_font, wm_font_size) for c in wm_text]
+    total_natural = sum(char_widths)
+    num_chars = len(wm_text)
+    extra_space = (target_width - total_natural) / max(num_chars - 1, 1) if num_chars > 1 else 0
+    x_start = -target_width / 2
+    for i, ch in enumerate(wm_text):
+        canvas.drawString(x_start, 0, ch)
+        x_start += char_widths[i] + (extra_space if i < num_chars - 1 else 0)
+    canvas.restoreState()
+    # Branding collé à la bordure basse du cadre
+    canvas.saveState()
+    y_brand = margin + 1.2 * mm
+    brand_url = f"https://{etab_url}" if etab_url and '.' in etab_url else "https://monecole.pro"
+    parts = [
+        ("Bulletin g\xe9n\xe9r\xe9 par ", 'Helvetica', 4.5, colors.black),
+        ("MonEkole", 'Helvetica-Bold', 4.5, colors.HexColor('#0000CC')),
+        (f" ({brand_url})", 'Helvetica', 4.5, colors.black),
+        (" et Authentifi\xe9 par ", 'Helvetica', 4.5, colors.black),
+        ("eSchoolRDC", 'Helvetica-Bold', 4.5, colors.HexColor('#0000CC')),
+        (" (https://eschool-rdc.pro)", 'Helvetica', 4.5, colors.black),
+    ]
+    total_w = sum(canvas.stringWidth(t, f, s) for t, f, s, _ in parts)
+    x_brand = (page_w - total_w) / 2
+    for text, font, size, color in parts:
+        canvas.setFont(font, size)
+        canvas.setFillColor(color)
+        canvas.drawString(x_brand, y_brand, text)
+        x_brand += canvas.stringWidth(text, font, size)
     canvas.restoreState()
 
 def generate_bulletin_superieur_secondLevel_rdc(request, eleve_id=103):
