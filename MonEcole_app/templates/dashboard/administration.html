@@ -3787,6 +3787,7 @@ function saveLocalisation(){
     const payload={ref_administrative:ref,nom_rue:nom_rue,numero_rue:numero_rue};
     if(window._geoLat&&window._geoLng){payload.latitude=window._geoLat;payload.longitude=window._geoLng;}
     fetch('/api/update-mon-etablissement/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken},body:JSON.stringify(payload)}).then(r=>r.json()).then(res=>{if(res.success){showToast('Localisation attachée à l\'école !','success');setTimeout(()=>location.reload(),600)}else{showToast(res.error||'Erreur.','error');btn.innerHTML=o;btn.disabled=false}}).catch(()=>{showToast('Erreur connexion.','error');btn.innerHTML=o;btn.disabled=false})
+}
 
 /* ===== GEOLOCALISATION POPUP MAP ===== */
 window._geoLat={{ etab.latitude|default:'null' }};
