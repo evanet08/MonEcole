@@ -293,7 +293,32 @@
 @media(max-width:1200px){.fiche-3col{grid-template-columns:1fr 1fr}.fiche-3col>.fiche-col:last-child{grid-column:1/-1}}
 @media(max-width:992px){.stat-grid{grid-template-columns:repeat(2,1fr)}.fiche-3col{grid-template-columns:1fr}}
 @media(max-width:576px){.stat-grid{grid-template-columns:1fr}.config-tabs{flex-wrap:wrap}.config-tab{flex:1;text-align:center;padding:8px 10px}}
+/* Geolocate Modal */
+.geo-modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:9999;display:none;align-items:center;justify-content:center}
+.geo-modal-overlay.show{display:flex}
+.geo-modal{width:720px;max-width:92vw;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.geo-modal-header{background:linear-gradient(135deg,#1e40af,#3b82f6);color:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center}
+.geo-modal-header h3{margin:0;font-size:.88rem;font-weight:700}
+.geo-modal-close{background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;opacity:.7;transition:opacity .2s}
+.geo-modal-close:hover{opacity:1}
+#geoMapContainer{height:400px;width:100%}
+.geo-modal-footer{padding:10px 20px;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;border-top:1px solid #e2e8f0}
+.geo-coords{font-size:.72rem;color:#64748b;font-family:monospace}
+.geo-coords strong{color:#1e293b}
+.geo-save-btn{background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;padding:8px 20px;border-radius:8px;font-weight:700;font-size:.78rem;cursor:pointer;transition:all .2s}
+.geo-save-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(5,150,105,.3)}
+.geo-save-btn:disabled{opacity:.5;cursor:not-allowed}
+.geo-detect-bar{padding:8px 20px;background:#fffbeb;border-bottom:1px solid #fde68a;display:none;font-size:.72rem;color:#92400e;align-items:center;gap:8px}
+.geo-detect-bar i{color:#f59e0b}
+.geo-detect-bar button{background:#f59e0b;color:#fff;border:none;padding:3px 12px;border-radius:6px;font-size:.68rem;font-weight:600;cursor:pointer}
+.btn-geolocate{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;border:1.5px solid #3b82f6;background:linear-gradient(135deg,#eff6ff,#dbeafe);color:#1d4ed8;font-size:.7rem;font-weight:600;cursor:pointer;transition:all .2s;margin-top:6px}
+.btn-geolocate:hover{background:linear-gradient(135deg,#dbeafe,#bfdbfe);transform:translateY(-1px);box-shadow:0 2px 8px rgba(59,130,246,.2)}
+.btn-geolocate i{font-size:.65rem}
+.geo-current{display:flex;align-items:center;gap:6px;padding:4px 8px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;font-size:.65rem;color:#166534;margin-top:4px}
+.geo-current i{color:#22c55e}
 </style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -452,6 +477,21 @@
                 <div class="fiche-field"><span class="fiche-label"><i class="fas fa-link fa-xs"></i> Réf. Administrative</span><div class="fiche-value" data-readonly="true" style="font-family:monospace;font-size:.65rem;color:#6366f1">{{ etab.ref_administrative }}</div></div>
                 {% endif %}
             </div>
+            <!-- Geolocalisation -->
+            <button class="btn-geolocate" onclick="openGeoModal()">
+                <i class="fas fa-map-marked-alt"></i> 📍 Géolocaliser l'établissement
+            </button>
+            {% if etab.latitude and etab.longitude %}
+            <div class="geo-current" id="geoCurrentDisplay">
+                <i class="fas fa-check-circle"></i>
+                <span>GPS: {{ etab.latitude }}, {{ etab.longitude }}</span>
+            </div>
+            {% else %}
+            <div class="geo-current" id="geoCurrentDisplay" style="display:none;background:#fefce8;border-color:#fde68a;color:#92400e">
+                <i class="fas fa-crosshairs" style="color:#f59e0b"></i>
+                <span id="geoCurrentText">—</span>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -3744,7 +3784,132 @@ function saveLocalisation(){
     if(!ref){showToast('Complétez tous les niveaux administratifs.','error');return}
     const btn=document.getElementById('btnSaveLocalisation'),o=btn.innerHTML;
     btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> ...';btn.disabled=true;
-    fetch('/api/update-mon-etablissement/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken},body:JSON.stringify({ref_administrative:ref,nom_rue:nom_rue,numero_rue:numero_rue})}).then(r=>r.json()).then(res=>{if(res.success){showToast('Localisation attachée à l\'école !','success');setTimeout(()=>location.reload(),600)}else{showToast(res.error||'Erreur.','error');btn.innerHTML=o;btn.disabled=false}}).catch(()=>{showToast('Erreur connexion.','error');btn.innerHTML=o;btn.disabled=false})}
+    const payload={ref_administrative:ref,nom_rue:nom_rue,numero_rue:numero_rue};
+    if(window._geoLat&&window._geoLng){payload.latitude=window._geoLat;payload.longitude=window._geoLng;}
+    fetch('/api/update-mon-etablissement/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken},body:JSON.stringify(payload)}).then(r=>r.json()).then(res=>{if(res.success){showToast('Localisation attachée à l\'école !','success');setTimeout(()=>location.reload(),600)}else{showToast(res.error||'Erreur.','error');btn.innerHTML=o;btn.disabled=false}}).catch(()=>{showToast('Erreur connexion.','error');btn.innerHTML=o;btn.disabled=false})
+
+/* ===== GEOLOCALISATION POPUP MAP ===== */
+window._geoLat={{ etab.latitude|default:'null' }};
+window._geoLng={{ etab.longitude|default:'null' }};
+let _geoMap=null,_geoMarker=null;
+
+function openGeoModal(){
+    let ov=document.getElementById('geoModalOverlay');
+    if(!ov){
+        ov=document.createElement('div');ov.id='geoModalOverlay';ov.className='geo-modal-overlay';
+        ov.innerHTML=`<div class="geo-modal">
+            <div class="geo-modal-header"><h3><i class="fas fa-map-marked-alt" style="margin-right:8px"></i>Géolocaliser l'établissement</h3><button class="geo-modal-close" onclick="closeGeoModal()">&times;</button></div>
+            <div class="geo-detect-bar" id="geoDetectBar"><i class="fas fa-magic"></i><span id="geoDetectMsg">Position détectée automatiquement</span><button onclick="acceptGeoDetection()">✓ Accepter</button></div>
+            <div id="geoMapContainer"></div>
+            <div class="geo-modal-footer">
+                <div class="geo-coords">Coordonnées: <strong id="geoDispLat">—</strong>, <strong id="geoDispLng">—</strong></div>
+                <div style="display:flex;gap:8px"><button class="btn-edit-mode cancel" onclick="closeGeoModal()">Annuler</button><button class="geo-save-btn" id="geoSaveBtn" onclick="saveGeoLocation()" disabled><i class="fas fa-save"></i> Enregistrer la position</button></div>
+            </div>
+        </div>`;
+        document.body.appendChild(ov);
+    }
+    ov.classList.add('show');
+    setTimeout(()=>initGeoMap(),200);
+}
+function closeGeoModal(){document.getElementById('geoModalOverlay').classList.remove('show');}
+
+function initGeoMap(){
+    if(_geoMap){_geoMap.invalidateSize();return;}
+    const initLat=window._geoLat||(-2.8),initLng=window._geoLng||(25),initZoom=window._geoLat?13:6;
+    _geoMap=L.map('geoMapContainer',{scrollWheelZoom:true,maxBounds:L.latLngBounds([[-14,11],[6,32]]).pad(0.05),maxBoundsViscosity:1,minZoom:5,maxZoom:18}).setView([initLat,initLng],initZoom);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© CARTO',maxZoom:18,subdomains:'abcd'}).addTo(_geoMap);
+    // Load province boundaries
+    fetch('https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/COD/ADM1/geoBoundaries-COD-ADM1_simplified.geojson')
+    .then(r=>r.json()).then(g=>{
+        L.geoJSON(g,{style:{color:'#3b82f6',weight:1.5,fillColor:'#3b82f6',fillOpacity:0.04,opacity:0.5},
+            onEachFeature:(f,layer)=>layer.bindTooltip(f.properties.shapeName||f.properties.NAME_1||'',{permanent:false,direction:'center',className:'province-tooltip'})
+        }).addTo(_geoMap);
+        // Try to zoom to matched province
+        tryZoomToProvince(g);
+    }).catch(e=>console.warn('ADM1 geo:',e));
+    // Existing marker
+    if(window._geoLat&&window._geoLng){
+        _geoMarker=L.marker([window._geoLat,window._geoLng],{draggable:true}).addTo(_geoMap);
+        _geoMarker.on('dragend',onMarkerDrag);
+        updateGeoDisplay(window._geoLat,window._geoLng);
+    }
+    // Click to place pin
+    _geoMap.on('click',function(e){
+        const lat=Math.round(e.latlng.lat*1e7)/1e7,lng=Math.round(e.latlng.lng*1e7)/1e7;
+        if(_geoMarker)_geoMarker.setLatLng([lat,lng]);
+        else{_geoMarker=L.marker([lat,lng],{draggable:true}).addTo(_geoMap);_geoMarker.on('dragend',onMarkerDrag);}
+        updateGeoDisplay(lat,lng);
+    });
+    // Try browser geolocation for suggestion
+    tryBrowserGeo();
+}
+function onMarkerDrag(e){
+    const p=e.target.getLatLng();
+    updateGeoDisplay(Math.round(p.lat*1e7)/1e7,Math.round(p.lng*1e7)/1e7);
+}
+function updateGeoDisplay(lat,lng){
+    window._geoLat=lat;window._geoLng=lng;
+    document.getElementById('geoDispLat').textContent=lat;
+    document.getElementById('geoDispLng').textContent=lng;
+    document.getElementById('geoSaveBtn').disabled=false;
+}
+function tryZoomToProvince(geojson){
+    // Get selected province name from admin cascade
+    const levels=document.querySelectorAll('#adminCascadeContainer .admin-level-locked .locked-check');
+    if(!levels.length)return;
+    const firstLocked=document.querySelector('#adminCascadeContainer .admin-level-locked');
+    if(!firstLocked)return;
+    const provName=firstLocked.textContent.replace(/[✓×]/g,'').trim();
+    if(!provName)return;
+    // Find matching feature
+    const pn=provName.toLowerCase();
+    for(const f of (geojson.features||[])){
+        const fn=(f.properties.shapeName||f.properties.NAME_1||'').toLowerCase();
+        if(fn.includes(pn)||pn.includes(fn)){
+            const bounds=L.geoJSON(f).getBounds();
+            _geoMap.fitBounds(bounds,{padding:[40,40],maxZoom:10});
+            return;
+        }
+    }
+}
+function tryBrowserGeo(){
+    if(!navigator.geolocation||window._geoLat)return;
+    navigator.geolocation.getCurrentPosition(pos=>{
+        const lat=Math.round(pos.coords.latitude*1e7)/1e7,lng=Math.round(pos.coords.longitude*1e7)/1e7;
+        // Only suggest if within RDC bounds
+        if(lat>=-14&&lat<=6&&lng>=11&&lng<=32){
+            const bar=document.getElementById('geoDetectBar');
+            document.getElementById('geoDetectMsg').textContent=`Position détectée: ${lat}, ${lng}`;
+            bar.style.display='flex';
+            bar.dataset.lat=lat;bar.dataset.lng=lng;
+        }
+    },()=>{},{enableHighAccuracy:true,timeout:5000});
+}
+function acceptGeoDetection(){
+    const bar=document.getElementById('geoDetectBar');
+    const lat=parseFloat(bar.dataset.lat),lng=parseFloat(bar.dataset.lng);
+    if(_geoMarker)_geoMarker.setLatLng([lat,lng]);
+    else{_geoMarker=L.marker([lat,lng],{draggable:true}).addTo(_geoMap);_geoMarker.on('dragend',onMarkerDrag);}
+    _geoMap.flyTo([lat,lng],15,{duration:.5});
+    updateGeoDisplay(lat,lng);
+    bar.style.display='none';
+}
+function saveGeoLocation(){
+    if(!window._geoLat||!window._geoLng){showToast('Placez un pin sur la carte.','error');return;}
+    const btn=document.getElementById('geoSaveBtn'),o=btn.innerHTML;
+    btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> ...';btn.disabled=true;
+    fetch('/api/update-mon-etablissement/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken},
+        body:JSON.stringify({latitude:window._geoLat,longitude:window._geoLng})
+    }).then(r=>r.json()).then(res=>{
+        if(res.success){
+            showToast('Position GPS enregistrée !','success');
+            closeGeoModal();
+            const d=document.getElementById('geoCurrentDisplay');
+            d.style.display='flex';d.style.background='#f0fdf4';d.style.borderColor='#86efac';d.style.color='#166534';
+            d.innerHTML=`<i class="fas fa-check-circle" style="color:#22c55e"></i><span>GPS: ${window._geoLat}, ${window._geoLng}</span>`;
+        }else{showToast(res.error||'Erreur.','error');btn.innerHTML=o;btn.disabled=false;}
+    }).catch(()=>{showToast('Erreur connexion.','error');btn.innerHTML=o;btn.disabled=false;});
+}
 
 /* ===== LOGO & DOCUMENT UPLOADS ===== */
 let ETAB_DOC_AGREMENT_URL = '{{ etab.document_agrement|default:"" }}';

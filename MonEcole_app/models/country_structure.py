@@ -452,6 +452,8 @@ class Etablissement(models.Model):
     ref_administrative = models.CharField(max_length=500, blank=True, null=True)
     nom_rue = models.CharField(max_length=255, blank=True, null=True)
     numero_rue = models.CharField(max_length=50, blank=True, null=True)
+    latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
     logo_ecole = models.CharField(max_length=255, blank=True, null=True)
     code = models.CharField(max_length=500, blank=True)
     is_calendar_synched = models.BooleanField(default=True)

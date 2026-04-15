@@ -6918,6 +6918,8 @@ def dashboard_etablissement_view(request):
         'ref_administrative': etab.ref_administrative or '',
         'nom_rue': etab.nom_rue or '',
         'numero_rue': etab.numero_rue or '',
+        'latitude': float(etab.latitude) if etab.latitude else None,
+        'longitude': float(etab.longitude) if etab.longitude else None,
         'annee_creation': etab.annee_creation or '',
         'annee_agrement': etab.annee_agrement or '',
         'document_agrement': etab.document_agrement or '',
@@ -7272,6 +7274,16 @@ def update_mon_etablissement(request):
         if 'id_regime' in data:
             etab.id_regime = int(data['id_regime']) if data['id_regime'] else None
             updated_fields.append('id_regime')
+
+        # GPS coordinates
+        if 'latitude' in data:
+            from decimal import Decimal
+            etab.latitude = Decimal(str(data['latitude'])) if data['latitude'] is not None else None
+            updated_fields.append('latitude')
+        if 'longitude' in data:
+            from decimal import Decimal
+            etab.longitude = Decimal(str(data['longitude'])) if data['longitude'] is not None else None
+            updated_fields.append('longitude')
 
         if updated_fields:
             etab.save()
