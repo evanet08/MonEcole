@@ -3794,13 +3794,28 @@ window._geoLat={{ etab.latitude|default:'null' }};
 window._geoLng={{ etab.longitude|default:'null' }};
 let _geoMap=null,_geoMarker=null;
 
+/* Read admin cascade locked values */
+function getAdminLevels(){
+    const levels=[];
+    document.querySelectorAll('#adminCascadeContainer .admin-level').forEach(lv=>{
+        const locked=lv.querySelector('.admin-level-locked');
+        if(locked){
+            const header=lv.querySelector('.admin-level-header');
+            const typeName=header?header.textContent.trim():'';
+            const name=locked.querySelector('.locked-check')?locked.textContent.replace(/[✓×]/g,'').trim():'';
+            if(name) levels.push({type:typeName,name:name});
+        }
+    });
+    return levels;
+}
+
 function openGeoModal(){
     let ov=document.getElementById('geoModalOverlay');
     if(!ov){
         ov=document.createElement('div');ov.id='geoModalOverlay';ov.className='geo-modal-overlay';
         ov.innerHTML=`<div class="geo-modal">
             <div class="geo-modal-header"><h3><i class="fas fa-map-marked-alt" style="margin-right:8px"></i>Géolocaliser l'établissement</h3><button class="geo-modal-close" onclick="closeGeoModal()">&times;</button></div>
-            <div class="geo-detect-bar" id="geoDetectBar"><i class="fas fa-magic"></i><span id="geoDetectMsg">Position détectée automatiquement</span><button onclick="acceptGeoDetection()">✓ Accepter</button></div>
+            <div class="geo-detect-bar" id="geoDetectBar"><i class="fas fa-magic"></i><span id="geoDetectMsg">Position détectée</span><button onclick="acceptGeoDetection()">✓ Accepter</button><button onclick="document.getElementById('geoDetectBar').style.display='none'" style="background:#e2e8f0;color:#475569;margin-left:4px">✕ Ignorer</button></div>
             <div id="geoMapContainer"></div>
             <div class="geo-modal-footer">
                 <div class="geo-coords">Coordonnées: <strong id="geoDispLat">—</strong>, <strong id="geoDispLng">—</strong></div>
@@ -3815,8 +3830,8 @@ function openGeoModal(){
 function closeGeoModal(){document.getElementById('geoModalOverlay').classList.remove('show');}
 
 function initGeoMap(){
-    if(_geoMap){_geoMap.invalidateSize();return;}
-    const initLat=window._geoLat||(-2.8),initLng=window._geoLng||(25),initZoom=window._geoLat?13:6;
+    if(_geoMap){_geoMap.invalidateSize();smartGeocode();return;}
+    const initLat=window._geoLat||(-2.8),initLng=window._geoLng||(25),initZoom=window._geoLat?14:6;
     _geoMap=L.map('geoMapContainer',{scrollWheelZoom:true,maxBounds:L.latLngBounds([[-14,11],[6,32]]).pad(0.05),maxBoundsViscosity:1,minZoom:5,maxZoom:18}).setView([initLat,initLng],initZoom);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© CARTO',maxZoom:18,subdomains:'abcd'}).addTo(_geoMap);
     // Load province boundaries
@@ -3825,8 +3840,6 @@ function initGeoMap(){
         L.geoJSON(g,{style:{color:'#3b82f6',weight:1.5,fillColor:'#3b82f6',fillOpacity:0.04,opacity:0.5},
             onEachFeature:(f,layer)=>layer.bindTooltip(f.properties.shapeName||f.properties.NAME_1||'',{permanent:false,direction:'center',className:'province-tooltip'})
         }).addTo(_geoMap);
-        // Try to zoom to matched province
-        tryZoomToProvince(g);
     }).catch(e=>console.warn('ADM1 geo:',e));
     // Existing marker
     if(window._geoLat&&window._geoLng){
@@ -3841,9 +3854,73 @@ function initGeoMap(){
         else{_geoMarker=L.marker([lat,lng],{draggable:true}).addTo(_geoMap);_geoMarker.on('dragend',onMarkerDrag);}
         updateGeoDisplay(lat,lng);
     });
-    // Try browser geolocation for suggestion
-    tryBrowserGeo();
+    // Smart geocode from admin cascade
+    smartGeocode();
 }
+
+/* ═══ SMART GEOCODING with Nominatim ═══ */
+async function smartGeocode(){
+    if(window._geoLat&&window._geoLng) return; // Already has coords, don't override
+    const levels=getAdminLevels();
+    if(!levels.length) return;
+    const rue=document.getElementById('inputNomRue')?.value?.trim()||'';
+    const num=document.getElementById('inputNumeroRue')?.value?.trim()||'';
+
+    // Build queries from most specific to least specific
+    const queries=[];
+    const country='Democratic Republic of the Congo';
+    const province=levels[0]?.name||'';
+    const ville=levels[1]?.name||'';
+    const commune=levels[2]?.name||'';
+    const avenue=levels[3]?.name||'';
+
+    // Most specific first: full address
+    if(rue&&num&&commune) queries.push(`${num} ${rue}, ${commune}, ${ville}, ${province}, ${country}`);
+    if(rue&&commune) queries.push(`${rue}, ${commune}, ${ville}, ${province}, ${country}`);
+    if(avenue&&commune) queries.push(`${avenue}, ${commune}, ${ville}, ${province}, ${country}`);
+    if(commune&&ville) queries.push(`${commune}, ${ville}, ${province}, ${country}`);
+    if(ville) queries.push(`${ville}, ${province}, ${country}`);
+    if(province) queries.push(`${province}, ${country}`);
+
+    let bestResult=null, bestZoom=6, bestQuery='';
+    for(let i=0;i<queries.length;i++){
+        const q=queries[i];
+        try{
+            const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=CD`);
+            const data=await r.json();
+            if(data.length>0){
+                bestResult=data[0];
+                bestQuery=q;
+                // Zoom depends on specificity level
+                if(i<=2) bestZoom=16;      // rue/avenue level
+                else if(i===3) bestZoom=14; // commune
+                else if(i===4) bestZoom=12; // ville
+                else bestZoom=9;            // province
+                break;
+            }
+        }catch(e){console.warn('Nominatim error:',e);}
+    }
+
+    if(!bestResult) return;
+
+    const lat=Math.round(parseFloat(bestResult.lat)*1e7)/1e7;
+    const lng=Math.round(parseFloat(bestResult.lon)*1e7)/1e7;
+
+    // If very precise (rue/avenue level), propose to validate
+    if(bestZoom>=14){
+        const bar=document.getElementById('geoDetectBar');
+        const label=bestZoom>=16?'📍 Adresse détectée':'📍 Zone détectée';
+        document.getElementById('geoDetectMsg').innerHTML=`${label}: <strong>${bestQuery.split(',')[0]}</strong> (${lat}, ${lng})`;
+        bar.style.display='flex';
+        bar.dataset.lat=lat;bar.dataset.lng=lng;
+        // Also zoom the map there
+        _geoMap.flyTo([lat,lng],bestZoom,{duration:.6});
+    } else {
+        // Just zoom to the area
+        _geoMap.flyTo([lat,lng],bestZoom,{duration:.6});
+    }
+}
+
 function onMarkerDrag(e){
     const p=e.target.getLatLng();
     updateGeoDisplay(Math.round(p.lat*1e7)/1e7,Math.round(p.lng*1e7)/1e7);
@@ -3854,44 +3931,12 @@ function updateGeoDisplay(lat,lng){
     document.getElementById('geoDispLng').textContent=lng;
     document.getElementById('geoSaveBtn').disabled=false;
 }
-function tryZoomToProvince(geojson){
-    // Get selected province name from admin cascade
-    const levels=document.querySelectorAll('#adminCascadeContainer .admin-level-locked .locked-check');
-    if(!levels.length)return;
-    const firstLocked=document.querySelector('#adminCascadeContainer .admin-level-locked');
-    if(!firstLocked)return;
-    const provName=firstLocked.textContent.replace(/[✓×]/g,'').trim();
-    if(!provName)return;
-    // Find matching feature
-    const pn=provName.toLowerCase();
-    for(const f of (geojson.features||[])){
-        const fn=(f.properties.shapeName||f.properties.NAME_1||'').toLowerCase();
-        if(fn.includes(pn)||pn.includes(fn)){
-            const bounds=L.geoJSON(f).getBounds();
-            _geoMap.fitBounds(bounds,{padding:[40,40],maxZoom:10});
-            return;
-        }
-    }
-}
-function tryBrowserGeo(){
-    if(!navigator.geolocation||window._geoLat)return;
-    navigator.geolocation.getCurrentPosition(pos=>{
-        const lat=Math.round(pos.coords.latitude*1e7)/1e7,lng=Math.round(pos.coords.longitude*1e7)/1e7;
-        // Only suggest if within RDC bounds
-        if(lat>=-14&&lat<=6&&lng>=11&&lng<=32){
-            const bar=document.getElementById('geoDetectBar');
-            document.getElementById('geoDetectMsg').textContent=`Position détectée: ${lat}, ${lng}`;
-            bar.style.display='flex';
-            bar.dataset.lat=lat;bar.dataset.lng=lng;
-        }
-    },()=>{},{enableHighAccuracy:true,timeout:5000});
-}
 function acceptGeoDetection(){
     const bar=document.getElementById('geoDetectBar');
     const lat=parseFloat(bar.dataset.lat),lng=parseFloat(bar.dataset.lng);
     if(_geoMarker)_geoMarker.setLatLng([lat,lng]);
     else{_geoMarker=L.marker([lat,lng],{draggable:true}).addTo(_geoMap);_geoMarker.on('dragend',onMarkerDrag);}
-    _geoMap.flyTo([lat,lng],15,{duration:.5});
+    _geoMap.flyTo([lat,lng],16,{duration:.5});
     updateGeoDisplay(lat,lng);
     bar.style.display='none';
 }
