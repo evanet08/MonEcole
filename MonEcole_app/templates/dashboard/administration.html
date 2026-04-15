@@ -3861,41 +3861,50 @@ function initGeoMap(){
 /* ═══ SMART GEOCODING with Nominatim ═══ */
 async function smartGeocode(){
     if(window._geoLat&&window._geoLng) return; // Already has coords, don't override
-    const levels=getAdminLevels();
+    const levels=getAdminLevels(); // [{type:'Province',name:'Sud-Kivu'}, {type:'Ville',name:'Bukavu'}, ...]
     if(!levels.length) return;
     const rue=document.getElementById('inputNomRue')?.value?.trim()||'';
     const num=document.getElementById('inputNumeroRue')?.value?.trim()||'';
 
+    // Detect country from PAYS context (dynamic)
+    const paysEl=document.querySelector('[data-pays-nom]');
+    const country=paysEl?paysEl.dataset.paysNom:'{{ etab.pays_nom|default:"Congo" }}';
+    const countryLong=country.includes('Congo')?'Democratic Republic of the Congo':country;
+
+    // Build admin chain string: [deepest, ..., shallowest]
+    // e.g. ["Muhumba1", "Ibanda", "Bukavu", "Sud-Kivu"]
+    const adminNames=levels.map(l=>l.name).reverse(); // deepest first
+
     // Build queries from most specific to least specific
     const queries=[];
-    const country='Democratic Republic of the Congo';
-    const province=levels[0]?.name||'';
-    const ville=levels[1]?.name||'';
-    const commune=levels[2]?.name||'';
-    const avenue=levels[3]?.name||'';
+    const suffix=`, ${countryLong}`;
 
-    // Most specific first: full address
-    if(rue&&num&&commune) queries.push(`${num} ${rue}, ${commune}, ${ville}, ${province}, ${country}`);
-    if(rue&&commune) queries.push(`${rue}, ${commune}, ${ville}, ${province}, ${country}`);
-    if(avenue&&commune) queries.push(`${avenue}, ${commune}, ${ville}, ${province}, ${country}`);
-    if(commune&&ville) queries.push(`${commune}, ${ville}, ${province}, ${country}`);
-    if(ville) queries.push(`${ville}, ${province}, ${country}`);
-    if(province) queries.push(`${province}, ${country}`);
+    // 1. Full address: num + rue + all admin levels
+    if(rue&&num) queries.push({q:`${num} ${rue}, ${adminNames.join(', ')}${suffix}`, depth:'rue'});
+    // 2. Rue + all admin levels
+    if(rue) queries.push({q:`${rue}, ${adminNames.join(', ')}${suffix}`, depth:'rue'});
+    // 3. Each admin level from deepest to shallowest
+    for(let i=0;i<adminNames.length;i++){
+        const chain=adminNames.slice(i).join(', ');
+        const depthFromBottom=adminNames.length-i; // how many levels from bottom
+        queries.push({q:`${chain}${suffix}`, depth:depthFromBottom<=1?'region':depthFromBottom<=2?'city':'local'});
+    }
 
-    let bestResult=null, bestZoom=6, bestQuery='';
-    for(let i=0;i<queries.length;i++){
-        const q=queries[i];
+    // Zoom mapping based on depth
+    const zoomMap={rue:17, local:15, city:12, region:9};
+
+    const countryCode='{{ etab.pays_sigle|default:"CD" }}';
+
+    let bestResult=null, bestZoom=6, bestQuery='', bestDepth='';
+    for(const entry of queries){
         try{
-            const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=CD`);
+            const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(entry.q)}&limit=1&countrycodes=${countryCode}`);
             const data=await r.json();
             if(data.length>0){
                 bestResult=data[0];
-                bestQuery=q;
-                // Zoom depends on specificity level
-                if(i<=2) bestZoom=16;      // rue/avenue level
-                else if(i===3) bestZoom=14; // commune
-                else if(i===4) bestZoom=12; // ville
-                else bestZoom=9;            // province
+                bestQuery=entry.q;
+                bestZoom=zoomMap[entry.depth]||10;
+                bestDepth=entry.depth;
                 break;
             }
         }catch(e){console.warn('Nominatim error:',e);}
@@ -3906,8 +3915,8 @@ async function smartGeocode(){
     const lat=Math.round(parseFloat(bestResult.lat)*1e7)/1e7;
     const lng=Math.round(parseFloat(bestResult.lon)*1e7)/1e7;
 
-    // If very precise (rue/avenue level), propose to validate
-    if(bestZoom>=14){
+    // If precise enough (local/rue), propose to validate
+    if(bestDepth==='rue'||bestDepth==='local'){
         const bar=document.getElementById('geoDetectBar');
         const label=bestZoom>=16?'📍 Adresse détectée':'📍 Zone détectée';
         document.getElementById('geoDetectMsg').innerHTML=`${label}: <strong>${bestQuery.split(',')[0]}</strong> (${lat}, ${lng})`;
