@@ -478,7 +478,7 @@
                 {% endif %}
             </div>
             <!-- Geolocalisation -->
-            <button class="btn-geolocate" onclick="openGeoModal()">
+            <button class="btn-geolocate" id="btnGeolocate" onclick="openGeoModal()" disabled style="opacity:.4;cursor:not-allowed">
                 <i class="fas fa-map-marked-alt"></i> 📍 Géolocaliser l'établissement
             </button>
             {% if etab.latitude and etab.longitude %}
@@ -1184,6 +1184,7 @@ function initAdminCascade(){
 
     // Show rue if all levels filled
     checkRueVisibility();
+    checkGeoButton();
     // Init rue autocomplete
     initRueAutocomplete();
 
@@ -1375,6 +1376,7 @@ function selectItem(ordre,id,nom,code){
         if(nextInp){nextInp.disabled=false;nextInp.focus()}
     }
     checkRueVisibility();
+    checkGeoButton();
     updateRefAdministrative();
 }
 
@@ -1387,6 +1389,7 @@ function unlockLevel(ordre){
     if(inp){inp.style.display='';inp.value='';inp.disabled=false;inp.focus()}
     clearLevelsAfter(ordre);
     checkRueVisibility();
+    checkGeoButton();
     updateRefAdministrative();
 }
 
@@ -1415,6 +1418,14 @@ function checkRueVisibility(){
     const allFilled=ADMIN_TYPES.every(t=>adminState.locked[t.ordre]);
     const rueWrap=document.getElementById('adminRueWrap');
     if(rueWrap)rueWrap.style.display=allFilled?'':'none';
+}
+function checkGeoButton(){
+    const btn=document.getElementById('btnGeolocate');
+    if(!btn)return;
+    const allFilled=ADMIN_TYPES.every(t=>adminState.locked[t.ordre]);
+    btn.disabled=!allFilled;
+    btn.style.opacity=allFilled?'1':'.4';
+    btn.style.cursor=allFilled?'pointer':'not-allowed';
 }
 
 /* ===== RUE AUTOCOMPLETE ===== */
