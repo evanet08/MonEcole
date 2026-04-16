@@ -33,6 +33,7 @@ class Eleve(models.Model):
     code_secret_eleve = models.CharField(max_length=250,null=True,blank=True)
     numero_serie = models.CharField(max_length=100, null=True, blank=True)
     id_parent = models.IntegerField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
 
     def __str__(self):
         return f'{self.nom} {self.prenom}'
@@ -63,6 +64,7 @@ class Eleve_inscription(models.Model):
     status = models.BooleanField(default=True)
     isDelegue = models.BooleanField(default=False)
     id_etablissement = models.IntegerField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
 
     def __str__(self):
         return f'{self.id_eleve.nom} {self.id_eleve.prenom}'
@@ -79,6 +81,7 @@ class Eleve_note_type(models.Model):
     type = models.CharField(max_length=250,null=False,choices=type_name)
     sigle = models.CharField(max_length=50,null=False,choices=sigle_name)
     date = models.DateField(auto_now_add=True)
+    id_pays = models.IntegerField(default=2)
     
     def save(self, *args, **kwargs):
         if self.type and self.type in TYPE_MAPPING:
@@ -121,6 +124,7 @@ class Eleve_note(models.Model):
     note_repechage = models.DecimalField(decimal_places=2, max_digits=5, null=True, blank=True)
     id_evaluation = models.ForeignKey('Evaluation', on_delete=models.PROTECT, null=False)
     id_etablissement = models.IntegerField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
 
     def __str__(self):
         return f'{self.id_eleve.nom} {self.id_eleve.prenom}-{self.id_cours.cours}'
@@ -153,6 +157,7 @@ class Eleve_conduite(models.Model):
                                    db_constraint=False)
     date_enregistrement = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
 
     def __str__(self):
         return f'{self.id_eleve.nom} {self.id_eleve.prenom}'

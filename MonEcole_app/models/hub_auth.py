@@ -40,6 +40,7 @@ class AdminUser(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_login = models.DateTimeField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = 'admin_users'
@@ -106,6 +107,7 @@ class OTPCode(models.Model):
     attempts = models.PositiveIntegerField(default=0)
     used = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = 'otp_codes'

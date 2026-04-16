@@ -4,6 +4,7 @@ from django.db import models
 class Profession(models.Model):
     id_profession = models.AutoField(primary_key=True)
     nom = models.CharField(max_length=255)
+    id_pays = models.IntegerField(default=2)
 
     def __str__(self):
         return self.nom
@@ -36,6 +37,7 @@ class Parent(models.Model):
         db_column='id_profession_mere', related_name='parents_mere'
     )
     mere_en_vie = models.BooleanField(default=True)
+    id_pays = models.IntegerField(default=2)
 
     def __str__(self):
         parts = []

@@ -504,7 +504,6 @@ def _get_dashboard_context(request):
         'gestionnaire_telephone': etab.gestionnaire.telephone if etab.gestionnaire and hasattr(etab.gestionnaire, 'telephone') else '',
         'code': etab.code,
         'pays_nom': pays.nom,
-        'pays_sigle': pays.sigle,
         'pays_id': pays.id_pays,
         'ref_administrative': getattr(etab, 'ref_administrative', '') or '',
         'nom_rue': getattr(etab, 'nom_rue', '') or '',

@@ -4,6 +4,7 @@ from django.db import models
 class VariableCategorie(models.Model):
     id_variable_categorie = models.AutoField(primary_key=True)
     nom = models.CharField(max_length=200,null=False)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = "recouvrment_variable_categorie"
@@ -17,6 +18,7 @@ class Variable(models.Model):
     variable = models.CharField(max_length=200,null=False)
     id_variable_categorie = models.ForeignKey('VariableCategorie',on_delete=models.PROTECT,null=False)
     estObligatoire = models.BooleanField(default=False)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = "recouvrment_variable"
@@ -39,6 +41,7 @@ class VariableDatebutoire(models.Model):
                                 null=True, blank=True, db_column='section_id',
                                 db_constraint=False)
     date_butoire = models.DateField()
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = "recouvrment_variable_datebutoire"
@@ -62,6 +65,7 @@ class VariableDerogation(models.Model):
                                 db_constraint=False)
     id_variable = models.ForeignKey(Variable,on_delete=models.PROTECT,null=False)
     date_derogation = models.DateField()
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = "recouvrment_variable_derogation"
@@ -84,6 +88,7 @@ class VariablePrix(models.Model):
     section = models.ForeignKey('MonEcole_app.Section', on_delete=models.SET_NULL,
                                 null=True, blank=True, db_column='section_id',
                                 db_constraint=False)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = "recouvrment_variable_prix"
@@ -96,6 +101,7 @@ class Banque(models.Model):
     id_banque = models.AutoField(primary_key=True)
     banque = models.CharField(max_length=200,null=False)
     sigle = models.CharField(max_length=120,null=True,blank=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = "recouvrment_banque"
@@ -108,6 +114,7 @@ class Compte(models.Model):
     id_compte = models.AutoField(primary_key=True)
     compte = models.CharField(max_length=200,null=False)
     id_banque = models.ForeignKey(Banque,on_delete=models.PROTECT,null=False)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = "recouvrment_compte"

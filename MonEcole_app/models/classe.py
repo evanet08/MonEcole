@@ -37,6 +37,7 @@ class Classe(models.Model):
                               db_column='cycle_id', null=True,
                               related_name='classes_hub')
     ordre = models.PositiveIntegerField(default=1)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = "classes"
@@ -71,6 +72,7 @@ class Classe_deliberation(models.Model):
     showsResultsEnOrdre = models.BooleanField(default=False)
     date_creation = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = "classe_deliberation"
@@ -96,6 +98,7 @@ class Responsable_classe(models.Model):
     id_personnel = models.ForeignKey("Personnel", on_delete=models.PROTECT, null=False)
     date_creation = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = "responsable_classe"

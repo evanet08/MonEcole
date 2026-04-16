@@ -126,13 +126,13 @@ def get_pays_data(request):
     sys.stderr.write(f"DEBUG STDERR: get_pays_data reached for path: {request.path}\n")
     logger = logging.getLogger(__name__)
     try:
-        sigle = request.GET.get('sigle')
+        id_pays = request.GET.get('id_pays')
         nom = request.GET.get('nom')
-        logger.debug(f"DEBUG: get_pays_data called with sigle={sigle}, nom={nom}")
+        logger.debug(f"DEBUG: get_pays_data called with id_pays={id_pays}, nom={nom}")
         
         pays = None
-        if sigle:
-            pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        if id_pays:
+            pays = Pays.objects.filter(id_pays=id_pays).first()
         elif nom:
             pays = Pays.objects.filter(nom__iexact=nom).first()
             
@@ -140,7 +140,7 @@ def get_pays_data(request):
             logger.debug("DEBUG: Pays not found")
             return JsonResponse({
                 'exists': False,
-                'pays': {'nom': nom, 'sigle': sigle, 'nLevelsPedagogiques': 0, 'nLevelsAdministratifs': 0},
+                'pays': {'nom': nom, 'id_pays': None, 'nLevelsPedagogiques': 0, 'nLevelsAdministratifs': 0},
                 'structures_pedagogiques': [],
                 'structures_administratives': [],
             })
@@ -199,7 +199,7 @@ def get_pays_data(request):
     except Pays.DoesNotExist:
         return JsonResponse({
             'exists': False,
-            'pays': {'nom': nom, 'sigle': sigle, 'nLevelsPedagogiques': 0, 'nLevelsAdministratifs': 0},
+            'pays': {'nom': nom, 'id_pays': None, 'nLevelsPedagogiques': 0, 'nLevelsAdministratifs': 0},
             'structures_pedagogiques': [],
             'structures_administratives': [],
         })
@@ -219,8 +219,9 @@ def save_pays(request):
     """API pour créer ou mettre à jour un pays."""
     try:
         data = json.loads(request.body)
-        sigle = data.get('sigle')
+        id_pays = data.get('id_pays')
         nom = data.get('nom')
+        sigle_value = data.get('sigle', '').upper()  # sigle reste un champ de données, pas un identifiant
         
         # Conversion robuste vers entier
         try:
@@ -229,20 +230,22 @@ def save_pays(request):
         except (ValueError, TypeError):
             return JsonResponse({'success': False, 'error': 'Les nombres de niveaux doivent être des entiers.'}, status=400)
         
-        if not sigle or not nom:
-            return JsonResponse({'success': False, 'error': 'Sigle et nom requis'}, status=400)
+        if not nom:
+            return JsonResponse({'success': False, 'error': 'Nom requis'}, status=400)
         
-        # Try to find existing by sigle (case insensitive)
-        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        # Lookup par id_pays
+        pays = Pays.objects.filter(id_pays=id_pays).first() if id_pays else None
         if pays:
             pays.nom = nom
+            if sigle_value:
+                pays.sigle = sigle_value
             pays.nLevelsPedagogiques = nLevelsPedagogiques
             pays.nLevelsAdministratifs = nLevelsAdministratifs
             pays.save()
             created = False
         else:
             pays = Pays.objects.create(
-                sigle=sigle.upper(),
+                sigle=sigle_value or 'XX',
                 nom=nom,
                 nLevelsPedagogiques=nLevelsPedagogiques,
                 nLevelsAdministratifs=nLevelsAdministratifs
@@ -251,7 +254,8 @@ def save_pays(request):
         return JsonResponse({
             'success': True, 
             'pays': {
-                'sigle': pays.sigle, 
+                'id_pays': pays.id_pays,
+                'nom': pays.nom,
                 'nLevelsPedagogiques': pays.nLevelsPedagogiques, 
                 'nLevelsAdministratifs': pays.nLevelsAdministratifs
             }
@@ -264,7 +268,7 @@ def save_pays(request):
 def add_structure_pedagogique(request):
     try:
         data = json.loads(request.body)
-        pays = get_object_or_404(Pays, sigle__iexact=data.get('pays_sigle'))
+        pays = get_object_or_404(Pays, id_pays=data.get('id_pays'))
         existing_ordres = pays.pedag_instances.values('ordre').distinct().count()
         if existing_ordres >= pays.nLevelsPedagogiques:
             return JsonResponse({'error': 'Limite atteinte'}, status=400)
@@ -282,7 +286,7 @@ def add_structure_pedagogique(request):
 def add_structure_administrative(request):
     try:
         data = json.loads(request.body)
-        pays = get_object_or_404(Pays, sigle__iexact=data.get('pays_sigle'))
+        pays = get_object_or_404(Pays, id_pays=data.get('id_pays'))
         existing_ordres = pays.admin_instances.values('ordre').distinct().count()
         if existing_ordres >= pays.nLevelsAdministratifs:
             return JsonResponse({'error': 'Limite atteinte'}, status=400)
@@ -354,7 +358,7 @@ def update_structure_administrative(request):
 def adjust_levels(request):
     try:
         data = json.loads(request.body)
-        pays = get_object_or_404(Pays, sigle__iexact=data.get('pays_sigle'))
+        pays = get_object_or_404(Pays, id_pays=data.get('id_pays'))
         adj_type = data.get('type')
         
         if adj_type == 'PD' or adj_type == 'all':
@@ -379,11 +383,11 @@ def save_structures(request):
     """API pour sauvegarder (remplacer) la liste des types de structures."""
     try:
         data = json.loads(request.body)
-        sigle = data.get('sigle')
+        id_pays = data.get('id_pays')
         struct_type = data.get('type')  # 'PD' or 'AD'
         structures_list = data.get('structures', [])
         
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         
         if struct_type == 'PD':
             Model = PedagogicStructureType
@@ -427,12 +431,12 @@ def get_structures_list(request):
     Supporte le filtrage par parent_code (hiérarchique).
     """
     try:
-        sigle = request.GET.get('sigle')
+        id_pays = request.GET.get('id_pays')
         type_struct = request.GET.get('type')
         ordre = request.GET.get('ordre')
         parent_code = request.GET.get('parent_code') # Optionnel: filtrer par hiérarchie
         
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         
         Model = PedagogicStructureInstance if type_struct == 'PD' else AdministrativeStructureInstance
         qs = Model.objects.filter(
@@ -493,14 +497,14 @@ def get_potential_parents(request):
     API pour récupérer les parents potentiels (niveau N-1).
     """
     try:
-        sigle = request.GET.get('sigle')
+        id_pays = request.GET.get('id_pays')
         type_struct = request.GET.get('type')
         ordre_enfant = int(request.GET.get('ordre'))
         
         if ordre_enfant <= 1:
             return JsonResponse({'success': True, 'parents': []})
             
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         ordre_parent = ordre_enfant - 1
         
         # NOTE: A pedagogical structure MIGHT look into administrative parents or vice versa?
@@ -586,7 +590,7 @@ def save_structure_instance(request):
     try:
         data = json.loads(request.body)
         id_structure = data.get('id_structure') # If update
-        sigle = data.get('pays_sigle')
+        id_pays = data.get('id_pays')
         type_struct = data.get('type')
         ordre = int(data.get('ordre'))
         nom = data.get('nom')
@@ -594,7 +598,7 @@ def save_structure_instance(request):
         lat = float(data.get('latitude') or 0.0)
         lng = float(data.get('longitude') or 0.0)
         
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         
         # LEVEL ENFORCEMENT disabled in MonEcole (uses tenant middleware)
         
@@ -698,13 +702,13 @@ def download_template(request):
     try:
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         
-        sigle = request.GET.get('sigle')
+        id_pays = request.GET.get('id_pays')
         type_struct = request.GET.get('type')
         ordre = int(request.GET.get('ordre'))
         nom_structure = request.GET.get('nom_structure', 'Structure')
         parent_code = request.GET.get('parent_code', '')
         
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         Model = PedagogicStructureInstance if type_struct == 'PD' else AdministrativeStructureInstance
         
         wb = openpyxl.Workbook()
@@ -750,7 +754,7 @@ def download_template(request):
         ws_inst['A3'].font = Font(bold=True, size=11)
         ws_inst['A4'] = "1. Remplissez la colonne 'NOM DE LA STRUCTURE' dans la feuille d'import."
         ws_inst['A5'] = "2. Supprimez la ligne d'exemple (ligne 2) avant d'importer."
-        ws_inst['A6'] = f"3. Pays : {pays.nom} ({sigle}) — Type : {'Pédagogique' if type_struct == 'PD' else 'Administrative'}"
+        ws_inst['A6'] = f"3. Pays : {pays.nom} (ID {pays.id_pays}) — Type : {'Pédagogique' if type_struct == 'PD' else 'Administrative'}"
         ws_inst['A7'] = f"4. Niveau : {ordre} ({nom_structure})"
         
         if ordre > 1 and parent_name:
@@ -766,7 +770,7 @@ def download_template(request):
         # Filename
         suffix = f"_{parent_name}" if parent_name else ""
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        filename = f"Modele_{nom_structure}{suffix}_{sigle}.xlsx"
+        filename = f"Modele_{nom_structure}{suffix}_{pays.id_pays}.xlsx"
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         
         wb.save(response)
@@ -794,7 +798,7 @@ def import_excel(request):
              return JsonResponse({'success': False, 'error': 'Aucun fichier fourni.'}, status=400)
              
         file = request.FILES['file']
-        sigle = request.POST.get('sigle')
+        id_pays = request.POST.get('id_pays')
         type_struct = request.POST.get('type')
         ordre = int(request.POST.get('ordre'))
         parent_id_from_modal = request.POST.get('parent_id', '')  # From modal
@@ -802,7 +806,7 @@ def import_excel(request):
         if not file.name.endswith('.xlsx'):
              return JsonResponse({'success': False, 'error': 'Format invalide. Utilisez .xlsx'}, status=400)
              
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         Model = PedagogicStructureInstance if type_struct == "PD" else AdministrativeStructureInstance
         wb = openpyxl.load_workbook(file)
         ws = wb.active
@@ -908,13 +912,13 @@ def export_structures_excel(request):
         return JsonResponse({'error': 'openpyxl non disponible'}, status=500)
     
     try:
-        sigle = request.GET.get('sigle')
+        id_pays = request.GET.get('id_pays')
         type_str = request.GET.get('type')
         ordre = request.GET.get('ordre')
         parent_code = request.GET.get('parent_code')
         nom_type = request.GET.get('nom_type', 'Structures')
 
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         Model = PedagogicStructureInstance if type_str == "PD" else AdministrativeStructureInstance
         qs = Model.objects.filter(pays=pays, ordre=ordre)
         if parent_code:
@@ -932,7 +936,7 @@ def export_structures_excel(request):
             ws.append([s.id_structure, s.nom, s.code, s.latitude, s.longitude])
 
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        filename = f"Export_{nom_type}_{sigle}.xlsx"
+        filename = f"Export_{nom_type}_{pays.id_pays}.xlsx"
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         wb.save(response)
         return response
@@ -944,13 +948,13 @@ def export_structures_excel(request):
 def export_structures_pdf(request):
     """Exporte les structures filtrées en PDF."""
     try:
-        sigle = request.GET.get('sigle')
+        id_pays = request.GET.get('id_pays')
         type_str = request.GET.get('type')
         ordre = request.GET.get('ordre')
         parent_code = request.GET.get('parent_code')
         nom_type = request.GET.get('nom_type', 'Structures')
 
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         Model = PedagogicStructureInstance if type_str == "PD" else AdministrativeStructureInstance
         qs = Model.objects.filter(pays=pays, ordre=ordre)
         if parent_code:
@@ -989,7 +993,7 @@ def export_structures_pdf(request):
         buffer.close()
 
         response = HttpResponse(content_type='application/pdf')
-        filename = f"Export_{nom_type}_{sigle}.pdf"
+        filename = f"Export_{nom_type}_{pays.id_pays}.pdf"
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         response.write(pdf)
         return response
@@ -1011,11 +1015,11 @@ def regimes_view(request):
 def get_regimes_data(request):
     """API pour récupérer les régimes d'un pays."""
     try:
-        sigle = request.GET.get('sigle')
-        if not sigle:
-             return JsonResponse({'success': False, 'error': 'Sigle manquant'})
+        id_pays = request.GET.get('id_pays')
+        if not id_pays:
+             return JsonResponse({'success': False, 'error': 'id_pays manquant'})
              
-        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        pays = Pays.objects.filter(id_pays=id_pays).first()
         if not pays:
             return JsonResponse({'success': True, 'regimes': []})
 
@@ -1052,11 +1056,11 @@ def get_regimes_data(request):
 def get_ped_structures_for_modal(request):
     """API pour récupérer les structures pédagogiques (tous niveaux) pour le dropdown modal."""
     try:
-        sigle = request.GET.get('sigle')
-        if not sigle:
-            return JsonResponse({'success': False, 'error': 'Sigle manquant'})
+        id_pays = request.GET.get('id_pays')
+        if not id_pays:
+            return JsonResponse({'success': False, 'error': 'id_pays manquant'})
         
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         
         # Récupérer le dernier niveau pédagogique (les établissements sont rattachés à ce niveau)
         max_ordre = pays.nLevelsPedagogiques
@@ -1472,10 +1476,10 @@ def generate_fiche_synoptique(request):
 def get_etablissements(request):
     """API pour récupérer les établissements avec filtres optionnels."""
     try:
-        sigle = request.GET.get('sigle')
-        if not sigle: return JsonResponse({'success': False, 'error': 'Sigle manquant'})
+        id_pays = request.GET.get('id_pays')
+        if not id_pays: return JsonResponse({'success': False, 'error': 'id_pays manquant'})
         
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         qs = Etablissement.objects.filter(pays=pays).select_related(
             'structure_pedagogique', 'structure_pedagogique__administrative_parent', 'gestionnaire'
         ).order_by('nom')
@@ -1562,11 +1566,11 @@ def get_etablissements(request):
 def get_gestionnaires(request):
     """Retourne tous les gestionnaires, avec le nombre d'établissements associés (optionnellement filtrés par régime)."""
     try:
-        sigle = request.GET.get('sigle')
-        if not sigle:
-            return JsonResponse({'success': False, 'error': 'Sigle manquant'})
+        id_pays = request.GET.get('id_pays')
+        if not id_pays:
+            return JsonResponse({'success': False, 'error': 'id_pays manquant'})
         
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         
         # Base queryset des établissements pour compter
         etab_qs = Etablissement.objects.filter(pays=pays)
@@ -1659,8 +1663,8 @@ def save_etablissement(request):
     
     try:
         data = json.loads(request.body)
-        sigle = data.get('pays_sigle')
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        id_pays = data.get('id_pays')
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         id_etablissement = data.get('id_etablissement')
         
         # Check if updating existing
@@ -1777,10 +1781,10 @@ def save_regime(request):
     try:
         data = json.loads(request.body)
         id_regime = data.get('id_regime')
-        sigle = data.get('pays_sigle')
+        id_pays = data.get('id_pays')
         nom_regime = data.get('regime')
         
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         
         if id_regime:
             regime_obj = get_object_or_404(Regime, id_regime=id_regime)
@@ -1830,10 +1834,10 @@ def programmes_view(request):
 @require_http_methods(["GET"])
 def get_cycles_data(request):
     try:
-        sigle = request.GET.get('sigle')
-        if not sigle:
-            return JsonResponse({'success': False, 'error': 'Sigle manquant'})
-        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        id_pays = request.GET.get('id_pays')
+        if not id_pays:
+            return JsonResponse({'success': False, 'error': 'id_pays manquant'})
+        pays = Pays.objects.filter(id_pays=id_pays).first()
         if not pays:
             return JsonResponse({'success': True, 'cycles': []})
             
@@ -1905,7 +1909,7 @@ def save_cycle(request):
     try:
         data = json.loads(request.body)
         id_cycle = data.get('id_cycle')
-        sigle = data.get('pays_sigle')
+        id_pays = data.get('id_pays')
         nom = data.get('nom')
         ordre = data.get('ordre', 1)
         duree = data.get('duree', 1)
@@ -1913,7 +1917,7 @@ def save_cycle(request):
         coursUniformes = data.get('coursUniformes', True)
         labelSection_id = data.get('labelSection_id')
         
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         
         if id_cycle:
             cycle = get_object_or_404(Cycle, id_cycle=id_cycle)
@@ -2089,10 +2093,10 @@ def import_sections_excel(request):
 def get_type_subdivisions(request):
     """Liste les appellations de subdivisions pour un pays donné."""
     try:
-        sigle = request.GET.get('sigle')
-        if not sigle:
-            return JsonResponse({'success': False, 'error': 'Sigle manquant'})
-        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        id_pays = request.GET.get('id_pays')
+        if not id_pays:
+            return JsonResponse({'success': False, 'error': 'id_pays manquant'})
+        pays = Pays.objects.filter(id_pays=id_pays).first()
         if not pays:
             return JsonResponse({'success': True, 'types': []})
         types = list(TypeSubdivision.objects.filter(pays=pays).values('id_type', 'nom'))
@@ -2108,10 +2112,10 @@ def save_type_subdivision(request):
         data = json.loads(request.body)
         id_type = data.get('id_type')
         nom = data.get('nom', '').strip()
-        sigle = data.get('pays_sigle')
-        if not nom or not sigle:
-            return JsonResponse({'success': False, 'error': 'Nom et pays requis.'}, status=400)
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        id_pays = data.get('id_pays')
+        if not nom or not id_pays:
+            return JsonResponse({'success': False, 'error': 'Nom et id_pays requis.'}, status=400)
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         if id_type:
             t = get_object_or_404(TypeSubdivision, id_type=id_type)
             t.nom = nom
@@ -2181,10 +2185,10 @@ def delete_classe(request):
 @require_http_methods(["GET"])
 def get_programmes_data(request):
     try:
-        sigle = request.GET.get('sigle')
-        if not sigle:
-            return JsonResponse({'success': False, 'error': 'Sigle manquant'})
-        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        id_pays = request.GET.get('id_pays')
+        if not id_pays:
+            return JsonResponse({'success': False, 'error': 'id_pays manquant'})
+        pays = Pays.objects.filter(id_pays=id_pays).first()
         if not pays:
             return JsonResponse({'success': True, 'programmes': []})
             
@@ -2206,10 +2210,10 @@ def save_programme(request):
     try:
         data = json.loads(request.body)
         id_programme = data.get('id_programme')
-        sigle = data.get('pays_sigle')
+        id_pays = data.get('id_pays')
         nom = data.get('nom')
         
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         
         if id_programme:
             p = get_object_or_404(Programme, id_programme=id_programme)
@@ -2242,10 +2246,10 @@ def delete_programme(request):
 def get_domaines_data(request):
     """Liste les domaines pour un pays donné."""
     try:
-        sigle = request.GET.get('sigle')
-        if not sigle:
-            return JsonResponse({'success': False, 'error': 'Sigle manquant'})
-        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        id_pays = request.GET.get('id_pays')
+        if not id_pays:
+            return JsonResponse({'success': False, 'error': 'id_pays manquant'})
+        pays = Pays.objects.filter(id_pays=id_pays).first()
         if not pays:
             return JsonResponse({'success': True, 'domaines': []})
         domaines = list(Domaine.objects.filter(pays=pays).values(
@@ -2269,7 +2273,7 @@ def save_domaine(request):
         if not nom:
             return JsonResponse({'success': False, 'error': 'Le nom du domaine est requis.'}, status=400)
 
-        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        pays = Pays.objects.filter(id_pays=id_pays).first()
         if not pays:
             return JsonResponse({'success': False, 'error': 'Pays introuvable.'}, status=400)
 
@@ -2316,12 +2320,12 @@ def import_domaines_excel(request):
     try:
         import openpyxl
         file = request.FILES.get('file')
-        sigle = request.POST.get('sigle', '')
+        id_pays = request.POST.get('id_pays', '')
 
-        if not file or not sigle:
-            return JsonResponse({'success': False, 'error': 'Fichier et sigle requis.'}, status=400)
+        if not file or not id_pays:
+            return JsonResponse({'success': False, 'error': 'Fichier et id_pays requis.'}, status=400)
 
-        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        pays = Pays.objects.filter(id_pays=id_pays).first()
         if not pays:
             return JsonResponse({'success': False, 'error': 'Pays introuvable.'}, status=400)
 
@@ -2355,18 +2359,18 @@ def import_domaines_excel(request):
 
 @require_http_methods(["GET"])
 def get_cours_data(request):
-    """Liste les cours, filtré par pays (sigle) et optionnellement par classe+section.
+    """Liste les cours, filtré par pays (id_pays) et optionnellement par classe+section.
     Pour les cycles à sections, chaque classe est dupliquée par section dans le dropdown.
     """
     try:
-        sigle = request.GET.get('sigle')
+        id_pays = request.GET.get('id_pays')
         id_classe = request.GET.get('id_classe')
         id_section = request.GET.get('id_section')  # NEW: optional section filter
 
-        if not sigle:
-            return JsonResponse({'success': False, 'error': 'Sigle manquant'})
+        if not id_pays:
+            return JsonResponse({'success': False, 'error': 'id_pays manquant'})
 
-        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        pays = Pays.objects.filter(id_pays=id_pays).first()
         if not pays:
             return JsonResponse({'success': True, 'cours': [], 'classes': []})
 
@@ -2659,12 +2663,12 @@ def get_cours_annee_data(request):
         id_classe = request.GET.get('id_classe')
         id_annee = request.GET.get('id_annee')
         id_section = request.GET.get('id_section')  # NEW: optional section filter
-        sigle = request.GET.get('sigle')
+        id_pays = request.GET.get('id_pays')
 
-        if not sigle:
-            return JsonResponse({'success': False, 'error': 'Sigle manquant'})
+        if not id_pays:
+            return JsonResponse({'success': False, 'error': 'id_pays manquant'})
 
-        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        pays = Pays.objects.filter(id_pays=id_pays).first()
         if not pays:
             return JsonResponse({'success': True, 'cours_annee': [], 'annees': []})
 
@@ -3044,13 +3048,13 @@ def download_ecole_template(request):
         return JsonResponse({'error': 'La librairie Excel (openpyxl) n\'est pas installée.'}, status=500)
 
     try:
-        sigle = request.GET.get('sigle')
+        id_pays = request.GET.get('id_pays')
         id_parent_ped = request.GET.get('id_parent_ped')
         
-        if not sigle or not id_parent_ped:
+        if not id_pays or not id_parent_ped:
             return JsonResponse({'error': 'Sigle et structure pédagogique sont obligatoires.'}, status=400)
         
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         parent_ped = get_object_or_404(PedagogicStructureInstance, id_structure=id_parent_ped)
         
         # Charger les régimes du pays pour l'en-tête de la colonne ID_REGIME
@@ -3185,7 +3189,7 @@ def download_ecole_template(request):
             ["   CODE = id_etablissement - id_regime - id_gestionnaire - PD - codePed"],
             [f"   Exemple pour ce contexte : [ID]-{first_regime_id}-[ID_GEST]-PD-{parent_ped.code}"],
             [""],
-            [f"Pays : {pays.nom} ({sigle})"],
+            [f"Pays : {pays.nom} (ID {pays.id_pays})"],
             [f"Structure Pédagogique parente : {parent_ped.nom}"],
         ]
         for row_data in instructions:
@@ -3195,7 +3199,7 @@ def download_ecole_template(request):
         ws_inst.cell(row=1, column=1).font = Font(bold=True, size=14, color="1F4E79")
         
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        filename = f"Modele_Import_Etablissements_{sigle}_{parent_ped.nom.replace(' ', '_')}.xlsx"
+        filename = f"Modele_Import_Etablissements_{pays.id_pays}_{parent_ped.nom.replace(' ', '_')}.xlsx"
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         wb.save(response)
         return response
@@ -3226,7 +3230,7 @@ def import_ecoles_excel(request):
             return JsonResponse({'success': False, 'error': 'Aucun fichier fourni.'}, status=400)
             
         file = request.FILES['file']
-        sigle = request.POST.get('sigle')
+        id_pays = request.POST.get('id_pays')
         
         # Paramètre optionnel du formulaire (peut être déduit du fichier)
         form_id_parent_ped = request.POST.get('id_parent_ped')
@@ -3235,13 +3239,13 @@ def import_ecoles_excel(request):
         form_id_regime = request.POST.get('id_regime')
         form_id_gestionnaire = request.POST.get('id_gestionnaire')
         
-        if not sigle:
+        if not id_pays:
             return JsonResponse({'success': False, 'error': 'Sigle pays manquant.'}, status=400)
         
         if not file.name.endswith('.xlsx'):
             return JsonResponse({'success': False, 'error': 'Format invalide. Utilisez .xlsx'}, status=400)
 
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         
         # Résoudre le gestionnaire du formulaire (fallback global)
         form_gestionnaire = None
@@ -3441,15 +3445,15 @@ def get_resultats_etablissements(request):
     Se base uniquement sur les données de countryStructure.
     """
     try:
-        sigle = request.GET.get('sigle')
+        id_pays = request.GET.get('id_pays')
         id_annee = request.GET.get('id_annee')
 
         if not id_annee:
             return JsonResponse({'success': False, 'error': 'Année requise'})
 
-        # Résoudre le pays : par sigle ou par domaine
-        if sigle:
-            pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        # Résoudre le pays : par id_pays ou par domaine
+        if id_pays:
+            pays = get_object_or_404(Pays, id_pays=id_pays)
         else:
             ctx = get_country_context_logic(request)
             pays = ctx.get('pays_from_domain')
@@ -3543,10 +3547,10 @@ def get_resultats_etablissements(request):
 def get_annees_data(request):
     """API pour récupérer les années scolaires d'un pays."""
     try:
-        sigle = request.GET.get('sigle')
-        if not sigle:
-            return JsonResponse({'success': False, 'error': 'Sigle manquant'})
-        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        id_pays = request.GET.get('id_pays')
+        if not id_pays:
+            return JsonResponse({'success': False, 'error': 'id_pays manquant'})
+        pays = Pays.objects.filter(id_pays=id_pays).first()
         if not pays:
             return JsonResponse({'success': True, 'annees': []})
         
@@ -3578,13 +3582,13 @@ def save_annee(request):
     try:
         data = json.loads(request.body)
         id_annee = data.get('id_annee')
-        sigle = data.get('pays_sigle')
+        id_pays = data.get('id_pays')
         annee_str = data.get('annee')
         dateOuverture = data.get('dateOuverture')
         dateCloture = data.get('dateCloture')
         isOpen = data.get('isOpen', True)
         
-        pays = get_object_or_404(Pays, sigle__iexact=sigle)
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         
         if not annee_str or not dateOuverture or not dateCloture:
             return JsonResponse({'success': False, 'error': 'Données d\'année incomplètes.'}, status=400)
@@ -6918,7 +6922,7 @@ def dashboard_etablissement_view(request):
         'gestionnaire_telephone': etab.gestionnaire.telephone if etab.gestionnaire and etab.gestionnaire.telephone else '',
         'code': etab.code,
         'pays_nom': pays.nom,
-        'pays_sigle': pays.sigle,
+        'id_pays': pays.id_pays,
         'pays_id': pays.id_pays,
         'ref_administrative': etab.ref_administrative or '',
         'nom_rue': etab.nom_rue or '',
@@ -7652,7 +7656,7 @@ def get_mon_etablissement(request):
                 'regime_nom': regime_nom,
                 'id_regime': etab.id_regime,
                 'pays_nom': etab.pays.nom,
-                'pays_sigle': etab.pays.sigle,
+                'id_pays': etab.pays.id_pays,
                 'annee_creation': etab.annee_creation or '',
                 'annee_agrement': etab.annee_agrement or '',
                 'document_agrement': etab.document_agrement or '',
@@ -7892,10 +7896,10 @@ def delete_repartition_hierarchie(request):
 def get_repartition_configs_cycle(request):
     """Retourne les configurations répartition par cycle."""
     try:
-        sigle = request.GET.get('sigle')
+        id_pays = request.GET.get('id_pays')
         qs = RepartitionConfigCycle.objects.select_related('cycle', 'type_racine', 'cycle__pays').all()
-        if sigle:
-            qs = qs.filter(cycle__pays__sigle__iexact=sigle)
+        if id_pays:
+            qs = qs.filter(cycle__pays__id_pays=id_pays)
 
         configs = []
         for c in qs:
@@ -11933,10 +11937,10 @@ def get_notes_bulletin(request):
 def get_domaines_data(request):
     """Liste les domaines pour un pays donné."""
     try:
-        sigle = request.GET.get('sigle')
-        if not sigle:
-            return JsonResponse({'success': False, 'error': 'Sigle manquant'})
-        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        id_pays = request.GET.get('id_pays')
+        if not id_pays:
+            return JsonResponse({'success': False, 'error': 'id_pays manquant'})
+        pays = Pays.objects.filter(id_pays=id_pays).first()
         if not pays:
             return JsonResponse({'success': True, 'domaines': []})
         if Domaine is None:
@@ -11965,7 +11969,7 @@ def save_domaine(request):
         if Domaine is None:
             return JsonResponse({'success': False, 'error': 'Modèle Domaine non disponible.'}, status=500)
 
-        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        pays = Pays.objects.filter(id_pays=id_pays).first()
         if not pays:
             return JsonResponse({'success': False, 'error': 'Pays introuvable.'}, status=400)
 
@@ -12021,16 +12025,16 @@ def delete_domaine(request):
 
 @require_http_methods(["GET"])
 def get_cours_data(request):
-    """Liste les cours, filtré par pays (sigle) et optionnellement par classe+section."""
+    """Liste les cours, filtré par pays (id_pays) et optionnellement par classe+section."""
     try:
-        sigle = request.GET.get('sigle')
+        id_pays = request.GET.get('id_pays')
         id_classe = request.GET.get('id_classe')
         id_section = request.GET.get('id_section')
 
-        if not sigle:
-            return JsonResponse({'success': False, 'error': 'Sigle manquant'})
+        if not id_pays:
+            return JsonResponse({'success': False, 'error': 'id_pays manquant'})
 
-        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        pays = Pays.objects.filter(id_pays=id_pays).first()
         if not pays:
             return JsonResponse({'success': True, 'cours': [], 'classes': []})
         if Cours is None:
@@ -12176,12 +12180,12 @@ def get_cours_annee_data(request):
         id_classe = request.GET.get('id_classe')
         id_annee = request.GET.get('id_annee')
         id_section = request.GET.get('id_section')
-        sigle = request.GET.get('sigle')
+        id_pays = request.GET.get('id_pays')
 
-        if not sigle:
-            return JsonResponse({'success': False, 'error': 'Sigle manquant'})
+        if not id_pays:
+            return JsonResponse({'success': False, 'error': 'id_pays manquant'})
 
-        pays = Pays.objects.filter(sigle__iexact=sigle).first()
+        pays = Pays.objects.filter(id_pays=id_pays).first()
         if not pays:
             return JsonResponse({'success': True, 'cours_annee': [], 'annees': []})
 

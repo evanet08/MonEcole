@@ -1725,7 +1725,7 @@ async function loadCyclesConfig() {
     const grid = document.getElementById('cyclesPeriodesGrid');
     grid.innerHTML = '<div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
     try {
-        const res = await fetch('/api/get-cycles/?sigle=' + CA_PAYS_SIGLE);
+        const res = await fetch('/api/get-cycles/?id_pays=' + PAYS_ID);
         const data = await res.json();
         if (data.success) {
             cpAllCycles = data.cycles || [];
@@ -1862,7 +1862,7 @@ document.addEventListener('DOMContentLoaded', () => { setTimeout(loadCyclesConfi
 let caAllCycles=[], caAllSections=[], caCurrentConfig=[];
 const CA_ETAB_ID='{{ etab.id_etablissement }}';
 let CA_ANNEE_ID='{% if annee_active %}{{ annee_active.id }}{% endif %}';
-const CA_PAYS_SIGLE='{{ etab.pays_sigle }}';
+
 
 function onAnneeChange(){
     const sel=document.getElementById('selectAnneeConfig');
@@ -1876,7 +1876,7 @@ async function loadConfigAnnuelle(){
     grid.innerHTML='<div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
     try{
         const [cyclesRes,sectionsRes,configRes]=await Promise.all([
-            fetch('/api/get-cycles/?sigle='+CA_PAYS_SIGLE).then(r=>r.json()),
+            fetch('/api/get-cycles/?id_pays='+PAYS_ID).then(r=>r.json()),
             fetch('/api/get-sections-list/').then(r=>r.json()),
             fetch('/api/get-etablissement-config/?id_etablissement='+CA_ETAB_ID+'&id_annee='+CA_ANNEE_ID).then(r=>r.json())
         ]);
@@ -2134,7 +2134,7 @@ async function loadCoursTab() {
     const sel = document.getElementById('cours-cycle-select');
     sel.innerHTML = '<option value="">— Cycle —</option>';
     try {
-        const res = await fetch('/api/get-cycles/?sigle=' + CA_PAYS_SIGLE);
+        const res = await fetch('/api/get-cycles/?id_pays=' + PAYS_ID);
         const data = await res.json();
         if (data.success) {
             coursTabCycles = (data.cycles || []).filter(c => !c.coursUniformes);
@@ -2179,7 +2179,7 @@ async function loadCoursEtab() {
     if (!classeId) { grid.innerHTML = '<div class="ca-loading"><i class="fas fa-info-circle"></i> Sélectionnez une classe.</div>'; return; }
     grid.innerHTML = '<div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
     try {
-        let url = `/api/get-cours-annee/?sigle=${CA_PAYS_SIGLE}&id_classe=${classeId}&id_annee=${CA_ANNEE_ID}`;
+        let url = `/api/get-cours-annee/?id_pays=${PAYS_ID}&id_classe=${classeId}&id_annee=${CA_ANNEE_ID}`;
         if (sectionId) url += `&id_section=${sectionId}`;
         const res = await fetch(url);
         const data = await res.json();
@@ -2373,7 +2373,7 @@ async function loadDomaines() {
     const container = document.getElementById('domaineList');
     container.innerHTML = '<div class="text-center py-2"><i class="fas fa-spinner fa-spin"></i></div>';
     try {
-        const res = await fetch(`/api/get-domaines/?sigle=${CA_PAYS_SIGLE}`);
+        const res = await fetch(`/api/get-domaines/?id_pays=${PAYS_ID}`);
         const data = await res.json();
         if (data.success && data.domaines && data.domaines.length > 0) {
             let html = '<div class="list-group list-group-flush">';
@@ -2403,7 +2403,7 @@ async function saveDomaine() {
         const res = await fetch('/api/save-domaine/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-            body: JSON.stringify({ nom, code, sigle: CA_PAYS_SIGLE })
+            body: JSON.stringify({ nom, code, id_pays: PAYS_ID })
         });
         const data = await res.json();
         if (data.success) {
@@ -3904,7 +3904,8 @@ async function smartGeocode(){
     // Zoom mapping based on depth
     const zoomMap={rue:17, local:15, city:12, region:9};
 
-    const countryCode='{{ etab.pays_sigle|default:"CD" }}';
+    const PAYS_ISO_MAP = {2: 'CD'};  // id_pays → ISO 3166-1 alpha-2
+    const countryCode = PAYS_ISO_MAP[{{ etab.pays_id|default:"2" }}] || 'CD';
 
     let bestResult=null, bestZoom=6, bestQuery='', bestDepth='';
     for(const entry of queries){

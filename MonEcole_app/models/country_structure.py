@@ -92,6 +92,7 @@ class EtablissementAnnee(models.Model):
                                       db_column='etablissement_id')
     annee = models.ForeignKey('Annee', on_delete=models.CASCADE,
                               db_column='annee_id')
+    id_pays = models.IntegerField(default=2)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -118,6 +119,7 @@ class EtablissementAnneeClasse(models.Model):
     section = models.ForeignKey('Section', on_delete=models.SET_NULL,
                                 null=True, blank=True, db_column='section_id')
     groupe = models.CharField(max_length=5, null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -136,6 +138,7 @@ class Session(models.Model):
     session = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, default='')
     is_active = models.BooleanField(default=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = 'sessions'
@@ -157,6 +160,7 @@ class Mention(models.Model):
     abbreviation = models.CharField(max_length=10)
     min = models.FloatField()
     max = models.FloatField()
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = 'mentions'
@@ -174,6 +178,7 @@ class RepartitionType(models.Model):
     nom = models.CharField(max_length=100)
     code = models.CharField(max_length=10)
     is_active = models.BooleanField(default=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = 'repartition_types'
@@ -228,6 +233,7 @@ class RepartitionConfigEtabAnnee(models.Model):
     fin = models.DateField(null=True, blank=True)
     is_open = models.BooleanField(default=True)
     is_national = models.BooleanField(default=True)
+    id_pays = models.IntegerField(default=2)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -246,6 +252,7 @@ class EvaluationType(models.Model):
     sigle = models.CharField(max_length=20)
     description = models.TextField(default='')
     is_active = models.BooleanField(default=True)
+    id_pays = models.IntegerField(default=2)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -261,6 +268,7 @@ class NoteType(models.Model):
     nom = models.CharField(max_length=100)
     sigle = models.CharField(max_length=20)
     is_active = models.BooleanField(default=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = 'note_types'
@@ -294,6 +302,7 @@ class CoursAnnee(models.Model):
     ordre = models.IntegerField(null=True, blank=True)
     domaine_id = models.IntegerField(null=True, blank=True)
     is_second_semester = models.BooleanField(default=False)
+    id_pays = models.IntegerField(default=2)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -326,6 +335,7 @@ class Section(models.Model):
     code = models.CharField(max_length=20)
     type_subdivision = models.ForeignKey(TypeSubdivision, on_delete=models.CASCADE,
                                           null=True, blank=True, related_name='subdivisions')
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = 'sections'
@@ -390,6 +400,7 @@ class GestionnaireEtablissement(models.Model):
     postnom = models.CharField(max_length=100)
     email = models.EmailField(blank=True, null=True)
     telephone = models.CharField(max_length=20)
+    id_pays = models.IntegerField(default=2)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -548,6 +559,7 @@ class RepartitionHierarchie(models.Model):
                                      related_name='parents_hierarchie')
     nombre_enfants = models.PositiveIntegerField(default=1)
     is_active = models.BooleanField(default=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = 'repartition_hierarchies'
@@ -565,6 +577,7 @@ class RepartitionConfigCycle(models.Model):
                                      db_column='type_racine_id', related_name='configs_cycle')
     nombre_au_niveau_racine = models.PositiveIntegerField(default=1)
     is_active = models.BooleanField(default=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = 'repartition_configs_cycle'

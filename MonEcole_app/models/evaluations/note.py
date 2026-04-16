@@ -14,6 +14,7 @@ from MonEcole_app.variables import type_deliberations
 class Deliberation_type(models.Model):
     id_deliberation_type = models.AutoField(primary_key=True)
     type = models.CharField(max_length=200, unique=True,choices=type_deliberations)
+    id_pays = models.IntegerField(default=2)
     class Meta:
         db_table = "deliberation_type"
         managed = False
@@ -27,6 +28,7 @@ class Deliberation_annuelle_finalite(models.Model):
     finalite = models.CharField(max_length=200,null=False,unique=True) 
     sigle = models.CharField(max_length=50,null=True,blank=True)  
     droit_avancement = models.BooleanField(default=False)  
+    id_pays = models.IntegerField(default=2)
     class Meta:
         db_table = "deliberation_annuelle_finalites"  
         managed = False
@@ -48,6 +50,7 @@ class Deliberation_annuelle_condition(models.Model):
     id_finalite = models.ForeignKey(Deliberation_annuelle_finalite, on_delete=models.DO_NOTHING, null=False, db_constraint=False)
     date_creation = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = "deliberation_annuelle_conditions" 
@@ -76,6 +79,7 @@ class Deliberation_annuelle_resultat(models.Model):
     place = models.CharField(max_length=200,null=False) 
     date_creation = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
     
     class Meta:
         db_table = "deliberation_annuelle_resultats"  
@@ -102,6 +106,7 @@ class Deliberation_periodique_resultat(models.Model):
     place = models.CharField(max_length=200,null=False) 
     date_creation = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = "deliberation_periodique_resultats" 
@@ -127,6 +132,7 @@ class Deliberation_examen_resultat(models.Model):
     place = models.CharField(max_length=200,null=False) 
     date_creation = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = "deliberation_examen_resultats" 
@@ -156,6 +162,7 @@ class Deliberation_trimistrielle_resultat(models.Model):
     place = models.CharField(max_length=200,null=False) 
     date_creation = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
     class Meta:
         db_table = "deliberation_trimistrielle_resultats" 
         verbose_name = "Résultat de délibération trimestrielle"
@@ -194,6 +201,7 @@ class Evaluation(models.Model):
     document_url = models.CharField(max_length=500, null=True, blank=True)
     date_creation = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
     def __str__(self):
         return self.title
 
@@ -218,6 +226,7 @@ class Deliberation_repechage_resultat(models.Model):
     valid_repechage = models.BooleanField(default=False)
     date_creation = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = "deliberation_repechage_resultats"  
@@ -251,6 +260,7 @@ class NoteBulletin(models.Model):
     calc_details = models.TextField(null=True, blank=True)  # JSON: evaluation weights, taux used
     date_calcul = models.DateTimeField(null=True, blank=True)
     id_etablissement = models.IntegerField()
+    id_pays = models.IntegerField(default=2)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

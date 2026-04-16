@@ -90,6 +90,7 @@ class Communication(models.Model):
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = 'communication'
@@ -115,6 +116,7 @@ class CommunicationGroup(models.Model):
     created_by = models.IntegerField()
     avatar_color = models.CharField(max_length=20, default='#128c7e')
     created_at = models.DateTimeField(auto_now_add=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = 'communication_group'
@@ -131,6 +133,7 @@ class CommunicationGroupMember(models.Model):
     id_group = models.IntegerField()
     id_personnel = models.IntegerField()
     joined_at = models.DateTimeField(auto_now_add=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = 'communication_group_member'

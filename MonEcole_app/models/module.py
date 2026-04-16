@@ -9,6 +9,7 @@ class Module(models.Model):
     module = models.CharField(max_length=100, null=False, choices=modules_name, unique=True)
     description = models.TextField(null=True, blank=True)
     url_name = models.CharField(max_length=100, null=True, blank=True, choices=url_module_name)
+    id_pays = models.IntegerField(default=2)
 
     def save(self, *args, **kwargs):
         # Assurer que url_name correspond au module
@@ -32,6 +33,7 @@ class UserModule(models.Model):
     is_active = models.BooleanField(default=True)
     date_creation = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
 
     def __str__(self):
         return f"{self.user.prenom or ''} {self.user.nom or ''}"

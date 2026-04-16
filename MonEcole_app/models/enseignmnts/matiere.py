@@ -18,6 +18,7 @@ class Cours(models.Model):
                                related_name='cours_hub')
     domaine_id = models.IntegerField(null=True, blank=True)
     section_id = models.IntegerField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -68,6 +69,7 @@ class Cours_par_classe(models.Model):
     heure_semaine = models.IntegerField(null=True, blank=True)
     ordre_cours = models.IntegerField(null=True, blank=True, db_column='ordre')
     is_second_semester = models.BooleanField(default=False)
+    id_pays = models.IntegerField(default=2)
     date_creation = models.DateTimeField(db_column='created_at')
 
     class Meta:
@@ -92,6 +94,7 @@ class Attribution_type(models.Model):
     id_attribution_type = models.AutoField(primary_key=True)
     attribution_type = models.CharField(max_length=250, null=False)
     date_creation = models.DateField(auto_now_add=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = "attribution_type"
@@ -118,6 +121,7 @@ class Attribution_cours(models.Model):
     id_cours = models.ForeignKey("Cours_par_classe", on_delete=models.PROTECT, null=False)
     id_personnel = models.ForeignKey("Personnel", on_delete=models.PROTECT, null=False)
     date_attribution = models.DateField(auto_now_add=True)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = "attribution_cours"

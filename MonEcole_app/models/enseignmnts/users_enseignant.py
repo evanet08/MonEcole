@@ -24,6 +24,7 @@ class User_enseignement(models.Model):
     canOnlyView = models.BooleanField(default=False)
     date_inscrite = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
 
 
     class Meta:
@@ -38,6 +39,7 @@ class Users_other_module(models.Model):
     id_personnel = models.ForeignKey("Personnel",on_delete=models.PROTECT,null=False)
     user = models.BooleanField(default=False)
     date_creation = models.DateField(auto_now_add=True)
+    id_pays = models.IntegerField(default=2)
     
 
     class Meta:

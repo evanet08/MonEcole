@@ -12,6 +12,7 @@ from MonEcole_app.models.eleves import Eleve
 class Horaire_type(models.Model):
     id_horaire_type = models.AutoField(primary_key=True)
     horaire_type = models.CharField(max_length=200,null=False)
+    id_pays = models.IntegerField(default=2)
 
     def __str__(self):
         return self.horaire_type
@@ -38,6 +39,7 @@ class Horaire(models.Model):
     fin = models.CharField(max_length=100,null=False)
     date_creation = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
       
     def __str__(self):
         return f"{self.id_classe} - {self.date} {self.debut}-{self.fin}"
@@ -54,6 +56,7 @@ class Horaire_presence(models.Model):
     si_absent_motif = models.CharField(max_length=255,null=True)
     date_creation = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
+    id_pays = models.IntegerField(default=2)
     
 
     def __str__(self):

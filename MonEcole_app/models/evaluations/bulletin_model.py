@@ -11,6 +11,7 @@ class BulletinModel(models.Model):
     id_model = models.AutoField(primary_key=True)
     model_name = models.CharField(max_length=200)
     code_model = models.CharField(max_length=50)
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = 'bulletin_model'
@@ -50,6 +51,7 @@ class BulletinClasseModel(models.Model):
         db_column='id_cycle_id', db_constraint=False,
         related_name='bulletin_classe_models'
     )
+    id_pays = models.IntegerField(default=2)
 
     class Meta:
         db_table = 'bulletin_classe_model'
