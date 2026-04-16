@@ -86,9 +86,14 @@ def _get_tenant_etab(request):
     Returns (Etablissement, None) or (None, JsonResponse_error).
     """
     etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+    id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
     if not etab_id:
         return None, JsonResponse({'success': False, 'error': 'Établissement non résolu (tenant).'}, status=403)
-    etab = Etablissement.objects.select_related('pays').filter(id_etablissement=etab_id).first()
+    # Scope by both id_etablissement and pays for multi-tenant safety
+    filters = {'id_etablissement': etab_id}
+    if id_pays:
+        filters['pays_id'] = id_pays
+    etab = Etablissement.objects.select_related('pays').filter(**filters).first()
     if not etab:
         return None, JsonResponse({'success': False, 'error': f'Établissement {etab_id} introuvable.'}, status=404)
     return etab, None
