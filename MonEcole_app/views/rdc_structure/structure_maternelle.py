@@ -420,7 +420,7 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         ]))
         return trim_table
 
-    for trim in ["1er Trimestre", "2ème Trimestre", "3ème Trimistre"]:
+    for trim in ["1er Trimestre", "2ème Trimestre", "3ème Trimestre"]:
         table_data.append([make_trim_row(trim), None, None, None, None, None, None, None])
         current_row += 1
 

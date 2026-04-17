@@ -3052,7 +3052,7 @@ def download_ecole_template(request):
         id_parent_ped = request.GET.get('id_parent_ped')
         
         if not id_pays or not id_parent_ped:
-            return JsonResponse({'error': 'Sigle et structure pédagogique sont obligatoires.'}, status=400)
+            return JsonResponse({'error': 'id_pays et structure pédagogique sont obligatoires.'}, status=400)
         
         pays = get_object_or_404(Pays, id_pays=id_pays)
         parent_ped = get_object_or_404(PedagogicStructureInstance, id_structure=id_parent_ped)
@@ -3240,7 +3240,7 @@ def import_ecoles_excel(request):
         form_id_gestionnaire = request.POST.get('id_gestionnaire')
         
         if not id_pays:
-            return JsonResponse({'success': False, 'error': 'Sigle pays manquant.'}, status=400)
+            return JsonResponse({'success': False, 'error': 'id_pays manquant.'}, status=400)
         
         if not file.name.endswith('.xlsx'):
             return JsonResponse({'success': False, 'error': 'Format invalide. Utilisez .xlsx'}, status=400)
