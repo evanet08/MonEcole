@@ -53,7 +53,7 @@ def sync_class(cur, hub_cur, eac_id, etab_id, etab_annee_id):
     hub_cur.execute("""
         SELECT cann.id_cours_annee, cann.maxima_tj, cann.maxima_exam
         FROM cours_annee cann
-        JOIN cours ca ON ca.id_cours = cann.cours_id
+        JOIN cours ca ON ca.id = cann.cours_id
         WHERE ca.classe_id = %s
     """, [ctx['bk_classe']])
     cours_rows = hub_cur.fetchall()
@@ -83,7 +83,7 @@ def sync_class(cur, hub_cur, eac_id, etab_id, etab_annee_id):
         hub_cur.execute("""
             SELECT rtn.ponderation_max, rtn.source_type, nt.id_type_note, nt.sigle
             FROM repartition_type_notes rtn
-            JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+            JOIN note_types nt ON nt.id = rtn.note_type_id
             WHERE rtn.repartition_type_id = %s AND rtn.is_active = 1
             ORDER BY rtn.ordre
         """, [tid])
@@ -253,7 +253,7 @@ try:
                    c.nom AS classe_nom
             FROM etablissements_annees_classes eac
             JOIN etablissements_annees ea ON ea.id = eac.etablissement_annee_id
-            JOIN classes c ON c.id_classe = eac.classe_id
+            JOIN classes c ON c.id = eac.classe_id
             WHERE ea.annee_id = (SELECT MAX(annee_id) FROM etablissements_annees)
             ORDER BY eac.id
         """)

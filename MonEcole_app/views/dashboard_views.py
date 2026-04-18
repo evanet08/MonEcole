@@ -770,7 +770,7 @@ def espace_enseignant_view(request):
                         SELECT DISTINCT cl.cycle_id
                         FROM etablissements_annees_classes eac
                         JOIN etablissements_annees ea ON ea.id = eac.etablissement_annee_id
-                        JOIN classes cl ON cl.id_classe = eac.classe_id
+                        JOIN classes cl ON cl.id = eac.classe_id
                         WHERE ea.etablissement_id = %s AND ea.annee_id = %s
                     """, [etab_id, annee_id])
                     active_cycle_ids = [r['cycle_id'] for r in hcur.fetchall()]
@@ -1105,7 +1105,7 @@ def api_enseignant_dashboard(request):
                 try:
                     hub_cur.execute("""
                         SELECT ea.id FROM etablissements_annees ea
-                        JOIN annees a ON a.id_annee = ea.annee_id
+                        JOIN annees a ON a.id = ea.annee_id
                         WHERE ea.etablissement_id = %s
                           AND a.isOpen = 1
                         ORDER BY a.annee DESC LIMIT 1
@@ -1135,7 +1135,7 @@ def api_enseignant_dashboard(request):
                         hub_cur.execute("""
                             SELECT c.cours, c.code_cours, ca.maxima_exam, ca.heure_semaine
                             FROM cours_annee ca
-                            JOIN cours c ON c.id_cours = ca.cours_id
+                            JOIN cours c ON c.id = ca.cours_id
                             WHERE ca.id_cours_annee = %s
                         """, [cours_annee_id])
                         cr = hub_cur.fetchone()
@@ -1152,7 +1152,7 @@ def api_enseignant_dashboard(request):
                         hub_cur.execute("""
                             SELECT cl.nom AS classe_nom, cy.nom AS cycle_nom
                             FROM classes cl
-                            LEFT JOIN cycles cy ON cy.id_cycle = cl.cycle_id
+                            LEFT JOIN cycles cy ON cy.id = cl.cycle_id
                             WHERE cl.id_classe = %s
                         """, [classe_id])
                         cl = hub_cur.fetchone()
@@ -1626,7 +1626,7 @@ def api_communication_contacts(request):
                 cur.execute("""
                     SELECT c.nom as classe_nom, cy.nom as cycle_nom
                     FROM countryStructure.classes c
-                    LEFT JOIN countryStructure.cycles cy ON cy.id_cycle = c.cycle_id
+                    LEFT JOIN countryStructure.cycles cy ON cy.id = c.cycle_id
                     WHERE c.id_classe = %s
                 """, [classe_id])
                 cls_row = cur.fetchone()

@@ -3978,7 +3978,7 @@ def _resolve_eac_keys(cur, eac_id):
                (SELECT c.idCampus FROM db_monecole.campus c
                 WHERE c.id_etablissement = ea.etablissement_id AND c.is_active=1 LIMIT 1) AS campus_id
         FROM countryStructure.etablissements_annees_classes eac
-        JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id
+        JOIN countryStructure.classes cl ON cl.id = eac.classe_id
         JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
         WHERE eac.id = %s
     """, [eac_id])
@@ -4122,7 +4122,7 @@ def dashboard_add_eleve(request):
                            cl.cycle_id AS cycle_id
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON eac.etablissement_annee_id = ea.id
-                    JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
                     JOIN db_monecole.campus c ON c.id_etablissement = ea.etablissement_id AND c.is_active = 1
                     WHERE eac.id = %s
                 """, [classe_par_annee_id])
@@ -4239,8 +4239,8 @@ def dashboard_eleve_template(request):
                                COALESCE(s.nom, '') as section_nom,
                                COALESCE(eac.groupe, '') as groupe
                         FROM countryStructure.etablissements_annees_classes eac
-                        JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id
-                        LEFT JOIN countryStructure.sections s ON s.id_section = eac.section_id
+                        JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                        LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
                         WHERE eac.id = %s
                     """, [classe_par_annee_id])
                     row = cur.fetchone()
@@ -4535,7 +4535,7 @@ def dashboard_import_eleves(request):
                            c.idCampus AS idCampus_id, ea.annee_id AS id_annee_id, cl.cycle_id AS cycle_id
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON eac.etablissement_annee_id = ea.id
-                    JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
                     JOIN db_monecole.campus c ON c.id_etablissement = ea.etablissement_id AND c.is_active = 1
                     WHERE eac.id = %s
                 """,
@@ -4754,8 +4754,8 @@ def parent_update_template(request):
                            COALESCE(s.nom, '') as section_nom,
                            COALESCE(eac.groupe, '') as groupe
                     FROM countryStructure.etablissements_annees_classes eac
-                    JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id
-                    LEFT JOIN countryStructure.sections s ON s.id_section = eac.section_id
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                    LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
                     WHERE eac.id = %s
                 """, [classe_par_annee_id])
                 row = cur.fetchone()
@@ -7079,8 +7079,8 @@ def dashboard_etablissement_view(request):
                           ON eac.classe_id = ei.classe_id
                           AND (eac.groupe COLLATE utf8mb4_general_ci <=> ei.groupe COLLATE utf8mb4_general_ci)
                           AND eac.section_id <=> ei.section_id
-                        JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id
-                        LEFT JOIN countryStructure.sections s ON s.id_section = eac.section_id
+                        JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                        LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
                         WHERE ei.idCampus_id IN ({placeholders}) AND ei.status = 1{annee_filter}
                         GROUP BY eac.id
                         ORDER BY cl.ordre, cl.nom, eac.groupe
@@ -8509,10 +8509,10 @@ def get_evaluations_list(request):
                            ca.cours AS cours_nom, ca.code_cours AS cours_code,
                            (SELECT COUNT(*) FROM evaluation_repartition er WHERE er.id_evaluation = e.id_evaluation) AS assign_count
                     FROM evaluation e
-                    LEFT JOIN countryStructure.evaluation_types et ON et.id_type_eval = e.id_type_eval
+                    LEFT JOIN countryStructure.evaluation_types et ON et.id = e.id_type_eval
                     LEFT JOIN countryStructure.repartition_instances ri ON ri.id_instance = e.id_repartition_instance
                     LEFT JOIN countryStructure.cours_annee cann ON cann.id_cours_annee = e.id_cours_classe_id
-                    LEFT JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
+                    LEFT JOIN countryStructure.cours ca ON ca.id = cann.cours_id
                     WHERE e.classe_id = %s AND e.groupe <=> %s AND e.section_id <=> %s
                           AND e.id_etablissement = %s
                           {cours_filter}
@@ -8764,7 +8764,7 @@ def get_evaluation_candidates(request):
                                e.ponderer_eval, e.date_eval,
                                et.sigle AS type_sigle
                         FROM evaluation e
-                        LEFT JOIN countryStructure.evaluation_types et ON et.id_type_eval = e.id_type_eval
+                        LEFT JOIN countryStructure.evaluation_types et ON et.id = e.id_type_eval
                         WHERE e.classe_id = %s AND e.groupe <=> %s AND e.section_id <=> %s
                               AND e.id_cours_classe_id = %s
                               AND e.id_etablissement = %s
@@ -8778,7 +8778,7 @@ def get_evaluation_candidates(request):
                                e.ponderer_eval, e.date_eval,
                                et.sigle AS type_sigle
                         FROM evaluation e
-                        LEFT JOIN countryStructure.evaluation_types et ON et.id_type_eval = e.id_type_eval
+                        LEFT JOIN countryStructure.evaluation_types et ON et.id = e.id_type_eval
                         WHERE e.classe_id = %s AND e.groupe <=> %s AND e.section_id <=> %s
                               AND e.id_cours_classe_id = %s
                               AND e.id_etablissement = %s
@@ -9008,9 +9008,9 @@ def get_notes_grid(request):
                            et.sigle AS type_sigle,
                            ca.cours AS cours_nom, ca.code_cours AS cours_code
                     FROM evaluation ev
-                    LEFT JOIN countryStructure.evaluation_types et ON et.id_type_eval = ev.id_type_eval
+                    LEFT JOIN countryStructure.evaluation_types et ON et.id = ev.id_type_eval
                     LEFT JOIN countryStructure.cours_annee cann ON cann.id_cours_annee = ev.id_cours_classe_id
-                    LEFT JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
+                    LEFT JOIN countryStructure.cours ca ON ca.id = cann.cours_id
                     WHERE ev.id_repartition_instance = %s
                       AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
                       AND ev.id_etablissement = %s
@@ -9061,7 +9061,7 @@ def get_notes_grid(request):
                         _hub_cur.execute("""
                             SELECT rtn.ponderation_max
                             FROM repartition_type_notes rtn
-                            JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                            JOIN note_types nt ON nt.id = rtn.note_type_id
                             WHERE rtn.repartition_type_id = %s AND nt.sigle = 'TJ'
                               AND rtn.source_type = 'EVALUATIONS' AND rtn.is_active = 1
                             LIMIT 1
@@ -9263,7 +9263,7 @@ def download_notes_template(request):
                            ca.cours AS cours_nom, ev.id_cours_classe_id
                     FROM evaluation ev
                     LEFT JOIN countryStructure.cours_annee cann ON cann.id_cours_annee = ev.id_cours_classe_id
-                    LEFT JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
+                    LEFT JOIN countryStructure.cours ca ON ca.id = cann.cours_id
                     WHERE ev.id_repartition_instance = %s
                       AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
                       AND ev.id_etablissement = %s
@@ -9603,7 +9603,7 @@ def import_exam_notes_excel(request):
             conn_hub.execute("""
                 SELECT rtn.ponderation_max, nt.id_type_note
                 FROM repartition_type_notes rtn
-                JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                JOIN note_types nt ON nt.id = rtn.note_type_id
                 WHERE rtn.repartition_type_id = %s AND nt.sigle = 'EX' AND rtn.is_active = 1
                 LIMIT 1
             """, [rep_type_id])
@@ -9832,7 +9832,7 @@ def calculate_period_batch(request):
                     conn_hub.execute("""
                         SELECT nt.id_type_note, rtn.ponderation_max
                         FROM repartition_type_notes rtn
-                        JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                        JOIN note_types nt ON nt.id = rtn.note_type_id
                         WHERE rtn.repartition_type_id = %s AND nt.sigle = 'TJ' AND rtn.is_active = 1
                         LIMIT 1
                     """, [child_type_id])
@@ -9846,7 +9846,7 @@ def calculate_period_batch(request):
                     conn_hub.execute("""
                         SELECT nt.id_type_note, nt.sigle, rtn.ponderation_max
                         FROM repartition_type_notes rtn
-                        JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                        JOIN note_types nt ON nt.id = rtn.note_type_id
                         WHERE rtn.repartition_type_id = %s AND rtn.is_active = 1
                         ORDER BY rtn.ordre
                     """, [parent_type_id])
@@ -9877,7 +9877,7 @@ def calculate_period_batch(request):
                     cur.execute("""
                         SELECT cann.id_cours_annee, cann.maxima_tj, cann.maxima_exam
                         FROM countryStructure.cours_annee cann
-                        JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
+                        JOIN countryStructure.cours ca ON ca.id = cann.cours_id
                         JOIN countryStructure.etablissements_annees ea3 ON ea3.annee_id = cann.annee_id
                         JOIN countryStructure.etablissements_annees_classes eac3 ON eac3.etablissement_annee_id = ea3.id
                         WHERE eac3.id = %s AND ca.classe_id = eac3.classe_id
@@ -10195,7 +10195,7 @@ def calculate_period_notes(request):
                     conn_hub.execute("""
                         SELECT rtn.ponderation_max, nt.id_type_note, nt.sigle
                         FROM repartition_type_notes rtn
-                        JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                        JOIN note_types nt ON nt.id = rtn.note_type_id
                         WHERE rtn.repartition_type_id = %s AND nt.sigle = 'TJ' AND rtn.is_active = 1
                         LIMIT 1
                     """, [rep_type_id])
@@ -10216,7 +10216,7 @@ def calculate_period_notes(request):
                         conn_hub.execute("""
                             SELECT rtn.ponderation_max, nt.id_type_note, nt.sigle
                             FROM repartition_type_notes rtn
-                            JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                            JOIN note_types nt ON nt.id = rtn.note_type_id
                             WHERE rtn.repartition_type_id = %s AND rtn.is_active = 1
                             ORDER BY rtn.ordre
                         """, [parent_type_id])
@@ -10459,7 +10459,7 @@ def calculate_notes_bulletin(request):
                 SELECT rtn.id, rtn.ponderation_max, rtn.source_type, rtn.mode_calcul, rtn.ordre,
                        nt.id_type_note, nt.sigle, nt.nom
                 FROM repartition_type_notes rtn
-                JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                JOIN note_types nt ON nt.id = rtn.note_type_id
                 WHERE rtn.repartition_type_id = %s AND rtn.is_active = 1
                 ORDER BY rtn.ordre
             """, [rep_type_id])
@@ -10525,7 +10525,7 @@ def calculate_notes_bulletin(request):
                            MAX(cann.maxima_exam) AS maxima_exam,
                            MAX(cann.maxima_tj) AS maxima_tj
                     FROM countryStructure.cours_annee cann
-                    JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
+                    JOIN countryStructure.cours ca ON ca.id = cann.cours_id
                     JOIN countryStructure.etablissements_annees ea ON ea.annee_id = cann.annee_id
                     JOIN countryStructure.etablissements_annees_classes eac ON eac.etablissement_annee_id = ea.id
                     WHERE eac.id = %s AND ca.classe_id = eac.classe_id
@@ -10794,7 +10794,7 @@ def sync_all_notes_bulletin(request):
                 cur.execute("""
                     SELECT cann.id_cours_annee, cann.maxima_exam, cann.maxima_tj, cann.maxima_periode
                     FROM countryStructure.cours_annee cann
-                    JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
+                    JOIN countryStructure.cours ca ON ca.id = cann.cours_id
                     WHERE ca.classe_id = %s
                 """, [ctx['bk_classe']])
                 cours_rows = cur.fetchall()
@@ -10829,7 +10829,7 @@ def sync_all_notes_bulletin(request):
                         conn_hub.execute("""
                             SELECT rtn.ponderation_max, rtn.source_type, nt.id_type_note, nt.sigle
                             FROM repartition_type_notes rtn
-                            JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                            JOIN note_types nt ON nt.id = rtn.note_type_id
                             WHERE rtn.repartition_type_id = %s AND rtn.is_active = 1
                             ORDER BY rtn.ordre
                         """, [tid])
@@ -11095,7 +11095,7 @@ def get_exam_grid(request):
             conn_hub.execute("""
                 SELECT rtn.id, rtn.ponderation_max, nt.id_type_note
                 FROM repartition_type_notes rtn
-                JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                JOIN note_types nt ON nt.id = rtn.note_type_id
                 WHERE rtn.repartition_type_id = %s AND nt.sigle = 'EX' AND rtn.is_active = 1
                 LIMIT 1
             """, [rep_type_id])
@@ -11145,7 +11145,7 @@ def get_exam_grid(request):
                     SELECT cann.id_cours_annee, ca.cours AS cours_nom, ca.code_cours,
                            cann.maxima_exam, cann.ordre
                     FROM countryStructure.cours_annee cann
-                    JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
+                    JOIN countryStructure.cours ca ON ca.id = cann.cours_id
                     JOIN countryStructure.etablissements_annees ea ON ea.annee_id = cann.annee_id
                     JOIN countryStructure.etablissements_annees_classes eac ON eac.etablissement_annee_id = ea.id
                     WHERE eac.id = %s AND ca.classe_id = eac.classe_id
@@ -11241,7 +11241,7 @@ def save_exam_notes(request):
             conn_hub.execute("""
                 SELECT rtn.ponderation_max, nt.id_type_note
                 FROM repartition_type_notes rtn
-                JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                JOIN note_types nt ON nt.id = rtn.note_type_id
                 WHERE rtn.repartition_type_id = %s AND nt.sigle = 'EX' AND rtn.is_active = 1
                 LIMIT 1
             """, [rep_type_id])
@@ -11345,7 +11345,7 @@ def download_exam_template(request):
             conn_hub.execute("""
                 SELECT rtn.ponderation_max, nt.id_type_note
                 FROM repartition_type_notes rtn
-                JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                JOIN note_types nt ON nt.id = rtn.note_type_id
                 WHERE rtn.repartition_type_id = %s AND nt.sigle = 'EX' AND rtn.is_active = 1
                 LIMIT 1
             """, [rep_type_id])
@@ -11393,7 +11393,7 @@ def download_exam_template(request):
                     SELECT cann.id_cours_annee, ca.cours AS cours_nom, ca.code_cours,
                            cann.maxima_exam, cann.ordre
                     FROM countryStructure.cours_annee cann
-                    JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
+                    JOIN countryStructure.cours ca ON ca.id = cann.cours_id
                     JOIN countryStructure.etablissements_annees ea ON ea.annee_id = cann.annee_id
                     JOIN countryStructure.etablissements_annees_classes eac ON eac.etablissement_annee_id = ea.id
                     WHERE eac.id = %s AND ca.classe_id = eac.classe_id
@@ -11639,7 +11639,7 @@ def get_bulletin_overview(request):
                            rtn.mode_calcul, rtn.ordre,
                            nt.id_type_note, nt.sigle, nt.nom
                     FROM repartition_type_notes rtn
-                    JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                    JOIN note_types nt ON nt.id = rtn.note_type_id
                     WHERE rtn.repartition_type_id IN ({type_placeholders})
                       AND rtn.is_active = 1
                     ORDER BY rtn.repartition_type_id, rtn.ordre
@@ -11696,7 +11696,7 @@ def get_bulletin_overview(request):
                            MAX(cann.maxima_exam) AS maxima_exam, MAX(cann.maxima_tj) AS maxima_tj,
                            MAX(cann.maxima_periode) AS maxima_periode
                     FROM countryStructure.cours_annee cann
-                    JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
+                    JOIN countryStructure.cours ca ON ca.id = cann.cours_id
                     JOIN countryStructure.etablissements_annees ea3 ON ea3.annee_id = cann.annee_id
                     JOIN countryStructure.etablissements_annees_classes eac3 ON eac3.etablissement_annee_id = ea3.id
                     WHERE eac3.id = %s AND ca.classe_id = eac3.classe_id
@@ -11823,7 +11823,7 @@ def get_notes_bulletin(request):
                 SELECT rtn.id, rtn.ponderation_max, rtn.source_type, rtn.ordre,
                        nt.id_type_note, nt.sigle, nt.nom
                 FROM repartition_type_notes rtn
-                JOIN note_types nt ON nt.id_type_note = rtn.note_type_id
+                JOIN note_types nt ON nt.id = rtn.note_type_id
                 WHERE rtn.repartition_type_id = %s AND rtn.is_active = 1
                   AND rtn.is_visible_bulletin = 1
                 ORDER BY rtn.ordre
@@ -11879,7 +11879,7 @@ def get_notes_bulletin(request):
                     SELECT MIN(cann.id_cours_annee) AS id_cours_annee, ca.cours AS cours_nom, ca.code_cours,
                            MAX(cann.maxima_exam) AS maxima_exam
                     FROM countryStructure.cours_annee cann
-                    JOIN countryStructure.cours ca ON ca.id_cours = cann.cours_id
+                    JOIN countryStructure.cours ca ON ca.id = cann.cours_id
                     JOIN countryStructure.etablissements_annees ea ON ea.annee_id = cann.annee_id
                     JOIN countryStructure.etablissements_annees_classes eac ON eac.etablissement_annee_id = ea.id
                     WHERE eac.id = %s AND ca.classe_id = eac.classe_id
@@ -12843,7 +12843,7 @@ def dashboard_transfer_eleves(request):
                 cur.execute("""
                     SELECT eac.classe_id, eac.groupe, eac.section_id, cl.cycle_id
                     FROM countryStructure.etablissements_annees_classes eac
-                    JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
                     WHERE eac.id = %s
                 """, [dest_classe_id])
                 bk = cur.fetchone()
