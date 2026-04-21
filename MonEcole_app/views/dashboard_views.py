@@ -188,7 +188,7 @@ def _get_dashboard_context(request):
             # Récupérer les configs cycle pour cet établissement
             etab_cycle_configs = list(
                 RepartitionConfigCycle.objects.filter(
-                    cycle_id__in=active_cycle_ids, is_active=True
+                    cycle_id__in=active_cycle_ids, is_active=True, id_pays=pays.id_pays
                 ).select_related('type_racine')
             ) if active_cycle_ids else []
 
@@ -204,7 +204,7 @@ def _get_dashboard_context(request):
 
             # Charger les hiérarchies pour déterminer les types enfants et leur nombre
             hierarchies_for_types = {}  # parent_type_id → {child_type_id, nb_enfants}
-            for h in RepartitionHierarchie.objects.filter(is_active=True).select_related('type_parent', 'type_enfant'):
+            for h in RepartitionHierarchie.objects.filter(is_active=True, id_pays=pays.id_pays).select_related('type_parent', 'type_enfant'):
                 hierarchies_for_types[h.type_parent_id] = {
                     'child_type_id': h.type_enfant_id,
                     'nb_enfants': h.nombre_enfants,

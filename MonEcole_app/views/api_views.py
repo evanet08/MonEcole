@@ -3782,12 +3782,13 @@ def save_etablissement_config(request):
                 # 2. Find RepartitionConfigCycle for these cycles
                 cycle_configs = RepartitionConfigCycle.objects.filter(
                     cycle_id__in=activated_cycle_ids,
-                    is_active=True
+                    is_active=True,
+                    id_pays=etab_pays.id_pays
                 ).select_related('type_racine')
                 
                 # 3. Find all hierarchies (parent→child type relationships)
                 hierarchies = {}
-                for h in RepartitionHierarchie.objects.filter(is_active=True).select_related('type_parent', 'type_enfant'):
+                for h in RepartitionHierarchie.objects.filter(is_active=True, id_pays=etab_pays.id_pays).select_related('type_parent', 'type_enfant'):
                     if h.type_parent_id not in hierarchies:
                         hierarchies[h.type_parent_id] = []
                     hierarchies[h.type_parent_id].append(h)
@@ -6447,7 +6448,9 @@ def dashboard_attribution_cours(request):
 def get_sessions_data(request):
     """Retourne la liste des sessions (référence commune)."""
     try:
-        sessions = list(Session.objects.all().values('id_session', 'session'))
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        sessions = list(Session.objects.filter(id_pays=etab.pays_id).values('id_session', 'session'))
         return JsonResponse({'success': True, 'sessions': sessions})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
@@ -6512,7 +6515,9 @@ def update_admin_instance(request):
 def get_mentions_data(request):
     """Retourne la liste des mentions (barèmes de notation)."""
     try:
-        mentions = list(Mention.objects.all().values(
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        mentions = list(Mention.objects.filter(id_pays=etab.pays_id).values(
             'id_mention', 'mention', 'abbreviation', 'min', 'max'
         ))
         return JsonResponse({'success': True, 'mentions': mentions})
@@ -6525,15 +6530,17 @@ def get_mentions_data(request):
 def save_session(request):
     """Créer ou modifier une session."""
     try:
+        etab, err = _get_tenant_etab(request)
+        if err: return err
         data = json.loads(request.body)
         id_session = data.get('id_session')
         session_name = data.get('session')
         if id_session:
-            s = get_object_or_404(Session, id_session=id_session)
+            s = get_object_or_404(Session, id_session=id_session, id_pays=etab.pays_id)
             s.session = session_name
             s.save()
         else:
-            Session.objects.create(session=session_name)
+            Session.objects.create(session=session_name, id_pays=etab.pays_id)
         return JsonResponse({'success': True})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
@@ -6548,6 +6555,8 @@ def save_session(request):
 def save_mention(request):
     """Créer ou modifier une mention."""
     try:
+        etab, err = _get_tenant_etab(request)
+        if err: return err
         data = json.loads(request.body)
         id_mention = data.get('id_mention')
         mention_name = data.get('mention')
@@ -6555,7 +6564,7 @@ def save_mention(request):
         min_val = data.get('min')
         max_val = data.get('max')
         if id_mention:
-            m = get_object_or_404(Mention, id_mention=id_mention)
+            m = get_object_or_404(Mention, id_mention=id_mention, id_pays=etab.pays_id)
             m.mention = mention_name
             m.abbreviation = abbreviation
             m.min = min_val
@@ -6564,7 +6573,7 @@ def save_mention(request):
         else:
             Mention.objects.create(
                 mention=mention_name, abbreviation=abbreviation,
-                min=min_val, max=max_val
+                min=min_val, max=max_val, id_pays=etab.pays_id
             )
         return JsonResponse({'success': True})
     except Exception as e:
@@ -6713,19 +6722,20 @@ def dashboard_etablissement_view(request):
             allowed_type_ids = set(
                 RepartitionConfigCycle.objects.filter(
                     cycle_id__in=active_cycle_ids,
-                    is_active=True
+                    is_active=True,
+                    id_pays=pays.id_pays
                 ).values_list('type_racine_id', flat=True)
             ) if active_cycle_ids else set()
             # Toujours inclure le type Période (subdivision universelle)
             if allowed_type_ids:
-                periode_type = RepartitionType.objects.filter(code='P').values_list('id_type', flat=True).first()
+                periode_type = RepartitionType.objects.filter(code='P', id_pays=pays.id_pays).values_list('id_type', flat=True).first()
                 if periode_type:
                     allowed_type_ids.add(periode_type)
 
             # Determine which types are containers (parents in hierarchy) — they are NOT leaf
             parent_type_ids = set(
                 RepartitionHierarchie.objects.filter(
-                    is_active=True
+                    is_active=True, id_pays=pays.id_pays
                 ).values_list('type_parent_id', flat=True)
             )
 
@@ -6760,7 +6770,7 @@ def dashboard_etablissement_view(request):
                 # Build parent→child mapping using hierarchy
                 # For each hierarchy (e.g. Trimestre→Période, nombre_enfants=2),
                 # assign each child period to its parent container by order
-                hierarchies = RepartitionHierarchie.objects.filter(is_active=True)
+                hierarchies = RepartitionHierarchie.objects.filter(is_active=True, id_pays=pays.id_pays)
                 for hier in hierarchies:
                     parent_items = sorted(
                         [r for r in repartitions_notes if r['type_id'] == hier.type_parent_id],
@@ -6798,7 +6808,7 @@ def dashboard_etablissement_view(request):
                     # Get type_id for is_leaf check
                     type_code = rc.get('repartition__type__code', '')
                     if type_code:
-                        rt = RepartitionType.objects.filter(code=type_code).values_list('id_type', flat=True).first()
+                        rt = RepartitionType.objects.filter(code=type_code, id_pays=pays.id_pays).values_list('id_type', flat=True).first()
                         type_id = rt
                     repartitions_notes.append({
                         'id': rc.get('id'),
@@ -6818,7 +6828,7 @@ def dashboard_etablissement_view(request):
                     })
 
                 # Build parent→child mapping (same logic as synced mode)
-                hierarchies = RepartitionHierarchie.objects.filter(is_active=True)
+                hierarchies = RepartitionHierarchie.objects.filter(is_active=True, id_pays=pays.id_pays)
                 for hier in hierarchies:
                     parent_items = sorted(
                         [r for r in repartitions_notes if r.get('type_id') == hier.type_parent_id],
@@ -7331,7 +7341,7 @@ def toggle_calendar_synch(request):
         repartitions = []
 
         # Get allowed repartition types from active cycles
-        annee_active = Annee.objects.filter(isOpen=True).first()
+        annee_active = Annee.objects.filter(isOpen=True, pays_id=etab.pays_id).first()
         allowed_type_ids = set()
         if annee_active:
             etab_annee, _ = EtablissementAnnee.objects.get_or_create(
@@ -7346,11 +7356,12 @@ def toggle_calendar_synch(request):
                 allowed_type_ids = set(
                     RepartitionConfigCycle.objects.filter(
                         cycle_id__in=active_cycle_ids,
-                        is_active=True
+                        is_active=True,
+                        id_pays=etab.pays_id
                     ).values_list('type_racine_id', flat=True)
                 )
                 # Toujours inclure le type Période
-                periode_type = RepartitionType.objects.filter(code='P').values_list('id_type', flat=True).first()
+                periode_type = RepartitionType.objects.filter(code='P', id_pays=etab.pays_id).values_list('id_type', flat=True).first()
                 if periode_type:
                     allowed_type_ids.add(periode_type)
 
@@ -7991,7 +8002,9 @@ def auto_generate_instances(request):
             return JsonResponse({'success': False, 'error': 'annee_id requis.'}, status=400)
         
         annee = get_object_or_404(Annee, id_annee=annee_id)
-        pays = annee.pays
+        pays = Pays.objects.filter(id_pays=annee.pays_id).first()
+        if not pays:
+            return JsonResponse({'success': False, 'error': 'Pays introuvable pour cette année.'}, status=400)
         
         # French ordinal names
         ORDINALS = {
@@ -8017,7 +8030,7 @@ def auto_generate_instances(request):
         
         # Get all active cycle configs
         configs = RepartitionConfigCycle.objects.filter(
-            is_active=True
+            is_active=True, id_pays=pays.id_pays
         ).select_related('type_racine')
         
         if not configs.exists():
@@ -8035,7 +8048,7 @@ def auto_generate_instances(request):
         
         # Get hierarchies (parent_type → list of children)
         hierarchies = {}
-        for h in RepartitionHierarchie.objects.filter(is_active=True).select_related('type_parent', 'type_enfant'):
+        for h in RepartitionHierarchie.objects.filter(is_active=True, id_pays=pays.id_pays).select_related('type_parent', 'type_enfant'):
             hierarchies.setdefault(h.type_parent_id, []).append(h)
         
         created_root = 0
@@ -8228,11 +8241,11 @@ def provision_repartitions_for_etab(request):
         
         # Find RepartitionConfigCycle for these cycles
         cycle_configs = RepartitionConfigCycle.objects.filter(
-            cycle_id__in=activated_cycle_ids, is_active=True
+            cycle_id__in=activated_cycle_ids, is_active=True, id_pays=etab.pays_id
         ).select_related('type_racine')
         
         hierarchies = {}
-        for h in RepartitionHierarchie.objects.filter(is_active=True).select_related('type_parent', 'type_enfant'):
+        for h in RepartitionHierarchie.objects.filter(is_active=True, id_pays=etab.pays_id).select_related('type_parent', 'type_enfant'):
             hierarchies.setdefault(h.type_parent_id, []).append(h)
         
         existing_instance_ids = set(
@@ -8355,8 +8368,9 @@ def provision_repartitions_for_etab(request):
 def get_evaluation_types(request):
     """Retourne les types d'évaluations depuis le Hub."""
     try:
-        # EvaluationType already imported at top
-        types = list(EvaluationType.objects.filter(is_active=True).values(
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        types = list(EvaluationType.objects.filter(is_active=True, id_pays=etab.pays_id).values(
             'id_type_eval', 'nom', 'sigle', 'description', 'is_active'
         ))
         return JsonResponse({'success': True, 'types': types})
@@ -8369,7 +8383,8 @@ def get_evaluation_types(request):
 def save_evaluation_type(request):
     """Créer ou modifier un type d'évaluation."""
     try:
-        # EvaluationType already imported at top
+        etab, err = _get_tenant_etab(request)
+        if err: return err
         data = json.loads(request.body)
         id_type = data.get('id_type_eval')
         nom = (data.get('nom') or '').strip()
@@ -8380,13 +8395,13 @@ def save_evaluation_type(request):
             return JsonResponse({'success': False, 'error': 'Nom et sigle requis.'}, status=400)
 
         if id_type:
-            obj = EvaluationType.objects.get(id_type_eval=id_type)
+            obj = EvaluationType.objects.get(id_type_eval=id_type, id_pays=etab.pays_id)
             obj.nom = nom
             obj.sigle = sigle
             obj.description = description
             obj.save()
         else:
-            obj = EvaluationType.objects.create(nom=nom, sigle=sigle, description=description)
+            obj = EvaluationType.objects.create(nom=nom, sigle=sigle, description=description, id_pays=etab.pays_id)
 
         return JsonResponse({'success': True, 'id_type_eval': obj.id_type_eval})
     except Exception as e:
@@ -8398,9 +8413,10 @@ def save_evaluation_type(request):
 def delete_evaluation_type(request):
     """Supprimer un type d'évaluation."""
     try:
-        # EvaluationType already imported at top
+        etab, err = _get_tenant_etab(request)
+        if err: return err
         data = json.loads(request.body)
-        obj = EvaluationType.objects.get(id_type_eval=data.get('id_type_eval'))
+        obj = EvaluationType.objects.get(id_type_eval=data.get('id_type_eval'), id_pays=etab.pays_id)
         obj.delete()
         return JsonResponse({'success': True})
     except Exception as e:
@@ -11532,7 +11548,7 @@ def get_bulletin_overview(request):
         if err: return err
         etab_id = etab.id_etablissement
 
-        annee = Annee.objects.filter(isOpen=True).first()
+        annee = Annee.objects.filter(isOpen=True, pays_id=etab.pays_id).first()
         if not annee:
             return JsonResponse({'success': False, 'error': 'Pas d\'année ouverte.'})
 
@@ -11558,7 +11574,7 @@ def get_bulletin_overview(request):
 
         if cycle_id:
             cycle_config = RepartitionConfigCycle.objects.filter(
-                cycle_id=cycle_id, is_active=True
+                cycle_id=cycle_id, is_active=True, id_pays=etab.pays_id
             ).first()
             if cycle_config:
                 root_type_id = cycle_config.type_racine_id
@@ -11566,7 +11582,7 @@ def get_bulletin_overview(request):
                 allowed_type_ids.add(root_type_id)
 
                 hierarchies = RepartitionHierarchie.objects.filter(
-                    type_parent_id=root_type_id, is_active=True
+                    type_parent_id=root_type_id, is_active=True, id_pays=etab.pays_id
                 )
                 for h in hierarchies:
                     child_type_id = h.type_enfant_id
@@ -13277,7 +13293,9 @@ def dashboard_users_modules(request):
 def get_evaluations_sessions(request):
     """Retourne la liste des sessions pour le dropdown délibérations."""
     try:
-        sessions = list(Session.objects.filter(is_active=True).values('id_session', 'session'))
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        sessions = list(Session.objects.filter(is_active=True, id_pays=etab.pays_id).values('id_session', 'session'))
         return JsonResponse({'success': True, 'sessions': sessions})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
@@ -13304,7 +13322,7 @@ def get_evaluations_repartitions(request):
         if err:
             return err
 
-        annee = Annee.objects.filter(isOpen=True).first()
+        annee = Annee.objects.filter(isOpen=True, pays_id=etab.pays_id).first()
         if not annee:
             return JsonResponse({'success': True, 'repartitions': []})
 
@@ -13331,7 +13349,7 @@ def get_evaluations_repartitions(request):
         if cycle_id:
             # Config cycle → type racine (ex: Cycle "Ecole de Base" → Semestre, nombre=2)
             cycle_config = RepartitionConfigCycle.objects.filter(
-                cycle_id=cycle_id, is_active=True
+                cycle_id=cycle_id, is_active=True, id_pays=etab.pays_id
             ).select_related('type_racine').first()
 
             if cycle_config:
@@ -13341,7 +13359,7 @@ def get_evaluations_repartitions(request):
 
                 # Hiérarchie → types enfants (ex: Semestre → Période, nombre=2)
                 hierarchies = RepartitionHierarchie.objects.filter(
-                    type_parent_id=root_type_id, is_active=True
+                    type_parent_id=root_type_id, is_active=True, id_pays=etab.pays_id
                 )
                 for h in hierarchies:
                     allowed_type_ids.add(h.type_enfant_id)
@@ -13416,7 +13434,7 @@ def get_deliberation_conditions(request):
         if err:
             return err
 
-        annee = Annee.objects.filter(isOpen=True).first()
+        annee = Annee.objects.filter(isOpen=True, pays_id=etab.pays_id).first()
         if not annee:
             return JsonResponse({'success': True, 'conditions': []})
 
@@ -13431,7 +13449,7 @@ def get_deliberation_conditions(request):
         )
 
         # Fetch mentions and finalites for display
-        mention_map = {m.id_mention: str(m) for m in Mention.objects.all()}
+        mention_map = {m.id_mention: str(m) for m in Mention.objects.filter(id_pays=etab.pays_id)}
         finalite_map = {}
         try:
             finalite_map = {f.id_finalite: f.finalite for f in Deliberation_annuelle_finalite.objects.all()}
@@ -13497,7 +13515,7 @@ def execute_deliberation(request):
         if err:
             return err
 
-        annee = Annee.objects.filter(isOpen=True).first()
+        annee = Annee.objects.filter(isOpen=True, pays_id=etab.pays_id).first()
         if not annee:
             return JsonResponse({'success': False, 'error': 'Aucune année en cours.'}, status=400)
 
@@ -13665,7 +13683,7 @@ def execute_deliberation(request):
             r['place'] = f'{rank}/{total_eleves}'
 
         # Determine mention for each student
-        mentions = list(Mention.objects.all())
+        mentions = list(Mention.objects.filter(id_pays=etab.pays_id))
         for r in resultats:
             pct = r['pourcentage']
             r['mention'] = '—'
@@ -13815,7 +13833,7 @@ def cancel_deliberation(request):
         if err:
             return err
 
-        annee = Annee.objects.filter(isOpen=True).first()
+        annee = Annee.objects.filter(isOpen=True, pays_id=etab.pays_id).first()
         if not annee:
             return JsonResponse({'success': False, 'error': 'Aucune année en cours.'}, status=400)
 
@@ -13997,7 +14015,7 @@ def get_deliberation_results(request):
         if err:
             return err
 
-        annee = Annee.objects.filter(isOpen=True).first()
+        annee = Annee.objects.filter(isOpen=True, pays_id=etab.pays_id).first()
         if not annee:
             return JsonResponse({'success': True, 'resultats': []})
 
@@ -14033,7 +14051,7 @@ def get_deliberation_results(request):
 
         # Build response
         resultats = []
-        mentions = {m.id_mention: str(m) for m in Mention.objects.all()}
+        mentions = {m.id_mention: str(m) for m in Mention.objects.filter(id_pays=etab.pays_id)}
 
         for r in results_qs:
             eleve = r.id_eleve
@@ -14041,7 +14059,7 @@ def get_deliberation_results(request):
             decision_str = '—'
 
             # Get mention from percentage
-            for m in Mention.objects.all():
+            for m in Mention.objects.filter(id_pays=etab.pays_id):
                 if m.min <= r.pourcentage <= m.max:
                     mention_str = str(m)
                     # Get decision from conditions
@@ -14092,7 +14110,7 @@ def get_deliberated_classes(request):
         if err:
             return err
 
-        annee = Annee.objects.filter(isOpen=True).first()
+        annee = Annee.objects.filter(isOpen=True, pays_id=etab.pays_id).first()
         if not annee:
             return JsonResponse({'success': True, 'classes': []})
 
@@ -14202,7 +14220,7 @@ def get_bulletin_eleves(request):
         if err:
             return err
 
-        annee = Annee.objects.filter(isOpen=True).first()
+        annee = Annee.objects.filter(isOpen=True, pays_id=etab.pays_id).first()
         if not annee:
             return JsonResponse({'success': True, 'eleves': []})
 
