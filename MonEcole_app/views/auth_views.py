@@ -386,7 +386,13 @@ def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, pass
             personnel.phone_verified = True
 
     # 4. Créer user_module
-    annee = Annee.objects.order_by('-annee').first()
+    # Résoudre le pays_id pour filtrer l'année
+    from MonEcole_app.models.country_structure import Etablissement as _Etab
+    _etab_obj = _Etab.objects.filter(id_etablissement=etab_id).first()
+    if _etab_obj and _etab_obj.pays_id:
+        annee = Annee.objects.filter(pays_id=_etab_obj.pays_id).order_by('-annee').first()
+    else:
+        annee = Annee.objects.order_by('-annee').first()
     annee_id = annee.id_annee if annee else 1
 
     if is_super:
