@@ -219,7 +219,7 @@ def _check_hub_user(email, etab_id):
             # 2) Vérifier dans admin_users du Hub
             cur.execute(
                 """SELECT id_admin, email, telephone, password_hash,
-                          email_verified, is_active
+                          email_verified, is_active, phone_verified
                    FROM admin_users
                    WHERE LOWER(email) = %s
                      AND etablissement_id = %s
@@ -236,6 +236,7 @@ def _check_hub_user(email, etab_id):
                     'telephone': hub_user[2] or '',
                     'password_hash': hub_user[3] or '',
                     'email_verified': bool(hub_user[4]),
+                    'phone_verified': bool(hub_user[6]) if len(hub_user) > 6 else False,
                     'nom_etab': etab_row[2] if etab_row else '',
                 }
 
@@ -277,6 +278,8 @@ def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, pass
     """
     hub_password_hash = (hub_info or {}).get('password_hash', '') if hub_info else ''
     hub_telephone = (hub_info or {}).get('telephone', '') if hub_info else ''
+    hub_email_verified = (hub_info or {}).get('email_verified', False) if hub_info else False
+    hub_phone_verified = (hub_info or {}).get('phone_verified', False) if hub_info else False
 
     # 1. Chercher le personnel existant par email
     try:
@@ -333,7 +336,7 @@ def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, pass
                     %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s,
                     %s, %s, %s,
-                    1, 1, 1, 0, 0,
+                    1, 1, 1, %s, %s,
                     %s, CURDATE()
                 )
             """, [
@@ -342,6 +345,8 @@ def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, pass
                 def_diplome.id_diplome, def_spec.id_specialite,
                 def_cat.id_personnel_category, def_vac.id_vacation,
                 def_type.id_type_personnel,
+                1 if hub_email_verified else 0,
+                1 if hub_phone_verified else 0,
                 hub_telephone or '',
             ])
             new_id = cur.lastrowid
@@ -360,16 +365,25 @@ def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, pass
                 [personnel.password_hash, personnel.id_personnel]
             )
 
-    # 3. Garantir isUser, is_verified, en_fonction
-    if not personnel.isUser or not personnel.is_verified or not personnel.en_fonction:
+    # 3. Garantir isUser, is_verified, en_fonction + sync verified status from hub
+    updates = ['isUser=1', 'is_verified=1', 'en_fonction=1']
+    if hub_email_verified and not getattr(personnel, 'email_verified', False):
+        updates.append('email_verified=1')
+    if hub_phone_verified and not getattr(personnel, 'phone_verified', False):
+        updates.append('phone_verified=1')
+    if not personnel.isUser or not personnel.is_verified or not personnel.en_fonction or hub_email_verified or hub_phone_verified:
         with connections['default'].cursor() as cur:
             cur.execute(
-                "UPDATE personnel SET isUser=1, is_verified=1, en_fonction=1 WHERE id_personnel=%s",
+                f"UPDATE personnel SET {', '.join(updates)} WHERE id_personnel=%s",
                 [personnel.id_personnel]
             )
         personnel.isUser = True
         personnel.is_verified = True
         personnel.en_fonction = True
+        if hub_email_verified:
+            personnel.email_verified = True
+        if hub_phone_verified:
+            personnel.phone_verified = True
 
     # 4. Créer user_module
     annee = Annee.objects.order_by('-annee').first()
@@ -866,12 +880,22 @@ def api_login(request):
             return JsonResponse({'success': False, 'error': 'Identifiants incorrects'}, status=401)
 
         # Vérifier email_verified / phone_verified AVANT la session complète
+        # Hub users with verified status in Hub skip spoke verification
         email_verified = bool(getattr(personnel, 'email_verified', 0))
         phone_verified = bool(getattr(personnel, 'phone_verified', 0))
+
+        # If hub user has verified email/phone in hub, trust that
+        if is_hub_user and hub_info:
+            if hub_info.get('email_verified'):
+                email_verified = True
+            if hub_info.get('phone_verified'):
+                phone_verified = True
+
         needs_verification = not email_verified and not phone_verified
 
-        if needs_verification:
-            # Créer une session limitée — accès uniquement à la page de vérification
+        if needs_verification and not is_hub_user:
+            # Only require verification for NON-hub users
+            # Hub users are already trusted by the hub
             request.session.flush()
             request.session['personnel_id'] = personnel.id_personnel
             request.session['user_email'] = personnel.email or ''
