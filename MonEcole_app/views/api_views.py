@@ -1855,7 +1855,7 @@ def get_cycles_data(request):
         results = []
         for c in cycles:
             # Classes belong directly to cycles — limited by duree
-            all_classes_qs = Classe.objects.filter(cycle_id=c.id_cycle).order_by('ordre')
+            all_classes_qs = Classe.objects.filter(cycle_id=c.id_cycle, id_pays=pays.id_pays).order_by('ordre')
             all_classes = [{'id_classe': c2.id_classe, 'nom': c2.classe, 'ordre': c2.ordre} for c2 in all_classes_qs]
             # Respect the duree limit: only return up to 'duree' classes per cycle
             if c.duree and c.duree > 0:
@@ -2171,7 +2171,7 @@ def save_classe(request):
                     'error': f'Le cycle "{cycle.nom}" a déjà atteint son maximum de {cycle.duree} classe(s). '
                              f'Modifiez la durée du cycle pour en ajouter davantage.'
                 }, status=400)
-            Classe.objects.create(cycle=cycle, nom=nom, ordre=ordre)
+            Classe.objects.create(cycle=cycle, nom=nom, ordre=ordre, id_pays=pays.id_pays)
             
         return JsonResponse({'success': True})
     except Exception as e:
@@ -2307,8 +2307,8 @@ def delete_domaine(request):
         domaine = get_object_or_404(Domaine, id_domaine=data.get('id_domaine'))
 
         # Vérifier s'il est utilisé dans des cours ou cours_annee
-        cours_count = Cours.objects.filter(domaine=domaine).count()
-        ca_count = CoursAnnee.objects.filter(domaine=domaine).count()
+        cours_count = Cours.objects.filter(domaine=domaine, id_pays=pays.id_pays).count()
+        ca_count = CoursAnnee.objects.filter(domaine=domaine, id_pays=pays.id_pays).count()
         if cours_count > 0 or ca_count > 0:
             return JsonResponse({
                 'success': False,
@@ -2389,7 +2389,7 @@ def get_cours_data(request):
         cycles = pays.cycles.all().order_by('ordre')
         classes_data = []
         for cycle in cycles:
-            cycle_classes = Classe.objects.filter(cycle_id=cycle.id_cycle).order_by('ordre')
+            cycle_classes = Classe.objects.filter(cycle_id=cycle.id_cycle, id_pays=pays.id_pays).order_by('ordre')
             if cycle.duree and cycle.duree > 0:
                 cycle_classes = cycle_classes[:cycle.duree]
             
@@ -2477,6 +2477,7 @@ def save_cours(request):
     """Crée ou modifie un cours."""
     try:
         data = json.loads(request.body)
+        id_pays = data.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
         id_cours = data.get('id_cours')
         code_cours = data.get('code_cours', '').strip()
         nom_cours = data.get('cours', '').strip()
@@ -2488,6 +2489,8 @@ def save_cours(request):
             return JsonResponse({'success': False, 'error': 'Code, nom du cours et classe sont requis.'}, status=400)
 
         classe = get_object_or_404(Classe, id_classe=id_classe)
+        if not id_pays:
+            id_pays = classe.id_pays
         domaine = None
         if domaine_id:
             domaine = get_object_or_404(Domaine, id_domaine=domaine_id)
@@ -2504,7 +2507,7 @@ def save_cours(request):
             c.section = section
             c.save()
         else:
-            if Cours.objects.filter(classe=classe, section=section, code_cours=code_cours).exists():
+            if Cours.objects.filter(classe=classe, section=section, code_cours=code_cours, id_pays=id_pays).exists():
                 section_label = f" (section {section.nom})" if section else ""
                 return JsonResponse({'success': False, 'error': f'Le code "{code_cours}" existe déjà pour cette classe{section_label}.'}, status=400)
             Cours.objects.create(
@@ -2512,7 +2515,8 @@ def save_cours(request):
                 code_cours=code_cours,
                 domaine=domaine,
                 classe=classe,
-                section=section
+                section=section,
+                id_pays=id_pays
             )
 
         return JsonResponse({'success': True})
@@ -2642,7 +2646,7 @@ def import_cours_excel(request):
                     classe=classe,
                     section=section,
                     code_cours=code,
-                    defaults={'cours': nom, 'domaine': Domaine.objects.filter(pays=classe.cycle.pays, nom=domaine).first() if domaine else None}
+                    defaults={'id_pays': classe.id_pays, 'cours': nom, 'domaine': Domaine.objects.filter(pays=classe.cycle.pays, nom=domaine).first() if domaine else None}
                 )
                 success_count += 1
             except Exception as e:
@@ -2688,7 +2692,7 @@ def get_cours_annee_data(request):
             return JsonResponse({'success': True, 'cours_annee': [], 'annees': annees, 'domaines': domaines})
 
         # Tous les cours du catalogue pour cette classe (+section)
-        cours_catalogue = Cours.objects.filter(classe_id=id_classe).order_by('cours')
+        cours_catalogue = Cours.objects.filter(classe_id=id_classe, id_pays=id_pays).order_by('cours')
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
@@ -2697,7 +2701,7 @@ def get_cours_annee_data(request):
         # Les configs existantes pour cette année (même filtre section)
         # IMPORTANT: filter etablissement__isnull=True for national configs only
         configs_map = {}
-        configs_qs = CoursAnnee.objects.filter(
+        configs_qs = CoursAnnee.objects.filter(id_pays=id_pays,
             cours__classe_id=id_classe, annee_id=id_annee,
             etablissement__isnull=True
         ).select_related('cours')
@@ -2804,12 +2808,13 @@ def save_cours_annee(request):
             etab = None
             if etablissement_id:
                 etab = get_object_or_404(Etablissement, id_etablissement=etablissement_id)
-            if CoursAnnee.objects.filter(cours=cours, annee=annee, etablissement=etab).exists():
+            if CoursAnnee.objects.filter(cours=cours, annee=annee, etablissement=etab, id_pays=cours.id_pays).exists():
                 return JsonResponse({'success': False, 'error': 'Ce cours est déjà configuré pour cette année.'}, status=400)
             # Default domaine from catalogue
             domaine_id = data.get('domaine_id') or (cours.domaine_id if cours.domaine_id else None)
             domaine = Domaine.objects.filter(id_domaine=domaine_id).first() if domaine_id else None
-            CoursAnnee.objects.create(cours=cours, annee=annee, etablissement=etab, domaine=domaine, **fields)
+            id_pays_val = getattr(request, 'id_pays', None) or request.session.get('id_pays') or (cours.id_pays if cours else None)
+            CoursAnnee.objects.create(cours=cours, annee=annee, etablissement=etab, domaine=domaine, id_pays=id_pays_val, **fields)
 
         return JsonResponse({'success': True})
     except Exception as e:
@@ -2832,6 +2837,7 @@ def bulk_activate_cours_annee(request):
     """Active en masse les cours du catalogue pour une classe/année (+section)."""
     try:
         data = json.loads(request.body)
+        id_pays = data.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
         id_classe = data.get('id_classe')
         id_annee = data.get('id_annee')
         id_section = data.get('id_section')  # NEW: optional section
@@ -2839,7 +2845,7 @@ def bulk_activate_cours_annee(request):
         if not id_classe or not id_annee:
             return JsonResponse({'success': False, 'error': 'Classe et année requis.'}, status=400)
 
-        cours_catalogue = Cours.objects.filter(classe_id=id_classe)
+        cours_catalogue = Cours.objects.filter(classe_id=id_classe, id_pays=id_pays)
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
@@ -2849,7 +2855,7 @@ def bulk_activate_cours_annee(request):
         created = 0
         for c in cours_catalogue:
             _, was_created = CoursAnnee.objects.get_or_create(
-                cours=c, annee=annee, defaults={'ordre': c.id_cours}
+                cours=c, annee=annee, defaults={'ordre': c.id_cours, 'id_pays': id_pays}
             )
             if was_created:
                 created += 1
@@ -2867,6 +2873,7 @@ def download_cours_annee_template(request):
     try:
         id_classe = request.GET.get('id_classe')
         id_annee = request.GET.get('id_annee')
+        id_pays = request.GET.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
         classe = get_object_or_404(Classe, id_classe=id_classe)
         annee = get_object_or_404(Annee, id_annee=id_annee)
 
@@ -2891,8 +2898,8 @@ def download_cours_annee_template(request):
             cell.fill = header_fill
             cell.font = Font(bold=True, color="FFFFFF")
 
-        for c in Cours.objects.filter(classe_id=id_classe).order_by('domaine', 'code_cours'):
-            config = CoursAnnee.objects.filter(cours=c, annee=annee).first()
+        for c in Cours.objects.filter(classe_id=id_classe, id_pays=id_pays).order_by('domaine', 'code_cours'):
+            config = CoursAnnee.objects.filter(cours=c, annee=annee, id_pays=id_pays).first()
             ws.append([
                 c.code_cours, c.cours, c.domaine,
                 config.maxima_exam if config else '',
@@ -2949,8 +2956,11 @@ def import_cours_annee_excel(request):
         if not id_classe or not id_annee:
             return JsonResponse({'success': False, 'error': 'Classe et année non identifiées.'}, status=400)
 
+        id_pays = request.POST.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
         classe = get_object_or_404(Classe, id_classe=id_classe)
         annee = get_object_or_404(Annee, id_annee=id_annee)
+        if not id_pays:
+            id_pays = classe.id_pays
 
         rows = list(ws.rows)
         header_row = [str(cell.value).upper().strip() if cell.value else '' for cell in rows[1]]
@@ -2981,14 +2991,15 @@ def import_cours_annee_excel(request):
                 continue
             code_cours = str(code_cours).strip()
             try:
-                cours = Cours.objects.get(classe=classe, code_cours=code_cours)
+                cours = Cours.objects.get(classe=classe, code_cours=code_cours, id_pays=classe.id_pays)
             except Cours.DoesNotExist:
                 errors.append(f"Ligne {i}: Code '{code_cours}' introuvable")
                 continue
             try:
                 CoursAnnee.objects.update_or_create(
                     cours=cours, annee=annee,
-                    defaults={
+                    defaults={'id_pays': classe.id_pays,
+
                         'maxima_exam': to_int(val(row, 'MAXIMA_EXAM')),
                         'maxima_tj': to_int(val(row, 'MAXIMA_TJ')),
                         'maxima_periode': to_int(val(row, 'MAXIMA_PERIODE')),
@@ -3498,7 +3509,7 @@ def get_resultats_etablissements(request):
             total_cours = 0
 
             for eac in classes_config:
-                nb_cours = Cours.objects.filter(classe=eac.classe).count()
+                nb_cours = Cours.objects.filter(classe=eac.classe, id_pays=pays.id_pays).count()
                 has_cours = nb_cours > 0
                 if has_cours:
                     classes_with_cours += 1
@@ -3757,7 +3768,7 @@ def save_etablissement_config(request):
             section_id = item.get('section_id')
             groupes = item.get('groupes', [])  # List of group letters, e.g. ['A', 'B', 'C'] or []
             
-            classe = Classe.objects.filter(id_classe=classe_id).first()
+            classe = Classe.objects.filter(id_classe=classe_id, id_pays=etablissement.pays_id).first()
             if not classe:
                 continue  # Skip unknown classes silently
             section = None
@@ -3792,7 +3803,7 @@ def save_etablissement_config(request):
             # 1. Collect distinct cycle IDs from saved classes
             activated_cycle_ids = set()
             for item in classes_config:
-                classe = Classe.objects.filter(id_classe=item.get('classe_id')).select_related('cycle').first()
+                classe = Classe.objects.filter(id_classe=item.get('classe_id'), id_pays=etablissement.pays_id).select_related('cycle').first()
                 if classe:
                     activated_cycle_ids.add(classe.cycle_id)
             
@@ -6343,7 +6354,7 @@ def dashboard_attribution_cours(request):
                     etab_id_hub = eac.etablissement_annee.etablissement_id
 
                     cours_annee_list = CoursAnnee.objects.filter(
-                        cours__classe_id=real_classe_id, annee_id=annee_id
+                        cours__classe_id=real_classe_id, annee_id=annee_id, id_pays=etab.pays_id
                     ).filter(
                         Q(etablissement__isnull=True) | Q(etablissement_id=etab_id_hub)
                     ).select_related('cours').order_by('cours__cours')
@@ -6737,7 +6748,8 @@ def dashboard_etablissement_view(request):
             classe_ids = [cc.classe_id for cc in classes_config]
             cours_annee_qs = CoursAnnee.objects.filter(
                 annee=annee_active,
-                cours__classe_id__in=classe_ids
+                cours__classe_id__in=classe_ids,
+                id_pays=pays.id_pays
             ).select_related('cours')
             stats['n_cours'] = cours_annee_qs.count()
 
@@ -8511,7 +8523,8 @@ def get_evaluation_cours(request):
         from django.db.models import Q
         cours_annee_qs = CoursAnnee.objects.filter(
             cours__classe_id=classe_id,
-            annee_id=annee_id
+            annee_id=annee_id,
+            id_pays=etab.pays_id
         ).filter(
             Q(etablissement__isnull=True) | Q(etablissement_id=etab_id)
         ).select_related('cours').order_by('cours__cours')
@@ -12066,10 +12079,10 @@ def delete_domaine(request):
             return JsonResponse({'success': False, 'error': 'Domaine introuvable.'}, status=404)
 
         if Cours:
-            cours_count = Cours.objects.filter(domaine=domaine).count()
+            cours_count = Cours.objects.filter(domaine=domaine, id_pays=pays.id_pays).count()
         else:
             cours_count = 0
-        ca_count = CoursAnnee.objects.filter(domaine=domaine).count()
+        ca_count = CoursAnnee.objects.filter(domaine=domaine, id_pays=pays.id_pays).count()
         if cours_count > 0 or ca_count > 0:
             return JsonResponse({
                 'success': False,
@@ -12189,7 +12202,7 @@ def save_cours(request):
         if Cours is None:
             return JsonResponse({'success': False, 'error': 'Modèle Cours non disponible.'}, status=500)
 
-        classe = Classe.objects.filter(id_classe=id_classe).first()
+        classe = Classe.objects.filter(id_classe=id_classe, id_pays=id_pays).first()
         if not classe:
             return JsonResponse({'success': False, 'error': 'Classe introuvable.'}, status=404)
         # domaine_id and section_id are IntegerFields on Cours, not FKs
@@ -12197,7 +12210,7 @@ def save_cours(request):
         sec_id = int(id_section) if id_section else None
 
         if id_cours:
-            c = Cours.objects.filter(id_cours=id_cours).first()
+            c = Cours.objects.filter(id_cours=id_cours, id_pays=id_pays).first()
             if not c:
                 return JsonResponse({'success': False, 'error': 'Cours introuvable.'}, status=404)
             c.cours = nom_cours
@@ -12207,9 +12220,9 @@ def save_cours(request):
             c.section_id = sec_id
             c.save()
         else:
-            if Cours.objects.filter(classe=classe, section_id=sec_id, code_cours=code_cours).exists():
+            if Cours.objects.filter(classe=classe, section_id=sec_id, code_cours=code_cours, id_pays=id_pays).exists():
                 return JsonResponse({'success': False, 'error': f'Le code "{code_cours}" existe déjà pour cette classe.'}, status=400)
-            Cours.objects.create(cours=nom_cours, code_cours=code_cours, domaine_id=dom_id, classe=classe, section_id=sec_id)
+            Cours.objects.create(cours=nom_cours, code_cours=code_cours, domaine_id=dom_id, classe=classe, section_id=sec_id, id_pays=id_pays)
 
         return JsonResponse({'success': True})
     except Exception as e:
@@ -12224,7 +12237,7 @@ def delete_cours(request):
         data = json.loads(request.body)
         if Cours is None:
             return JsonResponse({'success': False, 'error': 'Modèle Cours non disponible.'}, status=500)
-        c = Cours.objects.filter(id_cours=data.get('id_cours')).first()
+        c = Cours.objects.filter(id_cours=data.get('id_cours'), id_pays=id_pays).first()
         if c:
             c.delete()
         return JsonResponse({'success': True})
@@ -12263,7 +12276,7 @@ def get_cours_annee_data(request):
 
         # Tous les cours du catalogue pour cette classe (+section)
         # NOTE: Cours.domaine_id is IntegerField, NOT FK — cannot use select_related/order_by FK
-        cours_catalogue = Cours.objects.filter(classe_id=id_classe).order_by('cours')
+        cours_catalogue = Cours.objects.filter(classe_id=id_classe, id_pays=id_pays).order_by('cours')
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
@@ -12282,7 +12295,7 @@ def get_cours_annee_data(request):
 
         # Les configs existantes (check for etablissement-specific then national)
         configs_map = {}
-        configs_qs = CoursAnnee.objects.filter(
+        configs_qs = CoursAnnee.objects.filter(id_pays=id_pays,
             cours__classe_id=id_classe, annee_id=id_annee
         ).select_related('cours')
         if id_section:
@@ -12343,7 +12356,7 @@ def save_cours_annee(request):
         bool_fields = ['is_obligatory', 'compte_au_nombre_echec', 'total_considerable_trimestre', 'is_second_semester']
 
         if id_cours_annee:
-            ca = CoursAnnee.objects.filter(id_cours_annee=id_cours_annee).first()
+            ca = CoursAnnee.objects.filter(id_cours_annee=id_cours_annee, id_pays=id_pays).first()
             if not ca:
                 return JsonResponse({'success': False, 'error': 'Config introuvable.'}, status=404)
             for f in int_fields:
@@ -12375,7 +12388,7 @@ def save_cours_annee(request):
             for f in bool_fields:
                 fields[f] = bool(data.get(f, False))
 
-            cours = Cours.objects.filter(id_cours=cours_id).first()
+            cours = Cours.objects.filter(id_cours=cours_id, id_pays=id_pays).first()
             annee = Annee.objects.filter(id_annee=annee_id).first()
             if not cours or not annee:
                 return JsonResponse({'success': False, 'error': 'Cours ou année introuvable.'}, status=404)
@@ -12383,13 +12396,13 @@ def save_cours_annee(request):
             etab_id = data.get('etablissement_id') or getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
             etab = Etablissement.objects.filter(id_etablissement=etab_id).first() if etab_id else None
 
-            if CoursAnnee.objects.filter(cours=cours, annee=annee, etablissement=etab).exists():
+            if CoursAnnee.objects.filter(cours=cours, annee=annee, etablissement=etab, id_pays=cours.id_pays).exists():
                 return JsonResponse({'success': False, 'error': 'Ce cours est déjà configuré pour cette année.'}, status=400)
 
             dom_id = data.get('domaine_id') or (cours.domaine_id if cours.domaine_id else None)
             if dom_id:
                 dom_id = int(dom_id)
-            CoursAnnee.objects.create(cours=cours, annee=annee, etablissement=etab, domaine_id=dom_id, **fields)
+            CoursAnnee.objects.create(cours=cours, annee=annee, etablissement=etab, domaine_id=dom_id, id_pays=cours.id_pays, **fields)
 
         return JsonResponse({'success': True})
     except Exception as e:
@@ -12402,7 +12415,7 @@ def delete_cours_annee(request):
     """Supprime une configuration annuelle de cours."""
     try:
         data = json.loads(request.body)
-        ca = CoursAnnee.objects.filter(id_cours_annee=data.get('id_cours_annee')).first()
+        ca = CoursAnnee.objects.filter(id_cours_annee=data.get('id_cours_annee'), id_pays=id_pays).first()
         if ca:
             ca.delete()
         return JsonResponse({'success': True})
@@ -12425,7 +12438,7 @@ def bulk_activate_cours_annee(request):
         if Cours is None:
             return JsonResponse({'success': False, 'error': 'Modèle Cours non disponible.'}, status=500)
 
-        cours_catalogue = Cours.objects.filter(classe_id=id_classe)
+        cours_catalogue = Cours.objects.filter(classe_id=id_classe, id_pays=id_pays)
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
@@ -12437,7 +12450,7 @@ def bulk_activate_cours_annee(request):
         created = 0
         for c in cours_catalogue:
             _, was_created = CoursAnnee.objects.get_or_create(
-                cours=c, annee=annee, defaults={'ordre': c.id_cours}
+                cours=c, annee=annee, defaults={'ordre': c.id_cours, 'id_pays': id_pays}
             )
             if was_created:
                 created += 1
