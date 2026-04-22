@@ -14,8 +14,10 @@ class Classe_cycle(models.Model):
     L'activation se fait via EtablissementAnneeClasse (quelles classes/cycles
     un établissement utilise), pas au niveau du catalogue.
     """
-    id_cycle = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
+    id_cycle = models.IntegerField()
     cycle = models.CharField(max_length=200, db_column='nom')
+    pays_id = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "cycles"
@@ -31,13 +33,14 @@ class Classe(models.Model):
     Catalogue national des classes.
     Table Hub : countryStructure.classes
     """
-    id_classe = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
+    id_classe = models.IntegerField()
     classe = models.CharField(max_length=100, db_column='nom')
     cycle = models.ForeignKey(Classe_cycle, on_delete=models.CASCADE,
                               db_column='cycle_id', null=True,
                               related_name='classes_hub')
     ordre = models.PositiveIntegerField(default=1)
-    id_pays = models.IntegerField(default=2)
+    id_pays = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "classes"
@@ -72,7 +75,7 @@ class Classe_deliberation(models.Model):
     showsResultsEnOrdre = models.BooleanField(default=False)
     date_creation = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
-    id_pays = models.IntegerField(default=2)
+    id_pays = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "classe_deliberation"
@@ -98,7 +101,7 @@ class Responsable_classe(models.Model):
     id_personnel = models.ForeignKey("Personnel", on_delete=models.PROTECT, null=False)
     date_creation = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
-    id_pays = models.IntegerField(default=2)
+    id_pays = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "responsable_classe"

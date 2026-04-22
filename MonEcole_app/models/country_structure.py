@@ -496,7 +496,8 @@ class Regime(models.Model):
 
 class Cycle(models.Model):
     """Version complète du modèle Cycle (Hub), avec tous les champs."""
-    id_cycle = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
+    id_cycle = models.IntegerField()
     nom = models.CharField(max_length=100)
     pays = models.ForeignKey(Pays, on_delete=models.CASCADE, related_name='cycles')
     ordre = models.PositiveIntegerField(default=1)
