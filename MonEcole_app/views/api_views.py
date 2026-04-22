@@ -4021,12 +4021,18 @@ def _resolve_eac_orm(eac_id):
     return None
 
 
-def _count_eleves(cur, id_etablissement):
+def _count_eleves(cur, id_etablissement, id_pays=None):
     """Count active students for an establishment."""
-    cur.execute(
-        "SELECT COUNT(*) as total FROM eleve_inscription WHERE id_etablissement=%s AND status=1",
-        [id_etablissement]
-    )
+    if id_pays:
+        cur.execute(
+            "SELECT COUNT(*) as total FROM eleve_inscription WHERE id_etablissement=%s AND id_pays=%s AND status=1",
+            [id_etablissement, id_pays]
+        )
+    else:
+        cur.execute(
+            "SELECT COUNT(*) as total FROM eleve_inscription WHERE id_etablissement=%s AND status=1",
+            [id_etablissement]
+        )
     row = cur.fetchone()
     return row['total'] if row else 0
 
@@ -4161,12 +4167,13 @@ def dashboard_add_eleve(request):
                 cur.execute("""
                     INSERT INTO eleve (numero_serie, nom, prenom, genre, date_naissance, id_etablissement,
                                        telephone, id_parent,
-                                       ref_administrative_naissance, ref_administrative_residence)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                       ref_administrative_naissance, ref_administrative_residence, id_pays)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, [
                     numero_serie or None, full_nom, prenom, genre, date_naissance, id_etablissement,
                     telephone or None, id_parent or None,
-                    ref_administrative_naissance or None, ref_administrative_residence or None
+                    ref_administrative_naissance or None, ref_administrative_residence or None,
+                    int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2)
                 ])
                 id_eleve = cur.lastrowid
 
@@ -4176,18 +4183,20 @@ def dashboard_add_eleve(request):
                     INSERT INTO eleve_inscription
                     (date_inscription, redoublement, status, isDelegue,
                      id_annee_id, idCampus_id, classe_id, groupe, section_id,
-                     id_cycle_id, id_eleve_id, id_etablissement)
-                    VALUES (CURDATE(), 0, 1, 0, %s, %s, %s, %s, %s, %s, %s, %s)
+                     id_cycle_id, id_eleve_id, id_etablissement, id_pays)
+                    VALUES (CURDATE(), 0, 1, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, [
                     ca['id_annee_id'], ca['idCampus_id'], ca['classe_id'],
                     ca['groupe'], ca['section_id'], ca['cycle_id'],
-                    id_eleve, id_etablissement
+                    id_eleve, id_etablissement,
+                    int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2)
                 ])
                 cur.execute("SET FOREIGN_KEY_CHECKS=1")
 
                 conn.commit()
 
-                total = _count_eleves(cur, id_etablissement)
+                total = _count_eleves(cur, id_etablissement,
+                                      getattr(request, 'id_pays', None) or request.session.get('id_pays'))
 
             return JsonResponse({
                 'success': True,
@@ -4271,9 +4280,10 @@ def dashboard_eleve_template(request):
                             FROM eleve e
                             JOIN eleve_inscription ei ON ei.id_eleve_id = e.id_eleve
                             WHERE ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
-                              AND ei.id_etablissement = %s
+                              AND ei.id_etablissement = %s AND ei.id_pays = %s
                             ORDER BY e.nom, e.prenom
-                        """, [bk['classe_id'], bk['groupe'], bk['section_id'], id_etablissement])
+                        """, [bk['classe_id'], bk['groupe'], bk['section_id'], id_etablissement,
+                              getattr(request, 'id_pays', None) or request.session.get('id_pays')])
                         existing_students = cur.fetchall()
             finally:
                 conn.close()
@@ -4377,6 +4387,7 @@ def dashboard_import_eleves(request):
 
         id_etablissement = int(id_etablissement)
         id_annee = int(id_annee) if id_annee else None
+        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2
 
         # Get class ID: from POST first, then from _Meta sheet in template
         classe_par_annee_id_str = request.POST.get('classe_par_annee_id', '') or request.POST.get('classe_par_annee_id', '')
@@ -4608,9 +4619,9 @@ def dashboard_import_eleves(request):
                         # Check if student already exists (match by nom + prenom + etablissement)
                         cur.execute("""
                             SELECT id_eleve FROM eleve
-                            WHERE nom = %s AND prenom = %s AND id_etablissement = %s
+                            WHERE nom = %s AND prenom = %s AND id_etablissement = %s AND id_pays = %s
                             LIMIT 1
-                        """, [full_nom, prenom, id_etablissement])
+                        """, [full_nom, prenom, id_etablissement, id_pays])
                         existing = cur.fetchone()
 
                         if existing:
@@ -4634,12 +4645,12 @@ def dashboard_import_eleves(request):
                                 SELECT id_inscription FROM eleve_inscription
                                 WHERE id_eleve_id = %s
                                   AND classe_id = %s AND groupe <=> %s AND section_id <=> %s
-                                  AND id_etablissement = %s
+                                  AND id_etablissement = %s AND id_pays = %s
                                 LIMIT 1
                             """, [
                                 existing['id_eleve'],
                                 ca['classe_id'], ca['groupe'], ca['section_id'],
-                                id_etablissement
+                                id_etablissement, id_pays
                             ])
                             existing_inscription = cur.fetchone()
                             if not existing_inscription:
@@ -4647,12 +4658,12 @@ def dashboard_import_eleves(request):
                                     INSERT INTO eleve_inscription
                                     (date_inscription, redoublement, status, isDelegue,
                                      id_annee_id, idCampus_id, classe_id, groupe, section_id,
-                                     id_cycle_id, id_eleve_id, id_etablissement)
-                                    VALUES (CURDATE(), 0, 1, 0, %s, %s, %s, %s, %s, %s, %s, %s)
+                                     id_cycle_id, id_eleve_id, id_etablissement, id_pays)
+                                    VALUES (CURDATE(), 0, 1, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                                 """, [
                                     ca['id_annee_id'], ca['idCampus_id'], ca['classe_id'],
                                     ca['groupe'], ca['section_id'], ca['cycle_id'],
-                                    existing['id_eleve'], id_etablissement
+                                    existing['id_eleve'], id_etablissement, id_pays
                                 ])
                                 imported += 1
                             updated += 1
@@ -4668,11 +4679,11 @@ def dashboard_import_eleves(request):
                             # INSERT new student (without parent data)
                             cur.execute("""
                                 INSERT INTO eleve (numero_serie, nom, prenom, genre, date_naissance, id_etablissement,
-                                                   telephone)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                                   telephone, id_pays)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                             """, [
                                 numero_serie or None, full_nom, prenom, genre, date_naissance, id_etablissement,
-                                telephone or None
+                                telephone or None, id_pays
                             ])
                             id_eleve = cur.lastrowid
 
@@ -4681,12 +4692,12 @@ def dashboard_import_eleves(request):
                                 INSERT INTO eleve_inscription
                                 (date_inscription, redoublement, status, isDelegue,
                                  id_annee_id, idCampus_id, classe_id, groupe, section_id,
-                                 id_cycle_id, id_eleve_id, id_etablissement)
-                                VALUES (CURDATE(), 0, 1, 0, %s, %s, %s, %s, %s, %s, %s, %s)
+                                 id_cycle_id, id_eleve_id, id_etablissement, id_pays)
+                                VALUES (CURDATE(), 0, 1, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                             """, [
                                 ca['id_annee_id'], ca['idCampus_id'], ca['classe_id'],
                                 ca['groupe'], ca['section_id'], ca['cycle_id'],
-                                id_eleve, id_etablissement
+                                id_eleve, id_etablissement, id_pays
                             ])
                             imported += 1
 
@@ -4696,7 +4707,7 @@ def dashboard_import_eleves(request):
 
                 cur.execute("SET FOREIGN_KEY_CHECKS=1")
                 conn.commit()
-                total = _count_eleves(cur, id_etablissement)
+                total = _count_eleves(cur, id_etablissement, id_pays)
 
             return JsonResponse({
                 'success': True,
@@ -4785,9 +4796,10 @@ def parent_update_template(request):
                         JOIN eleve_inscription ei ON ei.id_eleve_id = e.id_eleve
                         LEFT JOIN parents p ON p.id_parent = e.id_parent
                         WHERE ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
-                          AND ei.id_etablissement = %s AND ei.status = 1
+                          AND ei.id_etablissement = %s AND ei.id_pays = %s AND ei.status = 1
                         ORDER BY e.nom, e.prenom
-                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], id_etablissement])
+                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], id_etablissement,
+                          getattr(request, 'id_pays', None) or request.session.get('id_pays')])
                     students = cur.fetchall()
         finally:
             conn.close()
@@ -5019,14 +5031,17 @@ def import_parent_updates(request):
 def dashboard_campus_list(request):
     """List campuses filtered by id_etablissement."""
     id_etablissement = request.GET.get('id_etablissement')
+    id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
     try:
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
-                if id_etablissement:
+                if id_etablissement and id_pays:
+                    cur.execute("SELECT * FROM campus WHERE id_etablissement=%s AND id_pays=%s ORDER BY campus", [id_etablissement, id_pays])
+                elif id_etablissement:
                     cur.execute("SELECT * FROM campus WHERE id_etablissement=%s ORDER BY campus", [id_etablissement])
                 else:
-                    cur.execute("SELECT * FROM campus ORDER BY campus")
+                    cur.execute("SELECT * FROM campus WHERE id_pays=%s ORDER BY campus", [id_pays]) if id_pays else cur.execute("SELECT * FROM campus ORDER BY campus")
                 rows = cur.fetchall()
                 return JsonResponse({'success': True, 'campus': [
                     {
@@ -5058,20 +5073,22 @@ def dashboard_campus_create(request):
             with conn.cursor() as cur:
                 # Auto-increment id_campus per establishment
                 etab_id = data.get('id_etablissement')
+                id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2
                 cur.execute(
-                    "SELECT COALESCE(MAX(id_campus), 0) + 1 AS next_id FROM campus WHERE id_etablissement = %s",
-                    [etab_id]
+                    "SELECT COALESCE(MAX(id_campus), 0) + 1 AS next_id FROM campus WHERE id_etablissement = %s AND id_pays = %s",
+                    [etab_id, id_pays]
                 )
                 next_id_campus = cur.fetchone()['next_id']
                 cur.execute("""
-                    INSERT INTO campus (id_campus, campus, adresse, localisation, is_active, id_etablissement)
-                    VALUES (%s, %s, %s, %s, 1, %s)
+                    INSERT INTO campus (id_campus, campus, adresse, localisation, is_active, id_etablissement, id_pays)
+                    VALUES (%s, %s, %s, %s, 1, %s, %s)
                 """, [
                     next_id_campus,
                     campus_name,
                     data.get('adresse', ''),
                     data.get('localisation', ''),
                     etab_id,
+                    id_pays,
                 ])
                 conn.commit()
                 return JsonResponse({'success': True, 'idCampus': cur.lastrowid, 'id_campus': next_id_campus})
@@ -5172,8 +5189,9 @@ def dashboard_eleves_stats(request):
         try:
             with conn.cursor() as cur:
                 # Get campus for this establishment
-                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement=%s AND is_active=1",
-                            [id_etablissement])
+                id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement=%s AND id_pays=%s AND is_active=1",
+                            [id_etablissement, id_pays])
                 campus_ids = [r['idCampus'] for r in cur.fetchall()]
 
                 if not campus_ids:
@@ -5184,7 +5202,8 @@ def dashboard_eleves_stats(request):
                 params = list(campus_ids)
 
                 # Build WHERE clause
-                where = f"ei.idCampus_id IN ({placeholders}) AND ei.status=1"
+                where = f"ei.idCampus_id IN ({placeholders}) AND ei.status=1 AND ei.id_pays=%s"
+                params.append(id_pays)
 
                 id_annee = request.GET.get('id_annee')
                 if id_annee:
@@ -5272,6 +5291,7 @@ def dashboard_eleves_list(request):
             try:
                 with conn.cursor() as cur:
                     like_q = f'%{search_query}%'
+                    id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
                     cur.execute("""
                         SELECT e.id_eleve, e.numero_serie, e.nom, e.prenom, e.genre,
                                e.date_naissance, e.telephone, e.id_parent,
@@ -5280,11 +5300,11 @@ def dashboard_eleves_list(request):
                         FROM eleve e
                         JOIN eleve_inscription ei ON ei.id_eleve_id = e.id_eleve
                         LEFT JOIN parents p ON p.id_parent = e.id_parent
-                        WHERE ei.id_etablissement = %s AND ei.status = 1
+                        WHERE ei.id_etablissement = %s AND ei.id_pays = %s AND ei.status = 1
                           AND (e.nom LIKE %s OR e.prenom LIKE %s OR e.matricule LIKE %s)
                         ORDER BY e.nom, e.prenom
                         LIMIT 50
-                    """, [id_etablissement, like_q, like_q, like_q])
+                    """, [id_etablissement, id_pays, like_q, like_q, like_q])
                     students = cur.fetchall()
                     result = []
                     for stu in students:
@@ -5340,9 +5360,10 @@ def dashboard_eleves_list(request):
                     JOIN eleve_inscription ei ON ei.id_eleve_id = e.id_eleve
                     LEFT JOIN parents p ON p.id_parent = e.id_parent
                     WHERE ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
-                      AND ei.id_etablissement = %s AND ei.status = 1
+                      AND ei.id_etablissement = %s AND ei.id_pays = %s AND ei.status = 1
                     ORDER BY e.nom, e.prenom
-                """, [bk['classe_id'], bk['groupe'], bk['section_id'], id_etablissement])
+                """, [bk['classe_id'], bk['groupe'], bk['section_id'], id_etablissement,
+                      getattr(request, 'id_pays', None) or request.session.get('id_pays')])
                 students = cur.fetchall()
 
                 result = []
@@ -5560,9 +5581,9 @@ def dashboard_personnel_list(request):
                     LEFT JOIN diplome d ON d.id_diplome = p.id_diplome_id
                     LEFT JOIN specialite sp ON sp.id_specialite = p.id_specialite_id
                     LEFT JOIN vacation v ON v.id_vacation = p.id_vacation_id
-                    WHERE p.id_etablissement = %s
+                    WHERE p.id_etablissement = %s AND p.id_pays = %s
                     ORDER BY p.nom, p.postnom
-                """, [id_etablissement])
+                """, [id_etablissement, getattr(request, 'id_pays', None) or request.session.get('id_pays')])
                 rows = cur.fetchall()
 
                 # Load ALL reference data for dropdowns
@@ -5763,6 +5784,7 @@ def dashboard_add_personnel(request):
                     'code_secret': None,
                     'codeAnnee': data.get('codeAnnee') or None,
                     'date_creation': __import__('datetime').date.today().strftime('%Y-%m-%d'),
+                    'id_pays': int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2),
                 }
                 cols = ', '.join(fields.keys())
                 placeholders = ', '.join(['%s'] * len(fields))
@@ -5775,7 +5797,8 @@ def dashboard_add_personnel(request):
                 conn.commit()
 
                 # Count total
-                cur.execute("SELECT COUNT(*) as c FROM personnel WHERE id_etablissement=%s", [id_etablissement])
+                cur.execute("SELECT COUNT(*) as c FROM personnel WHERE id_etablissement=%s AND id_pays=%s",
+                            [id_etablissement, getattr(request, 'id_pays', None) or request.session.get('id_pays')])
                 total = cur.fetchone()['c']
 
                 return JsonResponse({'success': True, 'id_personnel': new_id, 'matricule': matricule, 'total': total})
@@ -6285,6 +6308,7 @@ def dashboard_attribution_cours(request):
 
         if not id_etablissement:
             return JsonResponse({'success': False, 'error': 'Établissement requis.'}, status=400)
+        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2
 
         conn = _get_spoke_connection()
         try:
@@ -6324,8 +6348,8 @@ def dashboard_attribution_cours(request):
                             LEFT JOIN personnel p ON p.id_personnel = ac.id_personnel_id
                             WHERE ac.id_cours_id IN ({placeholders})
                               AND ac.classe_id = %s AND ac.groupe <=> %s AND ac.section_id <=> %s
-                              AND ac.id_etablissement = %s
-                        """, ca_annee_ids + [real_classe_id, eac.groupe, eac.section_id, id_etablissement])
+                              AND ac.id_etablissement = %s AND ac.id_pays = %s
+                        """, ca_annee_ids + [real_classe_id, eac.groupe, eac.section_id, id_etablissement, id_pays])
                         for r in cur.fetchall():
                             attributions_map[r['id_cours_id']] = r
 
@@ -6353,9 +6377,9 @@ def dashboard_attribution_cours(request):
                     cur.execute("""
                         SELECT id_personnel, nom, postnom, prenom, matricule
                         FROM personnel
-                        WHERE id_etablissement = %s AND en_fonction = 1
+                        WHERE id_etablissement = %s AND id_pays = %s AND en_fonction = 1
                         ORDER BY nom, postnom
-                    """, [id_etablissement])
+                    """, [id_etablissement, id_pays])
                     personnel = []
                     for p in cur.fetchall():
                         personnel.append({
@@ -6405,8 +6429,8 @@ def dashboard_attribution_cours(request):
                     # Check if attribution already exists (by cours_annee id + business keys)
                     cur.execute("""
                         SELECT id_attribution FROM attribution_cours
-                        WHERE id_cours_id=%s AND classe_id=%s AND groupe <=> %s AND section_id <=> %s AND id_etablissement=%s
-                    """, [id_cours_classe, bk['classe_id'], bk['groupe'], bk['section_id'], id_etablissement])
+                        WHERE id_cours_id=%s AND classe_id=%s AND groupe <=> %s AND section_id <=> %s AND id_etablissement=%s AND id_pays=%s
+                    """, [id_cours_classe, bk['classe_id'], bk['groupe'], bk['section_id'], id_etablissement, id_pays])
                     existing = cur.fetchone()
 
                     if existing:
@@ -6418,11 +6442,11 @@ def dashboard_attribution_cours(request):
                     else:
                         cur.execute("""
                             INSERT INTO attribution_cours
-                            (attribution_type_id, id_annee_id, idCampus_id, classe_id, groupe, section_id, id_cours_id, id_cycle_id, id_personnel_id, date_attribution, id_etablissement)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            (attribution_type_id, id_annee_id, idCampus_id, classe_id, groupe, section_id, id_cours_id, id_cycle_id, id_personnel_id, date_attribution, id_etablissement, id_pays)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """, [attr_type_id, id_annee, idCampus, bk['classe_id'], bk['groupe'], bk['section_id'],
                               id_cours_classe, id_cycle, id_personnel,
-                              __import__('datetime').date.today().strftime('%Y-%m-%d'), id_etablissement])
+                              __import__('datetime').date.today().strftime('%Y-%m-%d'), id_etablissement, id_pays])
 
                     conn.commit()
                     return JsonResponse({'success': True})

@@ -404,8 +404,8 @@ def _get_dashboard_context(request):
                        COUNT(DISTINCT CASE WHEN e.genre='F' THEN ei.id_eleve_id END) as filles
                 FROM eleve_inscription ei
                 JOIN eleve e ON e.id_eleve = ei.id_eleve_id
-                WHERE ei.status = 1 AND ei.id_etablissement = %s
-            """, [etab_id])
+                WHERE ei.status = 1 AND ei.id_etablissement = %s AND ei.id_pays = %s
+            """, [etab_id, pays.id_pays])
             row = cur.fetchone()
             if row:
                 eleves_stats['total'] = int(row[0] or 0)
@@ -417,9 +417,9 @@ def _get_dashboard_context(request):
                 SELECT TIMESTAMPDIFF(YEAR, e.date_naissance, CURDATE()) as age, COUNT(DISTINCT ei.id_eleve_id) as nb
                 FROM eleve_inscription ei
                 JOIN eleve e ON e.id_eleve = ei.id_eleve_id
-                WHERE ei.status = 1 AND ei.id_etablissement = %s AND e.date_naissance IS NOT NULL AND e.date_naissance != '0000-00-00'
+                WHERE ei.status = 1 AND ei.id_etablissement = %s AND ei.id_pays = %s AND e.date_naissance IS NOT NULL AND e.date_naissance != '0000-00-00'
                 GROUP BY age ORDER BY age
-            """, [etab_id])
+            """, [etab_id, pays.id_pays])
             eleves_stats['age_distribution'] = [
                 {'tranche': f"{int(r[0])} ans", 'nb': int(r[1])} for r in cur.fetchall()
             ]
@@ -436,9 +436,9 @@ def _get_dashboard_context(request):
                   AND (eac.groupe COLLATE utf8mb4_general_ci <=> ei.groupe COLLATE utf8mb4_general_ci)
                   AND eac.section_id <=> ei.section_id
                   AND eac.etablissement_annee_id = %s
-                WHERE ei.status = 1 AND ei.id_etablissement = %s
+                WHERE ei.status = 1 AND ei.id_etablissement = %s AND ei.id_pays = %s
                 GROUP BY eac.id
-            """, [etab_annee.id if etab_annee else 0, etab_id])
+            """, [etab_annee.id if etab_annee else 0, etab_id, pays.id_pays])
             epc_raw = {int(r[0]): {'total': int(r[1]), 'garcons': int(r[2] or 0), 'filles': int(r[3] or 0)} for r in cur.fetchall()}
 
             # Match with classes_detail
@@ -458,15 +458,15 @@ def _get_dashboard_context(request):
                 SELECT c.campus as campus_nom, COUNT(*) as total
                 FROM eleve_inscription ei
                 JOIN campus c ON c.idCampus = ei.idCampus_id
-                WHERE ei.status = 1 AND ei.id_etablissement = %s
+                WHERE ei.status = 1 AND ei.id_etablissement = %s AND ei.id_pays = %s
                 GROUP BY c.idCampus, c.campus ORDER BY total DESC
-            """, [etab_id])
+            """, [etab_id, pays.id_pays])
             eleves_par_campus = [
                 {'campus_nom': r[0], 'total': int(r[1])} for r in cur.fetchall()
             ]
 
             # Enseignants — filtrer par établissement
-            cur.execute("SELECT COUNT(*) FROM personnel WHERE en_fonction = 1 AND id_etablissement = %s", [etab_id])
+            cur.execute("SELECT COUNT(*) FROM personnel WHERE en_fonction = 1 AND id_etablissement = %s AND id_pays = %s", [etab_id, pays.id_pays])
             row = cur.fetchone()
             stats['n_enseignants'] = int(row[0]) if row else 0
 
