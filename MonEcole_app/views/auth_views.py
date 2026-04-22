@@ -146,7 +146,11 @@ def login_view(request):
     if etab_id:
         try:
             from MonEcole_app.models.country_structure import Etablissement
-            etab = Etablissement.objects.get(id_etablissement=etab_id)
+            id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
+            etab_filters = {'id_etablissement': etab_id}
+            if id_pays:
+                etab_filters['pays_id'] = id_pays
+            etab = Etablissement.objects.filter(**etab_filters).first()
             context['etab_nom'] = etab.nom
             logo = etab.logo_ecole or ''
             # Fallback: try spoke DB logo

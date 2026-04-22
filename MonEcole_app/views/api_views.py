@@ -1114,12 +1114,18 @@ def generate_fiche_synoptique(request):
         if not etab_id:
             return JsonResponse({'success': False, 'error': 'ID manquant'})
         
+        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
+        etab_filters = {'id_etablissement': etab_id}
+        if id_pays:
+            etab_filters['pays_id'] = id_pays
         etab = Etablissement.objects.select_related(
             'structure_pedagogique', 
             'structure_pedagogique__administrative_parent',
             'gestionnaire',
             'pays'
-        ).get(id_etablissement=etab_id)
+        ).filter(**etab_filters).first()
+        if not etab:
+            return JsonResponse({'success': False, 'error': 'Établissement introuvable'}, status=404)
         
         # Get regime name
         regime_name = ''

@@ -67,12 +67,19 @@ def _get_dashboard_context(request):
     if not etab_id:
         return None
 
-    # Récupérer l'établissement depuis le Hub
+    # Récupérer l'établissement depuis le Hub (filtré par pays)
+    id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
     try:
-        etab = Etablissement.objects.select_related(
+        etab_qs = Etablissement.objects.select_related(
             'pays', 'structure_pedagogique', 'gestionnaire'
-        ).get(id_etablissement=etab_id)
-    except Etablissement.DoesNotExist:
+        )
+        if id_pays:
+            etab = etab_qs.filter(id_etablissement=etab_id, pays_id=id_pays).first()
+        else:
+            etab = etab_qs.filter(id_etablissement=etab_id).first()
+        if not etab:
+            return None
+    except Exception:
         return None
 
     pays = etab.pays
