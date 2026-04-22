@@ -467,6 +467,7 @@ def get_structures_list(request):
             else:
                 # Count ecoles in PD structures that belong to this AD structure
                 n_ecoles = Etablissement.objects.filter(
+                    pays=pays,
                     structure_pedagogique__administrative_parent__code__startswith=s.code
                 ).count()
             
@@ -1030,7 +1031,7 @@ def get_regimes_data(request):
         
         results = []
         for r in regimes:
-            ecoles_qs = Etablissement.objects.filter(id_regime=r.id_regime)
+            ecoles_qs = Etablissement.objects.filter(pays=pays, id_regime=r.id_regime)
             if scope_codes:
                 from django.db.models import Q
                 scope_q = Q()
@@ -1313,7 +1314,7 @@ def generate_fiche_synoptique(request):
         
         # Fetch dynamic data: latest year config for this school
         latest_etab_annee = EtablissementAnnee.objects.filter(
-            etablissement=etab
+            etablissement=etab, id_pays=etab.pays_id
         ).select_related('annee').order_by('-annee__annee').first()
         
         activated_classes = []
@@ -1676,7 +1677,7 @@ def save_etablissement(request):
         # Check if updating existing
         etab = None
         if id_etablissement:
-            etab = Etablissement.objects.filter(id_etablissement=id_etablissement).first()
+            etab = Etablissement.objects.filter(id_etablissement=id_etablissement, pays=pays).first()
         
         # 1. Gestionnaire (optionnel - par ID)
         gestionnaire = None
@@ -3667,8 +3668,14 @@ def get_etablissement_config(request):
         if not id_etablissement or not id_annee:
             return JsonResponse({'success': False, 'error': 'Paramètres manquants'})
         
+        # Resolve pays context for multi-tenant filtering
+        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays') or request.GET.get('id_pays')
+        
         # Get the Etablissement and Annee (no get_object_or_404 — must return JSON, not HTML 404)
-        etablissement = Etablissement.objects.filter(id_etablissement=id_etablissement).first()
+        etab_filters = {'id_etablissement': id_etablissement}
+        if id_pays:
+            etab_filters['pays_id'] = id_pays
+        etablissement = Etablissement.objects.filter(**etab_filters).first()
         if not etablissement:
             return JsonResponse({'success': False, 'error': f'Établissement {id_etablissement} introuvable'})
         annee = Annee.objects.filter(id_annee=id_annee).first()
@@ -3677,7 +3684,8 @@ def get_etablissement_config(request):
         
         etab_annee, created = EtablissementAnnee.objects.get_or_create(
             etablissement=etablissement,
-            annee=annee
+            annee=annee,
+            defaults={'id_pays': etablissement.pays_id}
         )
         
         # Get activated classes with sections and groups
@@ -3714,7 +3722,13 @@ def save_etablissement_config(request):
         id_annee = data.get('id_annee')
         classes_config = data.get('classes', [])  # [{classe_id: X, section_id: Y or null}, ...]
         
-        etablissement = Etablissement.objects.filter(id_etablissement=id_etablissement).first()
+        # Resolve pays context for multi-tenant filtering
+        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays') or data.get('id_pays')
+        
+        etab_filters = {'id_etablissement': id_etablissement}
+        if id_pays:
+            etab_filters['pays_id'] = id_pays
+        etablissement = Etablissement.objects.filter(**etab_filters).first()
         if not etablissement:
             return JsonResponse({'success': False, 'error': 'Établissement introuvable'})
         annee = Annee.objects.filter(id_annee=id_annee).first()
@@ -3724,7 +3738,8 @@ def save_etablissement_config(request):
         # Get or create the link
         etab_annee, created = EtablissementAnnee.objects.get_or_create(
             etablissement=etablissement,
-            annee=annee
+            annee=annee,
+            defaults={'id_pays': etablissement.pays_id}
         )
         
         # Clear existing config — use raw SQL on Hub to avoid Django cross-DB
@@ -7375,7 +7390,8 @@ def toggle_calendar_synch(request):
         allowed_type_ids = set()
         if annee_active:
             etab_annee, _ = EtablissementAnnee.objects.get_or_create(
-                etablissement=etab, annee=annee_active
+                etablissement=etab, annee=annee_active,
+                defaults={'id_pays': etab.pays_id}
             )
             active_cycle_ids = set(
                 EtablissementAnneeClasse.objects.filter(
@@ -8251,7 +8267,8 @@ def provision_repartitions_for_etab(request):
         
         # Get or create EtablissementAnnee
         etab_annee, _ = EtablissementAnnee.objects.get_or_create(
-            etablissement=etablissement, annee=annee
+            etablissement=etablissement, annee=annee,
+            defaults={'id_pays': etablissement.pays_id}
         )
         
         # Collect cycle IDs from activated classes
@@ -11583,7 +11600,7 @@ def get_bulletin_overview(request):
             return JsonResponse({'success': False, 'error': 'Pas d\'année ouverte.'})
 
         ea = EtablissementAnnee.objects.filter(
-            etablissement_id=etab_id, annee=annee
+            etablissement_id=etab_id, annee=annee, id_pays=etab.pays_id
         ).first()
         if not ea:
             return JsonResponse({'success': False, 'error': 'Config étab-année introuvable.'})
