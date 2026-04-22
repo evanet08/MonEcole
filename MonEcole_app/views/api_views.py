@@ -2384,12 +2384,39 @@ def get_cours_data(request):
         # Récupérer les sections globales (pour les cycles à sections)
         all_sections = list(Section.objects.all().order_by('nom').values('id_section', 'nom', 'code'))
 
-        # Récupérer les classes du pays (pour le dropdown) — respect duree limit
-        # Pour les cycles à sections, on génère une entrée par classe×section
-        cycles = pays.cycles.all().order_by('ordre')
+        # Récupérer les classes activées pour cet établissement (via EAC)
+        id_etablissement = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+        activated_classe_ids = set()
+        if id_etablissement:
+            annee_active = Annee.objects.filter(pays_id=pays.id_pays, isOpen=True).order_by('-annee').first()
+            if annee_active:
+                etab_annee = EtablissementAnnee.objects.filter(
+                    etablissement_id=id_etablissement, annee=annee_active, id_pays=pays.id_pays
+                ).first()
+                if etab_annee:
+                    activated_classe_ids = set(
+                        EtablissementAnneeClasse.objects.filter(
+                            etablissement_annee=etab_annee
+                        ).values_list('classe_id', flat=True)
+                    )
+
+        # Récupérer les cycles qui ont au moins une classe activée
+        if activated_classe_ids:
+            activated_cycle_ids = set(
+                Classe.objects.filter(id__in=activated_classe_ids).values_list('cycle_id', flat=True)
+            )
+            cycles = Cycle.objects.filter(id__in=activated_cycle_ids).order_by('ordre')
+        else:
+            cycles = pays.cycles.all().order_by('ordre')
+
         classes_data = []
         for cycle in cycles:
-            cycle_classes = Classe.objects.filter(cycle_id=cycle.id, id_pays=pays.id_pays).order_by('ordre')
+            if activated_classe_ids:
+                cycle_classes = Classe.objects.filter(
+                    id__in=activated_classe_ids, cycle_id=cycle.id
+                ).order_by('ordre')
+            else:
+                cycle_classes = Classe.objects.filter(cycle_id=cycle.id, id_pays=pays.id_pays).order_by('ordre')
             if cycle.duree and cycle.duree > 0:
                 cycle_classes = cycle_classes[:cycle.duree]
             
