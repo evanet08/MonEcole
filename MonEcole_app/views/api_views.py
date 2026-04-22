@@ -1332,21 +1332,21 @@ def generate_fiche_synoptique(request):
         cycles_data = OrderedDict()
         for eac in activated_classes:
             cycle = eac.classe.cycle
-            if cycle.id_cycle not in cycles_data:
-                cycles_data[cycle.id_cycle] = {
+            if cycle.pk not in cycles_data:
+                cycles_data[cycle.pk] = {
                     'nom': cycle.nom,
                     'ordre': cycle.ordre,
                     'hasSections': cycle.hasSections,
                     'classes': OrderedDict()
                 }
             cls = eac.classe
-            if cls.id_classe not in cycles_data[cycle.id_cycle]['classes']:
-                cycles_data[cycle.id_cycle]['classes'][cls.id_classe] = {
+            if cls.id_classe not in cycles_data[cycle.pk]['classes']:
+                cycles_data[cycle.pk]['classes'][cls.id_classe] = {
                     'nom': cls.nom,
                     'sections': []
                 }
             if eac.section:
-                cycles_data[cycle.id_cycle]['classes'][cls.id_classe]['sections'].append(
+                cycles_data[cycle.pk]['classes'][cls.id_classe]['sections'].append(
                     f"{eac.section.code} ({eac.section.nom})"
                 )
         
@@ -1855,7 +1855,7 @@ def get_cycles_data(request):
         results = []
         for c in cycles:
             # Classes belong directly to cycles — limited by duree
-            all_classes_qs = Classe.objects.filter(cycle_id=c.id_cycle, id_pays=pays.id_pays).order_by('ordre')
+            all_classes_qs = Classe.objects.filter(cycle_id=c.id, id_pays=pays.id_pays).order_by('ordre')
             all_classes = [{'id_classe': c2.id_classe, 'nom': c2.classe, 'ordre': c2.ordre} for c2 in all_classes_qs]
             # Respect the duree limit: only return up to 'duree' classes per cycle
             if c.duree and c.duree > 0:
@@ -1927,7 +1927,7 @@ def save_cycle(request):
         pays = get_object_or_404(Pays, id_pays=id_pays)
         
         if id_cycle:
-            cycle = get_object_or_404(Cycle, id_cycle=id_cycle)
+            cycle = get_object_or_404(Cycle, id_cycle=id_cycle, pays_id=pays.id_pays)
             cycle.nom = nom
             cycle.ordre = ordre
             cycle.duree = duree
@@ -1952,7 +1952,7 @@ def delete_cycle(request):
     try:
         data = json.loads(request.body)
         id_cycle = data.get('id_cycle')
-        get_object_or_404(Cycle, id_cycle=id_cycle).delete()
+        get_object_or_404(Cycle, id_cycle=id_cycle, pays_id=pays.id_pays).delete()
         return JsonResponse({'success': True})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
@@ -2155,7 +2155,7 @@ def save_classe(request):
         nom = data.get('nom')
         ordre = data.get('ordre', 1)
         
-        cycle = get_object_or_404(Cycle, id_cycle=id_cycle)
+        cycle = get_object_or_404(Cycle, id_cycle=id_cycle, pays_id=pays.id_pays)
 
         if id_classe:
             c = get_object_or_404(Classe, id_classe=id_classe)
@@ -2389,7 +2389,7 @@ def get_cours_data(request):
         cycles = pays.cycles.all().order_by('ordre')
         classes_data = []
         for cycle in cycles:
-            cycle_classes = Classe.objects.filter(cycle_id=cycle.id_cycle, id_pays=pays.id_pays).order_by('ordre')
+            cycle_classes = Classe.objects.filter(cycle_id=cycle.id, id_pays=pays.id_pays).order_by('ordre')
             if cycle.duree and cycle.duree > 0:
                 cycle_classes = cycle_classes[:cycle.duree]
             
@@ -2405,7 +2405,7 @@ def get_cours_data(request):
                             'nom_section': section['nom'],
                             'code_section': section['code'],
                             'cycle_nom': f"{cycle.nom} / {section['nom']}",
-                            'cycle_id': cycle.id_cycle,
+                            'cycle_id': cycle.id,
                             'has_sections': True,
                         })
             else:
@@ -2419,7 +2419,7 @@ def get_cours_data(request):
                         'nom_section': None,
                         'code_section': None,
                         'cycle_nom': cycle.nom,
-                        'cycle_id': cycle.id_cycle,
+                        'cycle_id': cycle.id,
                         'has_sections': False,
                     })
 
@@ -6722,11 +6722,11 @@ def dashboard_etablissement_view(request):
 
             # Detail par cycle
             if cycle_ids:
-                cycles_qs = Cycle.objects.filter(id_cycle__in=cycle_ids).order_by('ordre')
+                cycles_qs = Cycle.objects.filter(id__in=cycle_ids).order_by('ordre')
                 for c in cycles_qs:
                     cycles_detail.append({
                         'nom': c.nom,
-                        'n_classes': cycle_counts.get(c.id_cycle, 0),
+                        'n_classes': cycle_counts.get(c.id, 0),
                         'ordre': c.ordre,
                     })
 
@@ -12134,14 +12134,14 @@ def get_cours_data(request):
                             'id_classe': cls.id_classe, 'id_section': section['id_section'],
                             'nom': f"{cls.nom} — {section['nom']}",
                             'cycle_nom': f"{cycle.nom} / {section['nom']}",
-                            'cycle_id': cycle.id_cycle, 'has_sections': True,
+                            'cycle_id': cycle.id, 'has_sections': True,
                         })
             else:
                 for cls in cycle_classes:
                     classes_data.append({
                         'id_classe': cls.id_classe, 'id_section': None,
                         'nom': cls.nom, 'cycle_nom': cycle.nom,
-                        'cycle_id': cycle.id_cycle, 'has_sections': False,
+                        'cycle_id': cycle.id, 'has_sections': False,
                     })
 
         # Build lookup dicts (Cours has IntegerField domaine_id/section_id, NOT FKs)

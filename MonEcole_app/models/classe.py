@@ -14,7 +14,7 @@ class Classe_cycle(models.Model):
     L'activation se fait via EtablissementAnneeClasse (quelles classes/cycles
     un établissement utilise), pas au niveau du catalogue.
     """
-    id = models.AutoField(primary_key=True)
+    id = models.BigAutoField(primary_key=True)
     id_cycle = models.IntegerField()
     cycle = models.CharField(max_length=200, db_column='nom')
     pays_id = models.IntegerField(null=True, blank=True)
@@ -33,7 +33,7 @@ class Classe(models.Model):
     Catalogue national des classes.
     Table Hub : countryStructure.classes
     """
-    id = models.AutoField(primary_key=True)
+    id = models.BigAutoField(primary_key=True)
     id_classe = models.IntegerField()
     classe = models.CharField(max_length=100, db_column='nom')
     cycle = models.ForeignKey(Classe_cycle, on_delete=models.CASCADE,

@@ -10,7 +10,7 @@ class Cours(models.Model):
     Catalogue national des cours/matières.
     Table Hub : countryStructure.cours (402 lignes)
     """
-    id = models.AutoField(primary_key=True)
+    id = models.BigAutoField(primary_key=True)
     id_cours = models.IntegerField()
     cours = models.CharField(max_length=150, null=False)
     code_cours = models.CharField(max_length=30, null=True, blank=True)

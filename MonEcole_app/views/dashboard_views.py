@@ -140,12 +140,12 @@ def _get_dashboard_context(request):
 
             if cycle_ids:
                 cycles_qs = Cycle.objects.filter(
-                    id_cycle__in=cycle_ids
+                    id__in=cycle_ids
                 ).order_by('ordre')
                 for c in cycles_qs:
                     cycles_detail.append({
                         'nom': c.nom,
-                        'n_classes': cycle_counts.get(c.id_cycle, 0),
+                        'n_classes': cycle_counts.get(c.id, 0),
                         'ordre': c.ordre,
                     })
 
