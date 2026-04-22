@@ -117,7 +117,7 @@ def _get_dashboard_context(request):
 
     if annee_active:
         etab_annee = EtablissementAnnee.objects.filter(
-            etablissement=etab, annee=annee_active
+            etablissement=etab, annee=annee_active, id_pays=pays.id_pays
         ).first()
 
         if etab_annee:

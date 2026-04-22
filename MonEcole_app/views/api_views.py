@@ -2425,7 +2425,7 @@ def get_cours_data(request):
         # Récupérer les cours avec le domaine et section FK
         cours_qs = Cours.objects.filter(classe__cycle__pays=pays)
         if id_classe:
-            cours_qs = cours_qs.filter(id_classe_id=id_classe)
+            cours_qs = cours_qs.filter(classe_id=id_classe)
             # Filtrer par section si spécifié
             if id_section:
                 cours_qs = cours_qs.filter(section_id=id_section)
@@ -2687,7 +2687,7 @@ def get_cours_annee_data(request):
             return JsonResponse({'success': True, 'cours_annee': [], 'annees': annees, 'domaines': domaines})
 
         # Tous les cours du catalogue pour cette classe (+section)
-        cours_catalogue = Cours.objects.filter(id_classe_id=id_classe).order_by('cours')
+        cours_catalogue = Cours.objects.filter(classe_id=id_classe).order_by('cours')
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
@@ -2838,7 +2838,7 @@ def bulk_activate_cours_annee(request):
         if not id_classe or not id_annee:
             return JsonResponse({'success': False, 'error': 'Classe et année requis.'}, status=400)
 
-        cours_catalogue = Cours.objects.filter(id_classe_id=id_classe)
+        cours_catalogue = Cours.objects.filter(classe_id=id_classe)
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
@@ -2890,7 +2890,7 @@ def download_cours_annee_template(request):
             cell.fill = header_fill
             cell.font = Font(bold=True, color="FFFFFF")
 
-        for c in Cours.objects.filter(id_classe_id=id_classe).order_by('domaine', 'code_cours'):
+        for c in Cours.objects.filter(classe_id=id_classe).order_by('domaine', 'code_cours'):
             config = CoursAnnee.objects.filter(cours=c, annee=annee).first()
             ws.append([
                 c.code_cours, c.cours, c.domaine,
@@ -6673,7 +6673,7 @@ def dashboard_etablissement_view(request):
 
     if annee_active:
         etab_annee = EtablissementAnnee.objects.filter(
-            etablissement=etab, annee=annee_active
+            etablissement=etab, annee=annee_active, id_pays=pays.id_pays
         ).first()
 
         if etab_annee:
@@ -12124,7 +12124,7 @@ def get_cours_data(request):
 
         cours_qs = Cours.objects.filter(classe__cycle__pays=pays)
         if id_classe:
-            cours_qs = cours_qs.filter(id_classe_id=id_classe)
+            cours_qs = cours_qs.filter(classe_id=id_classe)
             if id_section:
                 cours_qs = cours_qs.filter(section_id=id_section)
             else:
@@ -12246,7 +12246,7 @@ def get_cours_annee_data(request):
 
         # Tous les cours du catalogue pour cette classe (+section)
         # NOTE: Cours.domaine_id is IntegerField, NOT FK — cannot use select_related/order_by FK
-        cours_catalogue = Cours.objects.filter(id_classe_id=id_classe).order_by('cours')
+        cours_catalogue = Cours.objects.filter(classe_id=id_classe).order_by('cours')
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
@@ -12408,7 +12408,7 @@ def bulk_activate_cours_annee(request):
         if Cours is None:
             return JsonResponse({'success': False, 'error': 'Modèle Cours non disponible.'}, status=500)
 
-        cours_catalogue = Cours.objects.filter(id_classe_id=id_classe)
+        cours_catalogue = Cours.objects.filter(classe_id=id_classe)
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
