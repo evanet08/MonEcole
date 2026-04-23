@@ -319,6 +319,29 @@
 .eleve-form-grid input:focus,.eleve-form-grid select:focus{outline:none;border-color:#6366f1;box-shadow:0 0 0 2px rgba(99,102,241,.15)}
 .eleve-form-grid label{font-size:.6rem;color:#64748b;font-weight:600;margin-bottom:1px;display:block}
 .eleve-form-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:8px}
+/* ═══ Two-Column Registration Layout ═══ */
+.add-eleve-layout{display:grid;grid-template-columns:1.15fr 1fr;min-height:420px}
+.add-eleve-left{border-right:1.5px solid #e2e8f0;display:flex;flex-direction:column}
+.add-eleve-right{display:flex;flex-direction:column;gap:0}
+.add-eleve-panel-header{color:#fff;font-size:.76rem;font-weight:700;padding:10px 16px;display:flex;align-items:center;gap:6px;letter-spacing:.02em}
+.add-eleve-fields{margin-bottom:10px}
+.add-field-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
+.add-field label{font-size:.62rem;color:#64748b;font-weight:600;margin-bottom:2px;display:block;text-transform:uppercase;letter-spacing:.3px}
+.add-field input,.add-field select{padding:7px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:.72rem;width:100%;background:#fff;transition:all .2s}
+.add-field input:focus,.add-field select:focus{outline:none;border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.add-parent-section{border-top:1.5px solid #e2e8f0;padding-top:10px}
+.add-section-label{font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+.add-section-label i{font-size:.58rem}
+.add-addr-panel{flex:1;display:flex;flex-direction:column;border-bottom:1.5px solid #e2e8f0}
+.add-addr-panel:last-child{border-bottom:none}
+.add-addr-header{color:#fff;font-size:.68rem;font-weight:700;padding:9px 16px;display:flex;align-items:center;gap:6px;letter-spacing:.02em;text-transform:uppercase}
+.add-addr-header i{font-size:.58rem}
+.add-addr-body{padding:14px 16px;flex:1;display:flex;flex-direction:column}
+.add-addr-body .admin-cascade{flex:1}
+.add-addr-body .admin-cascade select{padding:7px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:.72rem;width:100%;background:#fff;transition:all .2s}
+.add-addr-body .admin-cascade select:focus{outline:none;border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.add-addr-body .admin-cascade label,.add-addr-body .admin-cascade .ac-label{font-size:.62rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.3px;display:flex;align-items:center;gap:4px;margin-bottom:2px}
+@media(max-width:1100px){.add-eleve-layout{grid-template-columns:1fr;}.add-eleve-left{border-right:none;border-bottom:1.5px solid #e2e8f0}.add-eleve-right{flex-direction:row}.add-addr-panel{border-bottom:none;border-right:1.5px solid #e2e8f0}.add-addr-panel:last-child{border-right:none}}
 .eleve-import-zone{background:#f0f4ff;border:2px dashed #a5b4fc;border-radius:8px;padding:14px;text-align:center;font-size:.72rem;color:#6366f1;cursor:pointer;transition:all .15s}
 .eleve-import-zone:hover{background:#e0e7ff;border-color:#6366f1}
 .eleve-import-zone input[type='file']{display:none}
@@ -402,66 +425,96 @@
                 <div class="dash-section-title"><i class="fas fa-user-plus" style="color:#059669"></i> Enregistrer un Nouvel Élève</div>
                 <div class="dash-section-sub">Saisissez les informations du nouvel élève et associez-le à un parent</div>
             </div>
-            <div id="addEleveForm" class="eleve-form" style="display:block;border:1.5px solid #d1d5db;background:#fafbfc">
-                <div style="font-size:.75rem;font-weight:700;color:#1e293b;margin-bottom:8px"><i class="fas fa-user-plus" style="color:#059669;margin-right:4px"></i> Nouvel Élève — <span id="addEleveClasseLabel" style="color:#4338ca"></span></div>
-                <div class="eleve-form-grid">
-                    <div><label>N° Série</label><input id="eleveNumSerie" placeholder="N° série"></div>
-                    <div><label>Nom *</label><input id="eleveNom" placeholder="Nom"></div>
-                    <div><label>Postnom</label><input id="elevePostnom" placeholder="Postnom"></div>
-                    <div><label>Prénom *</label><input id="elevePrenom" placeholder="Prénom"></div>
-                    <div><label>Date Naissance *</label><input id="eleveDN" type="text" placeholder="jj/mm/aaaa" maxlength="10"></div>
-                    <div><label>Genre *</label><select id="eleveGenre"><option value="">--</option><option value="M">Masculin</option><option value="F">Féminin</option></select></div>
-                    <div><label>Téléphone</label><input id="eleveTelephone" placeholder="+243..."></div>
-                    <div><label>ID National</label><input id="eleveIDNational" placeholder="Identifiant national"></div>
-                </div>
-                <!-- Parent Section -->
-                <div style="margin-top:10px;padding-top:10px;border-top:1.5px solid #e2e8f0">
-                    <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6366f1;margin-bottom:8px;display:flex;align-items:center;gap:4px"><i class="fas fa-user-friends" style="font-size:.55rem"></i> Parents / Tuteur</div>
-                    <div class="parent-selector" id="parentSelectorAdd">
-                        <div class="parent-search-wrap">
-                            <i class="fas fa-search search-icon"></i>
-                            <input id="parentSearchInput" placeholder="Chercher un parent existant (nom, prénom ou téléphone)..." oninput="onParentSearch(this.value)" autocomplete="off">
+            <div id="addEleveForm" class="eleve-form" style="display:block;border:1.5px solid #d1d5db;background:#fafbfc;padding:0;overflow:hidden">
+                <!-- Two-Column Master Layout -->
+                <div class="add-eleve-layout">
+                    <!-- ═══ LEFT COLUMN: Student Identity + Parent ═══ -->
+                    <div class="add-eleve-left">
+                        <div class="add-eleve-panel-header" style="background:linear-gradient(135deg,#059669,#10b981)">
+                            <i class="fas fa-user-plus"></i> Nouvel Élève — <span id="addEleveClasseLabel" style="font-weight:800"></span>
                         </div>
-                        <div class="parent-results" id="parentSearchResults"></div>
-                        <div class="parent-selected" id="parentSelectedDisplay">
-                            <div>
-                                <div class="ps-info" id="parentSelectedInfo">—</div>
-                                <div class="ps-phone" id="parentSelectedPhone"></div>
+                        <div style="padding:14px 16px">
+                            <!-- Student Fields -->
+                            <div class="add-eleve-fields">
+                                <div class="add-field-row">
+                                    <div class="add-field"><label>N° Série</label><input id="eleveNumSerie" placeholder="N° série"></div>
+                                    <div class="add-field"><label>Nom *</label><input id="eleveNom" placeholder="Nom"></div>
+                                    <div class="add-field"><label>Postnom</label><input id="elevePostnom" placeholder="Postnom"></div>
+                                </div>
+                                <div class="add-field-row">
+                                    <div class="add-field"><label>Prénom *</label><input id="elevePrenom" placeholder="Prénom"></div>
+                                    <div class="add-field"><label>Date Naissance *</label><input id="eleveDN" type="text" placeholder="jj/mm/aaaa" maxlength="10"></div>
+                                    <div class="add-field"><label>Genre *</label><select id="eleveGenre"><option value="">--</option><option value="M">Masculin</option><option value="F">Féminin</option></select></div>
+                                </div>
+                                <div class="add-field-row">
+                                    <div class="add-field"><label>Téléphone</label><input id="eleveTelephone" placeholder="+243..."></div>
+                                    <div class="add-field"><label>ID National</label><input id="eleveIDNational" placeholder="Identifiant national"></div>
+                                </div>
                             </div>
-                            <button class="ps-clear" onclick="clearSelectedParent()" title="Changer"><i class="fas fa-times"></i></button>
+
+                            <!-- Parent Section -->
+                            <div class="add-parent-section">
+                                <div class="add-section-label" style="color:#6366f1"><i class="fas fa-user-friends"></i> Parents / Tuteur</div>
+                                <div class="parent-selector" id="parentSelectorAdd">
+                                    <div class="parent-search-wrap">
+                                        <i class="fas fa-search search-icon"></i>
+                                        <input id="parentSearchInput" placeholder="Chercher un parent existant (nom ou téléphone)..." oninput="onParentSearch(this.value)" autocomplete="off">
+                                    </div>
+                                    <div class="parent-results" id="parentSearchResults"></div>
+                                    <div class="parent-selected" id="parentSelectedDisplay">
+                                        <div>
+                                            <div class="ps-info" id="parentSelectedInfo">—</div>
+                                            <div class="ps-phone" id="parentSelectedPhone"></div>
+                                        </div>
+                                        <button class="ps-clear" onclick="clearSelectedParent()" title="Changer"><i class="fas fa-times"></i></button>
+                                    </div>
+                                    <input type="hidden" id="selectedParentId" value="">
+                                    <button type="button" class="parent-new-btn" id="btnNewParent" onclick="toggleNewParentForm()"><i class="fas fa-plus"></i> Nouveau parent</button>
+                                    <div class="parent-new-form" id="newParentForm">
+                                        <div class="pnf-section-title" style="color:#3b82f6"><i class="fas fa-male"></i> Père</div>
+                                        <div class="pnf-grid">
+                                            <div style="grid-column:span 2"><label>Noms complets</label><input id="npNomsPere" placeholder="Noms complets du père"></div>
+                                            <div><label>Téléphone</label><input id="npTelPere" placeholder="+243..."></div>
+                                            <div><label>Email</label><input id="npEmailPere" type="email" placeholder="email@..."></div>
+                                        </div>
+                                        <div class="pnf-section-title" style="color:#ec4899;margin-top:10px"><i class="fas fa-female"></i> Mère</div>
+                                        <div class="pnf-grid">
+                                            <div style="grid-column:span 2"><label>Noms complets</label><input id="npNomsMere" placeholder="Noms complets de la mère"></div>
+                                            <div><label>Téléphone</label><input id="npTelMere" placeholder="+243..."></div>
+                                            <div><label>Email</label><input id="npEmailMere" type="email" placeholder="email@..."></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <input type="hidden" id="selectedParentId" value="">
-                        <button type="button" class="parent-new-btn" id="btnNewParent" onclick="toggleNewParentForm()"><i class="fas fa-plus"></i> Nouveau parent</button>
-                        <div class="parent-new-form" id="newParentForm">
-                            <div class="pnf-section-title" style="color:#3b82f6"><i class="fas fa-male"></i> Père</div>
-                            <div class="pnf-grid">
-                                <div style="grid-column:span 2"><label>Noms complets</label><input id="npNomsPere" placeholder="Noms complets du père"></div>
-                                <div><label>Téléphone</label><input id="npTelPere" placeholder="+243..."></div>
-                                <div><label>Email</label><input id="npEmailPere" type="email" placeholder="email@..."></div>
+                    </div>
+
+                    <!-- ═══ RIGHT COLUMN: Addresses (stacked) ═══ -->
+                    <div class="add-eleve-right">
+                        <!-- Birth Address -->
+                        <div class="add-addr-panel add-addr-birth">
+                            <div class="add-addr-header" style="background:linear-gradient(135deg,#2563eb,#60a5fa)">
+                                <i class="fas fa-baby"></i> Lieu de Naissance
                             </div>
-                            <div class="pnf-section-title" style="color:#ec4899;margin-top:10px"><i class="fas fa-female"></i> Mère</div>
-                            <div class="pnf-grid">
-                                <div style="grid-column:span 2"><label>Noms complets</label><input id="npNomsMere" placeholder="Noms complets de la mère"></div>
-                                <div><label>Téléphone</label><input id="npTelMere" placeholder="+243..."></div>
-                                <div><label>Email</label><input id="npEmailMere" type="email" placeholder="email@..."></div>
+                            <div class="add-addr-body">
+                                <div id="addEleveAddrBirth" class="admin-cascade" style="gap:8px"></div>
+                                <input type="hidden" id="addEleveRefNaissance">
+                            </div>
+                        </div>
+                        <!-- Residence Address -->
+                        <div class="add-addr-panel add-addr-residence">
+                            <div class="add-addr-header" style="background:linear-gradient(135deg,#059669,#34d399)">
+                                <i class="fas fa-home"></i> Résidence Actuelle
+                            </div>
+                            <div class="add-addr-body">
+                                <div id="addEleveAddrResidence" class="admin-cascade" style="gap:8px"></div>
+                                <input type="hidden" id="addEleveRefResidence">
                             </div>
                         </div>
                     </div>
                 </div>
-                <!-- Addresses -->
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;padding-top:10px;border-top:1.5px solid #e2e8f0">
-                    <div>
-                        <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#2563eb;margin-bottom:6px;display:flex;align-items:center;gap:4px"><i class="fas fa-baby" style="font-size:.55rem"></i> Lieu de Naissance</div>
-                        <div id="addEleveAddrBirth" class="admin-cascade" style="gap:5px"></div>
-                        <input type="hidden" id="addEleveRefNaissance">
-                    </div>
-                    <div>
-                        <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#059669;margin-bottom:6px;display:flex;align-items:center;gap:4px"><i class="fas fa-home" style="font-size:.55rem"></i> Résidence Actuelle</div>
-                        <div id="addEleveAddrResidence" class="admin-cascade" style="gap:5px"></div>
-                        <input type="hidden" id="addEleveRefResidence">
-                    </div>
-                </div>
-                <div class="eleve-form-actions">
+                <!-- Save Button -->
+                <div class="eleve-form-actions" style="padding:10px 16px;border-top:1.5px solid #e2e8f0;background:#f1f5f9">
                     <button class="eleve-btn eleve-btn-add" onclick="saveEleve()" id="btnSaveEleve" disabled style="opacity:.5;cursor:not-allowed" title="Sélectionnez d'abord une classe"><i class="fas fa-save"></i> Enregistrer</button>
                 </div>
             </div>
