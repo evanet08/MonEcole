@@ -420,7 +420,6 @@ def generer_bulletin_pdf(request):
         code_model = (bcm.id_model.code_model or '').strip()
         code_lower = code_model.lower()
         rounded_values = getattr(bcm, 'roundedValues', False)
-        logger.warning(f"[BULLETIN PDF] BCM found: id={bcm.id_model_classe}, model={model_name}, roundedValues={rounded_values}, bcm.roundedValues={bcm.roundedValues}")
         margin = 5 * mm
 
         # Déterminer le cycle par code_model (Hub: bulletin_model.code_model)
