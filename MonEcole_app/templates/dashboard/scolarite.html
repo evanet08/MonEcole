@@ -319,34 +319,34 @@
 .eleve-form-grid input:focus,.eleve-form-grid select:focus{outline:none;border-color:#6366f1;box-shadow:0 0 0 2px rgba(99,102,241,.15)}
 .eleve-form-grid label{font-size:.6rem;color:#64748b;font-weight:600;margin-bottom:1px;display:block}
 .eleve-form-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:8px}
-/* ═══ Three-Column Registration Layout ═══ */
-.add-eleve-layout{display:grid;grid-template-columns:28% 36% 36%;min-height:400px}
+/* ═══ Four-Column Registration Layout ═══ */
+.add-eleve-layout{display:grid;grid-template-columns:repeat(4,1fr);gap:0;min-height:380px}
 .add-eleve-col{display:flex;flex-direction:column;border-right:1.5px solid #e2e8f0}
 .add-eleve-col:last-child{border-right:none}
-.add-col-header{color:#fff;font-size:.72rem;font-weight:700;padding:9px 14px;display:flex;align-items:center;gap:6px;letter-spacing:.02em}
-.add-col-header i{font-size:.6rem}
-.add-col-body{padding:12px 14px;flex:1;overflow-y:auto}
-/* Student fields — one per line */
-.add-field{margin-bottom:7px}
-.add-field label{font-size:.6rem;color:#64748b;font-weight:600;margin-bottom:2px;display:block;text-transform:uppercase;letter-spacing:.3px}
-.add-field input,.add-field select{padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:.72rem;width:100%;background:#fff;transition:all .2s}
-.add-field input:focus,.add-field select:focus{outline:none;border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.add-col-header{color:#fff;font-size:.68rem;font-weight:700;padding:8px 12px;display:flex;align-items:center;gap:5px;letter-spacing:.02em;white-space:nowrap}
+.add-col-header i{font-size:.55rem}
+.add-col-body{padding:10px 12px;flex:1;overflow-y:auto}
+/* Fields — one per line */
+.add-field{margin-bottom:6px}
+.add-field label{font-size:.58rem;color:#64748b;font-weight:600;margin-bottom:2px;display:block;text-transform:uppercase;letter-spacing:.3px}
+.add-field input,.add-field select{padding:5px 8px;border:1px solid #cbd5e1;border-radius:5px;font-size:.7rem;width:100%;background:#fff;transition:all .2s;box-sizing:border-box}
+.add-field input:focus,.add-field select:focus{outline:none;border-color:#6366f1;box-shadow:0 0 0 2px rgba(99,102,241,.12)}
 /* Parent — section labels */
-.add-section-label{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:flex;align-items:center;gap:5px}
-.add-section-label i{font-size:.55rem}
-.add-parent-block{margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #f1f5f9}
+.add-section-label{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;display:flex;align-items:center;gap:4px}
+.add-section-label i{font-size:.52rem}
+.add-parent-block{margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #f1f5f9}
 .add-parent-block:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
-.add-parent-block .add-field{margin-bottom:5px}
-/* Address panels — stacked in right col */
-.add-addr-panel{flex:1;display:flex;flex-direction:column;border-bottom:1.5px solid #e2e8f0}
-.add-addr-panel:last-child{border-bottom:none}
-.add-addr-sub-header{font-size:.64rem;font-weight:700;padding:8px 14px;display:flex;align-items:center;gap:5px;letter-spacing:.02em;text-transform:uppercase;border-bottom:1px solid #e2e8f0}
-.add-addr-body{padding:10px 14px;flex:1;display:flex;flex-direction:column}
-.add-addr-body .admin-cascade{flex:1}
-.add-addr-body .admin-cascade select{padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:.72rem;width:100%;background:#fff;transition:all .2s}
-.add-addr-body .admin-cascade select:focus{outline:none;border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.12)}
-.add-addr-body .admin-cascade label,.add-addr-body .admin-cascade .ac-label{font-size:.6rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.3px;display:flex;align-items:center;gap:4px;margin-bottom:2px}
-@media(max-width:1100px){.add-eleve-layout{grid-template-columns:1fr 1fr}.add-eleve-col:first-child{grid-column:1/-1}}
+.add-parent-block .add-field{margin-bottom:4px}
+/* Address cascade styling */
+.add-col-body .admin-cascade select{padding:5px 8px;border:1px solid #cbd5e1;border-radius:5px;font-size:.7rem;width:100%;background:#fff;transition:all .2s;box-sizing:border-box}
+.add-col-body .admin-cascade select:focus{outline:none;border-color:#6366f1;box-shadow:0 0 0 2px rgba(99,102,241,.12)}
+.add-col-body .admin-cascade label,.add-col-body .admin-cascade .ac-label{font-size:.58rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.3px;display:flex;align-items:center;gap:4px;margin-bottom:2px}
+/* Same-address checkbox */
+.same-addr-check{display:flex;align-items:center;gap:5px;padding:5px 8px;margin-bottom:6px;border-radius:6px;background:#f0fdf4;border:1px solid #bbf7d0;cursor:pointer;transition:all .2s}
+.same-addr-check:hover{background:#dcfce7;border-color:#86efac}
+.same-addr-check input{accent-color:#059669;width:13px;height:13px;cursor:pointer}
+.same-addr-check span{font-size:.6rem;color:#166534;font-weight:600}
+@media(max-width:1200px){.add-eleve-layout{grid-template-columns:1fr 1fr}.add-eleve-col{border-bottom:1.5px solid #e2e8f0}.add-eleve-col:nth-child(2){border-right:none}.add-eleve-col:last-child{border-bottom:none}}
 .eleve-import-zone{background:#f0f4ff;border:2px dashed #a5b4fc;border-radius:8px;padding:14px;text-align:center;font-size:.72rem;color:#6366f1;cursor:pointer;transition:all .15s}
 .eleve-import-zone:hover{background:#e0e7ff;border-color:#6366f1}
 .eleve-import-zone input[type='file']{display:none}
@@ -432,7 +432,7 @@
             </div>
             <div id="addEleveForm" class="eleve-form" style="display:block;border:1.5px solid #d1d5db;background:#fafbfc;padding:0;overflow:hidden;border-radius:10px">
                 <div class="add-eleve-layout">
-                    <!-- ═══ COL 1: Élève (28%) ═══ -->
+                    <!-- ═══ COL 1: Élève ═══ -->
                     <div class="add-eleve-col">
                         <div class="add-col-header" style="background:linear-gradient(135deg,#059669,#10b981)">
                             <i class="fas fa-user-plus"></i> Élève — <span id="addEleveClasseLabel" style="font-weight:800"></span>
@@ -449,8 +449,34 @@
                         </div>
                     </div>
 
-                    <!-- ═══ COL 2: Parents (36%) ═══ -->
+                    <!-- ═══ COL 2: Lieu de Naissance ═══ -->
                     <div class="add-eleve-col">
+                        <div class="add-col-header" style="background:linear-gradient(135deg,#2563eb,#60a5fa)">
+                            <i class="fas fa-baby"></i> Lieu de Naissance
+                        </div>
+                        <div class="add-col-body">
+                            <div id="addEleveAddrBirth" class="admin-cascade" style="gap:7px"></div>
+                            <input type="hidden" id="addEleveRefNaissance">
+                        </div>
+                    </div>
+
+                    <!-- ═══ COL 3: Résidence Actuelle ═══ -->
+                    <div class="add-eleve-col">
+                        <div class="add-col-header" style="background:linear-gradient(135deg,#059669,#34d399)">
+                            <i class="fas fa-home"></i> Résidence Actuelle
+                        </div>
+                        <div class="add-col-body">
+                            <label class="same-addr-check" title="Cocher si la résidence est identique au lieu de naissance">
+                                <input type="checkbox" id="sameAddrCheck" onchange="onSameAddrToggle(this.checked)">
+                                <span>Identique au lieu de naissance</span>
+                            </label>
+                            <div id="addEleveAddrResidence" class="admin-cascade" style="gap:7px"></div>
+                            <input type="hidden" id="addEleveRefResidence">
+                        </div>
+                    </div>
+
+                    <!-- ═══ COL 4: Parents ═══ -->
+                    <div class="add-eleve-col" style="border-right:none">
                         <div class="add-col-header" style="background:linear-gradient(135deg,#6366f1,#818cf8)">
                             <i class="fas fa-user-friends"></i> Parents / Tuteur
                         </div>
@@ -458,7 +484,7 @@
                             <div class="parent-selector" id="parentSelectorAdd">
                                 <div class="parent-search-wrap">
                                     <i class="fas fa-search search-icon"></i>
-                                    <input id="parentSearchInput" placeholder="Chercher un parent existant..." oninput="onParentSearch(this.value)" autocomplete="off">
+                                    <input id="parentSearchInput" placeholder="Chercher un parent..." oninput="onParentSearch(this.value)" autocomplete="off">
                                 </div>
                                 <div class="parent-results" id="parentSearchResults"></div>
                                 <div class="parent-selected" id="parentSelectedDisplay">
@@ -471,14 +497,12 @@
                                 <input type="hidden" id="selectedParentId" value="">
                                 <button type="button" class="parent-new-btn" id="btnNewParent" onclick="toggleNewParentForm()"><i class="fas fa-plus"></i> Nouveau parent</button>
                                 <div class="parent-new-form" id="newParentForm">
-                                    <!-- Père -->
                                     <div class="add-parent-block">
                                         <div class="add-section-label" style="color:#3b82f6"><i class="fas fa-male"></i> Père</div>
                                         <div class="add-field"><label>Noms complets</label><input id="npNomsPere" placeholder="Noms complets du père"></div>
                                         <div class="add-field"><label>Téléphone</label><input id="npTelPere" placeholder="+243..."></div>
                                         <div class="add-field"><label>Email</label><input id="npEmailPere" type="email" placeholder="email@..."></div>
                                     </div>
-                                    <!-- Mère -->
                                     <div class="add-parent-block">
                                         <div class="add-section-label" style="color:#ec4899"><i class="fas fa-female"></i> Mère</div>
                                         <div class="add-field"><label>Noms complets</label><input id="npNomsMere" placeholder="Noms complets de la mère"></div>
@@ -486,29 +510,6 @@
                                         <div class="add-field"><label>Email</label><input id="npEmailMere" type="email" placeholder="email@..."></div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- ═══ COL 3: Adresses (36%) ═══ -->
-                    <div class="add-eleve-col" style="border-right:none">
-                        <div class="add-col-header" style="background:linear-gradient(135deg,#2563eb,#60a5fa)">
-                            <i class="fas fa-map-marker-alt"></i> Adresses
-                        </div>
-                        <!-- Birth -->
-                        <div class="add-addr-panel">
-                            <div class="add-addr-sub-header" style="color:#2563eb"><i class="fas fa-baby"></i> Lieu de Naissance</div>
-                            <div class="add-addr-body">
-                                <div id="addEleveAddrBirth" class="admin-cascade" style="gap:7px"></div>
-                                <input type="hidden" id="addEleveRefNaissance">
-                            </div>
-                        </div>
-                        <!-- Residence -->
-                        <div class="add-addr-panel">
-                            <div class="add-addr-sub-header" style="color:#059669"><i class="fas fa-home"></i> Résidence Actuelle</div>
-                            <div class="add-addr-body">
-                                <div id="addEleveAddrResidence" class="admin-cascade" style="gap:7px"></div>
-                                <input type="hidden" id="addEleveRefResidence">
                             </div>
                         </div>
                     </div>
@@ -4446,6 +4447,30 @@ function resetNewParentForm(){
 
 
 /* =================================================================
+   "SAME ADDRESS" TOGGLE — copies birth address to residence
+   ================================================================= */
+function onSameAddrToggle(checked){
+    const birthRef=document.getElementById('addEleveRefNaissance').value||'';
+    const resContainer=document.getElementById('addEleveAddrResidence');
+    if(checked){
+        // Copy birth ref to residence
+        document.getElementById('addEleveRefResidence').value=birthRef;
+        // Rebuild residence cascade with the same ref (pre-filled + locked appearance)
+        if(birthRef){
+            _buildCascade('addEleveAddrResidence','addEleveRefResidence',birthRef);
+        }
+        // Disable all inputs/selects in residence cascade
+        resContainer.querySelectorAll('input,select').forEach(el=>{el.disabled=true;el.style.opacity='.5'});
+        resContainer.style.opacity='.6';
+    } else {
+        // Re-enable and clear residence
+        resContainer.style.opacity='1';
+        _buildCascade('addEleveAddrResidence','addEleveRefResidence','');
+        resContainer.querySelectorAll('input,select').forEach(el=>{el.disabled=false;el.style.opacity='1'});
+    }
+}
+
+/* =================================================================
    ADDRESS CASCADE — BIRTH & RESIDENCE (reuses ADMIN_TYPES / ADMIN_INSTANCES)
    ================================================================= */
 
@@ -4709,6 +4734,17 @@ function _addrUpdateRef(containerId){
     const ref=ids.join('-');
     const hidden=document.getElementById(state.hiddenInputId);
     if(hidden) hidden.value=ref;
+    // Auto-sync: if birth cascade changed and "same address" is checked, update residence
+    if(containerId==='addEleveAddrBirth'){
+        const cb=document.getElementById('sameAddrCheck');
+        if(cb && cb.checked){
+            document.getElementById('addEleveRefResidence').value=ref;
+            if(ref) _buildCascade('addEleveAddrResidence','addEleveRefResidence',ref);
+            const rc=document.getElementById('addEleveAddrResidence');
+            rc.querySelectorAll('input,select').forEach(el=>{el.disabled=true;el.style.opacity='.5'});
+            rc.style.opacity='.6';
+        }
+    }
     return ref;
 }
 
