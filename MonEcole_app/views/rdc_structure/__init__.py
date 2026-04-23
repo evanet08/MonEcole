@@ -18,11 +18,15 @@ def apply_rounded_values(table_data, skip_rows=None):
         ≥ 0.5 → arrondi par excès   (9.5 → 10)
         < 0.5 → arrondi par défaut  (9.45 → 9)
 
+    IMPORTANT : On REMPLACE la cellule Paragraph par une nouvelle instance
+    car modifier Paragraph.text ne reconstruit pas le rendu interne.
+
     Args:
         table_data: liste de listes de cellules (Paragraph ou None)
         skip_rows: set d'indices de lignes à ne pas toucher (headers)
     """
     import re
+    import math
     from reportlab.platypus import Paragraph as _Paragraph
 
     if skip_rows is None:
@@ -37,29 +41,36 @@ def apply_rounded_values(table_data, skip_rows=None):
             if not isinstance(cell, _Paragraph):
                 continue
 
+            # Colonne 0 = noms de cours/domaines → ne pas toucher
+            if col_idx == 0:
+                continue
+
             original_text = cell.text or ""
             stripped = original_text.strip()
 
-            # Ne pas toucher aux cellules vides, tirets, pourcentages, ou texte non-numérique
+            # Ne pas toucher aux cellules vides, tirets, ou texte "0"
             if not stripped or stripped in ("-", " ", "0"):
                 continue
-            if "%" in stripped:
-                # Arrondir le pourcentage aussi
-                pct_match = re.match(r'^([\d.]+)%$', stripped)
+
+            # Extraire le texte numérique brut (sans balises HTML)
+            clean = re.sub(r'<[^>]+>', '', stripped).strip()
+            if not clean or clean in ("-", " ", "0"):
+                continue
+
+            # ── Cas pourcentage ──
+            if "%" in clean:
+                pct_match = re.search(r'([\d.]+)\s*%', clean)
                 if pct_match:
                     try:
                         pct_val = float(pct_match.group(1))
-                        rounded_pct = round(pct_val)
-                        cell.text = f"{rounded_pct}%"
+                        rounded_pct = int(math.floor(pct_val + 0.5))
+                        new_text = original_text.replace(pct_match.group(0), f"{rounded_pct}%")
+                        row[col_idx] = _Paragraph(new_text, cell.style)
                     except (ValueError, TypeError):
                         pass
                 continue
 
-            # Extraire la valeur numérique — gérer les balises HTML (font color, bold, etc.)
-            clean = re.sub(r'<[^>]+>', '', stripped).strip()
-            if not clean or clean in ("-", " "):
-                continue
-
+            # ── Cas numérique standard ──
             try:
                 float_val = float(clean)
             except (ValueError, TypeError):
@@ -69,11 +80,10 @@ def apply_rounded_values(table_data, skip_rows=None):
             if float_val == int(float_val):
                 continue
 
-            # Arrondir à l'entier (standard: round() fait ROUND_HALF_EVEN en Python,
-            # mais pour les bulletins scolaires on veut ROUND_HALF_UP classique)
-            import math
-            rounded_int = math.floor(float_val + 0.5)
+            # Arrondi classique ROUND_HALF_UP (scolaire)
+            rounded_int = int(math.floor(float_val + 0.5))
 
-            # Reconstruire le texte en préservant le formatage HTML
+            # Reconstruire le texte en préservant le formatage HTML, créer nouveau Paragraph
             new_text = original_text.replace(clean, str(rounded_int))
-            cell.text = new_text
+            row[col_idx] = _Paragraph(new_text, cell.style)
+

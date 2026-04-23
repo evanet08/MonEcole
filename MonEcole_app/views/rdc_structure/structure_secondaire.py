@@ -686,15 +686,21 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
 
     num_rows = len(table_data)
 
-    # Appliquer SPAN/BACKGROUND dynamiquement pour les lignes de domaine
+    # Appliquer SPAN/BACKGROUND dynamiquement pour les lignes de domaine et sous-domaine
     # + bold pour Sous Total et MAXIMA
+    sous_domaine_bg = colors.Color(0.88, 0.92, 0.98)  # Légèrement plus clair que lightblue
     for row_idx in range(3, num_rows):
         row = table_data[row_idx]
         if len(row) > 0 and isinstance(row[0], Paragraph):
             texte = row[0].text or ""
+            # Domaine principal (bold, pas Sous Total/MAXIMA/etc.)
             if "<b>" in texte and "Sous Total" not in texte and "MAXIMA" not in texte and "POURCENTAGE" not in texte and "PLACE" not in texte and "CONDUITE" not in texte and "APPLICATION" not in texte and "SIGNATURE" not in texte:
                 table_style.add('SPAN', (0, row_idx), (-1, row_idx))
                 table_style.add('BACKGROUND', (0, row_idx), (-1, row_idx), colors.lightblue)
+            # Sous-domaine (italique) → même colspan, background plus léger
+            elif "<i>" in texte:
+                table_style.add('SPAN', (0, row_idx), (-1, row_idx))
+                table_style.add('BACKGROUND', (0, row_idx), (-1, row_idx), sous_domaine_bg)
             elif "Sous Total" in texte:
                 pass  # Bold already handled via Paragraph style_normal_bold + style_center_bold
             elif "MAXIMA" in texte:
@@ -713,13 +719,15 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
         table_style.add('LINEAFTER', (col_hachuree - 1, 4), (col_hachuree - 1, num_rows - 1), 0.5, colors.black)
         table_style.add('LINEAFTER', (col_hachuree, 4), (col_hachuree, num_rows - 1), 0.5, colors.black)
 
-    # Même gris foncé pour cols 18-19 sur les lignes domaines + sous-totaux
+    # Même gris foncé pour cols 18-19 sur les lignes domaines + sous-domaines + sous-totaux
     for row_idx in range(3, num_rows):
         row = table_data[row_idx]
         if len(row) > 0 and isinstance(row[0], Paragraph):
             texte = row[0].text or ""
             has_bg = False
             if "<b>" in texte and "Sous Total" not in texte and "MAXIMA" not in texte and "POURCENTAGE" not in texte and "PLACE" not in texte and "CONDUITE" not in texte and "APPLICATION" not in texte and "SIGNATURE" not in texte:
+                has_bg = True
+            elif "<i>" in texte:
                 has_bg = True
             elif "Sous Total" in texte:
                 has_bg = True
