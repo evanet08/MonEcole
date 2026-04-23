@@ -85,9 +85,18 @@ def generer_bulletin_pdf(request):
     elif id_classe and (not id_annee or not idCampus or not id_cycle):
         try:
             from MonEcole_app.models.country_structure import EtablissementAnneeClasse
-            eac = EtablissementAnneeClasse.objects.select_related(
+            # Scope par l'établissement du tenant pour éviter les collisions multi-tenant
+            eac_qs = EtablissementAnneeClasse.objects.select_related(
                 'etablissement_annee', 'etablissement_annee__annee', 'classe', 'classe__cycle'
-            ).get(id=int(id_classe))
+            ).filter(id=int(id_classe))
+            # Si plusieurs résultats, filtrer par l'établissement du tenant
+            if eac_qs.count() > 1:
+                _tenant_etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+                if _tenant_etab_id:
+                    eac_qs = eac_qs.filter(etablissement_annee__etablissement_id=_tenant_etab_id)
+            eac = eac_qs.first()
+            if not eac:
+                raise EtablissementAnneeClasse.DoesNotExist(f"No EAC found for id={id_classe}")
             logger.warning(f"[BULLETIN PDF] EAC found: {eac}, etab_annee={eac.etablissement_annee}, classe={eac.classe}")
             if not id_annee:
                 id_annee = str(eac.etablissement_annee.annee_id)
@@ -127,10 +136,15 @@ def generer_bulletin_pdf(request):
     if not bk_classe_id:
         try:
             from MonEcole_app.models.country_structure import EtablissementAnneeClasse as _EAC
-            _eac = _EAC.objects.get(id=id_classe_int)
-            bk_classe_id = _eac.classe_id
-            bk_groupe = _eac.groupe
-            bk_section_id = _eac.section_id
+            _eac = _EAC.objects.filter(id=id_classe_int).first()
+            if _eac:
+                bk_classe_id = _eac.classe_id
+                bk_groupe = _eac.groupe
+                bk_section_id = _eac.section_id
+            else:
+                bk_classe_id = id_classe_int
+                bk_groupe = None
+                bk_section_id = None
         except Exception:
             bk_classe_id = id_classe_int
             bk_groupe = None
@@ -175,7 +189,7 @@ def generer_bulletin_pdf(request):
         try:
             eac_obj = None
             from MonEcole_app.models.country_structure import EtablissementAnneeClasse as _EAC2
-            eac_obj = _EAC2.objects.get(id=id_classe)
+            eac_obj = _EAC2.objects.filter(id=id_classe).first()
             with connections['countryStructure'].cursor() as cur:
                 cur.execute("""
                     SELECT rc.id, ri.code
