@@ -412,6 +412,7 @@
                     <div><label>Date Naissance *</label><input id="eleveDN" type="text" placeholder="jj/mm/aaaa" maxlength="10"></div>
                     <div><label>Genre *</label><select id="eleveGenre"><option value="">--</option><option value="M">Masculin</option><option value="F">Féminin</option></select></div>
                     <div><label>Téléphone</label><input id="eleveTelephone" placeholder="+243..."></div>
+                    <div><label>ID National</label><input id="eleveIDNational" placeholder="Identifiant national"></div>
                 </div>
                 <!-- Parent Section -->
                 <div style="margin-top:10px;padding-top:10px;border-top:1.5px solid #e2e8f0">
@@ -434,17 +435,13 @@
                         <div class="parent-new-form" id="newParentForm">
                             <div class="pnf-section-title" style="color:#3b82f6"><i class="fas fa-male"></i> Père</div>
                             <div class="pnf-grid">
-                                <div><label>Nom</label><input id="npNomPere" placeholder="Nom"></div>
-                                <div><label>Postnom</label><input id="npPostnomPere" placeholder="Postnom"></div>
-                                <div><label>Prénom</label><input id="npPrenomPere" placeholder="Prénom"></div>
+                                <div style="grid-column:span 2"><label>Noms complets</label><input id="npNomsPere" placeholder="Noms complets du père"></div>
                                 <div><label>Téléphone</label><input id="npTelPere" placeholder="+243..."></div>
                                 <div><label>Email</label><input id="npEmailPere" type="email" placeholder="email@..."></div>
                             </div>
                             <div class="pnf-section-title" style="color:#ec4899;margin-top:10px"><i class="fas fa-female"></i> Mère</div>
                             <div class="pnf-grid">
-                                <div><label>Nom</label><input id="npNomMere" placeholder="Nom"></div>
-                                <div><label>Postnom</label><input id="npPostnomMere" placeholder="Postnom"></div>
-                                <div><label>Prénom</label><input id="npPrenomMere" placeholder="Prénom"></div>
+                                <div style="grid-column:span 2"><label>Noms complets</label><input id="npNomsMere" placeholder="Noms complets de la mère"></div>
                                 <div><label>Téléphone</label><input id="npTelMere" placeholder="+243..."></div>
                                 <div><label>Email</label><input id="npEmailMere" type="email" placeholder="email@..."></div>
                             </div>
@@ -487,7 +484,7 @@
                 <div style="margin-top:14px;padding:12px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
                     <div style="font-size:.65rem;font-weight:700;color:#64748b;margin-bottom:6px"><i class="fas fa-info-circle" style="color:#3b82f6;margin-right:4px"></i>Informations</div>
                     <ul style="font-size:.6rem;color:#64748b;margin:0;padding-left:16px;line-height:1.6">
-                        <li>Le modèle contient les colonnes : N° Série, Nom, Postnom, Prénom, Date de Naissance, Genre, Téléphone</li>
+                        <li>Le modèle contient les colonnes : N° Série, Nom, Postnom, Prénom, Date de Naissance, Genre, Téléphone, ID National</li>
                         <li>Les informations parents se complètent séparément via l'onglet <b style="color:#8b5cf6">Compléter Parents</b></li>
                         <li>Si l'élève existe déjà, ses données seront mises à jour</li>
                     </ul>
@@ -2856,6 +2853,7 @@ async function saveEleve(){
         numero_serie:numeroSerie,nom,postnom,prenom,date_naissance:dn,genre,
         classe_par_annee_id:parseInt(classeId),
         telephone,
+        IDNational:document.getElementById('eleveIDNational').value.trim(),
         ref_administrative_naissance:document.getElementById('addEleveRefNaissance').value||'',
         ref_administrative_residence:document.getElementById('addEleveRefResidence').value||''
     };
@@ -2866,18 +2864,14 @@ async function saveEleve(){
         payload.id_parent=parseInt(selectedPId);
     } else {
         const np={
-            nomPere:document.getElementById('npNomPere').value.trim(),
-            postnomPere:document.getElementById('npPostnomPere').value.trim(),
-            prenomPere:document.getElementById('npPrenomPere').value.trim(),
+            nomsPere:document.getElementById('npNomsPere').value.trim(),
             telephonePere:document.getElementById('npTelPere').value.trim(),
             emailPere:document.getElementById('npEmailPere').value.trim(),
-            nomMere:document.getElementById('npNomMere').value.trim(),
-            postnomMere:document.getElementById('npPostnomMere').value.trim(),
-            prenomMere:document.getElementById('npPrenomMere').value.trim(),
+            nomsMere:document.getElementById('npNomsMere').value.trim(),
             telephoneMere:document.getElementById('npTelMere').value.trim(),
             emailMere:document.getElementById('npEmailMere').value.trim(),
         };
-        if(np.nomPere||np.nomMere) payload.parent=np;
+        if(np.nomsPere||np.nomsMere) payload.parent=np;
     }
 
     try{
@@ -2889,7 +2883,7 @@ async function saveEleve(){
         if(data.success){
             showToast('Élève '+nom+' '+prenom+' enregistré avec succès!','success');
             // Reset form
-            ['eleveNumSerie','eleveNom','elevePostnom','elevePrenom','eleveDN','eleveTelephone'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+            ['eleveNumSerie','eleveNom','elevePostnom','elevePrenom','eleveDN','eleveTelephone','eleveIDNational'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
             document.getElementById('eleveGenre').value='';
             document.getElementById('addEleveRefNaissance').value='';
             document.getElementById('addEleveRefResidence').value='';
@@ -2967,15 +2961,12 @@ const GRID_COLUMNS=[
     {key:'date_naissance', label:'Date Naissance', editable:true, visible:true},
     {key:'ref_administrative_naissance', label:'Lieu Naissance', editable:false, visible:false, isAddr:true, addrType:'birth'},
     {key:'ref_administrative_residence', label:'Résidence', editable:false, visible:false, isAddr:true, addrType:'residence'},
-    {key:'nom_pere', label:'Nom Père', editable:false, visible:false},
-    {key:'postnom_pere', label:'Postnom Père', editable:false, visible:false},
-    {key:'prenom_pere', label:'Prénom Père', editable:false, visible:false},
+    {key:'nom_pere', label:'Noms Père', editable:false, visible:false},
     {key:'tel_pere', label:'Tél. Père', editable:false, visible:false},
-    {key:'nom_mere', label:'Nom Mère', editable:false, visible:false},
-    {key:'postnom_mere', label:'Postnom Mère', editable:false, visible:false},
-    {key:'prenom_mere', label:'Prénom Mère', editable:false, visible:false},
+    {key:'nom_mere', label:'Noms Mère', editable:false, visible:false},
     {key:'tel_mere', label:'Tél. Mère', editable:false, visible:false},
     {key:'telephone', label:'Téléphone', editable:true, visible:true},
+    {key:'IDNational', label:'ID National', editable:true, visible:true},
     {key:'date_inscription', label:'Date Inscription', editable:false, visible:false},
     {key:'redoublement', label:'Redoublant', editable:false, visible:false},
     {key:'isDelegue', label:'Délégué', editable:false, visible:false},
@@ -4337,8 +4328,8 @@ function onParentSearch(q){
                 return;
             }
             results.innerHTML=data.parents.map(p=>{
-                const pere=[p.nomPere,p.postnomPere,p.prenomPere].filter(Boolean).join(' ');
-                const mere=[p.nomMere,p.postnomMere,p.prenomMere].filter(Boolean).join(' ');
+                const pere=p.nomsPere||'';
+                const mere=p.nomsMere||'';
                 const names=[];
                 if(pere) names.push('<i class="fas fa-male" style="color:#3b82f6;font-size:.5rem"></i> '+pere);
                 if(mere) names.push('<i class="fas fa-female" style="color:#ec4899;font-size:.5rem"></i> '+mere);
@@ -4358,8 +4349,8 @@ function onParentSearch(q){
 
 function selectParent(p){
     document.getElementById('selectedParentId').value=p.id_parent;
-    const pere=[p.nomPere,p.postnomPere,p.prenomPere].filter(Boolean).join(' ');
-    const mere=[p.nomMere,p.postnomMere,p.prenomMere].filter(Boolean).join(' ');
+    const pere=p.nomsPere||'';
+    const mere=p.nomsMere||'';
     const parts=[];
     if(pere) parts.push('Père: '+pere);
     if(mere) parts.push('Mère: '+mere);
@@ -4392,7 +4383,7 @@ function toggleNewParentForm(){
 }
 
 function resetNewParentForm(){
-    ['npNomPere','npPostnomPere','npPrenomPere','npTelPere','npEmailPere','npNomMere','npPostnomMere','npPrenomMere','npTelMere','npEmailMere'].forEach(id=>{
+    ['npNomsPere','npTelPere','npEmailPere','npNomsMere','npTelMere','npEmailMere'].forEach(id=>{
         const el=document.getElementById(id);if(el)el.value='';
     });
     document.getElementById('newParentForm').classList.remove('visible');

@@ -34,6 +34,7 @@ class Eleve(models.Model):
     numero_serie = models.CharField(max_length=100, null=True, blank=True)
     id_parent = models.IntegerField(null=True, blank=True)
     id_pays = models.IntegerField(default=2)
+    IDNational = models.CharField(max_length=100, null=True, blank=True)
 
     def __str__(self):
         return f'{self.nom} {self.prenom}'

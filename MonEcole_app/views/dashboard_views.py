@@ -1662,17 +1662,17 @@ def api_communication_contacts(request):
                     parent_info = {}
                     if s[4]:  # id_parent
                         cur.execute("""
-                            SELECT nomPere, prenomPere, telephonePere, emailPere,
-                                   nomMere, prenomMere, telephoneMere, emailMere
+                            SELECT nomsPere, telephonePere, emailPere,
+                                   nomsMere, telephoneMere, emailMere
                             FROM parents WHERE id_parent = %s
                         """, [s[4]])
                         prow = cur.fetchone()
                         if prow:
                             parent_info = {
-                                'pere': {'nom': prow[0] or '', 'prenom': prow[1] or '',
-                                         'tel': prow[2] or '', 'email': prow[3] or ''},
-                                'mere': {'nom': prow[4] or '', 'prenom': prow[5] or '',
-                                         'tel': prow[6] or '', 'email': prow[7] or ''},
+                                'pere': {'nom': prow[0] or '',
+                                         'tel': prow[1] or '', 'email': prow[2] or ''},
+                                'mere': {'nom': prow[3] or '',
+                                         'tel': prow[4] or '', 'email': prow[5] or ''},
                             }
                     students.append({
                         'id_eleve': s[0],
@@ -1929,7 +1929,7 @@ def api_communication_send(request):
             if scope == 'individual' and target_eleve_id:
                 cur.execute("""
                     SELECT e.nom, e.prenom,
-                           p.emailPere, p.emailMere, p.nomPere, p.nomMere
+                           p.emailPere, p.emailMere, p.nomsPere, p.nomsMere
                     FROM eleve e
                     LEFT JOIN parents p ON p.id_parent = e.id_parent
                     WHERE e.id_eleve = %s

@@ -4106,35 +4106,31 @@ def search_parents(request):
             with conn.cursor() as cur:
                 like_q = f'%{q}%'
                 cur.execute("""
-                    SELECT p.id_parent, p.nomPere, p.postnomPere, p.prenomPere,
+                    SELECT p.id_parent, p.nomsPere,
                            p.telephonePere, p.emailPere,
-                           p.nomMere, p.postnomMere, p.prenomMere,
+                           p.nomsMere,
                            p.telephoneMere, p.emailMere,
                            COUNT(e.id_eleve) AS nb_enfants,
                            GROUP_CONCAT(CONCAT(e.nom, ' ', e.prenom) SEPARATOR ', ') AS enfants_noms
                     FROM parents p
                     LEFT JOIN eleve e ON e.id_parent = p.id_parent
-                    WHERE p.nomPere LIKE %s OR p.prenomPere LIKE %s
-                       OR p.nomMere LIKE %s OR p.prenomMere LIKE %s
+                    WHERE p.nomsPere LIKE %s
+                       OR p.nomsMere LIKE %s
                        OR p.telephonePere LIKE %s OR p.telephoneMere LIKE %s
                     GROUP BY p.id_parent
-                    ORDER BY p.nomPere, p.nomMere
+                    ORDER BY p.nomsPere, p.nomsMere
                     LIMIT 20
-                """, [like_q, like_q, like_q, like_q, like_q, like_q])
+                """, [like_q, like_q, like_q, like_q])
                 rows = cur.fetchall()
 
                 result = []
                 for r in rows:
                     result.append({
                         'id_parent': r['id_parent'],
-                        'nomPere': r.get('nomPere') or '',
-                        'postnomPere': r.get('postnomPere') or '',
-                        'prenomPere': r.get('prenomPere') or '',
+                        'nomsPere': r.get('nomsPere') or '',
                         'telephonePere': r.get('telephonePere') or '',
                         'emailPere': r.get('emailPere') or '',
-                        'nomMere': r.get('nomMere') or '',
-                        'postnomMere': r.get('postnomMere') or '',
-                        'prenomMere': r.get('prenomMere') or '',
+                        'nomsMere': r.get('nomsMere') or '',
                         'telephoneMere': r.get('telephoneMere') or '',
                         'emailMere': r.get('emailMere') or '',
                         'nb_enfants': r.get('nb_enfants', 0),
@@ -4166,10 +4162,11 @@ def dashboard_add_eleve(request):
         telephone = data.get('telephone', '').strip()
         ref_administrative_naissance = data.get('ref_administrative_naissance', '').strip()
         ref_administrative_residence = data.get('ref_administrative_residence', '').strip()
+        id_national = data.get('IDNational', '').strip()
 
         # Parent: either link to existing or create new
         id_parent = data.get('id_parent')  # existing parent ID
-        parent_data = data.get('parent')   # {nomPere, prenomPere, telephonePere, emailPere, nomMere, prenomMere, telephoneMere, emailMere}
+        parent_data = data.get('parent')   # {nomsPere, telephonePere, emailPere, nomsMere, telephoneMere, emailMere}
 
         if not all([nom, prenom, date_naissance, genre, classe_par_annee_id, id_etablissement]):
             return JsonResponse({'success': False, 'error': 'Champs obligatoires manquants.'}, status=400)
@@ -4199,20 +4196,17 @@ def dashboard_add_eleve(request):
                 # Handle parent: create new if needed
                 if not id_parent and parent_data:
                     cur.execute("""
-                        INSERT INTO parents (nomPere, postnomPere, prenomPere, telephonePere, emailPere, pere_en_vie,
-                                             nomMere, postnomMere, prenomMere, telephoneMere, emailMere, mere_en_vie)
-                        VALUES (%s, %s, %s, %s, %s, 1, %s, %s, %s, %s, %s, 1)
+                        INSERT INTO parents (nomsPere, telephonePere, emailPere, pere_en_vie,
+                                             nomsMere, telephoneMere, emailMere, mere_en_vie, id_pays)
+                        VALUES (%s, %s, %s, 1, %s, %s, %s, 1, %s)
                     """, [
-                        parent_data.get('nomPere') or None,
-                        parent_data.get('postnomPere') or None,
-                        parent_data.get('prenomPere') or None,
+                        parent_data.get('nomsPere') or None,
                         parent_data.get('telephonePere') or None,
                         parent_data.get('emailPere') or None,
-                        parent_data.get('nomMere') or None,
-                        parent_data.get('postnomMere') or None,
-                        parent_data.get('prenomMere') or None,
+                        parent_data.get('nomsMere') or None,
                         parent_data.get('telephoneMere') or None,
                         parent_data.get('emailMere') or None,
+                        int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2),
                     ])
                     id_parent = cur.lastrowid
 
@@ -4220,13 +4214,14 @@ def dashboard_add_eleve(request):
                 cur.execute("""
                     INSERT INTO eleve (numero_serie, nom, prenom, genre, date_naissance, id_etablissement,
                                        telephone, id_parent,
-                                       ref_administrative_naissance, ref_administrative_residence, id_pays)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                       ref_administrative_naissance, ref_administrative_residence, id_pays, IDNational)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, [
                     numero_serie or None, full_nom, prenom, genre, date_naissance, id_etablissement,
                     telephone or None, id_parent or None,
                     ref_administrative_naissance or None, ref_administrative_residence or None,
-                    int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2)
+                    int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2),
+                    id_national or None
                 ])
                 id_eleve = cur.lastrowid
 
@@ -4292,7 +4287,7 @@ def dashboard_eleve_template(request):
     headers = [
         'N° Série', 'Nom', 'Postnom', 'Prénom',
         'Année Naissance', 'Mois Naissance', 'Jour Naissance',
-        'Genre (M/F)', 'Téléphone'
+        'Genre (M/F)', 'Téléphone', 'ID National'
     ]
 
     # Resolve class name and fetch existing students
@@ -4329,7 +4324,7 @@ def dashboard_eleve_template(request):
                     if bk:
                         cur.execute("""
                             SELECT e.numero_serie, e.nom, e.prenom, e.genre,
-                                   e.date_naissance, e.telephone
+                                   e.date_naissance, e.telephone, e.IDNational
                             FROM eleve e
                             JOIN eleve_inscription ei ON ei.id_eleve_id = e.id_eleve
                             WHERE ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
@@ -4396,6 +4391,7 @@ def dashboard_eleve_template(request):
                 dn_day,
                 stu['genre'] or '',
                 stu.get('telephone') or '',
+                stu.get('IDNational') or '',
             ]
             for col, val in enumerate(row_data, 1):
                 cell = ws.cell(row=r, column=col, value=val)
@@ -4481,16 +4477,20 @@ def dashboard_import_eleves(request):
                     col_map['postnom'] = idx
                 elif 'prénom' in h or 'prenom' in h:
                     if 'père' in h or 'pere' in h:
-                        col_map['prenom_pere'] = idx
+                        col_map['prenom_pere'] = idx  # will be combined into noms_pere
                     elif 'mère' in h or 'mere' in h:
-                        col_map['prenom_mere'] = idx
+                        col_map['prenom_mere'] = idx  # will be combined into noms_mere
                     else:
                         col_map['prenom'] = idx
+                elif 'noms' in h and ('père' in h or 'pere' in h):
+                    col_map['noms_pere'] = idx
+                elif 'noms' in h and ('mère' in h or 'mere' in h):
+                    col_map['noms_mere'] = idx
                 elif 'nom' in h:
                     if 'père' in h or 'pere' in h:
-                        col_map['nom_pere'] = idx
+                        col_map['nom_pere'] = idx  # will be combined into noms_pere
                     elif 'mère' in h or 'mere' in h:
-                        col_map['nom_mere'] = idx
+                        col_map['nom_mere'] = idx  # will be combined into noms_mere
                     else:
                         col_map['nom'] = idx
                 elif 'année' in h or 'annee' in h or 'year' in h:
@@ -4512,13 +4512,15 @@ def dashboard_import_eleves(request):
                     col_map['email_parent'] = idx
                 elif 'tel' in h or 'phone' in h or 'téléphone' in h:
                     col_map['telephone'] = idx
+                elif ('id' in h and 'national' in h) or h == 'idnational':
+                    col_map['id_national'] = idx
 
         # Fallback: if no headers detected, use positional mapping (new 3-column format)
         if 'nom' not in col_map:
             col_map = {
                 'numero_serie': 0, 'nom': 1, 'postnom': 2, 'prenom': 3,
                 'annee_naissance': 4, 'mois_naissance': 5, 'jour_naissance': 6,
-                'genre': 7, 'telephone': 8
+                'genre': 7, 'telephone': 8, 'id_national': 9
             }
             has_split_date = True
 
@@ -4657,11 +4659,21 @@ def dashboard_import_eleves(request):
                             date_naissance = normalize_date(_cell(row, 'date_naissance'))
 
                         genre = normalize_genre(_cell(row, 'genre'))
-                        nom_pere = str(_cell(row, 'nom_pere') or '').strip()
-                        prenom_pere = str(_cell(row, 'prenom_pere') or '').strip()
-                        nom_mere = str(_cell(row, 'nom_mere') or '').strip()
-                        prenom_mere = str(_cell(row, 'prenom_mere') or '').strip()
+                        # Parent names: support both single 'noms_pere' and split 'nom_pere'+'prenom_pere'
+                        if 'noms_pere' in col_map:
+                            noms_pere = str(_cell(row, 'noms_pere') or '').strip()
+                        else:
+                            _np = str(_cell(row, 'nom_pere') or '').strip()
+                            _pp = str(_cell(row, 'prenom_pere') or '').strip()
+                            noms_pere = f"{_np} {_pp}".strip()
+                        if 'noms_mere' in col_map:
+                            noms_mere = str(_cell(row, 'noms_mere') or '').strip()
+                        else:
+                            _nm = str(_cell(row, 'nom_mere') or '').strip()
+                            _pm = str(_cell(row, 'prenom_mere') or '').strip()
+                            noms_mere = f"{_nm} {_pm}".strip()
                         telephone = str(_cell(row, 'telephone') or '').strip()
+                        id_national = str(_cell(row, 'id_national') or '').strip()
 
                         if not nom or not prenom:
                             errors.append(f"Ligne {i}: nom ou prénom manquant")
@@ -4689,6 +4701,8 @@ def dashboard_import_eleves(request):
                                 set_parts.append("date_naissance = %s"); set_vals.append(date_naissance)
                             if telephone:
                                 set_parts.append("telephone = %s"); set_vals.append(telephone)
+                            if id_national:
+                                set_parts.append("IDNational = %s"); set_vals.append(id_national)
                             if set_parts:
                                 set_vals.append(existing['id_eleve'])
                                 cur.execute(f"UPDATE eleve SET {', '.join(set_parts)} WHERE id_eleve = %s", set_vals)
@@ -4732,11 +4746,11 @@ def dashboard_import_eleves(request):
                             # INSERT new student (without parent data)
                             cur.execute("""
                                 INSERT INTO eleve (numero_serie, nom, prenom, genre, date_naissance, id_etablissement,
-                                                   telephone, id_pays)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                                                   telephone, id_pays, IDNational)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                             """, [
                                 numero_serie or None, full_nom, prenom, genre, date_naissance, id_etablissement,
-                                telephone or None, id_pays
+                                telephone or None, id_pays, id_national or None
                             ])
                             id_eleve = cur.lastrowid
 
@@ -4810,8 +4824,8 @@ def parent_update_template(request):
 
     headers = [
         'ID Élève', 'Nom', 'Postnom', 'Prénom', 'Genre',
-        'Nom Père', 'Postnom Père', 'Prénom Père', 'Tél. Père', 'Email Père',
-        'Nom Mère', 'Postnom Mère', 'Prénom Mère', 'Tél. Mère', 'Email Mère'
+        'Noms Père', 'Tél. Père', 'Email Père',
+        'Noms Mère', 'Tél. Mère', 'Email Mère'
     ]
 
     classe_label = ''
@@ -4843,8 +4857,8 @@ def parent_update_template(request):
                 if bk:
                     cur.execute("""
                         SELECT e.id_eleve, e.nom, e.prenom, e.genre,
-                               p.nomPere, p.postnomPere, p.prenomPere, p.telephonePere, p.emailPere,
-                               p.nomMere, p.postnomMere, p.prenomMere, p.telephoneMere, p.emailMere
+                               p.nomsPere, p.telephonePere, p.emailPere,
+                               p.nomsMere, p.telephoneMere, p.emailMere
                         FROM eleve e
                         JOIN eleve_inscription ei ON ei.id_eleve_id = e.id_eleve
                         LEFT JOIN parents p ON p.id_parent = e.id_parent
@@ -4873,13 +4887,13 @@ def parent_update_template(request):
         cell.border = border
 
     # Pere/Mere header colors
-    for col in range(6, 11):  # Père columns
+    for col in range(6, 9):  # Père columns
         ws.cell(row=2, column=col).fill = PatternFill(start_color="3B82F6", end_color="3B82F6", fill_type="solid")
-    for col in range(11, 16):  # Mère columns
+    for col in range(9, 12):  # Mère columns
         ws.cell(row=2, column=col).fill = PatternFill(start_color="EC4899", end_color="EC4899", fill_type="solid")
 
     # Column widths
-    widths = [10, 18, 16, 16, 8, 18, 16, 16, 16, 22, 18, 16, 16, 16, 22]
+    widths = [10, 18, 16, 16, 8, 24, 16, 22, 24, 16, 22]
     for i, w in enumerate(widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
 
@@ -4894,10 +4908,8 @@ def parent_update_template(request):
             stu['id_eleve'], nom_val, postnom_val, stu['prenom'] or '', stu['genre'] or ''
         ]
         parent_row = [
-            stu.get('nomPere') or '', stu.get('postnomPere') or '', stu.get('prenomPere') or '',
-            stu.get('telephonePere') or '', stu.get('emailPere') or '',
-            stu.get('nomMere') or '', stu.get('postnomMere') or '', stu.get('prenomMere') or '',
-            stu.get('telephoneMere') or '', stu.get('emailMere') or '',
+            stu.get('nomsPere') or '', stu.get('telephonePere') or '', stu.get('emailPere') or '',
+            stu.get('nomsMere') or '', stu.get('telephoneMere') or '', stu.get('emailMere') or '',
         ]
 
         # Locked columns (student identity)
@@ -4912,7 +4924,7 @@ def parent_update_template(request):
             cell = ws.cell(row=r, column=col, value=val)
             cell.font = data_font
             cell.border = border
-            if col <= 10:
+            if col <= 8:
                 cell.fill = PatternFill(start_color="EFF6FF", end_color="EFF6FF", fill_type="solid")
             else:
                 cell.fill = PatternFill(start_color="FDF2F8", end_color="FDF2F8", fill_type="solid")
@@ -4972,7 +4984,7 @@ def import_parent_updates(request):
             with conn.cursor() as cur:
                 for i, row in enumerate(rows, data_start):
                     try:
-                        if not row or len(row) < 10:
+                        if not row or len(row) < 8:
                             continue
                         non_empty = [c for c in row if c is not None and str(c).strip()]
                         if not non_empty:
@@ -4983,36 +4995,32 @@ def import_parent_updates(request):
                             continue
                         id_eleve = int(id_eleve)
 
-                        # Parent data
-                        nom_pere = str(row[5] or '').strip()
-                        postnom_pere = str(row[6] or '').strip()
-                        prenom_pere = str(row[7] or '').strip()
-                        tel_pere = str(row[8] or '').strip()
-                        email_pere = str(row[9] or '').strip()
-                        nom_mere = str(row[10] or '').strip() if len(row) > 10 else ''
-                        postnom_mere = str(row[11] or '').strip() if len(row) > 11 else ''
-                        prenom_mere = str(row[12] or '').strip() if len(row) > 12 else ''
-                        tel_mere = str(row[13] or '').strip() if len(row) > 13 else ''
-                        email_mere = str(row[14] or '').strip() if len(row) > 14 else ''
+                        # Parent data (new simplified columns)
+                        noms_pere = str(row[5] or '').strip()
+                        tel_pere = str(row[6] or '').strip()
+                        email_pere = str(row[7] or '').strip()
+                        noms_mere = str(row[8] or '').strip() if len(row) > 8 else ''
+                        tel_mere = str(row[9] or '').strip() if len(row) > 9 else ''
+                        email_mere = str(row[10] or '').strip() if len(row) > 10 else ''
 
-                        if not nom_pere and not nom_mere:
+                        if not noms_pere and not noms_mere:
                             continue  # No parent data provided
 
-                        # Check if parent already exists (match by nomPere + prenomPere + telephonePere)
+                        # Check if parent already exists (match by nomsPere + telephonePere)
                         existing_parent = None
-                        if nom_pere and tel_pere:
+                        if noms_pere and tel_pere:
                             cur.execute("""
                                 SELECT id_parent FROM parents
-                                WHERE nomPere = %s AND prenomPere = %s AND telephonePere = %s
+                                WHERE nomsPere = %s AND telephonePere = %s
                                 LIMIT 1
-                            """, [nom_pere, prenom_pere, tel_pere])
+                            """, [noms_pere, tel_pere])
                             existing_parent = cur.fetchone()
-                        elif nom_pere and prenom_pere:
+                        elif noms_pere:
                             cur.execute("""
                                 SELECT id_parent FROM parents
-                                WHERE nomPere = %s AND prenomPere = %s AND nomMere = %s AND prenomMere = %s
+                                WHERE nomsPere = %s AND nomsMere = %s
                                 LIMIT 1
-                            """, [nom_pere, prenom_pere, nom_mere, prenom_mere])
+                            """, [noms_pere, noms_mere])
                             existing_parent = cur.fetchone()
 
                         if existing_parent:
@@ -5020,35 +5028,33 @@ def import_parent_updates(request):
                             # Update parent with any new info
                             cur.execute("""
                                 UPDATE parents SET
-                                    postnomPere = CASE WHEN %s != '' THEN %s ELSE postnomPere END,
+                                    nomsPere = CASE WHEN %s != '' THEN %s ELSE nomsPere END,
                                     telephonePere = CASE WHEN %s != '' THEN %s ELSE telephonePere END,
                                     emailPere = CASE WHEN %s != '' THEN %s ELSE emailPere END,
-                                    nomMere = CASE WHEN %s != '' THEN %s ELSE nomMere END,
-                                    postnomMere = CASE WHEN %s != '' THEN %s ELSE postnomMere END,
-                                    prenomMere = CASE WHEN %s != '' THEN %s ELSE prenomMere END,
+                                    nomsMere = CASE WHEN %s != '' THEN %s ELSE nomsMere END,
                                     telephoneMere = CASE WHEN %s != '' THEN %s ELSE telephoneMere END,
                                     emailMere = CASE WHEN %s != '' THEN %s ELSE emailMere END
                                 WHERE id_parent = %s
                             """, [
-                                postnom_pere, postnom_pere,
+                                noms_pere, noms_pere,
                                 tel_pere, tel_pere,
                                 email_pere, email_pere,
-                                nom_mere, nom_mere,
-                                postnom_mere, postnom_mere,
-                                prenom_mere, prenom_mere,
+                                noms_mere, noms_mere,
                                 tel_mere, tel_mere,
                                 email_mere, email_mere,
                                 parent_id
                             ])
                         else:
                             # Create new parent
+                            id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2
                             cur.execute("""
-                                INSERT INTO parents (nomPere, postnomPere, prenomPere, telephonePere, emailPere,
-                                                     nomMere, postnomMere, prenomMere, telephoneMere, emailMere)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                INSERT INTO parents (nomsPere, telephonePere, emailPere,
+                                                     nomsMere, telephoneMere, emailMere, id_pays)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s)
                             """, [
-                                nom_pere or '', postnom_pere or '', prenom_pere or '', tel_pere or '', email_pere or '',
-                                nom_mere or '', postnom_mere or '', prenom_mere or '', tel_mere or '', email_mere or ''
+                                noms_pere or '', tel_pere or '', email_pere or '',
+                                noms_mere or '', tel_mere or '', email_mere or '',
+                                int(id_pays)
                             ])
                             parent_id = cur.lastrowid
                             created_parents += 1
@@ -5347,8 +5353,8 @@ def dashboard_eleves_list(request):
                     id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
                     cur.execute("""
                         SELECT e.id_eleve, e.numero_serie, e.nom, e.prenom, e.genre,
-                               e.date_naissance, e.telephone, e.id_parent,
-                               p.nomPere, p.prenomPere, p.nomMere, p.prenomMere,
+                               e.date_naissance, e.telephone, e.id_parent, e.IDNational,
+                               p.nomsPere, p.nomsMere,
                                ei.id_inscription
                         FROM eleve e
                         JOIN eleve_inscription ei ON ei.id_eleve_id = e.id_eleve
@@ -5373,8 +5379,8 @@ def dashboard_eleves_list(request):
                             'prenom': stu.get('prenom') or '',
                             'genre': stu.get('genre') or '',
                             'date_naissance': dn_str,
-                            'nom_pere': stu.get('nomPere') or '',
-                            'prenom_pere': stu.get('prenomPere') or '',
+                            'nom_pere': stu.get('nomsPere') or '',
+                            'nom_mere': stu.get('nomsMere') or '',
                         })
                     return JsonResponse({'success': True, 'eleves': result, 'total': len(result)})
             finally:
@@ -5404,9 +5410,9 @@ def dashboard_eleves_list(request):
                 cur.execute("""
                     SELECT e.id_eleve, e.numero_serie, e.nom, e.prenom, e.genre,
                            e.date_naissance, e.telephone, e.imageUrl, e.id_parent,
-                           e.ref_administrative_naissance, e.ref_administrative_residence,
-                           p.nomPere, p.postnomPere, p.prenomPere, p.telephonePere, p.emailPere,
-                           p.nomMere, p.postnomMere, p.prenomMere, p.telephoneMere, p.emailMere,
+                           e.ref_administrative_naissance, e.ref_administrative_residence, e.IDNational,
+                           p.nomsPere, p.telephonePere, p.emailPere,
+                           p.nomsMere, p.telephoneMere, p.emailMere,
                            ei.id_inscription, ei.date_inscription, ei.redoublement,
                            ei.status, ei.isDelegue
                     FROM eleve e
@@ -5441,13 +5447,9 @@ def dashboard_eleves_list(request):
                         'genre': stu.get('genre') or '',
                         'date_naissance': dn_str,
                         'id_parent': stu.get('id_parent') or 0,
-                        'nom_pere': stu.get('nomPere') or '',
-                        'postnom_pere': stu.get('postnomPere') or '',
-                        'prenom_pere': stu.get('prenomPere') or '',
+                        'nom_pere': stu.get('nomsPere') or '',
                         'tel_pere': stu.get('telephonePere') or '',
-                        'nom_mere': stu.get('nomMere') or '',
-                        'postnom_mere': stu.get('postnomMere') or '',
-                        'prenom_mere': stu.get('prenomMere') or '',
+                        'nom_mere': stu.get('nomsMere') or '',
                         'tel_mere': stu.get('telephoneMere') or '',
                         'telephone': stu.get('telephone') or '',
                         'imageUrl': stu.get('imageUrl') or '',
@@ -5457,6 +5459,7 @@ def dashboard_eleves_list(request):
                         'isDelegue': stu.get('isDelegue', 0),
                         'ref_administrative_naissance': stu.get('ref_administrative_naissance') or '',
                         'ref_administrative_residence': stu.get('ref_administrative_residence') or '',
+                        'IDNational': stu.get('IDNational') or '',
                     })
 
                 return JsonResponse({'success': True, 'eleves': result, 'total': len(result)})
@@ -5484,7 +5487,8 @@ def dashboard_update_eleve(request):
         allowed_fields = {
             'numero_serie', 'nom', 'postnom', 'prenom', 'genre',
             'date_naissance', 'telephone', 'id_parent',
-            'ref_administrative_naissance', 'ref_administrative_residence'
+            'ref_administrative_naissance', 'ref_administrative_residence',
+            'IDNational'
         }
 
         updates = {}
