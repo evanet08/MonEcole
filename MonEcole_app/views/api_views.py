@@ -5354,8 +5354,11 @@ def dashboard_eleves_list(request):
                     cur.execute("""
                         SELECT e.id_eleve, e.numero_serie, e.nom, e.prenom, e.genre,
                                e.date_naissance, e.telephone, e.id_parent, e.IDNational,
-                               p.nomsPere, p.nomsMere,
-                               ei.id_inscription
+                               e.ref_administrative_naissance, e.ref_administrative_residence,
+                               e.imageUrl,
+                               p.nomsPere, p.telephonePere,
+                               p.nomsMere, p.telephoneMere,
+                               ei.id_inscription, ei.date_inscription, ei.redoublement, ei.isDelegue
                         FROM eleve e
                         JOIN eleve_inscription ei ON ei.id_eleve_id = e.id_eleve
                         LEFT JOIN parents p ON p.id_parent = e.id_parent
@@ -5374,13 +5377,25 @@ def dashboard_eleves_list(request):
                         result.append({
                             'id_eleve': stu['id_eleve'],
                             'id_inscription': stu.get('id_inscription'),
+                            'numero_serie': stu.get('numero_serie') or '',
                             'nom': nom_parts[0] if nom_parts else '',
                             'postnom': nom_parts[1] if len(nom_parts) > 1 else '',
                             'prenom': stu.get('prenom') or '',
                             'genre': stu.get('genre') or '',
                             'date_naissance': dn_str,
+                            'telephone': stu.get('telephone') or '',
+                            'IDNational': stu.get('IDNational') or '',
+                            'id_parent': stu.get('id_parent') or 0,
                             'nom_pere': stu.get('nomsPere') or '',
+                            'tel_pere': stu.get('telephonePere') or '',
                             'nom_mere': stu.get('nomsMere') or '',
+                            'tel_mere': stu.get('telephoneMere') or '',
+                            'imageUrl': stu.get('imageUrl') or '',
+                            'ref_administrative_naissance': stu.get('ref_administrative_naissance') or '',
+                            'ref_administrative_residence': stu.get('ref_administrative_residence') or '',
+                            'date_inscription': str(stu['date_inscription']) if stu.get('date_inscription') else '',
+                            'redoublement': stu.get('redoublement', 0),
+                            'isDelegue': stu.get('isDelegue', 0),
                         })
                     return JsonResponse({'success': True, 'eleves': result, 'total': len(result)})
             finally:
@@ -5525,12 +5540,13 @@ def dashboard_update_eleve(request):
             return JsonResponse({'success': True, 'message': 'Rien à mettre à jour.'})
 
         set_clauses = ', '.join([f"{k}=%s" for k in updates.keys()])
-        values = list(updates.values()) + [id_eleve]
+        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2
+        values = list(updates.values()) + [id_eleve, int(id_pays)]
 
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
-                cur.execute(f"UPDATE eleve SET {set_clauses} WHERE id_eleve=%s", values)
+                cur.execute(f"UPDATE eleve SET {set_clauses} WHERE id_eleve=%s AND id_pays=%s", values)
                 conn.commit()
             return JsonResponse({'success': True, 'message': 'Élève mis à jour.'})
         finally:
@@ -5598,7 +5614,9 @@ def dashboard_upload_photo(request):
                     conn.commit()
                 except Exception:
                     conn.rollback()  # Column already exists, ignore
-                cur.execute("UPDATE eleve SET imageUrl=%s WHERE id_eleve=%s", [image_url, id_eleve])
+                cur.execute("UPDATE eleve SET imageUrl=%s WHERE id_eleve=%s AND id_pays=%s",
+                            [image_url, id_eleve,
+                             int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2)])
                 conn.commit()
             return JsonResponse({'success': True, 'imageUrl': image_url})
         finally:
@@ -14475,7 +14493,8 @@ def delete_inscriptions(request):
 
                         if remaining_cnt == 0:
                             # No more inscriptions — safe to delete the eleve record
-                            cur.execute("DELETE FROM eleve WHERE id_eleve = %s", [eid])
+                            id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2
+                            cur.execute("DELETE FROM eleve WHERE id_eleve = %s AND id_pays = %s", [eid, int(id_pays)])
 
                         deleted.append(eid)
 
