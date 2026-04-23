@@ -14263,13 +14263,14 @@ def get_deliberated_classes(request):
             etablissement_annee=ea
         ).select_related('classe', 'classe__cycle', 'section')
 
-        # Lire les modèles de bulletin depuis le Hub
+        # Lire les modèles de bulletin depuis le Hub (filtré par pays)
         from MonEcole_app.models.evaluations.bulletin_model import BulletinClasseModel, BulletinModel
-        bcm_map = {}  # {classe_id_hub: model_name}
-        for bcm in BulletinClasseModel.objects.select_related('id_model').all():
+        bcm_map = {}  # {classe_id_hub: model_info}
+        for bcm in BulletinClasseModel.objects.select_related('id_model').filter(id_pays=etab.pays_id):
             bcm_map[bcm.id_classe_id] = {
                 'model_id': bcm.id_model_id,
                 'model_name': bcm.id_model.model_name,
+                'roundedValues': bcm.roundedValues,
             }
 
         # Checker quelles classes ont des résultats de délibération
@@ -14330,6 +14331,7 @@ def get_deliberated_classes(request):
                 'is_deliberated': is_deliberated,
                 'model_name': model_info['model_name'] if model_info else None,
                 'model_id': model_info['model_id'] if model_info else None,
+                'roundedValues': model_info['roundedValues'] if model_info else False,
             })
 
         # Trier : délibérées en premier, puis par cycle/classe

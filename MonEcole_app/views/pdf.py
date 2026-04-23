@@ -380,9 +380,22 @@ def generer_bulletin_pdf(request):
             messages.error(request, "Classe introuvable.")
             return HttpResponse('<script>history.back();</script>', status=404)
 
-        # Chercher l'association bulletin/classe via l'ID Hub de la classe
+        # Chercher l'association bulletin/classe via l'ID Hub de la classe (filtré par pays)
+        # Résoudre le pays via campus → établissement
+        _pdf_pays_id = None
+        try:
+            from MonEcole_app.models.country_structure import Etablissement as _PdfEtab
+            _pdf_campus = Campus.objects.get(idCampus=idCampus)
+            _pdf_etab = _PdfEtab.objects.get(id_etablissement=_pdf_campus.id_etablissement)
+            _pdf_pays_id = _pdf_etab.pays_id
+        except Exception:
+            _pdf_pays_id = getattr(request, 'id_pays', None) or request.session.get('id_pays')
+
+        bcm_filter = {'id_classe_id': hub_classe_id}
+        if _pdf_pays_id:
+            bcm_filter['id_pays'] = _pdf_pays_id
         bcm = BulletinClasseModel.objects.filter(
-            id_classe_id=hub_classe_id
+            **bcm_filter
         ).select_related('id_model').first()
 
         if not bcm:

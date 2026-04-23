@@ -52,6 +52,7 @@ class BulletinClasseModel(models.Model):
         related_name='bulletin_classe_models'
     )
     id_pays = models.IntegerField(default=2)
+    roundedValues = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'bulletin_classe_model'
@@ -60,3 +61,4 @@ class BulletinClasseModel(models.Model):
 
     def __str__(self):
         return f"{self.id_classe} → {self.id_model}"
+
