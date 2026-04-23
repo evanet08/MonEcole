@@ -1624,7 +1624,7 @@ def injecter_places_dans_tableau(table_data, id_annee, id_campus, id_cycle, id_c
 
 
 def create_notes_table(elements, style_center, style_normal, id_annee, id_campus, id_cycle, id_classe, id_eleve,
-                       style_center_bold=None, style_normal_bold=None):
+                       style_center_bold=None, style_normal_bold=None, rounded_values=False):
     # Fallback bold styles if not passed
     if style_center_bold is None:
         style_center_bold = ParagraphStyle(name='CenterSmallBoldFB', fontName='Helvetica-Bold', fontSize=5, leading=6, alignment=1)
@@ -1787,6 +1787,11 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
         table_data, id_eleve, id_classe, trimestres_data,
         style_center, bulletin_type='primaire'
     )
+
+    # ── Arrondi d'affichage (purement cosmétique, notes inchangées en base) ──
+    if rounded_values:
+        from MonEcole_app.views.rdc_structure import apply_rounded_values
+        apply_rounded_values(table_data)
 
     num_rows = len(table_data)
     col_widths = [30*mm] + [7.4*mm] * 22

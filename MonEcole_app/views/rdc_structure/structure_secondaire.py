@@ -441,7 +441,7 @@ def calculer_pourcentages_secondaire(table_data, style_center):
     pourcentage_row[16] = Paragraph(f"{calcul_pourcentage(total_gen_obtenu, max_total_gen)}%", style_center_bold)
 
 
-def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_annee, id_campus, id_cycle, id_classe,id_eleve):
+def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_annee, id_campus, id_cycle, id_classe,id_eleve, rounded_values=False):
     table_data = []
     trimestres_data = get_semestres(id_annee, id_campus, id_cycle, id_classe)
     if trimestres_data and len(trimestres_data) == 2:
@@ -824,7 +824,12 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
     )
     if signature_start < len(table_data) and 18 < len(table_data[signature_start]):
         table_data[signature_start][18] = Paragraph(texte_visible, style_visible)
-    
+
+    # ── Arrondi d'affichage (purement cosmétique, notes inchangées en base) ──
+    if rounded_values:
+        from MonEcole_app.views.rdc_structure import apply_rounded_values
+        apply_rounded_values(table_data)
+
     table = Table(table_data, colWidths=col_widths, rowHeights=[4.5*mm] * len(table_data))
     # ── Ligne PLACE : texte bleu foncé + gras ──
     for ridx, row in enumerate(table_data):

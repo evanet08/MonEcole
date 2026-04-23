@@ -217,7 +217,7 @@ def create_bulletin_title__secondaire_superieur(elements, style_title, style_rig
     elements.append(Spacer(1, 2*mm))  
     
 
-def create_notes_table_superieur(elements, style_center, style_normal,id_annee, id_campus, id_cycle, id_classe, id_eleve):
+def create_notes_table_superieur(elements, style_center, style_normal,id_annee, id_campus, id_cycle, id_classe, id_eleve, rounded_values=False):
 
     table_data = []
 
@@ -420,6 +420,12 @@ def create_notes_table_superieur(elements, style_center, style_normal,id_annee, 
         id_eleve, id_semestre_actif)
 
     col_widths = [branche_width] + [largeur_autre_col] * 12
+
+    # ── Arrondi d'affichage (purement cosmétique, notes inchangées en base) ──
+    if rounded_values:
+        from MonEcole_app.views.rdc_structure import apply_rounded_values
+        apply_rounded_values(table_data)
+
     table = Table(table_data, colWidths=col_widths, rowHeights=[4 * mm] * len(table_data))
 
     table_style = TableStyle([

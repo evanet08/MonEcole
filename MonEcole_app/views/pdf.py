@@ -405,6 +405,7 @@ def generer_bulletin_pdf(request):
         model_name = bcm.id_model.model_name.strip()
         code_model = (bcm.id_model.code_model or '').strip()
         code_lower = code_model.lower()
+        rounded_values = getattr(bcm, 'roundedValues', False)
         margin = 5 * mm
 
         # Déterminer le cycle par code_model (Hub: bulletin_model.code_model)
@@ -464,7 +465,8 @@ def generer_bulletin_pdf(request):
                     create_bulletin_title__secondaire_superieur(elements, style_title, style_right, id_classe=id_classe, id_annee=id_annee)
                     create_bulletin_maternelle(
                         elements, style_normal, style_center, style_title,
-                        id_annee, idCampus, id_cycle, id_classe, id_eleve
+                        id_annee, idCampus, id_cycle, id_classe, id_eleve,
+                        rounded_values=rounded_values
                     )
 
                     filename_parts.append(slugify(eleve.nom or f"eleve_{id_eleve}"))
@@ -504,7 +506,8 @@ def generer_bulletin_pdf(request):
                     create_notes_table(
                         elements, style_center, style_normal,
                         id_annee, idCampus, id_cycle, id_classe, id_eleve,
-                        style_center_bold=style_center_bold, style_normal_bold=style_normal_bold
+                        style_center_bold=style_center_bold, style_normal_bold=style_normal_bold,
+                        rounded_values=rounded_values
                     )
                     create_footer(elements, style_normal, style_center, id_classe=id_classe, etab_url=etab_host)
 
@@ -565,7 +568,8 @@ def generer_bulletin_pdf(request):
                     create_bulletin_title__secondaire_rdc(elements, style_title, style_right, id_annee, id_classe)
                     create_notes_table__secondaire_rdc(
                         elements, style_center, style_normal,
-                        id_annee, idCampus, id_cycle, id_classe, id_eleve
+                        id_annee, idCampus, id_cycle, id_classe, id_eleve,
+                        rounded_values=rounded_values
                     )
                     # Footer: 8ème année utilise un pied spécifique avec RESULTAT FINAL
                     # Détection via code_model (Hub: bulletin_model)
@@ -613,7 +617,8 @@ def generer_bulletin_pdf(request):
                         create_bulletin_title__secondaire_superieur(elements, style_title, style_right, id_classe=id_classe, id_annee=id_annee)
                         create_notes_table_superieur(
                             elements, style_center, style_normal,
-                            id_annee, idCampus, id_cycle, id_classe, id_eleve
+                            id_annee, idCampus, id_cycle, id_classe, id_eleve,
+                            rounded_values=rounded_values
                         )
                         create_footer__secondaire_rdc(elements, style_normal, style_center, id_classe, etab_url=etab_host)
 
@@ -652,7 +657,8 @@ def generer_bulletin_pdf(request):
                         create_bulletin_content_cycle_superieur(
                             elements, style_normal, style_center,
                             id_annee, idCampus, id_cycle, id_classe, id_eleve,
-                            get_semestres=get_semestres
+                            get_semestres=get_semestres,
+                            rounded_values=rounded_values
                         )
 
                         filename_parts.append(slugify(eleve.nom or f"eleve_{id_eleve}"))

@@ -28,7 +28,8 @@ style_center.fontSize = 7.5
 
 
 def create_bulletin_content_cycle_superieur(elements, style_normal, style_center,
-                                            annee_id, campus_id, cycle_id, classe_id):
+                                            annee_id, campus_id, cycle_id, classe_id, id_eleve=None,
+                                            get_semestres=None, rounded_values=False):
     table_data = [[None] * 11 for _ in range(35)]
 
     # Entête fixe (inchangé)
@@ -171,6 +172,12 @@ def create_bulletin_content_cycle_superieur(elements, style_normal, style_center
     col_widths = [branche_width] + [other_width] * 4 + [branche_width] + [other_width] * 5
 
     row_height = 5.55 * mm
+
+
+    # ── Arrondi d'affichage (purement cosmétique, notes inchangées en base) ──
+    if rounded_values:
+        from MonEcole_app.views.rdc_structure import apply_rounded_values
+        apply_rounded_values(table_data)
 
     table = Table(
         table_data,

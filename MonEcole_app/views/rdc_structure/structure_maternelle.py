@@ -266,7 +266,8 @@ from collections import defaultdict
 
 
 def create_bulletin_maternelle(elements, style_normal, style_center, style_title,
-                               annee_id, campus_id, cycle_id, classe_id):
+                               annee_id, campus_id, cycle_id, classe_id, id_eleve=None,
+                               rounded_values=False):
    
     table_data = []
     ts_commands = []
@@ -478,6 +479,12 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     ])
 
     # Création du tableau principal
+
+    # ── Arrondi d'affichage (purement cosmétique, notes inchangées en base) ──
+    if rounded_values:
+        from MonEcole_app.views.rdc_structure import apply_rounded_values
+        apply_rounded_values(table_data)
+
     main_table = Table(
         table_data,
         colWidths=col_widths,
