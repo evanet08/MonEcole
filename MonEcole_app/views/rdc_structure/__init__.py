@@ -57,14 +57,17 @@ def apply_rounded_values(table_data, skip_rows=None):
             if not clean or clean in ("-", " ", "0"):
                 continue
 
-            # ── Cas pourcentage ──
+            # ── Cas pourcentage : garder 1 décimale ──
             if "%" in clean:
                 pct_match = re.search(r'([\d.]+)\s*%', clean)
                 if pct_match:
                     try:
                         pct_val = float(pct_match.group(1))
-                        rounded_pct = int(math.floor(pct_val + 0.5))
-                        new_text = original_text.replace(pct_match.group(0), f"{rounded_pct}%")
+                        # Arrondir à 1 décimale (ex: 77.09% → 77.1%)
+                        rounded_pct = round(pct_val, 1)
+                        # Formater sans trailing zero inutile (ex: 85.0% → 85%)
+                        pct_str = f"{rounded_pct:.1f}".rstrip('0').rstrip('.')
+                        new_text = original_text.replace(pct_match.group(0), f"{pct_str}%")
                         row[col_idx] = _Paragraph(new_text, cell.style)
                     except (ValueError, TypeError):
                         pass
