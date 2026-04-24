@@ -194,12 +194,15 @@ def _verify_hub_password(stored_hash, password):
         return False
 
 
-def _check_hub_user(email, etab_id):
+def _check_hub_user(email, etab_id, pays_id=None):
     """
     Vérifie si l'email existe dans le Hub pour cet établissement.
     Cherche dans 2 endroits:
       1) etablissements.admin_email — le super admin désigné
       2) admin_users — tout utilisateur Hub assigné à cet établissement
+
+    IMPORTANT: pays_id MUST be provided to avoid cross-tenant collisions
+    (e.g. id_etablissement=1 exists in both RDC and Burundi).
 
     Retourne (found, is_super_admin, hub_info_dict) ou (False, False, None).
     """
@@ -210,27 +213,29 @@ def _check_hub_user(email, etab_id):
         with connections['countryStructure'].cursor() as cur:
             # 1) Vérifier si c'est le super admin de l'établissement
             is_super = False
-            cur.execute(
-                "SELECT admin_email, admin_telephone, nom FROM etablissements WHERE id_etablissement=%s",
-                [etab_id]
-            )
+            etab_sql = "SELECT admin_email, admin_telephone, nom FROM etablissements WHERE id_etablissement=%s"
+            etab_params = [etab_id]
+            if pays_id:
+                etab_sql += " AND pays_id=%s"
+                etab_params.append(pays_id)
+            cur.execute(etab_sql, etab_params)
             etab_row = cur.fetchone()
             if etab_row:
                 admin_email_hub = etab_row[0]
                 if admin_email_hub and email_lower == admin_email_hub.strip().lower():
                     is_super = True
 
-            # 2) Vérifier dans admin_users du Hub
-            cur.execute(
-                """SELECT id_admin, email, telephone, password_hash,
-                          email_verified, is_active, phone_verified
-                   FROM admin_users
-                   WHERE LOWER(email) = %s
-                     AND etablissement_id = %s
-                     AND is_active = 1
-                   LIMIT 1""",
-                [email_lower, etab_id]
-            )
+            # 2) Vérifier dans admin_users du Hub (scoped by pays_id)
+            au_sql = """SELECT au.id_admin, au.email, au.telephone, au.password_hash,
+                          au.email_verified, au.is_active, au.phone_verified
+                   FROM admin_users au
+                   JOIN etablissements e ON e.id_etablissement = au.etablissement_id"""
+            au_where = " WHERE LOWER(au.email) = %s AND au.etablissement_id = %s AND au.is_active = 1"
+            au_params = [email_lower, etab_id]
+            if pays_id:
+                au_where += " AND e.pays_id = %s"
+                au_params.append(pays_id)
+            cur.execute(au_sql + au_where + " LIMIT 1", au_params)
             hub_user = cur.fetchone()
 
             if hub_user:
@@ -262,9 +267,9 @@ def _check_hub_user(email, etab_id):
 
 
 # Rétro-compatibilité
-def _check_hub_admin(email, etab_id):
+def _check_hub_admin(email, etab_id, pays_id=None):
     """Wrapper rétro-compatible."""
-    found, is_super, info = _check_hub_user(email, etab_id)
+    found, is_super, info = _check_hub_user(email, etab_id, pays_id=pays_id)
     if found:
         return True, email, info
     return False, None, None
@@ -471,8 +476,9 @@ def check_email(request):
         # Si introuvable dans le spoke → chercher dans le Hub
         is_hub_user = False
         is_super = False
+        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
         if personnel is None:
-            found, is_super, hub_info = _check_hub_user(email, etab_id)
+            found, is_super, hub_info = _check_hub_user(email, etab_id, pays_id=id_pays)
             if found:
                 is_hub_user = True
                 personnel = _auto_provision_hub_user(
@@ -487,7 +493,7 @@ def check_email(request):
                 })
         else:
             # L'utilisateur existe dans le spoke — vérifier s'il est aussi dans le Hub
-            found, is_super, hub_info = _check_hub_user(email, etab_id)
+            found, is_super, hub_info = _check_hub_user(email, etab_id, pays_id=id_pays)
             if found:
                 is_hub_user = True
                 _auto_provision_hub_user(
@@ -830,8 +836,9 @@ def api_login(request):
         is_hub_user = False
         is_super = False
         hub_info = None
+        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
         if personnel is None:
-            found, is_super, hub_info = _check_hub_user(email, etab_id)
+            found, is_super, hub_info = _check_hub_user(email, etab_id, pays_id=id_pays)
             if found:
                 is_hub_user = True
                 personnel = _auto_provision_hub_user(
@@ -840,7 +847,7 @@ def api_login(request):
             else:
                 return JsonResponse({'success': False, 'error': 'Identifiants incorrects'}, status=401)
         else:
-            found, is_super, hub_info = _check_hub_user(email, etab_id)
+            found, is_super, hub_info = _check_hub_user(email, etab_id, pays_id=id_pays)
             if found:
                 is_hub_user = True
                 _auto_provision_hub_user(
