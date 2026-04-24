@@ -174,7 +174,8 @@ class Mention(models.Model):
 # --- RÉPARTITIONS TEMPORELLES ---
 
 class RepartitionType(models.Model):
-    id_type = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
+    id_type = models.IntegerField()  # business key, per-country
     nom = models.CharField(max_length=100)
     code = models.CharField(max_length=10)
     is_active = models.BooleanField(default=True)
@@ -189,7 +190,8 @@ class RepartitionType(models.Model):
 
 
 class RepartitionInstance(models.Model):
-    id_instance = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
+    id_instance = models.IntegerField()  # business key, per-country
     type = models.ForeignKey(RepartitionType, on_delete=models.CASCADE,
                              db_column='type_id', related_name='hub_instances')
     annee = models.ForeignKey('Annee', on_delete=models.CASCADE,
@@ -555,7 +557,8 @@ class AdministrativeStructureInstance(models.Model):
 
 
 class RepartitionHierarchie(models.Model):
-    id_hierarchie = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
+    id_hierarchie = models.IntegerField()  # business key, per-country
     type_parent = models.ForeignKey(RepartitionType, on_delete=models.CASCADE,
                                      related_name='enfants_hierarchie')
     type_enfant = models.ForeignKey(RepartitionType, on_delete=models.CASCADE,

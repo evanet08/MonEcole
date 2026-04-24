@@ -8,10 +8,11 @@ from django.db import models
 
 class BulletinModel(models.Model):
     """Catalogue des modèles de bulletin (Primaire, Maternelle, Secondaire, etc.)"""
-    id_model = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
+    id_model = models.IntegerField()  # business key, per-country
     model_name = models.CharField(max_length=200)
     code_model = models.CharField(max_length=50)
-    id_pays = models.IntegerField(default=2)
+    id_pays = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = 'bulletin_model'
@@ -30,7 +31,8 @@ class BulletinClasseModel(models.Model):
     id_annee_id  → annees.id_annee
     id_cycle_id  → cycles.id_cycle
     """
-    id_model_classe = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
+    id_model_classe = models.IntegerField()  # business key, per-country
     id_classe = models.ForeignKey(
         'Classe', on_delete=models.DO_NOTHING,
         db_column='id_classe_id', db_constraint=False,
@@ -51,7 +53,7 @@ class BulletinClasseModel(models.Model):
         db_column='id_cycle_id', db_constraint=False,
         related_name='bulletin_classe_models'
     )
-    id_pays = models.IntegerField(default=2)
+    id_pays = models.IntegerField(null=True, blank=True)
     roundedValues = models.BooleanField(default=False)
 
     class Meta:

@@ -1220,7 +1220,7 @@ def get_place_secondaire(id_annee, id_campus, id_cycle, id_classe, id_eleve, id_
             cur.execute("""
                 SELECT rc.id, ri.code
                 FROM repartition_configs_etab_annee rc
-                JOIN repartition_instances ri ON ri.id_instance = rc.repartition_id
+                JOIN repartition_instances ri ON ri.id = rc.repartition_id
                 WHERE rc.etablissement_annee_id = %s
             """, [etab_annee_id])
             for row in cur.fetchall():

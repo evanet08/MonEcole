@@ -3867,7 +3867,7 @@ def save_etablissement_config(request):
                         type_combos[tid] = cc.nombre_au_niveau_racine
                 
                 for type_id, nombre_racine in type_combos.items():
-                    rtype = RepartitionType.objects.get(id_type=type_id)
+                    rtype = RepartitionType.objects.get(pk=type_id)
                     
                     # 4. Find or create root-level instances for this type + année + pays
                     root_instances = list(
@@ -7862,7 +7862,7 @@ def save_repartition_type(request):
             return JsonResponse({'success': False, 'error': 'Nom et code requis.'}, status=400)
 
         if id_type:
-            obj = get_object_or_404(RepartitionType, id_type=id_type)
+            obj = get_object_or_404(RepartitionType, pk=id_type)
             obj.nom = nom
             obj.code = code
             obj.description = description
@@ -7882,7 +7882,7 @@ def delete_repartition_type(request):
     """Supprimer un type de répartition."""
     try:
         data = json.loads(request.body)
-        obj = get_object_or_404(RepartitionType, id_type=data.get('id_type'))
+        obj = get_object_or_404(RepartitionType, pk=data.get('id_type'))
         # Vérifier qu'il n'y a pas d'instances liées
         if obj.instances.exists():
             return JsonResponse({
@@ -7946,11 +7946,11 @@ def save_repartition_instance(request):
         if not type_id or not nom or not code:
             return JsonResponse({'success': False, 'error': 'Type, nom et code requis.'}, status=400)
 
-        rtype = get_object_or_404(RepartitionType, id_type=type_id)
+        rtype = get_object_or_404(RepartitionType, pk=type_id)
         annee = Annee.objects.filter(id_annee=annee_id).first() if annee_id else None
 
         if id_instance:
-            obj = get_object_or_404(RepartitionInstance, id_instance=id_instance)
+            obj = get_object_or_404(RepartitionInstance, pk=id_instance)
             obj.type = rtype
             obj.annee = annee
             obj.nom = nom
@@ -7976,7 +7976,7 @@ def delete_repartition_instance(request):
     """Supprimer une instance de répartition."""
     try:
         data = json.loads(request.body)
-        obj = get_object_or_404(RepartitionInstance, id_instance=data.get('id_instance'))
+        obj = get_object_or_404(RepartitionInstance, pk=data.get('id_instance'))
         obj.delete()
         return JsonResponse({'success': True})
     except Exception as e:
@@ -8023,8 +8023,8 @@ def save_repartition_hierarchie(request):
         if type_parent_id == type_enfant_id:
             return JsonResponse({'success': False, 'error': 'Un type ne peut pas être son propre enfant.'}, status=400)
 
-        tp = get_object_or_404(RepartitionType, id_type=type_parent_id)
-        te = get_object_or_404(RepartitionType, id_type=type_enfant_id)
+        tp = get_object_or_404(RepartitionType, pk=type_parent_id)
+        te = get_object_or_404(RepartitionType, pk=type_enfant_id)
 
         if id_hierarchie:
             obj = get_object_or_404(RepartitionHierarchie, id_hierarchie=id_hierarchie)
@@ -8096,7 +8096,7 @@ def save_repartition_config_cycle(request):
             return JsonResponse({'success': False, 'error': 'Cycle et type racine requis.'}, status=400)
 
         cycle = get_object_or_404(Cycle, id_cycle=cycle_id)
-        tr = get_object_or_404(RepartitionType, id_type=type_racine_id)
+        tr = get_object_or_404(RepartitionType, pk=type_racine_id)
 
         if config_id:
             obj = get_object_or_404(RepartitionConfigCycle, id=config_id)
@@ -8207,7 +8207,7 @@ def auto_generate_instances(request):
         created_child = 0
         
         for type_id, count in type_max.items():
-            rtype = RepartitionType.objects.get(id_type=type_id)
+            rtype = RepartitionType.objects.get(pk=type_id)
             
             # Check existing instances for this type + année + pays
             existing = list(
@@ -8313,7 +8313,7 @@ def propagate_national_calendar(request):
         if not instance_id:
             return JsonResponse({'success': False, 'error': 'instance_id requis.'}, status=400)
         
-        instance = get_object_or_404(RepartitionInstance, id_instance=instance_id)
+        instance = get_object_or_404(RepartitionInstance, pk=instance_id)
         
         # Update instance dates/state if provided
         date_debut = data.get('date_debut')
@@ -8414,7 +8414,7 @@ def provision_repartitions_for_etab(request):
                 type_combos[tid] = cc.nombre_au_niveau_racine
         
         for type_id, nombre_racine in type_combos.items():
-            rtype = RepartitionType.objects.get(id_type=type_id)
+            rtype = RepartitionType.objects.get(pk=type_id)
             
             # Find or create root instances
             root_instances = list(
@@ -8680,7 +8680,7 @@ def get_evaluations_list(request):
                            (SELECT COUNT(*) FROM evaluation_repartition er WHERE er.id_evaluation = e.id_evaluation) AS assign_count
                     FROM evaluation e
                     LEFT JOIN countryStructure.evaluation_types et ON et.id = e.id_type_eval
-                    LEFT JOIN countryStructure.repartition_instances ri ON ri.id_instance = e.id_repartition_instance
+                    LEFT JOIN countryStructure.repartition_instances ri ON ri.id = e.id_repartition_instance
                     LEFT JOIN countryStructure.cours_annee cann ON cann.id_cours_annee = e.id_cours_classe_id
                     LEFT JOIN countryStructure.cours ca ON ca.id = cann.cours_id
                     WHERE e.classe_id = %s AND e.groupe <=> %s AND e.section_id <=> %s
@@ -9065,7 +9065,7 @@ def _get_or_create_repartition_config(repartition_id, etab_id):
     """
     # Find the EtablissementAnnee for this etab first
     try:
-        ri = RepartitionInstance.objects.select_related('type').get(id_instance=repartition_id)
+        ri = RepartitionInstance.objects.select_related('type').get(pk=repartition_id)
     except RepartitionInstance.DoesNotExist:
         # Fallback: try without etab filter (single-tenant)
         config = RepartitionConfigEtabAnnee.objects.filter(
@@ -9923,7 +9923,7 @@ def calculate_period_batch(request):
                         SELECT rc.repartition_id, rc.etablissement_annee_id,
                                r.type_id AS parent_type_id
                         FROM repartition_configs_etab_annee rc
-                        JOIN repartition_instances r ON r.id_instance = rc.repartition_id
+                        JOIN repartition_instances r ON r.id = rc.repartition_id
                         WHERE rc.id = %s
                     """, [parent_config_id])
                     parent_info = conn_hub.fetchone()
@@ -9951,7 +9951,7 @@ def calculate_period_batch(request):
                         conn_hub.execute(f"""
                             SELECT rc.id AS config_id, rc.repartition_id, r.taux_participation, r.nom
                             FROM repartition_configs_etab_annee rc
-                            JOIN repartition_instances r ON r.id_instance = rc.repartition_id
+                            JOIN repartition_instances r ON r.id = rc.repartition_id
                             WHERE rc.id IN ({ph_fc})
                             ORDER BY r.ordre
                         """, frontend_config_ids)
@@ -9960,7 +9960,7 @@ def calculate_period_batch(request):
                         conn_hub.execute("""
                             SELECT rc.id AS config_id, rc.repartition_id, r.taux_participation, r.nom
                             FROM repartition_configs_etab_annee rc
-                            JOIN repartition_instances r ON r.id_instance = rc.repartition_id
+                            JOIN repartition_instances r ON r.id = rc.repartition_id
                             WHERE rc.etablissement_annee_id = %s AND r.type_id = %s AND rc.is_open = 1
                             ORDER BY r.ordre
                         """, [etab_annee_id, child_type_id])
@@ -9975,7 +9975,7 @@ def calculate_period_batch(request):
                         conn_hub.execute("""
                             SELECT rc.id AS config_id
                             FROM repartition_configs_etab_annee rc
-                            JOIN repartition_instances r ON r.id_instance = rc.repartition_id
+                            JOIN repartition_instances r ON r.id = rc.repartition_id
                             WHERE rc.etablissement_annee_id = %s AND r.type_id = %s AND rc.is_open = 1
                             ORDER BY r.ordre
                         """, [etab_annee_id, parent_type_id])
@@ -10429,7 +10429,7 @@ def calculate_period_notes(request):
                     cur.execute("""
                         SELECT COALESCE(SUM(r.taux_participation), 0) AS total_taux
                         FROM countryStructure.repartition_configs_etab_annee rc
-                        JOIN countryStructure.repartition_instances r ON r.id_instance = rc.repartition_id
+                        JOIN countryStructure.repartition_instances r ON r.id = rc.repartition_id
                         WHERE rc.etablissement_annee_id = (
                             SELECT etablissement_annee_id FROM countryStructure.repartition_configs_etab_annee WHERE id = %s
                         ) AND r.type_id = %s AND rc.is_open = 1
@@ -10493,7 +10493,7 @@ def calculate_period_notes(request):
                     cur.execute("""
                         SELECT rc.id AS parent_config_id
                         FROM countryStructure.repartition_configs_etab_annee rc
-                        JOIN countryStructure.repartition_instances r ON r.id_instance = rc.repartition_id
+                        JOIN countryStructure.repartition_instances r ON r.id = rc.repartition_id
                         WHERE rc.etablissement_annee_id = (
                             SELECT etablissement_annee_id FROM countryStructure.repartition_configs_etab_annee WHERE id = %s
                         ) AND r.type_id = %s AND rc.is_open = 1
@@ -10505,7 +10505,7 @@ def calculate_period_notes(request):
                     for pc_id in parent_configs:
                         cur.execute("""
                             SELECT rc.id FROM countryStructure.repartition_configs_etab_annee rc
-                            JOIN countryStructure.repartition_instances r ON r.id_instance = rc.repartition_id
+                            JOIN countryStructure.repartition_instances r ON r.id = rc.repartition_id
                             WHERE rc.etablissement_annee_id = (
                                 SELECT etablissement_annee_id FROM countryStructure.repartition_configs_etab_annee WHERE id = %s
                             ) AND r.type_id = %s AND rc.is_open = 1
@@ -10981,7 +10981,7 @@ def sync_all_notes_bulletin(request):
                     SELECT rc.id AS config_id, rc.repartition_id, rc.parent_id, rc.has_parent,
                            r.type_id, r.code, r.nom, r.taux_participation
                     FROM countryStructure.repartition_configs_etab_annee rc
-                    JOIN countryStructure.repartition_instances r ON r.id_instance = rc.repartition_id
+                    JOIN countryStructure.repartition_instances r ON r.id = rc.repartition_id
                     WHERE rc.etablissement_annee_id = %s AND rc.is_open = 1
                     ORDER BY rc.has_parent ASC, r.ordre ASC
                 """, [ctx['etab_annee_id']])
@@ -11028,7 +11028,7 @@ def sync_all_notes_bulletin(request):
                     cur.execute("""
                         SELECT COALESCE(SUM(r.taux_participation), 0) AS total_taux
                         FROM countryStructure.repartition_configs_etab_annee rc
-                        JOIN countryStructure.repartition_instances r ON r.id_instance = rc.repartition_id
+                        JOIN countryStructure.repartition_instances r ON r.id = rc.repartition_id
                         WHERE rc.etablissement_annee_id = %s AND r.type_id = %s AND rc.is_open = 1
                     """, [ctx['etab_annee_id'], rep_type_id])
                     sum_row = cur.fetchone()
@@ -13754,7 +13754,7 @@ def execute_deliberation(request):
                 # Get parent type
                 hub_cur.execute("""
                     SELECT r.type_id FROM repartition_configs_etab_annee rc
-                    JOIN repartition_instances r ON r.id_instance = rc.repartition_id
+                    JOIN repartition_instances r ON r.id = rc.repartition_id
                     WHERE rc.id = %s
                 """, [int(repartition_id)])
                 parent_row = hub_cur.fetchone()
@@ -13771,7 +13771,7 @@ def execute_deliberation(request):
                         # Get ALL child configs for this etab_annee
                         hub_cur.execute("""
                             SELECT rc.id FROM repartition_configs_etab_annee rc
-                            JOIN repartition_instances r ON r.id_instance = rc.repartition_id
+                            JOIN repartition_instances r ON r.id = rc.repartition_id
                             WHERE rc.etablissement_annee_id = %s AND r.type_id = %s
                             ORDER BY r.ordre
                         """, [etab_annee_id, child_type_id])
@@ -13780,7 +13780,7 @@ def execute_deliberation(request):
                         # Get all parent configs to determine which children belong to this parent
                         hub_cur.execute("""
                             SELECT rc.id FROM repartition_configs_etab_annee rc
-                            JOIN repartition_instances r ON r.id_instance = rc.repartition_id
+                            JOIN repartition_instances r ON r.id = rc.repartition_id
                             WHERE rc.etablissement_annee_id = %s AND r.type_id = %s
                             ORDER BY r.ordre
                         """, [etab_annee_id, parent_type_id])
@@ -14053,7 +14053,7 @@ def cancel_deliberation(request):
                     cur.execute("""
                         SELECT rc.id, ri.code, ri.nom, rc.parent_id, rc.has_parent, rt.code as type_code
                         FROM repartition_configs_etab_annee rc
-                        JOIN repartition_instances ri ON ri.id_instance = rc.repartition_id
+                        JOIN repartition_instances ri ON ri.id = rc.repartition_id
                         LEFT JOIN repartition_types rt ON rt.id_type = ri.type_id
                         WHERE rc.etablissement_annee_id = %s
                     """, [eac.etablissement_annee_id])

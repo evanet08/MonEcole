@@ -477,7 +477,7 @@ def get_periodes_par_trimestre(trimestres_data, id_annee, id_campus, id_cycle, i
                 cur.execute("""
                     SELECT ri.nom
                     FROM repartition_configs_etab_annee rc
-                    JOIN repartition_instances ri ON ri.id_instance = rc.repartition_id
+                    JOIN repartition_instances ri ON ri.id = rc.repartition_id
                     WHERE rc.etablissement_annee_id = %s
                       AND rc.parent_id = %s
                       AND rc.has_parent = 1
@@ -1512,7 +1512,7 @@ def get_place_for_column(id_annee, id_campus, id_cycle, id_classe, id_eleve, col
             cur.execute("""
                 SELECT rc.id, ri.code
                 FROM repartition_configs_etab_annee rc
-                JOIN repartition_instances ri ON ri.id_instance = rc.repartition_id
+                JOIN repartition_instances ri ON ri.id = rc.repartition_id
                 WHERE rc.etablissement_annee_id = %s
             """, [etab_annee_id])
             for row in cur.fetchall():
