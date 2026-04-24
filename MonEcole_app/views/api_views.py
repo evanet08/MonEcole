@@ -7325,13 +7325,23 @@ def create_admin_instance(request):
             pays=pays,
             code='',  # will update below
         )
+        # Refresh from DB to get the real id_structure computed by save()
+        new_inst.refresh_from_db()
 
-        # Build code: parent_code + "-" + self_id  (or just self_id if first level)
+        # Safety check: id_structure must be > 0
+        if not new_inst.id_structure or new_inst.id_structure == 0:
+            # Force assign next available id_structure
+            from django.db.models import Max
+            max_id = AdministrativeStructureInstance.objects.filter(pays=pays).exclude(pk=new_inst.pk).aggregate(
+                m=Max('id_structure'))['m'] or 0
+            new_inst.id_structure = max_id + 1
+
+        # Build code: parent_code + "-" + id_structure  (or just id_structure if first level)
         if parent_code:
             new_inst.code = f"{parent_code}-{new_inst.id_structure}"
         else:
             new_inst.code = str(new_inst.id_structure)
-        new_inst.save(update_fields=['code'])
+        new_inst.save(update_fields=['code', 'id_structure'])
 
         return JsonResponse({
             'success': True,
