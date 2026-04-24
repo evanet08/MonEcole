@@ -77,10 +77,11 @@ def create_bulletin_content_cycle_superieur(elements, style_normal, style_center
     except EtablissementAnneeClasse.DoesNotExist:
         return elements
 
-    cours_ids = list(Cours.objects.filter(classe_id=hub_classe_id).values_list('id_cours', flat=True))
+    # CRITICAL: use pk (surrogate) not id_cours (business key)
+    cours_pks = list(Cours.objects.filter(classe_id=hub_classe_id).values_list('pk', flat=True))
 
     cours_qs = Cours_par_classe.objects.filter(
-        id_cours_id__in=cours_ids,
+        id_cours_id__in=cours_pks,
         id_annee_id=annee_id,
     ).select_related('id_cours').order_by('ordre_cours')
 

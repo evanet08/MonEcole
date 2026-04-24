@@ -422,7 +422,7 @@ def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, pass
             annee = Annee.objects.filter(pays_id=_etab_obj.pays_id).order_by('-annee').first()
         else:
             annee = Annee.objects.order_by('-annee').first()
-    annee_id = annee.id_annee if annee else 1
+    annee_id = annee.pk if annee else 1
 
     if is_super:
         all_modules = Module.objects.all()

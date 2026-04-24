@@ -759,7 +759,7 @@ def _get_periode_to_col(eac):
     
     # Résoudre les codes des RepartitionInstance — filtrer seulement les codes "P*"
     period_codes = []
-    for ri in RepartitionInstance.objects.filter(id_instance__in=config_rep_ids):
+    for ri in RepartitionInstance.objects.filter(pk__in=config_rep_ids):
         if ri.code and ri.code.startswith('P'):
             period_codes.append(ri.code)
     period_codes = sorted(set(period_codes))
@@ -817,8 +817,8 @@ def _get_bulletin_context(eac):
     if config_to_rep:
         from MonEcole_app.models.country_structure import RepartitionInstance
         rep_ids = set(config_to_rep.values())
-        for ri in RepartitionInstance.objects.filter(id_instance__in=rep_ids):
-            rep_to_code[ri.id_instance] = ri.code
+        for ri in RepartitionInstance.objects.filter(pk__in=rep_ids):
+            rep_to_code[ri.pk] = ri.code
 
     return cours_annee_to_cours, config_to_rep, rep_to_code
 

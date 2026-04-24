@@ -2453,7 +2453,7 @@ def get_cours_data(request):
         # Récupérer les cours avec le domaine et section FK
         cours_qs = Cours.objects.filter(classe__cycle__pays=pays)
         if id_classe:
-            cours_qs = cours_qs.filter(classe_id=id_classe)
+            cours_qs = cours_qs.filter(classe__id_classe=id_classe)
             # Filtrer par section si spécifié
             if id_section:
                 cours_qs = cours_qs.filter(section_id=id_section)
@@ -2719,7 +2719,7 @@ def get_cours_annee_data(request):
             return JsonResponse({'success': True, 'cours_annee': [], 'annees': annees, 'domaines': domaines})
 
         # Tous les cours du catalogue pour cette classe (+section)
-        cours_catalogue = Cours.objects.filter(classe_id=id_classe, id_pays=id_pays).order_by('cours')
+        cours_catalogue = Cours.objects.filter(classe__id_classe=id_classe, id_pays=id_pays).order_by('cours')
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
@@ -2729,7 +2729,7 @@ def get_cours_annee_data(request):
         # IMPORTANT: filter etablissement__isnull=True for national configs only
         configs_map = {}
         configs_qs = CoursAnnee.objects.filter(id_pays=id_pays,
-            cours__classe_id=id_classe, annee_id=id_annee,
+            cours__classe__id_classe=id_classe, annee__id_annee=id_annee,
             etablissement__isnull=True
         ).select_related('cours')
         if id_section:
@@ -2742,7 +2742,7 @@ def get_cours_annee_data(request):
         # Construire la réponse : TOUS les cours avec leur état
         cours_data = []
         for c in cours_catalogue:
-            ca = configs_map.get(c.id_cours)
+            ca = configs_map.get(c.pk)
             # Domaine : priorité au CoursAnnee, sinon fallback sur Cours
             dom_id = (ca.domaine_id if ca and ca.domaine_id else c.domaine_id)
             entry = {
@@ -2872,7 +2872,7 @@ def bulk_activate_cours_annee(request):
         if not id_classe or not id_annee:
             return JsonResponse({'success': False, 'error': 'Classe et année requis.'}, status=400)
 
-        cours_catalogue = Cours.objects.filter(classe_id=id_classe, id_pays=id_pays)
+        cours_catalogue = Cours.objects.filter(classe__id_classe=id_classe, id_pays=id_pays)
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
@@ -2925,7 +2925,7 @@ def download_cours_annee_template(request):
             cell.fill = header_fill
             cell.font = Font(bold=True, color="FFFFFF")
 
-        for c in Cours.objects.filter(classe_id=id_classe, id_pays=id_pays).order_by('domaine', 'code_cours'):
+        for c in Cours.objects.filter(classe__id_classe=id_classe, id_pays=id_pays).order_by('domaine_id', 'code_cours'):
             config = CoursAnnee.objects.filter(cours=c, annee=annee, id_pays=id_pays).first()
             ws.append([
                 c.code_cours, c.cours, c.domaine,
@@ -6861,7 +6861,7 @@ def dashboard_etablissement_view(request):
                 repartitions_notes = []
                 for ri in ri_qs:
                     repartitions_notes.append({
-                        'id': ri.id_instance,
+                        'id': ri.pk,
                         'id_instance': ri.id_instance,
                         'nom': ri.nom,
                         'code': ri.code,
@@ -7143,7 +7143,7 @@ def dashboard_etablissement_view(request):
                 """, [etab_id])
                 campus_ids = [r['idCampus'] for r in cur.fetchall()]
 
-                annee_id = annee_active.id_annee if annee_active else None
+                annee_id = annee_active.pk if annee_active else None
 
                 if campus_ids:
                     placeholders = ','.join(['%s'] * len(campus_ids))
@@ -7257,7 +7257,8 @@ def dashboard_etablissement_view(request):
         'stats': stats,
         'admin_display_name': admin_display_name,
         'annee_active': {
-            'id': annee_active.id_annee,
+            'id': annee_active.pk,
+            'id_annee': annee_active.id_annee,
             'annee': annee_active.annee,
             'isOpen': annee_active.isOpen,
         } if annee_active else None,
@@ -7533,7 +7534,7 @@ def toggle_calendar_synch(request):
                 )
 
                 for ri in national_instances:
-                    if ri.id_instance not in existing_ids:
+                    if ri.pk not in existing_ids:
                         RepartitionConfigEtabAnnee.objects.create(
                             etablissement_annee=etab_annee,
                             repartition=ri,
@@ -7571,7 +7572,7 @@ def toggle_calendar_synch(request):
                     ri_qs = ri_qs.filter(type_id__in=allowed_type_ids)
                 for ri in ri_qs:
                     repartitions.append({
-                        'id': ri.id_instance,
+                        'id': ri.pk,
                         'id_instance': ri.id_instance,
                         'nom': ri.nom, 'code': ri.code,
                         'type': ri.type.nom if ri.type else '',
@@ -12276,7 +12277,7 @@ def get_cours_data(request):
 
         cours_qs = Cours.objects.filter(classe__cycle__pays=pays)
         if id_classe:
-            cours_qs = cours_qs.filter(classe_id=id_classe)
+            cours_qs = cours_qs.filter(classe__id_classe=id_classe)
             if id_section:
                 cours_qs = cours_qs.filter(section_id=id_section)
             else:
@@ -12398,7 +12399,7 @@ def get_cours_annee_data(request):
 
         # Tous les cours du catalogue pour cette classe (+section)
         # NOTE: Cours.domaine_id is IntegerField, NOT FK — cannot use select_related/order_by FK
-        cours_catalogue = Cours.objects.filter(classe_id=id_classe, id_pays=id_pays).order_by('cours')
+        cours_catalogue = Cours.objects.filter(classe__id_classe=id_classe, id_pays=id_pays).order_by('cours')
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
@@ -12418,7 +12419,7 @@ def get_cours_annee_data(request):
         # Les configs existantes (check for etablissement-specific then national)
         configs_map = {}
         configs_qs = CoursAnnee.objects.filter(id_pays=id_pays,
-            cours__classe_id=id_classe, annee_id=id_annee
+            cours__classe__id_classe=id_classe, annee__id_annee=id_annee
         ).select_related('cours')
         if id_section:
             configs_qs = configs_qs.filter(cours__section_id=id_section)
@@ -12430,7 +12431,7 @@ def get_cours_annee_data(request):
         # Construire la réponse
         cours_data = []
         for c in cours_catalogue:
-            ca = configs_map.get(c.id_cours)
+            ca = configs_map.get(c.pk)
             # Domaine: priority to CoursAnnee.domaine_id, else fallback to Cours.domaine_id (both IntegerFields)
             dom_id = (ca.domaine_id if ca and ca.domaine_id else c.domaine_id)
             dom_nom = domaine_map.get(dom_id, '') if dom_id else ''
@@ -12560,7 +12561,7 @@ def bulk_activate_cours_annee(request):
         if Cours is None:
             return JsonResponse({'success': False, 'error': 'Modèle Cours non disponible.'}, status=500)
 
-        cours_catalogue = Cours.objects.filter(classe_id=id_classe, id_pays=id_pays)
+        cours_catalogue = Cours.objects.filter(classe__id_classe=id_classe, id_pays=id_pays)
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
@@ -13726,7 +13727,7 @@ def execute_deliberation(request):
                   AND ei.id_etablissement = %s
                   AND ei.status = 1
                 ORDER BY e.nom, e.prenom
-            """, [annee.id_annee, eac.classe_id, eac.groupe, eac.section_id, etab.id_etablissement])
+            """, [annee.pk, eac.classe_id, eac.groupe, eac.section_id, etab.id_etablissement])
             columns = [col[0] for col in cur.description]
             eleves = [dict(zip(columns, row)) for row in cur.fetchall()]
 
@@ -13929,7 +13930,7 @@ def execute_deliberation(request):
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURDATE(), %s)
                             ON DUPLICATE KEY UPDATE
                                 pourcentage=VALUES(pourcentage), place=VALUES(place)
-                        """, [r['id_eleve'], campus_id, annee.id_annee, cycle_id,
+                        """, [r['id_eleve'], campus_id, annee.pk, cycle_id,
                               eac.classe_id, eac.groupe, eac.section_id,
                               int(repartition_id), int(repartition_id),
                               r['pourcentage'], r['place'], etab.id_etablissement])
@@ -13950,7 +13951,7 @@ def execute_deliberation(request):
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURDATE(), %s)
                             ON DUPLICATE KEY UPDATE
                                 pourcentage=VALUES(pourcentage), place=VALUES(place)
-                        """, [r['id_eleve'], campus_id, annee.id_annee, cycle_id,
+                        """, [r['id_eleve'], campus_id, annee.pk, cycle_id,
                               eac.classe_id, eac.groupe, eac.section_id,
                               int(repartition_id),
                               r['pourcentage'], r['place'], etab.id_etablissement])
@@ -14054,7 +14055,7 @@ def cancel_deliberation(request):
                         SELECT rc.id, ri.code, ri.nom, rc.parent_id, rc.has_parent, rt.code as type_code
                         FROM repartition_configs_etab_annee rc
                         JOIN repartition_instances ri ON ri.id = rc.repartition_id
-                        LEFT JOIN repartition_types rt ON rt.id_type = ri.type_id
+                        LEFT JOIN repartition_types rt ON rt.id = ri.type_id
                         WHERE rc.etablissement_annee_id = %s
                     """, [eac.etablissement_annee_id])
                     for row in cur.fetchall():
@@ -14368,7 +14369,7 @@ def get_deliberated_classes(request):
                     SELECT COUNT(DISTINCT id_eleve_id) FROM eleve_inscription
                     WHERE id_annee_id=%s AND classe_id=%s AND groupe <=> %s AND section_id <=> %s
                       AND id_etablissement=%s AND status=1
-                """, [annee.id_annee, eac.classe_id, eac.groupe, eac.section_id, etab.id_etablissement])
+                """, [annee.pk, eac.classe_id, eac.groupe, eac.section_id, etab.id_etablissement])
                 nb_eleves = cur.fetchone()[0]
 
             cycle_name = eac.classe.cycle.cycle if eac.classe and hasattr(eac.classe, 'cycle') and eac.classe.cycle else '—'
@@ -14432,7 +14433,7 @@ def get_bulletin_eleves(request):
                   AND ei.id_etablissement = %s
                   AND ei.status = 1
                 ORDER BY e.nom, e.prenom
-            """, [annee.id_annee, eac.classe_id, eac.groupe, eac.section_id, etab.id_etablissement])
+            """, [annee.pk, eac.classe_id, eac.groupe, eac.section_id, etab.id_etablissement])
             columns = [col[0] for col in cur.description]
             rows = cur.fetchall()
 

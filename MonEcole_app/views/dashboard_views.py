@@ -267,7 +267,7 @@ def _get_dashboard_context(request):
                         for ci, child in enumerate(child_insts):
                             parent_idx = ci // nb_enfants if nb_enfants > 0 else 0
                             if parent_idx < len(parent_insts):
-                                child_parent_map[child.id_instance] = parent_insts[parent_idx]
+                                child_parent_map[child.pk] = parent_insts[parent_idx]
 
                 # Grouper par type et limiter par le nombre calculé
                 type_count_tracker = {}  # type_id → nombre ajouté
@@ -279,9 +279,9 @@ def _get_dashboard_context(request):
                     if max_allowed is not None and current_count >= max_allowed:
                         continue
                     type_count_tracker[tid] = current_count + 1
-                    parent_inst = child_parent_map.get(ri.id_instance)
+                    parent_inst = child_parent_map.get(ri.pk)
                     repartitions_notes.append({
-                        'id': ri.id_instance, 'id_instance': ri.id_instance,
+                        'id': ri.pk, 'id_instance': ri.id_instance,
                         'nom': ri.nom, 'code': ri.code,
                         'type': ri.type.nom if ri.type else '',
                         'type_code': ri.type.code if ri.type else '',
@@ -573,7 +573,8 @@ def _get_dashboard_context(request):
         'stats': stats,
         'active_section': active_section,
         'annee_active': {
-            'id': annee_active.id_annee,
+            'id': annee_active.pk,
+            'id_annee': annee_active.id_annee,
             'annee': annee_active.annee,
             'isOpen': annee_active.isOpen,
         } if annee_active else None,
@@ -815,7 +816,7 @@ def espace_enseignant_view(request):
                         hcur.execute(f"""
                             SELECT ri.id_instance, ri.nom, rt.nom AS type_nom, ri.type_id, ri.ordre
                             FROM repartition_instances ri
-                            JOIN repartition_types rt ON rt.id_type = ri.type_id
+                            JOIN repartition_types rt ON rt.id = ri.type_id
                             WHERE ri.annee_id = %s AND ri.is_active = 1
                               AND ri.type_id IN ({fmt})
                             ORDER BY ri.type_id, ri.ordre
@@ -1534,7 +1535,7 @@ def _get_annee_id(etab_id):
         etab_obj = Etab.objects.select_related('pays').filter(id_etablissement=etab_id).first()
         if etab_obj:
             annee = AnneeModel.objects.filter(pays_id=etab_obj.pays_id, isOpen=True).order_by('-annee').first()
-            return annee.id_annee if annee else None
+            return annee.pk if annee else None
     except Exception:
         pass
     return None

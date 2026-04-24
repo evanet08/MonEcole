@@ -9,10 +9,11 @@ class Annee(models.Model):
     """
     Année scolaire — lecture directe depuis countryStructure.annees
 
-    Hub colonnes : id_annee, pays_id, annee, dateOuverture, dateCloture, isOpen
+    Hub schema : id (surrogate PK auto) + id_annee (business key per-country)
     isOpen = 1 si l'année est en cours, 0 sinon
     """
-    id_annee = models.AutoField(primary_key=True)
+    id = models.BigAutoField(primary_key=True)
+    id_annee = models.IntegerField()  # business key, per-country
     pays_id = models.IntegerField(null=True, blank=True)
     annee = models.CharField(max_length=20, null=False)
     date_ouverture = models.DateField(db_column='dateOuverture')

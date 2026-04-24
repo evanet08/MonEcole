@@ -54,12 +54,13 @@ def recuperer_cours_obligatoires(id_annee, id_campus, id_cycle, id_classe):
         return []
 
     # Hub: Cours liés à cette classe
-    cours_ids = list(Cours.objects.filter(classe_id=hub_classe_id).values_list('id_cours', flat=True))
-    if not cours_ids:
+    # CRITICAL: use pk (surrogate) not id_cours (business key)
+    cours_pks = list(Cours.objects.filter(classe_id=hub_classe_id).values_list('pk', flat=True))
+    if not cours_pks:
         return []
 
     qs = Cours_par_classe.objects.filter(
-        id_cours_id__in=cours_ids,
+        id_cours_id__in=cours_pks,
         id_annee_id=id_annee,
         is_obligatory=True
     ).select_related('id_cours')

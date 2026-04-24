@@ -434,7 +434,8 @@ class Etablissement(models.Model):
     Version complète du modèle Etablissement (Hub), avec tous les champs
     nécessaires au dashboard. Distinct de 'Institution' (version simplifiée).
     """
-    id_etablissement = models.AutoField(primary_key=True)
+    id = models.BigAutoField(primary_key=True)
+    id_etablissement = models.IntegerField()  # business key, per-country
     pays = models.ForeignKey(Pays, on_delete=models.CASCADE, related_name='hub_etablissements')
     nom = models.CharField(max_length=255)
     sigle = models.CharField(max_length=50, blank=True, null=True)

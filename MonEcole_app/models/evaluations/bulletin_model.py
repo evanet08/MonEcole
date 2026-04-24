@@ -26,10 +26,10 @@ class BulletinModel(models.Model):
 class BulletinClasseModel(models.Model):
     """
     Affectation d'un modèle de bulletin à une classe Hub + cycle + année.
-    id_classe_id → classes.id_classe (catalogue Hub, PAS EtablissementAnneeClasse)
-    id_model_id  → bulletin_model.id_model
-    id_annee_id  → annees.id_annee
-    id_cycle_id  → cycles.id_cycle
+    id_classe_id → classes.id (surrogate PK)
+    id_model_id  → bulletin_model.id (surrogate PK)
+    id_annee_id  → annees.id (surrogate PK)
+    id_cycle_id  → cycles.id (surrogate PK)
     """
     id = models.AutoField(primary_key=True)
     id_model_classe = models.IntegerField()  # business key, per-country

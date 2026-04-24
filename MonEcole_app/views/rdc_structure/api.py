@@ -33,15 +33,16 @@ def get_cours_classe_rdc(id_annee, id_campus, id_cycle, id_classe):
         return []
 
     # Trouver les cours liés à cette classe du catalogue Hub
-    cours_ids = list(Cours.objects.filter(classe_id=hub_classe_id).values_list('id_cours', flat=True))
+    # CRITICAL: use pk (surrogate) not id_cours (business key) — cours_id FK stores surrogate PK
+    cours_pks = list(Cours.objects.filter(classe_id=hub_classe_id).values_list('pk', flat=True))
     
-    if not cours_ids:
+    if not cours_pks:
         logger.warning(f"[get_cours_classe_rdc] No cours found for hub_classe_id={hub_classe_id}")
         return []
     
     # Récupérer les configs annuelles (Cours_par_classe) pour ces cours
     cpc_qs = Cours_par_classe.objects.filter(
-        id_cours_id__in=cours_ids,
+        id_cours_id__in=cours_pks,
         id_annee_id=id_annee,
         is_obligatory=True
     ).select_related('id_cours').order_by('ordre_cours')

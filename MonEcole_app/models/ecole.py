@@ -13,7 +13,8 @@ class Institution(models.Model):
     COMPAT ARRIÈRE: Les champs utilisent db_column pour mapper
     les noms de colonnes du Hub aux noms attendus par le code spoke.
     """
-    id_ecole = models.AutoField(primary_key=True, db_column='id_etablissement')
+    id = models.BigAutoField(primary_key=True)
+    id_ecole = models.IntegerField(db_column='id_etablissement')  # business key, per-country
     nom_ecole = models.CharField(max_length=250, db_column='nom')
     sigle = models.CharField(max_length=50, null=True, blank=True)
     telephone = models.CharField(max_length=50, null=True, blank=True)
