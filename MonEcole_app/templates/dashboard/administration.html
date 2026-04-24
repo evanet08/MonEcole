@@ -1237,11 +1237,14 @@ function filterSuggestions(ordre){
     const val=inp.value.toLowerCase().trim();
     const items=getChildrenForLevel(ordre);
     const filtered=val?items.filter(it=>it.nom.toLowerCase().includes(val)):items;
-    let html=filtered.slice(0,15).map((it,i)=>`<div class="admin-suggestion${i===0?' highlighted':''}" data-id="${it.id}" data-nom="${it.nom}" data-code="${it.code||''}" onclick="selectItem(${ordre},${it.id},'${it.nom.replace(/'/g,"\\'")}','${(it.code||'').replace(/'/g,"\\'")}')"><span class="sug-id">${it.id}</span><span class="sug-name">${it.nom}</span></div>`).join('');
+    let html=filtered.slice(0,15).map((it,i)=>{
+        const safeNom=it.nom.replace(/"/g,'&quot;');
+        const safeCode=(it.code||'').replace(/"/g,'&quot;');
+        return `<div class="admin-suggestion${i===0?' highlighted':''}" data-id="${it.id}" data-nom="${safeNom}" data-code="${safeCode}" onmousedown="selectItem(${ordre},${it.id},this.dataset.nom,this.dataset.code)"><span class="sug-id">${it.id}</span><span class="sug-name">${it.nom}</span></div>`;
+    }).join('');
     // If typed text doesn't match exactly, offer to create
     if(val && !items.some(it=>it.nom.toLowerCase()===val)){
-        const escapedVal=val.replace(/'/g,"\\'");
-        html+=`<div class="admin-suggestion create-new${!filtered.length?' highlighted':''}" data-create="true" data-newname="${inp.value.trim()}" onclick="createNewAdminInstance(${ordre},'${escapedVal}')"><i class="fas fa-plus-circle"></i><span class="sug-name">Créer « ${inp.value.trim()} » — Entrée ↵</span></div>`;
+        html+=`<div class="admin-suggestion create-new${!filtered.length?' highlighted':''}" data-create="true" data-newname="${inp.value.trim().replace(/"/g,'&quot;')}" onmousedown="createNewAdminInstance(${ordre},this.dataset.newname)"><i class="fas fa-plus-circle"></i><span class="sug-name">Créer « ${inp.value.trim()} » — Entrée ↵</span></div>`;
     }
     if(!html){html='<div class="admin-suggestion" style="color:#94a3b8;cursor:default"><i class="fas fa-search" style="margin-right:4px"></i>Tapez un nom...</div>'}
     sug.innerHTML=html;
@@ -1347,37 +1350,40 @@ async function renameAdminInstance(ordre,id,currentName){
 }
 
 function selectItem(ordre,id,nom,code){
+    // Set state FIRST — guaranteed to run
     adminState.selected[ordre]={id,nom,code};
     adminState.locked[ordre]=true;
-    const firstOrdre=ADMIN_TYPES.length?ADMIN_TYPES[0].ordre:null;
-    const isFirstLevel=(ordre===firstOrdre);
-    // Lock this level
-    const levelDiv=document.getElementById('adminLevel'+ordre);
-    const inp=document.getElementById('adminInput'+ordre);
-    const sug=document.getElementById('adminSug'+ordre);
-    inp.style.display='none';
-    sug.classList.remove('visible');
-    // Add locked display
-    let locked=document.getElementById('adminLocked'+ordre);
-    if(locked)locked.remove();
-    const col=LEVEL_COLORS[ADMIN_TYPES.findIndex(t=>t.ordre===ordre)%LEVEL_COLORS.length];
-    const lockEl=document.createElement('div');
-    if(isFirstLevel){
-        // First level (Province) — readonly after selection, no unlock/rename
-        lockEl.className='admin-level-locked readonly-level';lockEl.id='adminLocked'+ordre;
-        lockEl.innerHTML=`<span class="locked-check" style="background:${col}"><i class="fas fa-check"></i></span><span>${nom}</span>`;
-    }else{
-        lockEl.className='admin-level-locked';lockEl.id='adminLocked'+ordre;
-        lockEl.innerHTML=`<span class="locked-check" style="background:${col}"><i class="fas fa-check"></i></span><span>${nom}</span><span class="locked-clear" onclick="renameAdminInstance(${ordre},${id},'${nom.replace(/'/g,"\\'")}')" title="Renommer"><i class="fas fa-pen" style="font-size:.45rem"></i></span><span class="locked-clear" onclick="unlockLevel(${ordre})" title="Changer"><i class="fas fa-times"></i></span>`;
-    }
-    inp.parentNode.insertBefore(lockEl,inp);
-    // Clear and enable next levels
-    clearLevelsAfter(ordre);
-    const nextOrdre=getNextOrdre(ordre);
-    if(nextOrdre){
-        const nextInp=document.getElementById('adminInput'+nextOrdre);
-        if(nextInp){nextInp.disabled=false;nextInp.focus()}
-    }
+    try{
+        const firstOrdre=ADMIN_TYPES.length?ADMIN_TYPES[0].ordre:null;
+        const isFirstLevel=(ordre===firstOrdre);
+        // Lock this level
+        const inp=document.getElementById('adminInput'+ordre);
+        const sug=document.getElementById('adminSug'+ordre);
+        if(inp)inp.style.display='none';
+        if(sug)sug.classList.remove('visible');
+        // Add locked display
+        let locked=document.getElementById('adminLocked'+ordre);
+        if(locked)locked.remove();
+        const col=LEVEL_COLORS[ADMIN_TYPES.findIndex(t=>t.ordre===ordre)%LEVEL_COLORS.length];
+        const lockEl=document.createElement('div');
+        const safeNom=nom.replace(/[`'"\\]/g,'');
+        if(isFirstLevel){
+            lockEl.className='admin-level-locked readonly-level';lockEl.id='adminLocked'+ordre;
+            lockEl.innerHTML='<span class="locked-check" style="background:'+col+'"><i class="fas fa-check"></i></span><span>'+safeNom+'</span>';
+        }else{
+            lockEl.className='admin-level-locked';lockEl.id='adminLocked'+ordre;
+            lockEl.innerHTML='<span class="locked-check" style="background:'+col+'"><i class="fas fa-check"></i></span><span>'+safeNom+'</span><span class="locked-clear" onclick="renameAdminInstance('+ordre+','+id+',\''+safeNom+'\')" title="Renommer"><i class="fas fa-pen" style="font-size:.45rem"></i></span><span class="locked-clear" onclick="unlockLevel('+ordre+')" title="Changer"><i class="fas fa-times"></i></span>';
+        }
+        if(inp&&inp.parentNode)inp.parentNode.insertBefore(lockEl,inp);
+        // Clear and enable next levels
+        clearLevelsAfter(ordre);
+        const nextOrdre=getNextOrdre(ordre);
+        if(nextOrdre){
+            const nextInp=document.getElementById('adminInput'+nextOrdre);
+            if(nextInp){nextInp.disabled=false;nextInp.focus()}
+        }
+    }catch(e){console.error('selectItem DOM error:',e)}
+    // ALWAYS update — even if DOM ops failed
     checkRueVisibility();
     checkGeoButton();
     updateRefAdministrative();
