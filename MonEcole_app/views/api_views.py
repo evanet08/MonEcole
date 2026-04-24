@@ -8635,13 +8635,14 @@ def get_evaluation_cours(request):
         classe_id = eac.classe_id
         annee_id = eac.etablissement_annee.annee_id
         etab_id = eac.etablissement_annee.etablissement_id
+        id_pays = eac.etablissement_annee.id_pays or eac.etablissement_annee.etablissement.pays_id
 
         # Get CoursAnnee for this classe + annee (national OR etab-specific)
         from django.db.models import Q
         cours_annee_qs = CoursAnnee.objects.filter(
             cours__classe_id=classe_id,
             annee_id=annee_id,
-            id_pays=etab.pays_id
+            id_pays=id_pays
         ).filter(
             Q(etablissement__isnull=True) | Q(etablissement_id=etab_id)
         ).select_related('cours').order_by('cours__cours')
@@ -8836,14 +8837,14 @@ def save_evaluation(request):
                     cur.execute("""
                         INSERT INTO evaluation (title, id_type_eval, ponderer_eval, date_eval, date_soumission,
                             contenu_evaluation, document_url, id_annee_id, idCampus_id, id_classe_id, classe_id,
-                            groupe, section_id, id_cours_classe_id, id_repartition_instance, id_etablissement, date_creation)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                            groupe, section_id, id_cours_classe_id, id_repartition_instance, id_etablissement, id_pays, date_creation)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                     """, [title, id_type_eval, int(ponderer_eval), date_eval, date_soumission,
                           contenu, document_url, bk['annee_id'] if bk else None, campus_id,
                           int(classe_id),
                           bk['classe_id'] if bk else int(classe_id),
                           bk['groupe'] if bk else None, bk['section_id'] if bk else None,
-                          int(cours_id), repartition_id, etab_id])
+                          int(cours_id), repartition_id, etab_id, etab.pays_id])
                     new_id = cur.lastrowid
 
                     # Auto-create evaluation_repartition entry
@@ -9371,15 +9372,15 @@ def save_notes(request):
                                      id_classe_id, classe_id, groupe, section_id,
                                      id_cycle_id, id_repartition_instance,
                                      id_cours_id, id_type_note_id, id_session_id,
-                                     id_etablissement, date_saisie)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                                     id_etablissement, id_pays, date_saisie)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                             """, [eleve_id, eval_id, note_float,
                                   ev_ctx['id_annee_id'], ev_ctx['idCampus_id'],
                                   ev_ctx['id_classe_id'] or 0, ev_ctx['classe_id'], ev_ctx['groupe'], ev_ctx['section_id'],
                                   ev_ctx['id_cycle_id'] or 0,
                                   ev_ctx['id_repartition_instance'] or 0,
                                   ev_ctx['id_cours_classe_id'], id_type_note,
-                                  ev_ctx['id_session_id'] or 0, etab_id])
+                                  ev_ctx['id_session_id'] or 0, etab_id, etab.pays_id])
                             saved += 1
 
             conn.commit()
@@ -9702,15 +9703,15 @@ def import_notes_excel(request):
                                  id_classe_id, classe_id, groupe, section_id,
                                  id_cycle_id, id_repartition_instance,
                                  id_cours_id, id_type_note_id, id_session_id,
-                                 id_etablissement, date_saisie)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                                 id_etablissement, id_pays, date_saisie)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                         """, [nd['eleve_id'], nd['evaluation_id'], nd['note'],
                               ev_ctx['id_annee_id'], ev_ctx['idCampus_id'],
                               ev_ctx['id_classe_id'] or 0, ev_ctx['classe_id'], ev_ctx['groupe'], ev_ctx['section_id'],
                               ev_ctx['id_cycle_id'] or 0,
                               ev_ctx['id_repartition_instance'] or 0,
                               ev_ctx['id_cours_classe_id'], id_type_note,
-                              ev_ctx['id_session_id'] or 0, etab_id])
+                              ev_ctx['id_session_id'] or 0, etab_id, etab.pays_id])
                     saved += 1
 
             conn.commit()
@@ -9853,14 +9854,14 @@ def import_exam_notes_excel(request):
                     cur.execute("""
                         INSERT INTO note_bulletin
                             (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                             note, maxima, source_type, date_calcul, id_etablissement)
-                        VALUES (%s, %s, %s, %s, %s, %s, 'SAISIE_DIRECTE', NOW(), %s)
+                             note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                        VALUES (%s, %s, %s, %s, %s, %s, 'SAISIE_DIRECTE', NOW(), %s, %s)
                         ON DUPLICATE KEY UPDATE
                             note = VALUES(note), maxima = VALUES(maxima),
                             source_type = 'SAISIE_DIRECTE',
                             date_calcul = NOW(), updated_at = NOW()
                     """, [nd['eleve_id'], nd['cours_annee_id'], config.id, ex_nt_id,
-                          nd['note'], nd['maxima'], etab_id])
+                          nd['note'], nd['maxima'], etab_id, etab.pays_id])
                     saved += 1
             conn.commit()
             result = {'success': True, 'saved': saved, 'message': f"{saved} note(s) d'examen importée(s)."}
@@ -10177,13 +10178,13 @@ def calculate_period_batch(request):
                                 cur.execute("""
                                     INSERT INTO note_bulletin
                                         (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                         note, maxima, source_type, calc_details, date_calcul, id_etablissement)
-                                    VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', %s, NOW(), %s)
+                                         note, maxima, source_type, calc_details, date_calcul, id_etablissement, id_pays)
+                                    VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', %s, NOW(), %s, %s)
                                     ON DUPLICATE KEY UPDATE
                                         note = VALUES(note), maxima = VALUES(maxima),
                                         calc_details = VALUES(calc_details),
                                         date_calcul = NOW(), updated_at = NOW()
-                                """, [eleve_id, cours_id, cfg_id, child_tj_nt_id, scaled, tj_max, details_json, etab_id])
+                                """, [eleve_id, cours_id, cfg_id, child_tj_nt_id, scaled, tj_max, details_json, etab_id, etab.pays_id])
                                 period_calc += 1
 
                     total_calculated += period_calc
@@ -10219,12 +10220,12 @@ def calculate_period_batch(request):
                                 cur.execute("""
                                     INSERT INTO note_bulletin
                                         (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                         note, maxima, source_type, date_calcul, id_etablissement)
-                                    VALUES (%s, %s, %s, %s, %s, %s, 'HERITAGE', NOW(), %s)
+                                         note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                                    VALUES (%s, %s, %s, %s, %s, %s, 'HERITAGE', NOW(), %s, %s)
                                     ON DUPLICATE KEY UPDATE
                                         note = VALUES(note), maxima = VALUES(maxima),
                                         date_calcul = NOW(), updated_at = NOW()
-                                """, [eleve_id, cours_id, parent_config_id, parent_tj['nt_id'], p_note, p_max, etab_id])
+                                """, [eleve_id, cours_id, parent_config_id, parent_tj['nt_id'], p_note, p_max, etab_id, etab.pays_id])
 
                             # TOTAL = TJ + EX
                             if parent_tot:
@@ -10243,12 +10244,12 @@ def calculate_period_batch(request):
                                     cur.execute("""
                                         INSERT INTO note_bulletin
                                             (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                             note, maxima, source_type, date_calcul, id_etablissement)
-                                        VALUES (%s, %s, %s, %s, %s, %s, 'FORMULE', NOW(), %s)
+                                             note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                                        VALUES (%s, %s, %s, %s, %s, %s, 'FORMULE', NOW(), %s, %s)
                                         ON DUPLICATE KEY UPDATE
                                             note = VALUES(note), maxima = VALUES(maxima),
                                             date_calcul = NOW(), updated_at = NOW()
-                                    """, [eleve_id, cours_id, parent_config_id, parent_tot['nt_id'], t_note, t_max, etab_id])
+                                    """, [eleve_id, cours_id, parent_config_id, parent_tot['nt_id'], t_note, t_max, etab_id, etab.pays_id])
 
                 conn.commit()
                 return JsonResponse({
@@ -10502,12 +10503,12 @@ def calculate_period_notes(request):
                         cur.execute("""
                             INSERT INTO note_bulletin
                                 (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                 note, maxima, source_type, date_calcul, id_etablissement)
-                            VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', NOW(), %s)
+                                 note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                            VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', NOW(), %s, %s)
                             ON DUPLICATE KEY UPDATE
                                 note = VALUES(note), maxima = VALUES(maxima),
                                 date_calcul = NOW(), updated_at = NOW()
-                        """, [eleve_id, cours_id, config_id, tj_nt_id, scaled, tj_max, etab_id])
+                        """, [eleve_id, cours_id, config_id, tj_nt_id, scaled, tj_max, etab_id, etab.pays_id])
                         calculated += 1
 
                 # === AUTO-CASCADE: update parent TJ (heritage) and TOTAL ===
@@ -10565,12 +10566,12 @@ def calculate_period_notes(request):
                                     cur.execute("""
                                         INSERT INTO note_bulletin
                                             (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                             note, maxima, source_type, date_calcul, id_etablissement)
-                                        VALUES (%s, %s, %s, %s, %s, %s, 'HERITAGE', NOW(), %s)
+                                             note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                                        VALUES (%s, %s, %s, %s, %s, %s, 'HERITAGE', NOW(), %s, %s)
                                         ON DUPLICATE KEY UPDATE
                                             note = VALUES(note), maxima = VALUES(maxima),
                                             date_calcul = NOW(), updated_at = NOW()
-                                    """, [eleve_id, cours_id, pc_id, parent_tj_info['nt_id'], p_note, p_max, etab_id])
+                                    """, [eleve_id, cours_id, pc_id, parent_tj_info['nt_id'], p_note, p_max, etab_id, etab.pays_id])
 
                                 # Also compute TOTAL = TJ + EX at parent level
                                 if parent_tot_info:
@@ -10589,12 +10590,12 @@ def calculate_period_notes(request):
                                         cur.execute("""
                                             INSERT INTO note_bulletin
                                                 (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                                 note, maxima, source_type, date_calcul, id_etablissement)
-                                            VALUES (%s, %s, %s, %s, %s, %s, 'FORMULE', NOW(), %s)
+                                                 note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                                            VALUES (%s, %s, %s, %s, %s, %s, 'FORMULE', NOW(), %s, %s)
                                             ON DUPLICATE KEY UPDATE
                                                 note = VALUES(note), maxima = VALUES(maxima),
                                                 date_calcul = NOW(), updated_at = NOW()
-                                        """, [eleve_id, cours_id, pc_id, parent_tot_info['nt_id'], t_note, t_max, etab_id])
+                                        """, [eleve_id, cours_id, pc_id, parent_tot_info['nt_id'], t_note, t_max, etab_id, etab.pays_id])
 
                 conn.commit()
                 return JsonResponse({
@@ -10793,12 +10794,12 @@ def calculate_notes_bulletin(request):
                                 cur.execute("""
                                     INSERT INTO note_bulletin
                                         (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                         note, maxima, source_type, date_calcul, id_etablissement)
-                                    VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', NOW(), %s)
+                                         note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                                    VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', NOW(), %s, %s)
                                     ON DUPLICATE KEY UPDATE
                                         note = VALUES(note), maxima = VALUES(maxima),
                                         date_calcul = NOW(), updated_at = NOW()
-                                """, [eleve_id, cours_id, config.id, nt_id, scaled_note, cours_maxima, etab_id])
+                                """, [eleve_id, cours_id, config.id, nt_id, scaled_note, cours_maxima, etab_id, etab.pays_id])
                                 calculated += 1
 
                     elif en.source_type == 'HERITAGE':
@@ -10860,12 +10861,12 @@ def calculate_notes_bulletin(request):
                                     cur.execute("""
                                         INSERT INTO note_bulletin
                                             (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                             note, maxima, source_type, date_calcul, id_etablissement)
-                                        VALUES (%s, %s, %s, %s, %s, %s, 'HERITAGE', NOW(), %s)
+                                             note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                                        VALUES (%s, %s, %s, %s, %s, %s, 'HERITAGE', NOW(), %s, %s)
                                         ON DUPLICATE KEY UPDATE
                                             note = VALUES(note), maxima = VALUES(maxima),
                                             date_calcul = NOW(), updated_at = NOW()
-                                    """, [eleve_id, cours_id, config.id, nt_id, note_val, heritage_max, etab_id])
+                                    """, [eleve_id, cours_id, config.id, nt_id, note_val, heritage_max, etab_id, etab.pays_id])
                                     calculated += 1
 
                     elif en.source_type == 'FORMULE':
@@ -10897,12 +10898,12 @@ def calculate_notes_bulletin(request):
                                     cur.execute("""
                                         INSERT INTO note_bulletin
                                             (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                             note, maxima, source_type, date_calcul, id_etablissement)
-                                        VALUES (%s, %s, %s, %s, %s, %s, 'FORMULE', NOW(), %s)
+                                             note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                                        VALUES (%s, %s, %s, %s, %s, %s, 'FORMULE', NOW(), %s, %s)
                                         ON DUPLICATE KEY UPDATE
                                             note = VALUES(note), maxima = VALUES(maxima),
                                             date_calcul = NOW(), updated_at = NOW()
-                                    """, [eleve_id, cours_id, config.id, nt_id, note_val, total_max_val, etab_id])
+                                    """, [eleve_id, cours_id, config.id, nt_id, note_val, total_max_val, etab_id, etab.pays_id])
                                     calculated += 1
 
             conn.commit()
@@ -11112,12 +11113,12 @@ def sync_all_notes_bulletin(request):
                             cur.execute("""
                                 INSERT INTO note_bulletin
                                     (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                     note, maxima, source_type, date_calcul, id_etablissement)
-                                VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', NOW(), %s)
+                                     note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                                VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', NOW(), %s, %s)
                                 ON DUPLICATE KEY UPDATE
                                     note = VALUES(note), maxima = VALUES(maxima),
                                     date_calcul = NOW(), updated_at = NOW()
-                            """, [eleve_id, cours_id, config_id, tj_nt_id, scaled, period_max, etab_id])
+                            """, [eleve_id, cours_id, config_id, tj_nt_id, scaled, period_max, etab_id, etab.pays_id])
                             calculated += 1
 
                 # ============================================
@@ -11190,12 +11191,12 @@ def sync_all_notes_bulletin(request):
                                     cur.execute("""
                                         INSERT INTO note_bulletin
                                             (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                             note, maxima, source_type, date_calcul, id_etablissement)
-                                        VALUES (%s, %s, %s, %s, %s, %s, 'HERITAGE', NOW(), %s)
+                                             note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                                        VALUES (%s, %s, %s, %s, %s, %s, 'HERITAGE', NOW(), %s, %s)
                                         ON DUPLICATE KEY UPDATE
                                             note = VALUES(note), maxima = VALUES(maxima),
                                             date_calcul = NOW(), updated_at = NOW()
-                                    """, [eleve_id, cours_id, config_id, tj_nt_id, note_val, heritage_max, etab_id])
+                                    """, [eleve_id, cours_id, config_id, tj_nt_id, note_val, heritage_max, etab_id, etab.pays_id])
                                     calculated += 1
 
                     # --- TOTAL FORMULE: TJ + EX = TOTAL ---
@@ -11224,12 +11225,12 @@ def sync_all_notes_bulletin(request):
                                         cur.execute("""
                                             INSERT INTO note_bulletin
                                                 (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                                 note, maxima, source_type, date_calcul, id_etablissement)
-                                            VALUES (%s, %s, %s, %s, %s, %s, 'FORMULE', NOW(), %s)
+                                                 note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                                            VALUES (%s, %s, %s, %s, %s, %s, 'FORMULE', NOW(), %s, %s)
                                             ON DUPLICATE KEY UPDATE
                                                 note = VALUES(note), maxima = VALUES(maxima),
                                                 date_calcul = NOW(), updated_at = NOW()
-                                        """, [eleve_id, cours_id, config_id, tot_nt_id, note_val, total_max_val, etab_id])
+                                        """, [eleve_id, cours_id, config_id, tot_nt_id, note_val, total_max_val, etab_id, etab.pays_id])
                                         calculated += 1
 
             conn.commit()
@@ -11480,13 +11481,13 @@ def save_exam_notes(request):
                     cur.execute("""
                         INSERT INTO note_bulletin
                             (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                             note, maxima, source_type, date_calcul, id_etablissement)
-                        VALUES (%s, %s, %s, %s, %s, %s, 'SAISIE_DIRECTE', NOW(), %s)
+                             note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                        VALUES (%s, %s, %s, %s, %s, %s, 'SAISIE_DIRECTE', NOW(), %s, %s)
                         ON DUPLICATE KEY UPDATE
                             note = VALUES(note), maxima = VALUES(maxima),
                             source_type = 'SAISIE_DIRECTE',
                             date_calcul = NOW(), updated_at = NOW()
-                    """, [eleve_id, cours_annee_id, config.id, ex_nt_id, note_float, maxima_val, etab_id])
+                    """, [eleve_id, cours_annee_id, config.id, ex_nt_id, note_float, maxima_val, etab_id, etab.pays_id])
                     saved += 1
 
             conn.commit()
@@ -13952,14 +13953,14 @@ def execute_deliberation(request):
                             INSERT INTO deliberation_periodique_resultats
                             (id_eleve_id, idCampus_id, id_annee_id, id_cycle_id, classe_id,
                              groupe, section_id,
-                             id_trimestre_id, id_periode_id, pourcentage, place, date_creation, id_etablissement)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURDATE(), %s)
+                             id_trimestre_id, id_periode_id, pourcentage, place, date_creation, id_etablissement, id_pays)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURDATE(), %s, %s)
                             ON DUPLICATE KEY UPDATE
                                 pourcentage=VALUES(pourcentage), place=VALUES(place)
                         """, [r['id_eleve'], campus_id, annee.pk, cycle_id,
                               eac.classe_id, eac.groupe, eac.section_id,
                               int(repartition_id), int(repartition_id),
-                              r['pourcentage'], r['place'], etab.id_etablissement])
+                              r['pourcentage'], r['place'], etab.id_etablissement, etab.pays_id])
                     saved_count += 1
                 except Exception as save_err:
                     logging.getLogger(__name__).error(f"Save error periode eleve {r['id_eleve']}: {save_err}")
@@ -13973,14 +13974,14 @@ def execute_deliberation(request):
                             INSERT INTO deliberation_trimistrielle_resultats
                             (id_eleve_id, idCampus_id, id_annee_id, id_cycle_id, classe_id,
                              groupe, section_id,
-                             id_trimestre_id, pourcentage, place, date_creation, id_etablissement)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURDATE(), %s)
+                             id_trimestre_id, pourcentage, place, date_creation, id_etablissement, id_pays)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURDATE(), %s, %s)
                             ON DUPLICATE KEY UPDATE
                                 pourcentage=VALUES(pourcentage), place=VALUES(place)
                         """, [r['id_eleve'], campus_id, annee.pk, cycle_id,
                               eac.classe_id, eac.groupe, eac.section_id,
                               int(repartition_id),
-                              r['pourcentage'], r['place'], etab.id_etablissement])
+                              r['pourcentage'], r['place'], etab.id_etablissement, etab.pays_id])
                     saved_count += 1
                 except Exception as save_err:
                     logging.getLogger(__name__).error(f"Save error trimestre eleve {r['id_eleve']}: {save_err}")
