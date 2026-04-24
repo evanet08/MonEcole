@@ -319,7 +319,8 @@ class CoursAnnee(models.Model):
 # --- MODÈLES HUB SUPPLÉMENTAIRES (Cours/Domaines/Sections) ---
 
 class TypeSubdivision(models.Model):
-    id_type = models.AutoField(primary_key=True)
+    id = models.BigAutoField(primary_key=True)
+    id_type = models.IntegerField()  # business key, per-country
     nom = models.CharField(max_length=50)
     pays = models.ForeignKey(Pays, on_delete=models.CASCADE, related_name='type_subdivisions')
 

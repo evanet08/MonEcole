@@ -2124,11 +2124,14 @@ def save_type_subdivision(request):
             return JsonResponse({'success': False, 'error': 'Nom et id_pays requis.'}, status=400)
         pays = get_object_or_404(Pays, id_pays=id_pays)
         if id_type:
-            t = get_object_or_404(TypeSubdivision, id_type=id_type)
+            t = get_object_or_404(TypeSubdivision, id_type=id_type, pays=pays)
             t.nom = nom
             t.save()
         else:
-            t = TypeSubdivision.objects.create(pays=pays, nom=nom)
+            # Auto-assign id_type per-country
+            from django.db.models import Max
+            max_id = TypeSubdivision.objects.filter(pays=pays).aggregate(m=Max('id_type'))['m'] or 0
+            t = TypeSubdivision.objects.create(pays=pays, nom=nom, id_type=max_id + 1)
         return JsonResponse({'success': True, 'id_type': t.id_type, 'nom': t.nom})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
@@ -2140,7 +2143,12 @@ def delete_type_subdivision(request):
     try:
         data = json.loads(request.body)
         id_type = data.get('id_type')
-        get_object_or_404(TypeSubdivision, id_type=id_type).delete()
+        id_pays = data.get('id_pays')
+        pays = get_object_or_404(Pays, id_pays=id_pays) if id_pays else None
+        filters = {'id_type': id_type}
+        if pays:
+            filters['pays'] = pays
+        get_object_or_404(TypeSubdivision, **filters).delete()
         return JsonResponse({'success': True})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
