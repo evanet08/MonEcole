@@ -826,6 +826,7 @@
 const REGIMES={{ regimes|safe }},COURS_DOMAINE={{ cours_domaine_json|safe }},TRIMESTRES={{ trimestres_json|safe }},ELEVES_STATS={{ eleves_stats_json|safe }},ELEVES_CLASSE={{ eleves_par_classe_json|safe }},ELEVES_CAMPUS={{ eleves_par_campus_json|safe }},ACTIVE_SECTION='{{ active_section }}';
 const ADMIN_TYPES={{ admin_types_json|safe }};
 const ADMIN_INSTANCES={{ admin_instances_json|safe }};
+window._adminInstancesData = ADMIN_INSTANCES;
 const REF_ADMIN='{{ etab.ref_administrative|default:"" }}';
 const PAYS_ID={{ etab.pays_id }};
 const REPARTITIONS_NOTES={{ repartitions_notes_json|safe }};
@@ -3887,16 +3888,49 @@ function closeGeoModal(){document.getElementById('geoModalOverlay').classList.re
 
 function initGeoMap(){
     if(_geoMap){_geoMap.invalidateSize();smartGeocode();return;}
-    const initLat=window._geoLat||(-2.8),initLng=window._geoLng||(25),initZoom=window._geoLat?14:6;
-    _geoMap=L.map('geoMapContainer',{scrollWheelZoom:true,maxBounds:L.latLngBounds([[-14,11],[6,32]]).pad(0.05),maxBoundsViscosity:1,minZoom:5,maxZoom:18}).setView([initLat,initLng],initZoom);
+
+    // ═══ Country-aware map config ═══
+    const GEO_CFG = {
+        1: { // Burundi
+            center: [-3.37, 29.36], zoom: 9, minZoom: 8,
+            bounds: [[-4.5, 28.9], [-2.3, 30.9]],
+            adm1Url: 'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/BDI/ADM1/geoBoundaries-BDI-ADM1_simplified.geojson',
+            countryLong: 'Burundi', iso: 'BI'
+        },
+        2: { // RD Congo
+            center: [-2.8, 25], zoom: 6, minZoom: 5,
+            bounds: [[-14, 11], [6, 32]],
+            adm1Url: 'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/COD/ADM1/geoBoundaries-COD-ADM1_simplified.geojson',
+            countryLong: 'Democratic Republic of the Congo', iso: 'CD'
+        }
+    };
+    const cfg = GEO_CFG[PAYS_ID] || GEO_CFG[2];
+    window._geoCfg = cfg; // expose for smartGeocode
+
+    // ═══ Smart initial position: use admin GPS if available ═══
+    let initLat = window._geoLat || 0, initLng = window._geoLng || 0, initZoom = 14;
+    if (!initLat && !initLng) {
+        // Try to get coords from admin cascade (deepest level with GPS first)
+        const adminCoords = getAdminCoordsFromCascade();
+        if (adminCoords) {
+            initLat = adminCoords.lat; initLng = adminCoords.lng;
+            initZoom = adminCoords.zoom;
+        } else {
+            initLat = cfg.center[0]; initLng = cfg.center[1]; initZoom = cfg.zoom;
+        }
+    }
+
+    _geoMap=L.map('geoMapContainer',{scrollWheelZoom:true,maxBounds:L.latLngBounds(cfg.bounds).pad(0.05),maxBoundsViscosity:1,minZoom:cfg.minZoom,maxZoom:18}).setView([initLat,initLng],initZoom);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© CARTO',maxZoom:18,subdomains:'abcd'}).addTo(_geoMap);
-    // Load province boundaries
-    fetch('https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/COD/ADM1/geoBoundaries-COD-ADM1_simplified.geojson')
+
+    // Load province boundaries (country-aware)
+    fetch(cfg.adm1Url)
     .then(r=>r.json()).then(g=>{
         L.geoJSON(g,{style:{color:'#3b82f6',weight:1.5,fillColor:'#3b82f6',fillOpacity:0.04,opacity:0.5},
             onEachFeature:(f,layer)=>layer.bindTooltip(f.properties.shapeName||f.properties.NAME_1||'',{permanent:false,direction:'center',className:'province-tooltip'})
         }).addTo(_geoMap);
     }).catch(e=>console.warn('ADM1 geo:',e));
+
     // Existing marker
     if(window._geoLat&&window._geoLng){
         _geoMarker=L.marker([window._geoLat,window._geoLng],{draggable:true}).addTo(_geoMap);
@@ -3914,6 +3948,47 @@ function initGeoMap(){
     smartGeocode();
 }
 
+/**
+ * Extract GPS coordinates from admin structures in the cascade.
+ * Uses the admin_instances_json data to find coords for each level
+ * of the ref_administrative, from deepest to shallowest.
+ */
+function getAdminCoordsFromCascade(){
+    const selections = (typeof adminState !== 'undefined') ? adminState.selected : {};
+    const adminData = (typeof ADMIN_INSTANCES !== 'undefined') ? ADMIN_INSTANCES : {};
+    const zoomByDepth = {1: 10, 2: 12, 3: 13, 4: 15, 5: 16};
+
+    // Walk from deepest ordre to shallowest
+    const ordres = Object.keys(selections).filter(k=>selections[k] && selections[k].id != null).map(Number).sort((a,b)=>b-a);
+    for (const ordre of ordres) {
+        const sel = selections[ordre];
+        if (!sel || sel.id == null) continue;
+        // Find this instance in the data to check if it has GPS
+        const instances = adminData[ordre] || [];
+        const inst = instances.find(i => i.id === sel.id);
+        if (inst && (inst.lat || inst.lng) && (inst.lat !== 0 || inst.lng !== 0)) {
+            return {lat: inst.lat, lng: inst.lng, zoom: zoomByDepth[ordre] || 13, name: inst.nom};
+        }
+    }
+
+    // Fallback: walk the ref_administrative string
+    const refEl = document.getElementById('refAdminInput');
+    if (refEl && refEl.value) {
+        const parts = refEl.value.split('-').map(s=>s.trim()).filter(Boolean);
+        for (let i = parts.length - 1; i >= 0; i--) {
+            const id = parseInt(parts[i]);
+            if (isNaN(id)) continue;
+            const ordre = i + 1;
+            const instances = adminData[ordre] || [];
+            const inst = instances.find(ii => ii.id === id);
+            if (inst && (inst.lat || inst.lng) && (inst.lat !== 0 || inst.lng !== 0)) {
+                return {lat: inst.lat, lng: inst.lng, zoom: zoomByDepth[ordre] || 13, name: inst.nom};
+            }
+        }
+    }
+    return null;
+}
+
 /* ═══ SMART GEOCODING with Nominatim ═══ */
 async function smartGeocode(){
     if(window._geoLat&&window._geoLng) return; // Already has coords, don't override
@@ -3922,10 +3997,10 @@ async function smartGeocode(){
     const rue=document.getElementById('inputNomRue')?.value?.trim()||'';
     const num=document.getElementById('inputNumeroRue')?.value?.trim()||'';
 
-    // Detect country from PAYS context (dynamic)
-    const paysEl=document.querySelector('[data-pays-nom]');
-    const country=paysEl?paysEl.dataset.paysNom:'{{ etab.pays_nom|default:"Congo" }}';
-    const countryLong=country.includes('Congo')?'Democratic Republic of the Congo':country;
+    // Detect country from dynamic config
+    const cfg = window._geoCfg || {countryLong: 'Democratic Republic of the Congo', iso: 'CD'};
+    const countryLong = cfg.countryLong;
+    const countryCode = cfg.iso;
 
     // Build admin chain string: [deepest, ..., shallowest]
     // e.g. ["Muhumba1", "Ibanda", "Bukavu", "Sud-Kivu"]
@@ -3948,9 +4023,6 @@ async function smartGeocode(){
 
     // Zoom mapping based on depth
     const zoomMap={rue:17, local:15, city:12, region:9};
-
-    const PAYS_ISO_MAP = {2: 'CD'};  // id_pays → ISO 3166-1 alpha-2
-    const countryCode = PAYS_ISO_MAP[{{ etab.pays_id|default:"2" }}] || 'CD';
 
     let bestResult=null, bestZoom=6, bestQuery='', bestDepth='';
     for(const entry of queries){

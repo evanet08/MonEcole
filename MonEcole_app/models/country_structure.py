@@ -542,6 +542,8 @@ class AdministrativeStructureInstance(models.Model):
     ordre = models.PositiveIntegerField()
     pays = models.ForeignKey(Pays, on_delete=models.CASCADE, related_name='admin_instances')
     code = models.CharField(max_length=255, blank=True, default='')
+    latitude = models.FloatField(default=0.0)
+    longitude = models.FloatField(default=0.0)
 
     class Meta:
         db_table = 'administrativeStructures'

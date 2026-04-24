@@ -7095,7 +7095,7 @@ def dashboard_etablissement_view(request):
     admin_instances_by_ordre = {}
     all_admin_instances = AdministrativeStructureInstance.objects.filter(
         pays=pays
-    ).order_by('ordre', 'nom').values('id_structure', 'nom', 'ordre', 'code')
+    ).order_by('ordre', 'nom').values('id_structure', 'nom', 'ordre', 'code', 'latitude', 'longitude')
     for inst in all_admin_instances:
         o = inst['ordre']
         if o not in admin_instances_by_ordre:
@@ -7104,6 +7104,8 @@ def dashboard_etablissement_view(request):
             'id': inst['id_structure'],
             'nom': inst['nom'],
             'code': inst['code'],
+            'lat': float(inst.get('latitude') or 0),
+            'lng': float(inst.get('longitude') or 0),
         })
 
     # --- Cross-database student/teacher stats from db_monecole ---
