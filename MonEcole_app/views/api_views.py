@@ -1854,8 +1854,8 @@ def get_cycles_data(request):
         
         results = []
         for c in cycles:
-            # Classes belong directly to cycles — limited by duree
-            all_classes_qs = Classe.objects.filter(cycle_id=c.id, id_pays=pays.id_pays).order_by('ordre')
+            # Classes belong directly to cycles — cycle FK already scopes by country
+            all_classes_qs = Classe.objects.filter(cycle_id=c.id).order_by('ordre')
             all_classes = [{'id_classe': c2.id_classe, 'nom': c2.classe, 'ordre': c2.ordre} for c2 in all_classes_qs]
             # Respect the duree limit: only return up to 'duree' classes per cycle
             if c.duree and c.duree > 0:
@@ -2429,7 +2429,7 @@ def get_cours_data(request):
                     id__in=activated_classe_ids, cycle_id=cycle.id
                 ).order_by('ordre')
             else:
-                cycle_classes = Classe.objects.filter(cycle_id=cycle.id, id_pays=pays.id_pays).order_by('ordre')
+                cycle_classes = Classe.objects.filter(cycle_id=cycle.id).order_by('ordre')
             if cycle.duree and cycle.duree > 0:
                 cycle_classes = cycle_classes[:cycle.duree]
             
@@ -2480,7 +2480,7 @@ def get_cours_data(request):
             _domaine_map = {d['id_domaine']: d['nom'] for d in Domaine.objects.filter(pays=pays).values('id_domaine', 'nom')}
         _section_map = {}
         if Section:
-            _section_map = {s['id_section']: s['nom'] for s in Section.objects.all().values('id_section', 'nom')}
+            _section_map = {s['id_section']: s['nom'] for s in Section.objects.filter(id_pays=pays.id_pays).values('id_section', 'nom')}
 
         cours_data = []
         for c in cours_qs:
@@ -3817,7 +3817,7 @@ def save_etablissement_config(request):
             section_id = item.get('section_id')
             groupes = item.get('groupes', [])  # List of group letters, e.g. ['A', 'B', 'C'] or []
             
-            classe = Classe.objects.filter(id_classe=classe_id, id_pays=etablissement.pays_id).first()
+            classe = Classe.objects.filter(id_classe=classe_id).first()
             if not classe:
                 continue  # Skip unknown classes silently
             section = None
@@ -3852,7 +3852,7 @@ def save_etablissement_config(request):
             # 1. Collect distinct cycle IDs from saved classes
             activated_cycle_ids = set()
             for item in classes_config:
-                classe = Classe.objects.filter(id_classe=item.get('classe_id'), id_pays=etablissement.pays_id).select_related('cycle').first()
+                classe = Classe.objects.filter(id_classe=item.get('classe_id')).select_related('cycle').first()
                 if classe:
                     activated_cycle_ids.add(classe.cycle_id)
             
@@ -12347,7 +12347,7 @@ def save_cours(request):
         if Cours is None:
             return JsonResponse({'success': False, 'error': 'Modèle Cours non disponible.'}, status=500)
 
-        classe = Classe.objects.filter(id_classe=id_classe, id_pays=id_pays).first()
+        classe = Classe.objects.filter(id_classe=id_classe).first()
         if not classe:
             return JsonResponse({'success': False, 'error': 'Classe introuvable.'}, status=404)
         # domaine_id and section_id are IntegerFields on Cours, not FKs
