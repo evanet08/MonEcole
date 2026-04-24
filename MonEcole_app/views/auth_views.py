@@ -275,7 +275,7 @@ def _check_hub_admin(email, etab_id, pays_id=None):
     return False, None, None
 
 
-def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, password=None):
+def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, password=None, pays_id=None):
     """
     Auto-crée un personnel + user_module pour un utilisateur Hub
     s'ils n'existent pas encore dans le spoke.
@@ -290,13 +290,26 @@ def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, pass
     hub_email_verified = (hub_info or {}).get('email_verified', False) if hub_info else False
     hub_phone_verified = (hub_info or {}).get('phone_verified', False) if hub_info else False
 
-    # 1. Chercher le personnel existant par email
-    try:
-        personnel = Personnel.objects.get(email__iexact=email, id_etablissement=etab_id)
-    except Personnel.DoesNotExist:
-        # Chercher sans filtre etab
+    # Résoudre pays_id dynamiquement depuis le Hub si non fourni
+    if not pays_id:
         try:
-            personnel = Personnel.objects.get(email__iexact=email)
+            from MonEcole_app.models.country_structure import Etablissement as _ProvEtab
+            _prov_etab = _ProvEtab.objects.filter(id_etablissement=etab_id).first()
+            if _prov_etab:
+                pays_id = _prov_etab.pays_id
+        except Exception:
+            pass
+
+    # 1. Chercher le personnel existant par email + établissement + pays
+    try:
+        pers_filter = {'email__iexact': email, 'id_etablissement': etab_id}
+        if pays_id:
+            pers_filter['id_pays'] = pays_id
+        personnel = Personnel.objects.get(**pers_filter)
+    except Personnel.DoesNotExist:
+        # Chercher par email + etab sans pays
+        try:
+            personnel = Personnel.objects.get(email__iexact=email, id_etablissement=etab_id)
         except (Personnel.DoesNotExist, Personnel.MultipleObjectsReturned):
             personnel = None
 
@@ -340,13 +353,13 @@ def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, pass
                     genre, id_etablissement, id_diplome_id, id_specialite_id,
                     id_categorie_id, id_vacation_id, id_personnel_type_id,
                     isUser, is_verified, en_fonction, email_verified, phone_verified,
-                    telephone, date_creation
+                    telephone, date_creation, id_pays
                 ) VALUES (
                     %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s,
                     %s, %s, %s,
                     1, 1, 1, %s, %s,
-                    %s, CURDATE()
+                    %s, CURDATE(), %s
                 )
             """, [
                 username, email.lower(), '', 'Admin' if is_super else '', '',
@@ -357,6 +370,7 @@ def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, pass
                 1 if hub_email_verified else 0,
                 1 if hub_phone_verified else 0,
                 hub_telephone or '',
+                pays_id,
             ])
             new_id = cur.lastrowid
             # Fix matricule
@@ -396,12 +410,18 @@ def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, pass
 
     # 4. Créer user_module
     # Résoudre le pays_id pour filtrer l'année
-    from MonEcole_app.models.country_structure import Etablissement as _Etab
-    _etab_obj = _Etab.objects.filter(id_etablissement=etab_id).first()
-    if _etab_obj and _etab_obj.pays_id:
-        annee = Annee.objects.filter(pays_id=_etab_obj.pays_id).order_by('-annee').first()
+    if pays_id:
+        annee = Annee.objects.filter(pays_id=pays_id).order_by('-annee').first()
     else:
-        annee = Annee.objects.order_by('-annee').first()
+        from MonEcole_app.models.country_structure import Etablissement as _Etab
+        _etab_filter = {'id_etablissement': etab_id}
+        if pays_id:
+            _etab_filter['pays_id'] = pays_id
+        _etab_obj = _Etab.objects.filter(**_etab_filter).first()
+        if _etab_obj and _etab_obj.pays_id:
+            annee = Annee.objects.filter(pays_id=_etab_obj.pays_id).order_by('-annee').first()
+        else:
+            annee = Annee.objects.order_by('-annee').first()
     annee_id = annee.id_annee if annee else 1
 
     if is_super:
@@ -439,9 +459,9 @@ def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, pass
 
 
 # Rétro-compatibilité
-def _auto_provision_super_admin(email, etab_id, password=None):
+def _auto_provision_super_admin(email, etab_id, password=None, pays_id=None):
     """Wrapper rétro-compatible."""
-    return _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=True, password=password)
+    return _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=True, password=password, pays_id=pays_id)
 
 
 @csrf_exempt
@@ -482,7 +502,7 @@ def check_email(request):
             if found:
                 is_hub_user = True
                 personnel = _auto_provision_hub_user(
-                    email, etab_id, hub_info=hub_info, is_super=is_super
+                    email, etab_id, hub_info=hub_info, is_super=is_super, pays_id=id_pays
                 )
             else:
                 return JsonResponse({
@@ -497,7 +517,7 @@ def check_email(request):
             if found:
                 is_hub_user = True
                 _auto_provision_hub_user(
-                    email, etab_id, hub_info=hub_info, is_super=is_super
+                    email, etab_id, hub_info=hub_info, is_super=is_super, pays_id=id_pays
                 )
                 personnel.refresh_from_db()
 
@@ -842,7 +862,7 @@ def api_login(request):
             if found:
                 is_hub_user = True
                 personnel = _auto_provision_hub_user(
-                    email, etab_id, hub_info=hub_info, is_super=is_super, password=password
+                    email, etab_id, hub_info=hub_info, is_super=is_super, password=password, pays_id=id_pays
                 )
             else:
                 return JsonResponse({'success': False, 'error': 'Identifiants incorrects'}, status=401)
@@ -851,7 +871,7 @@ def api_login(request):
             if found:
                 is_hub_user = True
                 _auto_provision_hub_user(
-                    email, etab_id, hub_info=hub_info, is_super=is_super
+                    email, etab_id, hub_info=hub_info, is_super=is_super, pays_id=id_pays
                 )
                 personnel.refresh_from_db()
 
