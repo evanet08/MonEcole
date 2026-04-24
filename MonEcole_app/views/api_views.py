@@ -4206,7 +4206,7 @@ def dashboard_add_eleve(request):
                         parent_data.get('nomsMere') or None,
                         parent_data.get('telephoneMere') or None,
                         parent_data.get('emailMere') or None,
-                        int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2),
+                        int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 0),
                     ])
                     id_parent = cur.lastrowid
 
@@ -4220,7 +4220,7 @@ def dashboard_add_eleve(request):
                     numero_serie or None, full_nom, prenom, genre, date_naissance, id_etablissement,
                     telephone or None, id_parent or None,
                     ref_administrative_naissance or None, ref_administrative_residence or None,
-                    int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2),
+                    int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 0),
                     id_national or None
                 ])
                 id_eleve = cur.lastrowid
@@ -4237,7 +4237,7 @@ def dashboard_add_eleve(request):
                     ca['id_annee_id'], ca['idCampus_id'], ca['classe_id'],
                     ca['groupe'], ca['section_id'], ca['cycle_id'],
                     id_eleve, id_etablissement,
-                    int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2)
+                    int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 0)
                 ])
                 cur.execute("SET FOREIGN_KEY_CHECKS=1")
 
@@ -5616,7 +5616,7 @@ def dashboard_upload_photo(request):
                     conn.rollback()  # Column already exists, ignore
                 cur.execute("UPDATE eleve SET imageUrl=%s WHERE id_eleve=%s AND id_pays=%s",
                             [image_url, id_eleve,
-                             int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2)])
+                             int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 0)])
                 conn.commit()
             return JsonResponse({'success': True, 'imageUrl': image_url})
         finally:
@@ -5859,7 +5859,7 @@ def dashboard_add_personnel(request):
                     'code_secret': None,
                     'codeAnnee': data.get('codeAnnee') or None,
                     'date_creation': __import__('datetime').date.today().strftime('%Y-%m-%d'),
-                    'id_pays': int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2),
+                    'id_pays': int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 0),
                 }
                 cols = ', '.join(fields.keys())
                 placeholders = ', '.join(['%s'] * len(fields))
@@ -5920,7 +5920,8 @@ def dashboard_update_personnel(request):
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
-                cur.execute(f"UPDATE personnel SET {field}=%s WHERE id_personnel=%s", [value, id_personnel])
+                id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
+                cur.execute(f"UPDATE personnel SET {field}=%s WHERE id_personnel=%s AND id_pays=%s", [value, id_personnel, id_pays])
                 conn.commit()
             return JsonResponse({'success': True})
         finally:
@@ -5960,7 +5961,8 @@ def dashboard_upload_personnel_photo(request):
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
-                cur.execute("UPDATE personnel SET imageUrl=%s WHERE id_personnel=%s", [filename, id_personnel])
+                id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
+                cur.execute("UPDATE personnel SET imageUrl=%s WHERE id_personnel=%s AND id_pays=%s", [filename, id_personnel, id_pays])
                 conn.commit()
             return JsonResponse({'success': True, 'imageUrl': image_url})
         finally:
@@ -6193,12 +6195,13 @@ def dashboard_import_personnel(request):
                     email = get_val('email')
 
                     try:
-                        # Check if personnel already exists (nom + prenom + etablissement)
+                        # Check if personnel already exists (nom + prenom + etablissement + pays)
+                        id_pays = int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 0)
                         cur.execute("""
                             SELECT id_personnel FROM personnel
-                            WHERE nom = %s AND prenom = %s AND id_etablissement = %s
+                            WHERE nom = %s AND prenom = %s AND id_etablissement = %s AND id_pays = %s
                             LIMIT 1
-                        """, [nom, prenom, id_etablissement])
+                        """, [nom, prenom, id_etablissement, id_pays])
                         existing = cur.fetchone()
 
                         if existing:
@@ -6222,8 +6225,8 @@ def dashboard_import_personnel(request):
                             if email:
                                 set_parts.append("email = %s"); set_vals.append(email)
                             if set_parts:
-                                set_vals.append(existing['id_personnel'])
-                                cur.execute(f"UPDATE personnel SET {', '.join(set_parts)} WHERE id_personnel = %s", set_vals)
+                                set_vals.extend([existing['id_personnel'], id_pays])
+                                cur.execute(f"UPDATE personnel SET {', '.join(set_parts)} WHERE id_personnel = %s AND id_pays = %s", set_vals)
                             updated += 1
                         else:
                             # INSERT new personnel directly (no auth_user)
@@ -6275,6 +6278,7 @@ def dashboard_import_personnel(request):
                                 'code_secret': None,
                                 'codeAnnee': None,
                                 'date_creation': __import__('datetime').date.today().strftime('%Y-%m-%d'),
+                                'id_pays': id_pays,
                             }
                             cols = ', '.join(fields.keys())
                             placeholders = ', '.join(['%s'] * len(fields))
@@ -13215,11 +13219,16 @@ def eleve_documents_api(request):
 # GESTION DES UTILISATEURS & DROITS
 # ============================================================
 
-def _get_admin_email_for_etab(etab_id):
-    """Récupère l'admin_email depuis le Hub pour l'établissement."""
+def _get_admin_email_for_etab(etab_id, pays_id=None):
+    """Récupère l'admin_email depuis le Hub pour l'établissement (scoped par pays_id)."""
     try:
         with connections['countryStructure'].cursor() as cur:
-            cur.execute("SELECT admin_email FROM etablissements WHERE id_etablissement=%s", [etab_id])
+            sql = "SELECT admin_email FROM etablissements WHERE id_etablissement=%s"
+            params = [etab_id]
+            if pays_id:
+                sql += " AND pays_id=%s"
+                params.append(pays_id)
+            cur.execute(sql, params)
             row = cur.fetchone()
             return row[0] if row else None
     except Exception:
@@ -13237,21 +13246,22 @@ def dashboard_users_list(request):
         etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
         if not etab_id:
             return JsonResponse({'success': False, 'error': 'Pas de tenant'}, status=400)
+        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
 
-        admin_email = _get_admin_email_for_etab(etab_id)
+        admin_email = _get_admin_email_for_etab(etab_id, pays_id=id_pays)
 
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
-                # Tous les personnels en fonction pour cet établissement
+                # Tous les personnels en fonction pour cet établissement (filtré par pays)
                 cur.execute("""
                     SELECT p.id_personnel, p.email, p.prenom as first_name, p.nom as last_name,
                            p.matricule, p.isUser, p.is_verified, p.en_fonction,
                            p.telephone, p.id_personnel as personnel_id
                     FROM personnel p
-                    WHERE p.id_etablissement = %s
+                    WHERE p.id_etablissement = %s AND p.id_pays = %s
                     ORDER BY p.nom, p.prenom
-                """, [etab_id])
+                """, [etab_id, id_pays])
                 personnels = cur.fetchall()
 
                 # Tous les modules
@@ -13324,6 +13334,7 @@ def dashboard_users_toggle(request):
         etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
         if not etab_id:
             return JsonResponse({'success': False, 'error': 'Pas de tenant'}, status=400)
+        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
 
         data = json.loads(request.body)
         pid = data.get('id_personnel')
@@ -13334,14 +13345,14 @@ def dashboard_users_toggle(request):
             return JsonResponse({'success': False, 'error': 'id_personnel requis'}, status=400)
 
         # Vérifier que ce n'est pas le super admin
-        admin_email = _get_admin_email_for_etab(etab_id)
+        admin_email = _get_admin_email_for_etab(etab_id, pays_id=id_pays)
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT p.email FROM personnel p
-                    WHERE p.id_personnel = %s
-                """, [pid])
+                    WHERE p.id_personnel = %s AND p.id_pays = %s
+                """, [pid, id_pays])
                 row = cur.fetchone()
                 if row and admin_email and row['email'].lower() == admin_email.lower():
                     return JsonResponse({
@@ -13359,8 +13370,8 @@ def dashboard_users_toggle(request):
                     params.append(1 if is_verified else 0)
 
                 if updates:
-                    params.append(pid)
-                    cur.execute(f"UPDATE personnel SET {', '.join(updates)} WHERE id_personnel = %s", params)
+                    params.extend([pid, id_pays])
+                    cur.execute(f"UPDATE personnel SET {', '.join(updates)} WHERE id_personnel = %s AND id_pays = %s", params)
                     conn.commit()
 
             return JsonResponse({'success': True})
@@ -13384,6 +13395,7 @@ def dashboard_users_modules(request):
         etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
         if not etab_id:
             return JsonResponse({'success': False, 'error': 'Pas de tenant'}, status=400)
+        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
 
         data = json.loads(request.body)
         pid = data.get('id_personnel')
@@ -13393,14 +13405,14 @@ def dashboard_users_modules(request):
             return JsonResponse({'success': False, 'error': 'id_personnel requis'}, status=400)
 
         # Vérifier que ce n'est pas le super admin
-        admin_email = _get_admin_email_for_etab(etab_id)
+        admin_email = _get_admin_email_for_etab(etab_id, pays_id=id_pays)
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT p.email FROM personnel p
-                    WHERE p.id_personnel = %s
-                """, [pid])
+                    WHERE p.id_personnel = %s AND p.id_pays = %s
+                """, [pid, id_pays])
                 row = cur.fetchone()
                 if row and admin_email and row['email'].lower() == admin_email.lower():
                     return JsonResponse({
@@ -13413,9 +13425,9 @@ def dashboard_users_modules(request):
                 with db_connections['countryStructure'].cursor() as hub_cur:
                     hub_cur.execute("""
                         SELECT id_annee FROM annees
-                        WHERE isOpen = 1
+                        WHERE isOpen = 1 AND pays_id = %s
                         ORDER BY annee DESC LIMIT 1
-                    """)
+                    """, [id_pays])
                     hub_row = hub_cur.fetchone()
                     annee_id = hub_row[0] if hub_row else 1
 
@@ -13450,8 +13462,8 @@ def dashboard_users_modules(request):
                 if cnt > 0:
                     cur.execute("""
                         UPDATE personnel SET isUser=1, is_verified=1
-                        WHERE id_personnel=%s
-                    """, [pid])
+                        WHERE id_personnel=%s AND id_pays=%s
+                    """, [pid, id_pays])
                     conn.commit()
 
             return JsonResponse({'success': True})
