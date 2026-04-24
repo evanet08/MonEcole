@@ -1878,13 +1878,11 @@ def get_cycles_data(request):
             
             # For cycles with sections, include sections filtered by type
             if c.hasSections:
-                # Filter sections by the cycle's labelSection type
+                # Filter sections by the cycle's labelSection type + pays
+                sec_filters = {'id_pays': pays.id_pays}
                 if c.labelSection_id:
-                    cycle_sections = Section.objects.filter(
-                        type_subdivision_id=c.labelSection_id
-                    ).values('id_section', 'nom', 'code')
-                else:
-                    cycle_sections = Section.objects.all().values('id_section', 'nom', 'code')
+                    sec_filters['type_subdivision_id'] = c.labelSection_id
+                cycle_sections = Section.objects.filter(**sec_filters).values('id_section', 'nom', 'code')
                 
                 sections_with_classes = []
                 for section in cycle_sections:
@@ -1952,6 +1950,8 @@ def delete_cycle(request):
     try:
         data = json.loads(request.body)
         id_cycle = data.get('id_cycle')
+        id_pays = data.get('id_pays')
+        pays = get_object_or_404(Pays, id_pays=id_pays)
         get_object_or_404(Cycle, id_cycle=id_cycle, pays_id=pays.id_pays).delete()
         return JsonResponse({'success': True})
     except Exception as e:
@@ -1968,6 +1968,7 @@ def save_section(request):
         code = data.get('code')
         type_subdivision_id = data.get('type_subdivision_id')
         
+        id_pays = data.get('id_pays')
         if id_section:
             s = get_object_or_404(Section, id_section=id_section)
             s.nom = nom
@@ -1978,7 +1979,8 @@ def save_section(request):
         else:
             Section.objects.create(
                 nom=nom, code=code,
-                type_subdivision_id=int(type_subdivision_id) if type_subdivision_id else None
+                type_subdivision_id=int(type_subdivision_id) if type_subdivision_id else None,
+                id_pays=id_pays
             )
         return JsonResponse({'success': True})
     except Exception as e:
@@ -2075,8 +2077,9 @@ def import_sections_excel(request):
                 continue
 
             try:
+                id_pays = request.POST.get('id_pays')
                 Section.objects.update_or_create(
-                    code=code,
+                    code=code, id_pays=id_pays,
                     defaults={
                         'nom': nom,
                         'type_subdivision_id': int(type_subdivision_id) if type_subdivision_id else None
@@ -2285,6 +2288,7 @@ def save_domaine(request):
         code = data.get('code', '').strip()
         sigle = data.get('sigle', '').strip()
 
+        id_pays = data.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
         if not nom:
             return JsonResponse({'success': False, 'error': 'Le nom du domaine est requis.'}, status=400)
 
@@ -2312,11 +2316,12 @@ def delete_domaine(request):
     """Supprime un domaine s'il n'est pas référencé."""
     try:
         data = json.loads(request.body)
+        id_pays = data.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
         domaine = get_object_or_404(Domaine, id_domaine=data.get('id_domaine'))
 
         # Vérifier s'il est utilisé dans des cours ou cours_annee
-        cours_count = Cours.objects.filter(domaine=domaine, id_pays=pays.id_pays).count()
-        ca_count = CoursAnnee.objects.filter(domaine=domaine, id_pays=pays.id_pays).count()
+        cours_count = Cours.objects.filter(domaine=domaine, id_pays=id_pays).count()
+        ca_count = CoursAnnee.objects.filter(domaine=domaine, id_pays=id_pays).count()
         if cours_count > 0 or ca_count > 0:
             return JsonResponse({
                 'success': False,
@@ -3689,7 +3694,10 @@ def get_sections_list(request):
     - type_id: filtrer par type_subdivision_id (1=Sections, 2=Filières)
     """
     try:
+        id_pays = request.GET.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
         sections = Section.objects.all().order_by('type_subdivision', 'code')
+        if id_pays:
+            sections = sections.filter(id_pays=id_pays)
         type_id = request.GET.get('type_id')
         if type_id:
             sections = sections.filter(type_subdivision_id=type_id)
@@ -3724,7 +3732,10 @@ def get_etablissement_config(request):
         etablissement = Etablissement.objects.filter(**etab_filters).first()
         if not etablissement:
             return JsonResponse({'success': False, 'error': f'Établissement {id_etablissement} introuvable'})
-        annee = Annee.objects.filter(id_annee=id_annee).first()
+        # Frontend sends annee_active.id (PK) — resolve robustly
+        annee = Annee.objects.filter(pk=id_annee).first()
+        if not annee and id_pays:
+            annee = Annee.objects.filter(id_annee=id_annee, pays_id=id_pays).first()
         if not annee:
             return JsonResponse({'success': False, 'error': f'Année {id_annee} introuvable'})
         
@@ -3777,7 +3788,10 @@ def save_etablissement_config(request):
         etablissement = Etablissement.objects.filter(**etab_filters).first()
         if not etablissement:
             return JsonResponse({'success': False, 'error': 'Établissement introuvable'})
-        annee = Annee.objects.filter(id_annee=id_annee).first()
+        # Frontend sends annee_active.id (PK) — resolve robustly
+        annee = Annee.objects.filter(pk=id_annee).first()
+        if not annee and id_pays:
+            annee = Annee.objects.filter(id_annee=id_annee, pays_id=id_pays).first()
         if not annee:
             return JsonResponse({'success': False, 'error': 'Année introuvable'})
         
@@ -7956,7 +7970,7 @@ def save_repartition_instance(request):
             return JsonResponse({'success': False, 'error': 'Type, nom et code requis.'}, status=400)
 
         rtype = get_object_or_404(RepartitionType, pk=type_id)
-        annee = Annee.objects.filter(id_annee=annee_id).first() if annee_id else None
+        annee = Annee.objects.filter(pk=annee_id).first() if annee_id else None
 
         if id_instance:
             obj = get_object_or_404(RepartitionInstance, pk=id_instance)
@@ -12520,7 +12534,7 @@ def save_cours_annee(request):
                 fields[f] = bool(data.get(f, False))
 
             cours = Cours.objects.filter(id_cours=cours_id, id_pays=id_pays).first()
-            annee = Annee.objects.filter(id_annee=annee_id).first()
+            annee = Annee.objects.filter(pk=annee_id).first()
             if not cours or not annee:
                 return JsonResponse({'success': False, 'error': 'Cours ou année introuvable.'}, status=404)
 
@@ -12574,7 +12588,7 @@ def bulk_activate_cours_annee(request):
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
             cours_catalogue = cours_catalogue.filter(section_id__isnull=True)
-        annee = Annee.objects.filter(id_annee=id_annee).first()
+        annee = Annee.objects.filter(pk=id_annee).first()
         if not annee:
             return JsonResponse({'success': False, 'error': 'Année introuvable.'}, status=404)
 
