@@ -1185,6 +1185,8 @@ function initAdminCascade(){
     // Show rue if all levels filled
     checkRueVisibility();
     checkGeoButton();
+    // Show progressive ref display
+    updateRefAdministrative();
     // Init rue autocomplete
     initRueAutocomplete();
 
@@ -1550,20 +1552,31 @@ function selectRue(name){
 }
 
 function updateRefAdministrative(){
-    const ids=[];
-    ADMIN_TYPES.forEach(t=>{
-        const s=adminState.selected[t.ordre];
-        if(s&&s.id)ids.push(s.id);
-    });
-    const ref=ids.join('-');
-    // Update right panel display
     const display=document.getElementById('refAdminDisplay');
-    if(display){
-        if(ref){
-            display.innerHTML=`<div class="fiche-field"><span class="fiche-label"><i class="fas fa-link fa-xs"></i> Réf. Administrative</span><div class="fiche-value" data-readonly="true" style="font-family:monospace;font-size:.7rem;color:#6366f1">${ref}</div></div>`;
-        }else{display.innerHTML=''}
-    }
-    // Also update left panel Localisation Géographique section dynamically
+    if(!display)return;
+    const total=ADMIN_TYPES.length;
+    let filledCount=0;
+    // Build progressive display: each level shows its id or a placeholder
+    let segments=[];
+    ADMIN_TYPES.forEach((t,i)=>{
+        const s=adminState.selected[t.ordre];
+        if(s&&s.id){
+            filledCount++;
+            segments.push(`<span style="color:#6366f1;font-weight:700">${s.id}</span>`);
+        }else{
+            segments.push(`<span style="color:#cbd5e1;font-weight:400" title="${t.nom}">···</span>`);
+        }
+    });
+    const isComplete=(filledCount===total);
+    const progressHtml=segments.join(`<span style="color:${isComplete?'#6366f1':'#94a3b8'};margin:0 1px">-</span>`);
+    const statusIcon=isComplete
+        ?`<i class="fas fa-check-circle" style="color:#10b981;font-size:.6rem;margin-right:4px"></i>`
+        :`<i class="fas fa-spinner" style="color:#f59e0b;font-size:.55rem;margin-right:4px"></i>`;
+    const statusText=isComplete
+        ?`<span style="color:#10b981;font-size:.55rem;font-weight:600">Complète</span>`
+        :`<span style="color:#94a3b8;font-size:.55rem">${filledCount}/${total}</span>`;
+    display.innerHTML=`<div class="fiche-field"><span class="fiche-label"><i class="fas fa-link fa-xs"></i> Réf. Administrative</span><div style="display:flex;align-items:center;gap:6px;margin-top:3px"><div style="font-family:monospace;font-size:.75rem;background:${isComplete?'#f0fdf4':'#f8fafc'};border:1.5px solid ${isComplete?'#86efac':'#e2e8f0'};border-radius:8px;padding:5px 10px;flex:1;letter-spacing:1px;transition:all .3s">${progressHtml}</div><div style="display:flex;align-items:center">${statusIcon}${statusText}</div></div></div>`;
+    // Also update left panel
     updateLeftLocalisationDisplay();
 }
 
