@@ -60,7 +60,7 @@ class Annee_trimestre(models.Model):
     debut = models.DateField(null=True, blank=True)
     fin = models.DateField(null=True, blank=True)
     isOpen = models.BooleanField(default=True, db_column='is_open')
-    id_pays = models.IntegerField(default=2)
+    id_pays = models.IntegerField(null=True, blank=True)
     date_creation = models.DateTimeField(db_column='created_at')
 
     class Meta:
@@ -97,7 +97,7 @@ class Annee_periode(models.Model):
     debut = models.DateField(null=True, blank=True)
     fin = models.DateField(null=True, blank=True)
     isOpen = models.BooleanField(default=True, db_column='is_open')
-    id_pays = models.IntegerField(default=2)
+    id_pays = models.IntegerField(null=True, blank=True)
     date_creation = models.DateTimeField(db_column='created_at')
 
     class Meta:

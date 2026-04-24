@@ -4458,7 +4458,7 @@ def dashboard_import_eleves(request):
 
         id_etablissement = int(id_etablissement)
         id_annee = int(id_annee) if id_annee else None
-        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2
+        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
 
         # Get class ID: from POST first, then from _Meta sheet in template
         classe_par_annee_id_str = request.POST.get('classe_par_annee_id', '') or request.POST.get('classe_par_annee_id', '')
@@ -5068,7 +5068,7 @@ def import_parent_updates(request):
                             ])
                         else:
                             # Create new parent
-                            id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2
+                            id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
                             cur.execute("""
                                 INSERT INTO parents (nomsPere, telephonePere, emailPere,
                                                      nomsMere, telephoneMere, emailMere, id_pays)
@@ -5154,7 +5154,7 @@ def dashboard_campus_create(request):
             with conn.cursor() as cur:
                 # Auto-increment id_campus per establishment
                 etab_id = data.get('id_etablissement')
-                id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2
+                id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
                 cur.execute(
                     "SELECT COALESCE(MAX(id_campus), 0) + 1 AS next_id FROM campus WHERE id_etablissement = %s AND id_pays = %s",
                     [etab_id, id_pays]
@@ -5562,7 +5562,7 @@ def dashboard_update_eleve(request):
             return JsonResponse({'success': True, 'message': 'Rien à mettre à jour.'})
 
         set_clauses = ', '.join([f"{k}=%s" for k in updates.keys()])
-        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2
+        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
         values = list(updates.values()) + [id_eleve, int(id_pays)]
 
         conn = _get_spoke_connection()
@@ -6409,7 +6409,7 @@ def dashboard_attribution_cours(request):
 
         if not id_etablissement:
             return JsonResponse({'success': False, 'error': 'Établissement requis.'}, status=400)
-        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2
+        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
 
         conn = _get_spoke_connection()
         try:
@@ -6429,7 +6429,7 @@ def dashboard_attribution_cours(request):
                     etab_id_hub = eac.etablissement_annee.etablissement_id
 
                     cours_annee_list = CoursAnnee.objects.filter(
-                        cours__classe_id=real_classe_id, annee_id=annee_id, id_pays=etab.pays_id
+                        cours__classe_id=real_classe_id, annee_id=annee_id, id_pays=id_pays
                     ).filter(
                         Q(etablissement__isnull=True) | Q(etablissement_id=etab_id_hub)
                     ).select_related('cours').order_by('cours__cours')
@@ -6556,8 +6556,8 @@ def dashboard_attribution_cours(request):
                     id_attribution = data.get('id_attribution')
                     if not id_attribution:
                         return JsonResponse({'success': False, 'error': 'ID attribution requis.'}, status=400)
-                    cur.execute("DELETE FROM attribution_cours WHERE id_attribution=%s AND id_etablissement=%s",
-                                [id_attribution, id_etablissement])
+                    cur.execute("DELETE FROM attribution_cours WHERE id_attribution=%s AND id_etablissement=%s AND id_pays=%s",
+                                [id_attribution, id_etablissement, id_pays])
                     conn.commit()
                     return JsonResponse({'success': True})
 
@@ -12620,6 +12620,7 @@ def dashboard_horaire(request):
 
         if not etab_id:
             return JsonResponse({'success': False, 'error': 'id_etablissement requis'}, status=400)
+        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
 
         if action == 'get-periods':
             annee_id = data.get('id_annee')
@@ -12713,6 +12714,7 @@ def dashboard_horaire(request):
                 id_classe_id=bk['classe_id'],
                 groupe=bk['groupe'],
                 section=bk['section_id'],
+                id_pays=id_pays,
             )
             if date_debut and date_fin:
                 qs = qs.filter(date__gte=date_debut, date__lte=date_fin)
@@ -12787,6 +12789,7 @@ def dashboard_horaire(request):
                 id_classe_id=bk['classe_id'],
                 groupe=bk['groupe'],
                 section_id=bk['section_id'],
+                id_etablissement=etab_id,
             ).first()
 
             if not attr:
@@ -12814,6 +12817,7 @@ def dashboard_horaire(request):
                     date=date_val,
                     debut=debut,
                     fin=fin,
+                    id_pays=id_pays,
                 )
 
             return JsonResponse({'success': True})
@@ -14571,7 +14575,7 @@ def delete_inscriptions(request):
 
                         if remaining_cnt == 0:
                             # No more inscriptions — safe to delete the eleve record
-                            id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays') or 2
+                            id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
                             cur.execute("DELETE FROM eleve WHERE id_eleve = %s AND id_pays = %s", [eid, int(id_pays)])
 
                         deleted.append(eid)

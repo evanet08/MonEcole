@@ -10,7 +10,7 @@ class Personnel_categorie(models.Model):
     id_personnel_category = models.AutoField(primary_key=True)
     categorie = models.CharField(max_length=50, unique=True)
     sigle = models.CharField(max_length=10, null=True)
-    id_pays = models.IntegerField(default=2)
+    id_pays = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "personnel_categorie"
@@ -24,7 +24,7 @@ class Diplome(models.Model):
     id_diplome = models.AutoField(primary_key=True)
     diplome = models.CharField(max_length=50, unique=True)
     sigle = models.CharField(max_length=10, unique=True)
-    id_pays = models.IntegerField(default=2)
+    id_pays = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "diplome"
@@ -38,7 +38,7 @@ class Specialite(models.Model):
     id_specialite = models.AutoField(primary_key=True)
     specialite = models.CharField(max_length=200, null=False)
     sigle = models.CharField(max_length=10, null=False)
-    id_pays = models.IntegerField(default=2)
+    id_pays = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "specialite"
@@ -52,7 +52,7 @@ class Vacation(models.Model):
     id_vacation = models.AutoField(primary_key=True)
     vacation = models.CharField(max_length=20, null=False)
     sigle = models.CharField(max_length=10)
-    id_pays = models.IntegerField(default=2)
+    id_pays = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "vacation"
@@ -66,7 +66,7 @@ class PersonnelType(models.Model):
     id_type_personnel = models.AutoField(primary_key=True)
     type = models.CharField(max_length=50, unique=True)
     sigle = models.CharField(max_length=50, unique=True)
-    id_pays = models.IntegerField(default=2)
+    id_pays = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "personnel_type"
@@ -129,7 +129,7 @@ class Personnel(models.Model):
     phone_verified = models.BooleanField(default=False)
     date_creation = models.DateField(auto_now_add=True)
     id_etablissement = models.IntegerField(null=True, blank=True)
-    id_pays = models.IntegerField(default=2)
+    id_pays = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "personnel"
@@ -211,7 +211,7 @@ class Prestation(models.Model):
     id_etudiant = models.IntegerField()
     id_personnel = models.ForeignKey(Personnel, on_delete=models.PROTECT, null=False)
     date_creation = models.DateField(auto_now_add=True)
-    id_pays = models.IntegerField(default=2)
+    id_pays = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "prestation"

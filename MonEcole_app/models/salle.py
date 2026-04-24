@@ -23,7 +23,7 @@ class Salle(models.Model):
     partage = models.BooleanField(default=False)
     capacite = models.IntegerField()
     id_etablissement = models.IntegerField(null=True, blank=True)
-    id_pays = models.IntegerField(default=2)
+    id_pays = models.IntegerField(null=True, blank=True)
 
 
     class Meta:

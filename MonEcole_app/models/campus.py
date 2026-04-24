@@ -23,7 +23,7 @@ class Campus(models.Model):
     is_active = models.BooleanField(default=True)
     # Lien logique vers countryStructure.etablissements
     id_etablissement = models.IntegerField(null=True, blank=True)
-    id_pays = models.IntegerField(default=2)
+    id_pays = models.IntegerField(null=True, blank=True)
     
     # Manager par défaut (retourne uniquement les campus actifs)
     objects = CampusManager()

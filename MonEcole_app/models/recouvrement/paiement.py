@@ -18,7 +18,7 @@ class Eleve_reduction_prix(models.Model):
                                 db_constraint=False)
     id_variable = models.ForeignKey(Variable,on_delete=models.PROTECT,null=False)
     pourcentage = models.PositiveIntegerField()
-    id_pays = models.IntegerField(default=2)
+    id_pays = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = 'recouvrment_reduction_prix'
@@ -50,7 +50,7 @@ class Paiement(models.Model):
                                 db_constraint=False)
     status = models.BooleanField(default=False)
     is_rejected = models.BooleanField(default=False)
-    id_pays = models.IntegerField(default=2)
+    id_pays = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = 'recouvrment_paiement'
