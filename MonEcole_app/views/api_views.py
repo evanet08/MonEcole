@@ -7411,7 +7411,17 @@ def update_mon_etablissement(request):
         updated_fields = []
         for json_key, model_field in editable_fields.items():
             if json_key in data:
-                setattr(etab, model_field, data[json_key] or None)
+                val = data[json_key] or None
+                # --- Validate ref_administrative completeness ---
+                if json_key == 'ref_administrative' and val:
+                    parts = [p.strip() for p in str(val).split('-') if p.strip()]
+                    n_levels = etab.pays.nLevelsAdministratifs if etab.pays else 0
+                    if n_levels and len(parts) != n_levels:
+                        return JsonResponse({
+                            'success': False,
+                            'error': f'La référence administrative doit avoir {n_levels} niveaux (reçu {len(parts)}).'
+                        }, status=400)
+                setattr(etab, model_field, val)
                 updated_fields.append(model_field)
 
         # Régime (id_regime)

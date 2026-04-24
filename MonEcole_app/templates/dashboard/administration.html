@@ -456,7 +456,7 @@
         <div class="dash-section" style="padding:12px 16px">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <div class="dash-section-title mb-0" style="font-size:.8rem"><i class="fas fa-map-marker-alt"></i> Localisation</div>
-                <button class="btn-edit-mode save" id="btnSaveLocalisation" onclick="saveLocalisation()" style="font-size:.65rem"><i class="fas fa-save"></i> Attacher à l'école</button>
+                <button class="btn-edit-mode save" id="btnSaveLocalisation" onclick="saveLocalisation()" style="font-size:.65rem" disabled><i class="fas fa-save"></i> Attacher à l'école</button>
             </div>
             <div id="adminCascadeContainer"></div>
             <div class="admin-rue" id="adminRueWrap" style="display:none;margin-top:6px">
@@ -1421,12 +1421,21 @@ function checkRueVisibility(){
     if(rueWrap)rueWrap.style.display=allFilled?'':'none';
 }
 function checkGeoButton(){
-    const btn=document.getElementById('btnGeolocate');
-    if(!btn)return;
     const allFilled=ADMIN_TYPES.every(t=>adminState.locked[t.ordre]);
-    btn.disabled=!allFilled;
-    btn.style.opacity=allFilled?'1':'.4';
-    btn.style.cursor=allFilled?'pointer':'not-allowed';
+    // Geo button
+    const geoBtn=document.getElementById('btnGeolocate');
+    if(geoBtn){
+        geoBtn.disabled=!allFilled;
+        geoBtn.style.opacity=allFilled?'1':'.4';
+        geoBtn.style.cursor=allFilled?'pointer':'not-allowed';
+    }
+    // Save/Attacher button
+    const saveBtn=document.getElementById('btnSaveLocalisation');
+    if(saveBtn){
+        saveBtn.disabled=!allFilled;
+        saveBtn.style.opacity=allFilled?'1':'.5';
+        saveBtn.style.cursor=allFilled?'pointer':'not-allowed';
+    }
 }
 
 /* ===== RUE AUTOCOMPLETE ===== */
@@ -3788,12 +3797,22 @@ function saveFiche(){
     fetch('/api/update-mon-etablissement/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken},body:JSON.stringify(data)}).then(r=>r.json()).then(res=>{if(res.success){showToast('Identification mise à jour !','success');setTimeout(()=>location.reload(),600)}else{showToast(res.error||'Erreur.','error');btn.innerHTML=o;btn.disabled=false}}).catch(()=>{showToast('Erreur connexion.','error');btn.innerHTML=o;btn.disabled=false})}
 
 function saveLocalisation(){
+    // Enforce ALL admin levels must be filled
+    const allFilled=ADMIN_TYPES.every(t=>adminState.locked[t.ordre]);
+    if(!allFilled){
+        const missing=ADMIN_TYPES.filter(t=>!adminState.locked[t.ordre]).map(t=>t.nom);
+        showToast('Complétez tous les niveaux : '+missing.join(', '),'error');
+        return;
+    }
     const ref=getRefAdministrative();
     const rueInp=document.getElementById('inputNomRue');
     const numInp=document.getElementById('inputNumeroRue');
     const nom_rue=rueInp?rueInp.value:'';
     const numero_rue=numInp?numInp.value:'';
-    if(!ref){showToast('Complétez tous les niveaux administratifs.','error');return}
+    if(!ref || ref.split('-').length !== ADMIN_TYPES.length){
+        showToast('La référence administrative est incomplète ('+ADMIN_TYPES.length+' niveaux requis).','error');
+        return;
+    }
     const btn=document.getElementById('btnSaveLocalisation'),o=btn.innerHTML;
     btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> ...';btn.disabled=true;
     const payload={ref_administrative:ref,nom_rue:nom_rue,numero_rue:numero_rue};
