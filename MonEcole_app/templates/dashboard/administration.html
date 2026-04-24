@@ -1351,8 +1351,11 @@ async function renameAdminInstance(ordre,id,currentName){
 
 function selectItem(ordre,id,nom,code){
     // Set state FIRST — guaranteed to run
-    adminState.selected[ordre]={id,nom,code};
+    adminState.selected[ordre]={id:id,nom:nom,code:code};
     adminState.locked[ordre]=true;
+    console.log('[selectItem] ordre=',ordre,'id=',id,'nom=',nom,'state=',JSON.stringify(adminState.selected));
+    // Update ref display IMMEDIATELY after state change
+    try{updateRefAdministrative()}catch(e){console.error('early updateRef error',e)}
     try{
         const firstOrdre=ADMIN_TYPES.length?ADMIN_TYPES[0].ordre:null;
         const isFirstLevel=(ordre===firstOrdre);
@@ -1566,13 +1569,16 @@ function updateRefAdministrative(){
     let segments=[];
     ADMIN_TYPES.forEach((t,i)=>{
         const s=adminState.selected[t.ordre];
-        if(s&&s.id){
+        // Use explicit null check — s.id could be 0 which is falsy but valid
+        const hasValue=(s!=null && s.id!=null && s.id!==undefined);
+        if(hasValue){
             filledCount++;
             segments.push(`<span style="color:#6366f1;font-weight:700">${s.id}</span>`);
         }else{
             segments.push(`<span style="color:#cbd5e1;font-weight:400" title="${t.nom}">···</span>`);
         }
     });
+    console.log('[updateRef] filled=',filledCount,'/',total,'keys=',Object.keys(adminState.selected),'ordres=',ADMIN_TYPES.map(t=>t.ordre));
     const isComplete=(filledCount===total);
     const progressHtml=segments.join(`<span style="color:${isComplete?'#6366f1':'#94a3b8'};margin:0 1px">-</span>`);
     const statusIcon=isComplete
@@ -1639,7 +1645,7 @@ function getRefAdministrative(){
     const ids=[];
     ADMIN_TYPES.forEach(t=>{
         const s=adminState.selected[t.ordre];
-        if(s&&s.id)ids.push(s.id);
+        if(s!=null && s.id!=null && s.id!==undefined)ids.push(s.id);
     });
     return ids.join('-');
 }
