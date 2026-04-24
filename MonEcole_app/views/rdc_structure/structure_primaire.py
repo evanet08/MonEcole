@@ -343,9 +343,11 @@ def create_line2_right(elements, eleve, style_normal, id_classe):
             ids_chain = ref_naissance.split('-')
             if len(ids_chain) >= 2:
                 ville_id = ids_chain[1]  # 2ème élément = VILLE/TERRITOIRE
+                # Resolve pays_id from the eleve's establishment
+                eleve_pays_id = getattr(eleve, 'id_pays', None) or 2  # fallback RDC
                 from django.db import connections
                 with connections['countryStructure'].cursor() as cursor:
-                    cursor.execute('SELECT nom FROM administrativeStructures WHERE id_structure = %s', [ville_id])
+                    cursor.execute('SELECT nom FROM administrativeStructures WHERE id_structure = %s AND pays_id = %s', [ville_id, eleve_pays_id])
                     row = cursor.fetchone()
                     if row and row[0]:
                         lieu_naissance = row[0].upper()

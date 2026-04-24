@@ -7009,7 +7009,7 @@ def dashboard_etablissement_view(request):
     regime_nom = '-'
     if etab.id_regime:
         try:
-            regime_nom = Regime.objects.get(id_regime=etab.id_regime).regime
+            regime_nom = Regime.objects.get(id_regime=etab.id_regime, pays=pays).regime
         except Regime.DoesNotExist:
             pass
 
@@ -7074,9 +7074,10 @@ def dashboard_etablissement_view(request):
                 pass
 
         if all_ids:
-            # Fetch all referenced instances in one query
+            # Fetch all referenced instances in one query — SCOPED BY PAYS
             ancestors_qs = AdministrativeStructureInstance.objects.filter(
-                id_structure__in=all_ids
+                id_structure__in=all_ids,
+                pays=pays
             ).order_by('ordre')
 
             # Map type_nom by ordre

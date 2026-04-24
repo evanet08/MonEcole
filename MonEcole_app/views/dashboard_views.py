@@ -482,7 +482,7 @@ def _get_dashboard_context(request):
     regime_nom = '-'
     if etab.id_regime:
         try:
-            regime_nom = Regime.objects.get(id_regime=etab.id_regime).regime
+            regime_nom = Regime.objects.get(id_regime=etab.id_regime, pays=pays).regime
         except Regime.DoesNotExist:
             pass
 
