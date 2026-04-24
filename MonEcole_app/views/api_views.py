@@ -7450,7 +7450,7 @@ def update_mon_etablissement(request):
             updated_fields.append('longitude')
 
         if updated_fields:
-            etab.save()
+            etab.save(update_fields=updated_fields)
 
         return JsonResponse({'success': True, 'updated': updated_fields})
     except AdminUser.DoesNotExist:
