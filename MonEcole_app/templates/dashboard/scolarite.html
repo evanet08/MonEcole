@@ -1151,14 +1151,15 @@ function getChildrenForLevel(ordre){
     // First level: return all
     const prevOrdre=getPrevOrdre(ordre);
     if(!prevOrdre)return items;
-    // Filter by parent
+    // Filter by parent — child.code must start with parent.code + "-"
     const parentSel=adminState.selected[prevOrdre];
     if(!parentSel)return [];
-    const parentId=String(parentSel.id);
+    const parentCode=parentSel.code||'';
+    if(!parentCode)return [];
+    const prefix=parentCode+'-';
     return items.filter(it=>{
         if(!it.code)return false;
-        const parts=it.code.split('-');
-        return parts.includes(parentId);
+        return it.code.startsWith(prefix);
     });
 }
 
@@ -4512,14 +4513,14 @@ function resolveAddrChain(ref){
 /**
  * Filter instances for a cascade level based on parent selection.
  */
-function _addrGetChildren(ordre, parentId){
+function _addrGetChildren(ordre, parentCode){
     const instances=ADMIN_INSTANCES[ordre]||[];
-    if(!parentId) return instances; // First level: all
-    // Filter by code ancestry
+    if(!parentCode) return instances; // First level: all
+    // Filter by code ancestry — child.code must start with parentCode + "-"
+    const prefix=parentCode+'-';
     return instances.filter(inst=>{
         if(!inst.code) return false;
-        const parts=inst.code.split('-').map(Number);
-        return parts.includes(parentId);
+        return inst.code.startsWith(prefix);
     });
 }
 
@@ -4586,15 +4587,15 @@ function _addrOnInput(input){
     const state=_cascadeStates[containerId];
     if(!state) return;
 
-    // Find parent
-    let parentId=null;
+    // Find parent code for filtering
+    let parentCode=null;
     const sortedOrdres=ADMIN_TYPES.map(t=>t.ordre).sort((a,b)=>a-b);
     for(const po of sortedOrdres){
         if(po>=ordre) break;
-        if(state.selected[po]) parentId=state.selected[po].id;
+        if(state.selected[po]) parentCode=state.selected[po].code||null;
     }
 
-    const children=_addrGetChildren(ordre, parentId);
+    const children=_addrGetChildren(ordre, parentCode);
     const filtered=val?children.filter(c=>c.nom.toLowerCase().includes(val)):children.slice(0,50);
 
     const sugId=containerId+'_lv'+ordre+'_sug';

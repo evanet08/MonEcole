@@ -7300,6 +7300,24 @@ def create_admin_instance(request):
         if not pays:
             return JsonResponse({'success': False, 'error': 'Pays introuvable.'}, status=404)
 
+        # --- Duplicate name check: prevent same name at same level under same parent ---
+        from django.db.models.functions import Lower
+        existing_qs = AdministrativeStructureInstance.objects.filter(
+            pays=pays,
+            ordre=ordre,
+        ).annotate(nom_lower=Lower('nom')).filter(nom_lower=nom.lower())
+        if parent_code:
+            # Scope to same parent: children whose code starts with parent_code-
+            existing_qs = existing_qs.filter(code__startswith=f"{parent_code}-")
+        else:
+            # First level: no parent code prefix
+            pass
+        if existing_qs.exists():
+            return JsonResponse({
+                'success': False,
+                'error': f'« {nom} » existe déjà à ce niveau.'
+            }, status=409)
+
         # Create the instance (code will be set after we get the ID)
         new_inst = AdministrativeStructureInstance.objects.create(
             nom=nom,

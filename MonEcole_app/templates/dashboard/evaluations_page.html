@@ -3134,14 +3134,15 @@ function getChildrenForLevel(ordre){
     // First level: return all
     const prevOrdre=getPrevOrdre(ordre);
     if(!prevOrdre)return items;
-    // Filter by parent
+    // Filter by parent — child.code must start with parent.code + "-"
     const parentSel=adminState.selected[prevOrdre];
     if(!parentSel)return [];
-    const parentId=String(parentSel.id);
+    const parentCode=parentSel.code||'';
+    if(!parentCode)return [];
+    const prefix=parentCode+'-';
     return items.filter(it=>{
         if(!it.code)return false;
-        const parts=it.code.split('-');
-        return parts.includes(parentId);
+        return it.code.startsWith(prefix);
     });
 }
 
