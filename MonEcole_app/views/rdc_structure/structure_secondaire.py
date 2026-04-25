@@ -841,12 +841,19 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
         from MonEcole_app.views.rdc_structure import apply_rounded_values
         apply_rounded_values(table_data)
 
-    # Hauteur dynamique : s'adapter à la page A4 (297mm - marges ~5mm = 292mm usable)
-    _available_h = 285 * mm  # Marge de sécurité pour header/footer du bulletin
+    # Hauteur dynamique : adapter à la page A4 en tenant compte du header/footer (~75mm)
+    _page_h = 297 * mm
+    _other_elements_h = 80 * mm  # header + NID + line2 + title + footer
+    _available_h = _page_h - 5 * mm - _other_elements_h  # bottomMargin=5mm
+    _n_rows = max(len(table_data), 1)
     _ideal_rh = 4.5 * mm
-    _row_h = min(_ideal_rh, _available_h / max(len(table_data), 1))
-    _row_h = max(_row_h, 3 * mm)  # minimum lisible
-    table = Table(table_data, colWidths=col_widths, rowHeights=[_row_h] * len(table_data))
+    if _n_rows * _ideal_rh <= _available_h:
+        _rh = [_ideal_rh] * _n_rows
+    elif _n_rows * 3 * mm <= _available_h:
+        _rh = [_available_h / _n_rows] * _n_rows
+    else:
+        _rh = None  # Laisser ReportLab auto-dimensionner
+    table = Table(table_data, colWidths=col_widths, rowHeights=_rh)
     # ── Ligne PLACE : texte bleu foncé + gras ──
     for ridx, row in enumerate(table_data):
         texte = str(row[0]) if row and row[0] else ""
