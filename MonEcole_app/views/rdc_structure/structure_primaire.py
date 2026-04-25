@@ -790,7 +790,7 @@ def _get_bulletin_context(eac):
                 SELECT ca.id_cours_annee, ca.cours_id
                 FROM cours_annee ca
                 WHERE ca.cours_id IN (
-                    SELECT id_cours FROM cours WHERE classe_id = %s
+                    SELECT id FROM cours WHERE classe_id = %s
                 )
             """, [eac.classe_id])
             for row in cur.fetchall():

@@ -497,6 +497,23 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
     domaines_cours = get_cours_classe_rdc(id_annee, id_campus, id_cycle, id_classe)
     notes_periodes = get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
     notes_exam = get_student_exam_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
+
+    # ── DIAGNOSTIC TEMPORAIRE ──
+    import logging as _lg
+    _dbg = _lg.getLogger(__name__)
+    _dbg.warning(f"[BULLETIN_DIAG] eleve={id_eleve}, annee={id_annee}, campus={id_campus}, cycle={id_cycle}, classe={id_classe}")
+    _dbg.warning(f"[BULLETIN_DIAG] domaines_cours count={len(domaines_cours)}")
+    _all_cours_ids = []
+    for _g in domaines_cours:
+        for _sd in _g.get('sous_domaines', [{'cours': _g['cours']}]):
+            for _cpc in _sd['cours']:
+                _all_cours_ids.append(_cpc.id_cours_id)
+    _dbg.warning(f"[BULLETIN_DIAG] cours id_cours_id values (first 5): {_all_cours_ids[:5]}")
+    _dbg.warning(f"[BULLETIN_DIAG] notes_periodes keys (first 5): {list(notes_periodes.keys())[:5]}")
+    _dbg.warning(f"[BULLETIN_DIAG] notes_periodes sample: {dict(list(notes_periodes.items())[:2])}")
+    _dbg.warning(f"[BULLETIN_DIAG] notes_exam keys (first 5): {list(notes_exam.keys())[:5]}")
+    _dbg.warning(f"[BULLETIN_DIAG] notes_exam sample: {dict(list(notes_exam.items())[:2])}")
+    # ── FIN DIAGNOSTIC ──
     
     
     lignes_domaines = [3, 8, 13, 19, 24, 29, 36]  
