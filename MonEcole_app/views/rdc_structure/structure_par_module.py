@@ -106,10 +106,10 @@ def create_bulletin_content_cycle_superieur(elements, style_normal, style_center
             if col_2p is not None:
                 table_data[r][col_2p] = None
 
-        # Groupement par (TP, TPE)
+        # Groupement par (maxima_tj, maxima_periode) — anciens champs TP/TPE
         groupes = defaultdict(list)
         for cpc in cours_list:
-            key = (cpc.TP or 0, cpc.TPE or 0)  
+            key = (cpc.maxima_tj or 0, cpc.maxima_periode or 0)  
             groupes[key].append(cpc)
 
         # Tri des groupes par ordre d'apparition du premier cours
