@@ -172,7 +172,7 @@ def create_bulletin_content_cycle_superieur(elements, style_normal, style_center
 
     col_widths = [branche_width] + [other_width] * 4 + [branche_width] + [other_width] * 5
 
-    row_height = 5.55 * mm
+    row_height = 5 * mm  # 35 × 5mm = 175mm (max ~177mm disponible après header/footer)
 
 
     # ── Arrondi d'affichage (purement cosmétique, notes inchangées en base) ──
