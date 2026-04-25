@@ -313,7 +313,7 @@ def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, pass
     hub_phone_verified = (hub_info or {}).get('phone_verified', False) if hub_info else False
 
     # Résoudre pays_id dynamiquement depuis le Hub si non fourni
-    if not pays_id:
+    if not pays_id and etab_id:
         try:
             from MonEcole_app.models.country_structure import Etablissement as _ProvEtab
             _prov_etab = _ProvEtab.objects.filter(id_etablissement=etab_id).first()
@@ -321,6 +321,16 @@ def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, pass
                 pays_id = _prov_etab.pays_id
         except Exception:
             pass
+        # Fallback SQL direct si le model Django échoue
+        if not pays_id:
+            try:
+                with connections['countryStructure'].cursor() as _cur:
+                    _cur.execute("SELECT pays_id FROM etablissements WHERE id_etablissement=%s LIMIT 1", [etab_id])
+                    _row = _cur.fetchone()
+                    if _row:
+                        pays_id = _row[0]
+            except Exception:
+                pass
 
     # 1. Chercher le personnel existant par email + établissement + pays
     try:
