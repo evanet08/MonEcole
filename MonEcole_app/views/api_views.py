@@ -14004,6 +14004,7 @@ def execute_deliberation(request):
                             'id_decision_id': r.get('finalite_id', 1),
                             'pourcentage': r['pourcentage'],
                             'place': r['place'],
+                            'id_pays': etab.pays_id,
                         }
                     )
                     saved_count += 1
@@ -14059,6 +14060,7 @@ def cancel_deliberation(request):
         base_filter = {
             'id_annee': annee,
             'id_etablissement': etab.id_etablissement,
+            'id_pays': etab.pays_id,
         }
         if eac:
             base_filter['id_classe_id'] = eac.classe_id
@@ -14244,6 +14246,7 @@ def get_deliberation_results(request):
         base_filter = {
             'id_annee': annee,
             'id_etablissement': etab.id_etablissement,
+            'id_pays': etab.pays_id,
             'id_classe_id': eac.classe_id,
             'groupe': eac.groupe,
             'section_id': eac.section_id,
