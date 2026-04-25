@@ -498,23 +498,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
     notes_periodes = get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
     notes_exam = get_student_exam_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
 
-    # ── DIAGNOSTIC TEMPORAIRE ──
-    import logging as _lg
-    _dbg = _lg.getLogger(__name__)
-    _dbg.warning(f"[BULLETIN_DIAG] eleve={id_eleve}, annee={id_annee}, campus={id_campus}, cycle={id_cycle}, classe={id_classe}")
-    _dbg.warning(f"[BULLETIN_DIAG] domaines_cours count={len(domaines_cours)}")
-    _all_cours_ids = []
-    for _g in domaines_cours:
-        for _sd in _g.get('sous_domaines', [{'cours': _g['cours']}]):
-            for _cpc in _sd['cours']:
-                _all_cours_ids.append(_cpc.id_cours_id)
-    _dbg.warning(f"[BULLETIN_DIAG] cours id_cours_id values (first 5): {_all_cours_ids[:5]}")
-    _dbg.warning(f"[BULLETIN_DIAG] notes_periodes keys (first 5): {list(notes_periodes.keys())[:5]}")
-    _dbg.warning(f"[BULLETIN_DIAG] notes_periodes sample: {dict(list(notes_periodes.items())[:2])}")
-    _dbg.warning(f"[BULLETIN_DIAG] notes_exam keys (first 5): {list(notes_exam.keys())[:5]}")
-    _dbg.warning(f"[BULLETIN_DIAG] notes_exam sample: {dict(list(notes_exam.items())[:2])}")
-    # ── FIN DIAGNOSTIC ──
-    
+
     
     lignes_domaines = [3, 8, 13, 19, 24, 29, 36]  
     domaine_index = 0 
@@ -857,7 +841,12 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
         from MonEcole_app.views.rdc_structure import apply_rounded_values
         apply_rounded_values(table_data)
 
-    table = Table(table_data, colWidths=col_widths, rowHeights=[4.5*mm] * len(table_data))
+    # Hauteur dynamique : s'adapter à la page A4 (297mm - marges ~5mm = 292mm usable)
+    _available_h = 285 * mm  # Marge de sécurité pour header/footer du bulletin
+    _ideal_rh = 4.5 * mm
+    _row_h = min(_ideal_rh, _available_h / max(len(table_data), 1))
+    _row_h = max(_row_h, 3 * mm)  # minimum lisible
+    table = Table(table_data, colWidths=col_widths, rowHeights=[_row_h] * len(table_data))
     # ── Ligne PLACE : texte bleu foncé + gras ──
     for ridx, row in enumerate(table_data):
         texte = str(row[0]) if row and row[0] else ""
