@@ -13661,16 +13661,16 @@ def get_deliberation_conditions(request):
         if not eac:
             return JsonResponse({'success': True, 'conditions': []})
 
-        # Query conditions from Hub — nationales (pas de filtre par établissement)
+        # Query conditions from Hub — nationales, filtrées par pays
         conditions = Deliberation_annuelle_condition.objects.filter(
-            id_annee=annee
+            id_annee=annee, id_pays=etab.pays_id
         )
 
         # Fetch mentions and finalites for display
         mention_map = {m.id_mention: str(m) for m in Mention.objects.filter(id_pays=etab.pays_id)}
         finalite_map = {}
         try:
-            finalite_map = {f.id_finalite: f.finalite for f in Deliberation_annuelle_finalite.objects.all()}
+            finalite_map = {f.id_finalite: f.finalite for f in Deliberation_annuelle_finalite.objects.filter(id_pays=etab.pays_id)}
         except Exception:
             pass
 
@@ -13911,9 +13911,9 @@ def execute_deliberation(request):
                     r['mention_id'] = m.id_mention
                     break
 
-        # Determine decision from Hub conditions (nationales)
+        # Determine decision from Hub conditions (nationales, filtrées par pays)
         conditions = list(Deliberation_annuelle_condition.objects.filter(
-            id_annee=annee
+            id_annee=annee, id_pays=etab.pays_id
         ))
 
         for r in resultats:
@@ -13924,7 +13924,7 @@ def execute_deliberation(request):
                     if cond.id_mention_id == mention_id:
                         try:
                             finalite = Deliberation_annuelle_finalite.objects.get(
-                                id_finalite=cond.id_finalite_id
+                                id_finalite=cond.id_finalite_id, id_pays=etab.pays_id
                             )
                             r['decision'] = finalite.finalite
                             r['finalite_id'] = finalite.id_finalite
@@ -14282,11 +14282,11 @@ def get_deliberation_results(request):
                     mention_str = str(m)
                     # Get decision from conditions
                     cond = Deliberation_annuelle_condition.objects.filter(
-                        id_annee=annee, id_mention_id=m.id_mention
+                        id_annee=annee, id_mention_id=m.id_mention, id_pays=etab.pays_id
                     ).first()
                     if cond:
                         try:
-                            fin = Deliberation_annuelle_finalite.objects.get(id_finalite=cond.id_finalite_id)
+                            fin = Deliberation_annuelle_finalite.objects.get(id_finalite=cond.id_finalite_id, id_pays=etab.pays_id)
                             decision_str = fin.finalite
                         except:
                             decision_str = cond.sanction_disciplinaire or '—'
