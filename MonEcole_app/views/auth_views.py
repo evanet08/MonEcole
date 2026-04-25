@@ -197,46 +197,68 @@ def _verify_hub_password(stored_hash, password):
 def _check_hub_user(email, etab_id, pays_id=None):
     """
     Vérifie si l'email existe dans le Hub pour cet établissement.
-    Cherche dans 2 endroits:
+    Cherche dans 3 endroits:
       1) etablissements.admin_email — le super admin désigné
-      2) admin_users — tout utilisateur Hub assigné à cet établissement
+      2) admin_users — utilisateur Hub assigné à cet établissement spécifique
+      3) admin_users — utilisateur Hub assigné au niveau pays (etablissement_id IS NULL)
 
     IMPORTANT: pays_id MUST be provided to avoid cross-tenant collisions
     (e.g. id_etablissement=1 exists in both RDC and Burundi).
 
     Retourne (found, is_super_admin, hub_info_dict) ou (False, False, None).
     """
-    if not etab_id or not email:
+    if not email:
         return False, False, None
     email_lower = email.strip().lower()
     try:
         with connections['countryStructure'].cursor() as cur:
             # 1) Vérifier si c'est le super admin de l'établissement
             is_super = False
-            etab_sql = "SELECT admin_email, admin_telephone, nom FROM etablissements WHERE id_etablissement=%s"
-            etab_params = [etab_id]
-            if pays_id:
-                etab_sql += " AND pays_id=%s"
-                etab_params.append(pays_id)
-            cur.execute(etab_sql, etab_params)
-            etab_row = cur.fetchone()
-            if etab_row:
-                admin_email_hub = etab_row[0]
-                if admin_email_hub and email_lower == admin_email_hub.strip().lower():
-                    is_super = True
+            etab_row = None
+            if etab_id:
+                etab_sql = "SELECT admin_email, admin_telephone, nom FROM etablissements WHERE id_etablissement=%s"
+                etab_params = [etab_id]
+                if pays_id:
+                    etab_sql += " AND pays_id=%s"
+                    etab_params.append(pays_id)
+                cur.execute(etab_sql, etab_params)
+                etab_row = cur.fetchone()
+                if etab_row:
+                    admin_email_hub = etab_row[0]
+                    if admin_email_hub and email_lower == admin_email_hub.strip().lower():
+                        is_super = True
 
-            # 2) Vérifier dans admin_users du Hub (scoped by pays_id)
+            # 2) Vérifier dans admin_users du Hub — par établissement spécifique OU pays-level (NULL)
+            #    LEFT JOIN pour inclure les entrées avec etablissement_id IS NULL
             au_sql = """SELECT au.id_admin, au.email, au.telephone, au.password_hash,
                           au.email_verified, au.is_active, au.phone_verified
                    FROM admin_users au
-                   JOIN etablissements e ON e.id_etablissement = au.etablissement_id"""
-            au_where = " WHERE LOWER(au.email) = %s AND au.etablissement_id = %s AND au.is_active = 1"
-            au_params = [email_lower, etab_id]
-            if pays_id:
-                au_where += " AND e.pays_id = %s"
-                au_params.append(pays_id)
+                   LEFT JOIN etablissements e ON e.id_etablissement = au.etablissement_id"""
+            au_where = " WHERE LOWER(au.email) = %s AND au.is_active = 1"
+            au_params = [email_lower]
+
+            if etab_id and pays_id:
+                # Cherche soit l'étab exact (dans le bon pays), soit un user pays-level
+                au_where += " AND (au.etablissement_id = %s AND e.pays_id = %s)"
+                au_params.extend([etab_id, pays_id])
+            elif etab_id:
+                au_where += " AND au.etablissement_id = %s"
+                au_params.append(etab_id)
+
             cur.execute(au_sql + au_where + " LIMIT 1", au_params)
             hub_user = cur.fetchone()
+
+            # 3) Si pas trouvé par étab spécifique → chercher au niveau pays (etablissement_id IS NULL)
+            if not hub_user and pays_id:
+                au_pays_sql = """SELECT au.id_admin, au.email, au.telephone, au.password_hash,
+                                  au.email_verified, au.is_active, au.phone_verified
+                           FROM admin_users au
+                           WHERE LOWER(au.email) = %s AND au.is_active = 1
+                                 AND au.etablissement_id IS NULL"""
+                cur.execute(au_pays_sql + " LIMIT 1", [email_lower])
+                hub_user = cur.fetchone()
+                if hub_user:
+                    is_super = True  # Pays-level users are super admins
 
             if hub_user:
                 return True, is_super, {
@@ -254,7 +276,7 @@ def _check_hub_user(email, etab_id, pays_id=None):
                 return True, True, {
                     'hub_id': None,
                     'email': email_lower,
-                    'telephone': etab_row[1] or '',
+                    'telephone': etab_row[1] or '' if etab_row else '',
                     'password_hash': '',
                     'email_verified': False,
                     'nom_etab': etab_row[2] if etab_row else '',
@@ -480,46 +502,41 @@ def check_email(request):
 
         etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
 
-        # Chercher dans le spoke (personnel)
+        # Chercher dans le spoke (personnel) — TOUJOURS par etab_id d'abord
         personnel = None
-        try:
-            personnel = Personnel.objects.get(email__iexact=email)
-        except Personnel.DoesNotExist:
-            pass
-        except Personnel.MultipleObjectsReturned:
-            # Prendre celui de l'établissement courant
-            if etab_id:
-                personnel = Personnel.objects.filter(email__iexact=email, id_etablissement=etab_id).first()
-            if not personnel:
+        if etab_id:
+            # Priorité : chercher pour l'établissement courant
+            personnel = Personnel.objects.filter(email__iexact=email, id_etablissement=etab_id).first()
+        if not personnel:
+            # Fallback : chercher globalement (quand pas d'etab_id ou pas trouvé pour cet etab)
+            try:
+                personnel = Personnel.objects.get(email__iexact=email)
+            except Personnel.DoesNotExist:
+                pass
+            except Personnel.MultipleObjectsReturned:
+                # Prendre le premier trouvé (sera re-provisionné pour le bon etab)
                 personnel = Personnel.objects.filter(email__iexact=email).first()
 
-        # Si introuvable dans le spoke → chercher dans le Hub
+        # Vérifier le Hub pour cet établissement
         is_hub_user = False
         is_super = False
         id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
-        if personnel is None:
-            found, is_super, hub_info = _check_hub_user(email, etab_id, pays_id=id_pays)
-            if found:
-                is_hub_user = True
-                personnel = _auto_provision_hub_user(
-                    email, etab_id, hub_info=hub_info, is_super=is_super, pays_id=id_pays
-                )
-            else:
-                return JsonResponse({
-                    'success': True,
-                    'exists': False,
-                    'validated': False,
-                    'has_password': False,
-                })
-        else:
-            # L'utilisateur existe dans le spoke — vérifier s'il est aussi dans le Hub
-            found, is_super, hub_info = _check_hub_user(email, etab_id, pays_id=id_pays)
-            if found:
-                is_hub_user = True
-                _auto_provision_hub_user(
-                    email, etab_id, hub_info=hub_info, is_super=is_super, pays_id=id_pays
-                )
-                personnel.refresh_from_db()
+        found, is_super, hub_info = _check_hub_user(email, etab_id, pays_id=id_pays)
+
+        if found:
+            is_hub_user = True
+            # Auto-provisionner pour l'établissement courant (crée personnel + user_module si absent)
+            personnel = _auto_provision_hub_user(
+                email, etab_id, hub_info=hub_info, is_super=is_super, pays_id=id_pays
+            )
+        elif personnel is None:
+            # Ni dans le spoke ni dans le Hub → inconnu
+            return JsonResponse({
+                'success': True,
+                'exists': False,
+                'validated': False,
+                'has_password': False,
+            })
 
         # Si pas utilisateur Hub → checks normaux
         if not is_hub_user:
@@ -842,7 +859,7 @@ def api_login(request):
 
         etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
 
-        # Chercher dans le spoke (personnel)
+        # Chercher dans le spoke (personnel) — TOUJOURS par etab_id d'abord
         personnel = None
         try:
             if etab_id:
@@ -852,28 +869,21 @@ def api_login(request):
         except Exception:
             pass
 
-        # Si introuvable → chercher dans le Hub
+        # Vérifier le Hub pour cet établissement
         is_hub_user = False
         is_super = False
         hub_info = None
         id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
-        if personnel is None:
-            found, is_super, hub_info = _check_hub_user(email, etab_id, pays_id=id_pays)
-            if found:
-                is_hub_user = True
-                personnel = _auto_provision_hub_user(
-                    email, etab_id, hub_info=hub_info, is_super=is_super, password=password, pays_id=id_pays
-                )
-            else:
-                return JsonResponse({'success': False, 'error': 'Identifiants incorrects'}, status=401)
-        else:
-            found, is_super, hub_info = _check_hub_user(email, etab_id, pays_id=id_pays)
-            if found:
-                is_hub_user = True
-                _auto_provision_hub_user(
-                    email, etab_id, hub_info=hub_info, is_super=is_super, pays_id=id_pays
-                )
-                personnel.refresh_from_db()
+        found, is_super, hub_info = _check_hub_user(email, etab_id, pays_id=id_pays)
+
+        if found:
+            is_hub_user = True
+            # Auto-provisionner pour l'établissement courant (crée personnel + user_module si absent)
+            personnel = _auto_provision_hub_user(
+                email, etab_id, hub_info=hub_info, is_super=is_super, password=password, pays_id=id_pays
+            )
+        elif personnel is None:
+            return JsonResponse({'success': False, 'error': 'Identifiants incorrects'}, status=401)
 
         # Checks normaux
         if not personnel.isUser or not personnel.en_fonction:
