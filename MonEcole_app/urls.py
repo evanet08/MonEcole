@@ -135,6 +135,8 @@ urlpatterns = [
     path('api/get-cours/', api_views.get_cours_data, name='get_cours'),
     path('api/save-cours/', api_views.save_cours, name='save_cours'),
     path('api/delete-cours/', api_views.delete_cours, name='delete_cours'),
+    path('api/download-cours-template/', api_views.download_cours_template, name='download_cours_template'),
+    path('api/import-cours-excel/', api_views.import_cours_excel, name='import_cours_excel'),
 
     # Cours Annee (Configuration Annuelle)
     path('api/get-cours-annee/', api_views.get_cours_annee_data, name='get_cours_annee'),

@@ -596,13 +596,20 @@
                     <div class="dash-section-title"><i class="fas fa-book"></i> Cours personnalisables</div>
                     <div class="dash-section-sub">Pour les cycles non-uniformes (ex: CFP), configurez les cours et pondérations spécifiques à votre établissement.</div>
                 </div>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 flex-wrap">
                     <button class="btn btn-sm btn-outline-primary" style="font-size:.72rem;border-radius:8px" onclick="openDomaineModal()">
                         <i class="fas fa-layer-group me-1"></i>Domaines
                     </button>
                     <button class="btn btn-sm btn-primary" style="font-size:.72rem;border-radius:8px" onclick="openCoursModal()" id="btnAddCoursEtab">
                         <i class="fas fa-plus me-1"></i>Ajouter un cours
                     </button>
+                    <button class="btn btn-sm btn-outline-success" style="font-size:.72rem;border-radius:8px" onclick="downloadCoursTemplate()" id="btnDlCoursTemplate">
+                        <i class="fas fa-file-download me-1"></i>Modèle Excel
+                    </button>
+                    <label class="btn btn-sm btn-outline-info" style="font-size:.72rem;border-radius:8px;cursor:pointer;margin:0" id="btnImportCours">
+                        <i class="fas fa-file-upload me-1"></i>Importer Excel
+                        <input type="file" accept=".xlsx" onchange="importCoursExcel(this)" style="display:none">
+                    </label>
                 </div>
             </div>
             <div class="d-flex flex-wrap gap-2 align-items-center mb-3" id="coursFilters">
@@ -2554,6 +2561,44 @@ async function deleteCoursFromCatalog(id, nom) {
         if (data.success) { showToast('Cours supprimé', 'success'); loadCoursEtab(); }
         else { showToast(data.error || 'Erreur', 'error'); }
     } catch (e) { showToast('Erreur: ' + e.message, 'error'); }
+}
+
+function downloadCoursTemplate() {
+    const classeId = document.getElementById('cours-classe-select').value;
+    const sectionId = document.getElementById('cours-section-select').value;
+    if (!classeId) { showToast('Sélectionnez d\'abord un cycle et une classe', 'error'); return; }
+    let url = `/api/download-cours-template/?id_classe=${classeId}&id_pays=${PAYS_ID}`;
+    if (sectionId) url += `&id_section=${sectionId}`;
+    window.open(url, '_blank');
+}
+
+async function importCoursExcel(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const classeId = document.getElementById('cours-classe-select').value;
+    const sectionId = document.getElementById('cours-section-select').value;
+    if (!classeId) { showToast('Sélectionnez d\'abord un cycle et une classe', 'error'); input.value = ''; return; }
+    showToast('Import des cours en cours...', 'info');
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+    const form = new FormData();
+    form.append('file', file);
+    form.append('id_classe', classeId);
+    if (sectionId) form.append('id_section', sectionId);
+    try {
+        const res = await fetch('/api/import-cours-excel/', {
+            method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: form
+        });
+        const data = await res.json();
+        if (data.success) {
+            let msg = `${data.count} cours importé(s) avec succès !`;
+            if (data.errors && data.errors.length > 0) msg += ` (${data.errors.length} erreur(s))`;
+            showToast(msg, 'success');
+            loadCoursEtab();
+        } else {
+            showToast(data.error || 'Erreur import', 'error');
+        }
+    } catch (e) { showToast('Erreur: ' + e.message, 'error'); }
+    input.value = '';
 }
 
 /* ===== ÉLÈVES MANAGEMENT ===== */
