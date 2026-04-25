@@ -466,6 +466,7 @@ def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, pass
                 defaults={
                     'id_annee_id': annee_id,
                     'is_active': True,
+                    'id_pays': pays_id,
                 }
             )
             if not created and not um.is_active:
@@ -481,6 +482,7 @@ def _auto_provision_hub_user(email, etab_id, hub_info=None, is_super=False, pass
                 defaults={
                     'id_annee_id': annee_id,
                     'is_active': True,
+                    'id_pays': pays_id,
                 }
             )
             if not created and not um.is_active:
