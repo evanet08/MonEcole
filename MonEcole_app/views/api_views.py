@@ -2584,29 +2584,57 @@ def download_cours_template(request):
     
     try:
         id_classe = request.GET.get('id_classe')
+        id_section = request.GET.get('id_section')
+        id_pays = request.GET.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
         classe = get_object_or_404(Classe, id_classe=id_classe)
+        if not id_pays:
+            id_pays = classe.id_pays
         
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = f"Cours_{classe.nom}"[:31]  # Excel sheet name max 31 chars
+        section_label = ''
+        if id_section:
+            sec = Section.objects.filter(id_section=id_section).first()
+            section_label = f"_{sec.nom}" if sec else ''
+        ws.title = f"Cours_{classe.nom}{section_label}"[:31]
+        
+        # Build domaine map for reverse lookup
+        domaine_map = {}
+        if Domaine:
+            pays_obj = Pays.objects.filter(id_pays=id_pays).first()
+            if pays_obj:
+                domaine_map = {d['id_domaine']: d['nom'] for d in Domaine.objects.filter(pays=pays_obj).values('id_domaine', 'nom')}
         
         # En-têtes
         headers = ['CODE_COURS', 'COURS', 'DOMAINE']
         ws.append(headers)
         
-        # Lignes d'exemple
-        ws.append(['MATH01', 'Mathématiques', 'Sciences'])
-        ws.append(['FR01', 'Français', 'Langues'])
+        # Pré-remplir avec les cours existants de cette classe/section
+        existing_cours = Cours.objects.filter(classe__id_classe=id_classe, id_pays=id_pays).order_by('code_cours')
+        if id_section:
+            existing_cours = existing_cours.filter(section_id=id_section)
+        else:
+            existing_cours = existing_cours.filter(section_id__isnull=True)
+        
+        if existing_cours.exists():
+            for c in existing_cours:
+                dom_name = domaine_map.get(c.domaine_id, '') if c.domaine_id else ''
+                ws.append([c.code_cours or '', c.cours or '', dom_name])
+        else:
+            # Lignes d'exemple si pas de cours existants
+            ws.append(['MATH01', 'Mathématiques', 'Sciences'])
+            ws.append(['FR01', 'Français', 'Langues'])
         
         # Instructions
-        ws.cell(row=6, column=1, value="Instructions:")
-        ws.cell(row=7, column=1, value="1. Remplissez CODE_COURS, COURS et DOMAINE à partir de la ligne 2.")
-        ws.cell(row=8, column=1, value="2. Le CODE_COURS doit être unique pour cette classe.")
-        ws.cell(row=9, column=1, value="3. Le DOMAINE est optionnel.")
+        last_row = ws.max_row + 2
+        ws.cell(row=last_row, column=1, value="Instructions:")
+        ws.cell(row=last_row + 1, column=1, value="1. Modifiez ou ajoutez des cours à partir de la ligne 2.")
+        ws.cell(row=last_row + 2, column=1, value="2. Le CODE_COURS est la clé unique — les cours existants seront mis à jour.")
+        ws.cell(row=last_row + 3, column=1, value="3. Le DOMAINE est optionnel.")
         
         # Largeurs de colonnes
         ws.column_dimensions['A'].width = 15
-        ws.column_dimensions['B'].width = 35
+        ws.column_dimensions['B'].width = 40
         ws.column_dimensions['C'].width = 25
         
         # Style en-têtes
@@ -2618,7 +2646,7 @@ def download_cours_template(request):
             cell.font = header_font
         
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        filename = f"Modele_Cours_{classe.nom.replace(' ', '_')}.xlsx"
+        filename = f"Modele_Cours_{classe.nom.replace(' ', '_')}{section_label.replace(' ', '_')}.xlsx"
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         wb.save(response)
         return response
@@ -2686,7 +2714,8 @@ def import_cours_excel(request):
                     classe=classe,
                     section=section,
                     code_cours=code,
-                    defaults={'id_pays': classe.id_pays, 'cours': nom, 'domaine': Domaine.objects.filter(pays=classe.cycle.pays, nom=domaine).first() if domaine else None}
+                    id_pays=classe.id_pays,
+                    defaults={'cours': nom, 'domaine': Domaine.objects.filter(pays=classe.cycle.pays, nom=domaine).first() if domaine else None}
                 )
                 success_count += 1
             except Exception as e:
@@ -2938,10 +2967,25 @@ def download_cours_annee_template(request):
             cell.fill = header_fill
             cell.font = Font(bold=True, color="FFFFFF")
 
-        for c in Cours.objects.filter(classe__id_classe=id_classe, id_pays=id_pays).order_by('domaine_id', 'code_cours'):
+        # Build domaine map for name lookup
+        domaine_map = {}
+        if Domaine:
+            pays_obj = Pays.objects.filter(id_pays=id_pays).first()
+            if pays_obj:
+                domaine_map = {d['id_domaine']: d['nom'] for d in Domaine.objects.filter(pays=pays_obj).values('id_domaine', 'nom')}
+
+        id_section = request.GET.get('id_section')
+        cours_qs = Cours.objects.filter(classe__id_classe=id_classe, id_pays=id_pays).order_by('domaine_id', 'code_cours')
+        if id_section:
+            cours_qs = cours_qs.filter(section_id=id_section)
+        else:
+            cours_qs = cours_qs.filter(section_id__isnull=True)
+
+        for c in cours_qs:
             config = CoursAnnee.objects.filter(cours=c, annee=annee, id_pays=id_pays).first()
+            dom_name = domaine_map.get(c.domaine_id, '') if c.domaine_id else ''
             ws.append([
-                c.code_cours, c.cours, c.domaine,
+                c.code_cours, c.cours, dom_name,
                 config.maxima_exam if config else '',
                 config.maxima_tj if config else '',
                 config.maxima_periode if config else '', config.credits if config else '',
@@ -12180,9 +12224,12 @@ def save_domaine(request):
         nom = data.get('nom', '').strip()
         code = data.get('code', '').strip()
         sigle = data.get('sigle', '').strip()
+        id_pays = data.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
 
         if not nom:
             return JsonResponse({'success': False, 'error': 'Le nom du domaine est requis.'}, status=400)
+        if not id_pays:
+            return JsonResponse({'success': False, 'error': 'id_pays manquant.'}, status=400)
         if Domaine is None:
             return JsonResponse({'success': False, 'error': 'Modèle Domaine non disponible.'}, status=500)
 
@@ -12191,7 +12238,7 @@ def save_domaine(request):
             return JsonResponse({'success': False, 'error': 'Pays introuvable.'}, status=400)
 
         if id_domaine:
-            d = Domaine.objects.filter(id_domaine=id_domaine).first()
+            d = Domaine.objects.filter(id_domaine=id_domaine, pays=pays).first()
             if not d:
                 return JsonResponse({'success': False, 'error': 'Domaine introuvable.'}, status=404)
             d.nom = nom
@@ -12213,17 +12260,22 @@ def delete_domaine(request):
     """Supprime un domaine s'il n'est pas référencé."""
     try:
         data = json.loads(request.body)
+        id_pays = data.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
         if Domaine is None:
             return JsonResponse({'success': False, 'error': 'Modèle Domaine non disponible.'}, status=500)
+        pays = Pays.objects.filter(id_pays=id_pays).first() if id_pays else None
         domaine = Domaine.objects.filter(id_domaine=data.get('id_domaine')).first()
         if not domaine:
             return JsonResponse({'success': False, 'error': 'Domaine introuvable.'}, status=404)
 
-        if Cours:
+        if Cours and pays:
             cours_count = Cours.objects.filter(domaine=domaine, id_pays=pays.id_pays).count()
         else:
             cours_count = 0
-        ca_count = CoursAnnee.objects.filter(domaine=domaine, id_pays=pays.id_pays).count()
+        if pays:
+            ca_count = CoursAnnee.objects.filter(domaine=domaine, id_pays=pays.id_pays).count()
+        else:
+            ca_count = 0
         if cours_count > 0 or ca_count > 0:
             return JsonResponse({
                 'success': False,
@@ -12365,9 +12417,12 @@ def save_cours(request):
         domaine_id = data.get('domaine_id')
         id_classe = data.get('id_classe')
         id_section = data.get('id_section')
+        id_pays = data.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
 
         if not code_cours or not nom_cours or not id_classe:
             return JsonResponse({'success': False, 'error': 'Code, nom du cours et classe sont requis.'}, status=400)
+        if not id_pays:
+            return JsonResponse({'success': False, 'error': 'id_pays manquant.'}, status=400)
         if Cours is None:
             return JsonResponse({'success': False, 'error': 'Modèle Cours non disponible.'}, status=500)
 
@@ -12404,6 +12459,7 @@ def delete_cours(request):
     """Supprime un cours."""
     try:
         data = json.loads(request.body)
+        id_pays = data.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
         if Cours is None:
             return JsonResponse({'success': False, 'error': 'Modèle Cours non disponible.'}, status=500)
         c = Cours.objects.filter(id_cours=data.get('id_cours'), id_pays=id_pays).first()
@@ -12519,6 +12575,7 @@ def save_cours_annee(request):
         id_cours_annee = data.get('id_cours_annee')
         cours_id = data.get('cours_id')
         annee_id = data.get('annee_id')
+        id_pays = data.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
 
         int_fields = ['maxima_exam', 'maxima_tj', 'maxima_periode', 'credits',
                       'heure_semaine', 'ordre', 'est_considerer_echec_lorsque_pourcentage_est']
@@ -12558,7 +12615,7 @@ def save_cours_annee(request):
                 fields[f] = bool(data.get(f, False))
 
             cours = Cours.objects.filter(id_cours=cours_id, id_pays=id_pays).first()
-            annee = Annee.objects.filter(pk=annee_id).first()
+            annee = Annee.objects.filter(pk=annee_id, pays_id=id_pays).first()
             if not cours or not annee:
                 return JsonResponse({'success': False, 'error': 'Cours ou année introuvable.'}, status=404)
 
@@ -12584,6 +12641,7 @@ def delete_cours_annee(request):
     """Supprime une configuration annuelle de cours."""
     try:
         data = json.loads(request.body)
+        id_pays = data.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
         ca = CoursAnnee.objects.filter(id_cours_annee=data.get('id_cours_annee'), id_pays=id_pays).first()
         if ca:
             ca.delete()
@@ -12607,12 +12665,16 @@ def bulk_activate_cours_annee(request):
         if Cours is None:
             return JsonResponse({'success': False, 'error': 'Modèle Cours non disponible.'}, status=500)
 
+        id_pays = data.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
+        if not id_pays:
+            return JsonResponse({'success': False, 'error': 'id_pays manquant.'}, status=400)
+
         cours_catalogue = Cours.objects.filter(classe__id_classe=id_classe, id_pays=id_pays)
         if id_section:
             cours_catalogue = cours_catalogue.filter(section_id=id_section)
         else:
             cours_catalogue = cours_catalogue.filter(section_id__isnull=True)
-        annee = Annee.objects.filter(pk=id_annee).first()
+        annee = Annee.objects.filter(pk=id_annee, pays_id=id_pays).first()
         if not annee:
             return JsonResponse({'success': False, 'error': 'Année introuvable.'}, status=404)
 
