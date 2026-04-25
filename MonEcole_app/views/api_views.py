@@ -2395,7 +2395,7 @@ def get_cours_data(request):
             return JsonResponse({'success': True, 'cours': [], 'classes': []})
 
         # Récupérer les sections globales (pour les cycles à sections)
-        all_sections = list(Section.objects.all().order_by('nom').values('id_section', 'nom', 'code'))
+        all_sections = list(Section.objects.filter(pays_id=id_pays).order_by('nom').values('id_section', 'nom', 'code'))
 
         # Récupérer les classes activées pour cet établissement (via EAC)
         id_etablissement = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
@@ -3697,7 +3697,7 @@ def get_sections_list(request):
         id_pays = request.GET.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
         sections = Section.objects.all().order_by('type_subdivision', 'code')
         if id_pays:
-            sections = sections.filter(id_pays=id_pays)
+            sections = sections.filter(pays_id=id_pays)
         type_id = request.GET.get('type_id')
         if type_id:
             sections = sections.filter(type_subdivision_id=type_id)
@@ -7862,7 +7862,9 @@ def get_mon_etablissement(request):
 def get_repartition_types(request):
     """Retourne tous les types de répartition."""
     try:
-        types = list(RepartitionType.objects.all().values(
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        types = list(RepartitionType.objects.filter(id_pays=etab.pays_id).values(
             'id_type', 'nom', 'code', 'description', 'is_active'
         ))
         return JsonResponse({'success': True, 'types': types})
@@ -7874,6 +7876,8 @@ def get_repartition_types(request):
 def save_repartition_type(request):
     """Créer ou modifier un type de répartition."""
     try:
+        etab, err = _get_tenant_etab(request)
+        if err: return err
         data = json.loads(request.body)
         id_type = data.get('id_type')
         nom = data.get('nom', '').strip()
@@ -7885,7 +7889,7 @@ def save_repartition_type(request):
             return JsonResponse({'success': False, 'error': 'Nom et code requis.'}, status=400)
 
         if id_type:
-            obj = get_object_or_404(RepartitionType, pk=id_type)
+            obj = get_object_or_404(RepartitionType, pk=id_type, id_pays=etab.pays_id)
             obj.nom = nom
             obj.code = code
             obj.description = description
@@ -7893,7 +7897,8 @@ def save_repartition_type(request):
             obj.save()
         else:
             obj = RepartitionType.objects.create(
-                nom=nom, code=code, description=description, is_active=is_active
+                nom=nom, code=code, description=description, is_active=is_active,
+                id_pays=etab.pays_id
             )
         return JsonResponse({'success': True, 'id_type': obj.id_type})
     except Exception as e:
@@ -7904,8 +7909,10 @@ def save_repartition_type(request):
 def delete_repartition_type(request):
     """Supprimer un type de répartition."""
     try:
+        etab, err = _get_tenant_etab(request)
+        if err: return err
         data = json.loads(request.body)
-        obj = get_object_or_404(RepartitionType, pk=data.get('id_type'))
+        obj = get_object_or_404(RepartitionType, pk=data.get('id_type'), id_pays=etab.pays_id)
         # Vérifier qu'il n'y a pas d'instances liées
         if obj.instances.exists():
             return JsonResponse({
@@ -7922,9 +7929,11 @@ def delete_repartition_type(request):
 def get_repartition_instances(request):
     """Retourne les instances de répartition, filtrable par type et/ou année."""
     try:
+        etab, err = _get_tenant_etab(request)
+        if err: return err
         type_id = request.GET.get('type_id')
         annee_id = request.GET.get('annee_id')
-        qs = RepartitionInstance.objects.select_related('type', 'annee').all()
+        qs = RepartitionInstance.objects.select_related('type', 'annee').filter(pays_id=etab.pays_id)
         if type_id:
             qs = qs.filter(type_id=type_id)
         if annee_id:
@@ -7955,6 +7964,8 @@ def get_repartition_instances(request):
 def save_repartition_instance(request):
     """Créer ou modifier une instance de répartition."""
     try:
+        etab, err = _get_tenant_etab(request)
+        if err: return err
         data = json.loads(request.body)
         id_instance = data.get('id_instance')
         type_id = data.get('type_id')
@@ -7969,11 +7980,11 @@ def save_repartition_instance(request):
         if not type_id or not nom or not code:
             return JsonResponse({'success': False, 'error': 'Type, nom et code requis.'}, status=400)
 
-        rtype = get_object_or_404(RepartitionType, pk=type_id)
-        annee = Annee.objects.filter(pk=annee_id).first() if annee_id else None
+        rtype = get_object_or_404(RepartitionType, pk=type_id, id_pays=etab.pays_id)
+        annee = Annee.objects.filter(pk=annee_id, pays_id=etab.pays_id).first() if annee_id else None
 
         if id_instance:
-            obj = get_object_or_404(RepartitionInstance, pk=id_instance)
+            obj = get_object_or_404(RepartitionInstance, pk=id_instance, pays_id=etab.pays_id)
             obj.type = rtype
             obj.annee = annee
             obj.nom = nom
@@ -7987,7 +7998,7 @@ def save_repartition_instance(request):
             obj = RepartitionInstance.objects.create(
                 type=rtype, annee=annee, nom=nom, code=code,
                 ordre=ordre, date_debut=date_debut, date_fin=date_fin,
-                is_active=is_active
+                is_active=is_active, pays_id=etab.pays_id
             )
         return JsonResponse({'success': True, 'id_instance': obj.id_instance})
     except Exception as e:
@@ -7998,8 +8009,10 @@ def save_repartition_instance(request):
 def delete_repartition_instance(request):
     """Supprimer une instance de répartition."""
     try:
+        etab, err = _get_tenant_etab(request)
+        if err: return err
         data = json.loads(request.body)
-        obj = get_object_or_404(RepartitionInstance, pk=data.get('id_instance'))
+        obj = get_object_or_404(RepartitionInstance, pk=data.get('id_instance'), pays_id=etab.pays_id)
         obj.delete()
         return JsonResponse({'success': True})
     except Exception as e:
@@ -8010,7 +8023,9 @@ def delete_repartition_instance(request):
 def get_repartition_hierarchies(request):
     """Retourne les hiérarchies entre types."""
     try:
-        qs = RepartitionHierarchie.objects.select_related('type_parent', 'type_enfant').all()
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        qs = RepartitionHierarchie.objects.select_related('type_parent', 'type_enfant').filter(id_pays=etab.pays_id)
         hierarchies = []
         for h in qs:
             hierarchies.append({
@@ -8033,6 +8048,8 @@ def get_repartition_hierarchies(request):
 def save_repartition_hierarchie(request):
     """Créer ou modifier une hiérarchie entre types."""
     try:
+        etab, err = _get_tenant_etab(request)
+        if err: return err
         data = json.loads(request.body)
         id_hierarchie = data.get('id_hierarchie')
         type_parent_id = data.get('type_parent_id')
@@ -8046,11 +8063,11 @@ def save_repartition_hierarchie(request):
         if type_parent_id == type_enfant_id:
             return JsonResponse({'success': False, 'error': 'Un type ne peut pas être son propre enfant.'}, status=400)
 
-        tp = get_object_or_404(RepartitionType, pk=type_parent_id)
-        te = get_object_or_404(RepartitionType, pk=type_enfant_id)
+        tp = get_object_or_404(RepartitionType, pk=type_parent_id, id_pays=etab.pays_id)
+        te = get_object_or_404(RepartitionType, pk=type_enfant_id, id_pays=etab.pays_id)
 
         if id_hierarchie:
-            obj = get_object_or_404(RepartitionHierarchie, id_hierarchie=id_hierarchie)
+            obj = get_object_or_404(RepartitionHierarchie, id_hierarchie=id_hierarchie, id_pays=etab.pays_id)
             obj.type_parent = tp
             obj.type_enfant = te
             obj.nombre_enfants = nombre_enfants
@@ -8059,7 +8076,8 @@ def save_repartition_hierarchie(request):
         else:
             obj = RepartitionHierarchie.objects.create(
                 type_parent=tp, type_enfant=te,
-                nombre_enfants=nombre_enfants, is_active=is_active
+                nombre_enfants=nombre_enfants, is_active=is_active,
+                id_pays=etab.pays_id
             )
         return JsonResponse({'success': True, 'id_hierarchie': obj.id_hierarchie})
     except Exception as e:
@@ -8070,8 +8088,10 @@ def save_repartition_hierarchie(request):
 def delete_repartition_hierarchie(request):
     """Supprimer une hiérarchie."""
     try:
+        etab, err = _get_tenant_etab(request)
+        if err: return err
         data = json.loads(request.body)
-        obj = get_object_or_404(RepartitionHierarchie, id_hierarchie=data.get('id_hierarchie'))
+        obj = get_object_or_404(RepartitionHierarchie, id_hierarchie=data.get('id_hierarchie'), id_pays=etab.pays_id)
         obj.delete()
         return JsonResponse({'success': True})
     except Exception as e:
@@ -8819,8 +8839,8 @@ def save_evaluation(request):
                     if document_url:
                         update_parts.append("document_url=%s")
                         params.append(document_url)
-                    params.append(int(eval_id))
-                    cur.execute(f"UPDATE evaluation SET {', '.join(update_parts)} WHERE id_evaluation=%s", params)
+                    params.extend([int(eval_id), etab_id])
+                    cur.execute(f"UPDATE evaluation SET {', '.join(update_parts)} WHERE id_evaluation=%s AND id_etablissement=%s", params)
                     new_id = int(eval_id)
 
                     # Sync evaluation_repartition when repartition changes
@@ -8897,9 +8917,12 @@ def delete_evaluation(request):
 
         conn = _get_spoke_connection()
         try:
+            etab, err = _get_tenant_etab(request)
+            if err: return err
+            etab_id = etab.id_etablissement
             with conn.cursor() as cur:
                 # Get document_url before deleting to remove file
-                cur.execute("SELECT document_url FROM evaluation WHERE id_evaluation=%s", [eval_id])
+                cur.execute("SELECT document_url FROM evaluation WHERE id_evaluation=%s AND id_etablissement=%s", [eval_id, etab_id])
                 row = cur.fetchone()
                 if row and row['document_url']:
                     import os
@@ -8911,7 +8934,7 @@ def delete_evaluation(request):
                         except Exception:
                             pass
 
-                cur.execute("DELETE FROM evaluation WHERE id_evaluation=%s", [eval_id])
+                cur.execute("DELETE FROM evaluation WHERE id_evaluation=%s AND id_etablissement=%s", [eval_id, etab_id])
             conn.commit()
             return JsonResponse({'success': True})
         finally:
@@ -12236,7 +12259,7 @@ def get_cours_data(request):
 
         all_sections = []
         if Section:
-            all_sections = list(Section.objects.all().order_by('nom').values('id_section', 'nom', 'code'))
+            all_sections = list(Section.objects.filter(pays_id=pays.id_pays).order_by('nom').values('id_section', 'nom', 'code'))
 
         # Récupérer les classes activées pour cet établissement
         id_etablissement = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
@@ -12296,7 +12319,7 @@ def get_cours_data(request):
             domaine_map = {d['id_domaine']: d['nom'] for d in Domaine.objects.filter(pays=pays).values('id_domaine', 'nom')}
         section_map = {}
         if Section:
-            section_map = {s['id_section']: s['nom'] for s in Section.objects.all().values('id_section', 'nom')}
+            section_map = {s['id_section']: s['nom'] for s in Section.objects.filter(pays_id=pays.id_pays).values('id_section', 'nom')}
 
         cours_qs = Cours.objects.filter(classe__cycle__pays=pays)
         if id_classe:
@@ -12434,7 +12457,7 @@ def get_cours_annee_data(request):
             domaine_map = {d['id_domaine']: d['nom'] for d in Domaine.objects.filter(pays=pays).values('id_domaine', 'nom')}
         section_map = {}
         if Section:
-            section_map = {s['id_section']: s['nom'] for s in Section.objects.all().values('id_section', 'nom')}
+            section_map = {s['id_section']: s['nom'] for s in Section.objects.filter(pays_id=pays.id_pays).values('id_section', 'nom')}
 
         # Get tenant etab for per-establishment configs
         etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
@@ -12747,7 +12770,9 @@ def dashboard_horaire(request):
                     'type_id': h['id_horaire_type_id'],
                 })
 
-            types = list(Horaire_type.objects.all().values('id_horaire_type', 'horaire_type'))
+            etab, err = _get_tenant_etab(request)
+            if err: return err
+            types = list(Horaire_type.objects.filter(id_pays=etab.pays_id).values('id_horaire_type', 'horaire_type'))
             return JsonResponse({'success': True, 'horaires': horaires, 'types': types})
 
         elif action == 'save':
