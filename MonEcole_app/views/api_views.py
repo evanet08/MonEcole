@@ -2539,7 +2539,7 @@ def save_cours(request):
             section = get_object_or_404(Section, id_section=id_section)
 
         if id_cours:
-            c = get_object_or_404(Cours, id_cours=id_cours)
+            c = get_object_or_404(Cours, id_cours=id_cours, id_pays=id_pays)
             c.cours = nom_cours
             c.code_cours = code_cours
             c.domaine = domaine
@@ -2570,7 +2570,10 @@ def delete_cours(request):
     try:
         data = json.loads(request.body)
         id_cours = data.get('id_cours')
-        get_object_or_404(Cours, id_cours=id_cours).delete()
+        id_pays = data.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
+        c = Cours.objects.filter(id_cours=id_cours, id_pays=id_pays).first()
+        if c:
+            c.delete()
         return JsonResponse({'success': True})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
@@ -2895,7 +2898,10 @@ def delete_cours_annee(request):
     """Supprime une configuration annuelle de cours."""
     try:
         data = json.loads(request.body)
-        get_object_or_404(CoursAnnee, id_cours_annee=data.get('id_cours_annee')).delete()
+        id_pays = data.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
+        ca = CoursAnnee.objects.filter(id_cours_annee=data.get('id_cours_annee'), id_pays=id_pays).first()
+        if ca:
+            ca.delete()
         return JsonResponse({'success': True})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)

@@ -106,12 +106,7 @@ urlpatterns = [
     path('api/get-etablissement-config/', api_views.get_etablissement_config, name='get_etablissement_config'),
     path('api/save-etablissement-config/', api_views.save_etablissement_config, name='save_etablissement_config'),
 
-    # Cours & Domaines
-    path('api/save-domaine/', api_views.save_domaine, name='save_domaine'),
-    path('api/delete-domaine/', api_views.delete_domaine, name='delete_domaine'),
-    path('api/save-cours/', api_views.save_cours, name='save_cours'),
-    path('api/delete-cours/', api_views.delete_cours, name='delete_cours'),
-    path('api/save-cours-annee/', api_views.save_cours_annee, name='save_cours_annee'),
+
 
     # MonEcole (Fiche établissement)
     path('api/mon-etablissement/', api_views.get_mon_etablissement, name='get_mon_etablissement'),
