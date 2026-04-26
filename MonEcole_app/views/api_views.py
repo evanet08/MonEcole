@@ -6534,7 +6534,7 @@ def dashboard_attribution_cours(request):
                         })
 
                     # Get attribution types
-                    cur.execute("SELECT id_attribution_type, attribution_type FROM attribution_type ORDER BY id_attribution_type")
+                    cur.execute("SELECT id_attribution_type, attribution_type FROM attribution_type WHERE id_pays = %s ORDER BY id_attribution_type", [id_pays])
                     attr_types = [{'id': t['id_attribution_type'], 'label': t['attribution_type']} for t in cur.fetchall()]
 
                     return JsonResponse({
@@ -6582,8 +6582,8 @@ def dashboard_attribution_cours(request):
                         cur.execute("""
                             UPDATE attribution_cours
                             SET id_personnel_id=%s, attribution_type_id=%s, date_attribution=%s
-                            WHERE id_attribution=%s
-                        """, [id_personnel, attr_type_id, __import__('datetime').date.today().strftime('%Y-%m-%d'), existing['id_attribution']])
+                            WHERE id_attribution=%s AND id_etablissement=%s AND id_pays=%s
+                        """, [id_personnel, attr_type_id, __import__('datetime').date.today().strftime('%Y-%m-%d'), existing['id_attribution'], id_etablissement, id_pays])
                     else:
                         cur.execute("""
                             INSERT INTO attribution_cours
@@ -12863,6 +12863,7 @@ def dashboard_horaire(request):
                 groupe=bk['groupe'],
                 section=bk['section_id'],
                 date=date_val,
+                id_pays=id_pays,
             ).exclude(id_horaire=id_horaire if id_horaire else 0)
 
             for existing in overlap:
@@ -12878,13 +12879,14 @@ def dashboard_horaire(request):
                 groupe=bk['groupe'],
                 section_id=bk['section_id'],
                 id_etablissement=etab_id,
+                id_pays=id_pays,
             ).first()
 
             if not attr:
                 return JsonResponse({'success': False, 'error': "Pas d'attribution trouvée pour ce cours/classe"})
 
             if id_horaire:
-                h = Horaire.objects.get(id_horaire=id_horaire, id_etablissement=etab_id)
+                h = Horaire.objects.get(id_horaire=id_horaire, id_etablissement=etab_id, id_pays=id_pays)
                 h.date = date_val
                 h.debut = debut
                 h.fin = fin
@@ -12917,7 +12919,7 @@ def dashboard_horaire(request):
             if not id_horaire:
                 return JsonResponse({'success': False, 'error': 'id_horaire requis'})
 
-            Horaire.objects.filter(id_horaire=id_horaire, id_etablissement=etab_id).delete()
+            Horaire.objects.filter(id_horaire=id_horaire, id_etablissement=etab_id, id_pays=id_pays).delete()
             return JsonResponse({'success': True})
 
         elif action == 'get-cours':
@@ -12938,6 +12940,8 @@ def dashboard_horaire(request):
                 id_classe_id=bk['classe_id'],
                 groupe=bk['groupe'],
                 section_id=bk['section_id'],
+                id_etablissement=etab_id,
+                id_pays=id_pays,
             ).values('id_cours_id', 'id_personnel_id')
 
             # Collecter les IDs
@@ -12971,6 +12975,8 @@ def dashboard_horaire(request):
                 id_classe_id=bk['classe_id'],
                 groupe=bk['groupe'],
                 section_id=bk['section_id'],
+                id_etablissement=etab_id,
+                id_pays=id_pays,
             ).values('id_cours_id', 'id_personnel_id'):
                 cours_list.append({
                     'cours_annee_id': a['id_cours_id'],
@@ -13005,6 +13011,8 @@ def dashboard_horaire(request):
                 id_classe_id=bk['classe_id'],
                 groupe=bk['groupe'],
                 section_id=bk['section_id'],
+                id_etablissement=etab_id,
+                id_pays=id_pays,
             ).first()
             if not attr:
                 return JsonResponse({'success': False, 'error': "Pas d'attribution trouvée"})
@@ -13019,6 +13027,7 @@ def dashboard_horaire(request):
                     groupe=bk['groupe'],
                     section=bk['section_id'],
                     date=date_val,
+                    id_pays=id_pays,
                 )
                 has_overlap = False
                 for existing in overlap:
@@ -13042,6 +13051,7 @@ def dashboard_horaire(request):
                     date=date_val,
                     debut=debut,
                     fin=fin,
+                    id_pays=id_pays,
                 )
                 created += 1
 
@@ -13082,6 +13092,7 @@ def dashboard_horaire(request):
                 groupe=bk['groupe'],
                 section=bk['section_id'],
                 date__in=source_dates,
+                id_pays=id_pays,
             )
 
             created = 0
@@ -13100,6 +13111,7 @@ def dashboard_horaire(request):
                     date=target_date,
                     debut=h.debut,
                     fin=h.fin,
+                    id_pays=id_pays,
                 ).exists()
                 if exists:
                     skipped += 1
@@ -13118,6 +13130,7 @@ def dashboard_horaire(request):
                     date=target_date,
                     debut=h.debut,
                     fin=h.fin,
+                    id_pays=id_pays,
                 )
                 created += 1
 

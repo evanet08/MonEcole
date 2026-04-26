@@ -122,6 +122,7 @@ class Attribution_cours(models.Model):
     id_cours = models.ForeignKey("Cours_par_classe", on_delete=models.PROTECT, null=False)
     id_personnel = models.ForeignKey("Personnel", on_delete=models.PROTECT, null=False)
     date_attribution = models.DateField(auto_now_add=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
     id_pays = models.IntegerField(null=True, blank=True)
 
     class Meta:
