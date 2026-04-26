@@ -6478,6 +6478,37 @@ def dashboard_attribution_cours(request):
                         Q(etablissement__isnull=True) | Q(etablissement_id=etab_id_hub)
                     ).select_related('cours').order_by('cours__cours')
 
+                    # Auto-provision: if no cours_annee exist for this class/year,
+                    # create them from the Cours catalogue so attribution can proceed.
+                    if not cours_annee_list.exists():
+                        from MonEcole_app.models.enseignmnts.matiere import Cours as CoursModel
+                        catalogue_cours = CoursModel.objects.filter(
+                            classe_id=real_classe_id, id_pays=id_pays
+                        ).order_by('cours')
+                        if catalogue_cours.exists():
+                            from django.db import connections as hub_conns
+                            with hub_conns['countryStructure'].cursor() as hcur:
+                                for c in catalogue_cours:
+                                    hcur.execute("""
+                                        INSERT INTO cours_annee
+                                        (cours_id, annee_id, etablissement_id, domaine_id,
+                                         maxima_exam, maxima_tj, maxima_periode,
+                                         compte_au_nombre_echec, total_considerable_trimestre,
+                                         credits, is_obligatory, heure_semaine, `ordre`,
+                                         is_second_semester, id_pays, created_at, updated_at)
+                                        VALUES (%s, %s, NULL, %s,
+                                                10, 10, 20,
+                                                0, 0,
+                                                0, 0, 0, 0,
+                                                0, %s, NOW(), NOW())
+                                    """, [c.id, annee_id, c.domaine_id, id_pays])
+                            # Re-fetch after provisioning
+                            cours_annee_list = CoursAnnee.objects.filter(
+                                cours__classe_id=real_classe_id, annee_id=annee_id, id_pays=id_pays
+                            ).filter(
+                                Q(etablissement__isnull=True) | Q(etablissement_id=etab_id_hub)
+                            ).select_related('cours').order_by('cours__cours')
+
                     # Now get attributions from spoke for these courses
                     # attribution_cours.id_cours_id → cours_annee.id_cours_annee (NOT cours.id_cours!)
                     ca_annee_ids = [ca.id_cours_annee for ca in cours_annee_list]
