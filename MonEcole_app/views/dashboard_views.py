@@ -707,15 +707,17 @@ def espace_enseignant_view(request):
         pers_id = request.session.get('personnel_id')
         pers = None
         if pers_id:
+            id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
             pers = Personnel.objects.filter(
-                id_personnel=pers_id, id_etablissement=etab_id
+                id_personnel=pers_id, id_etablissement=etab_id, id_pays=int(id_pays) if id_pays else None
             ).first()
 
         # 2. Fallback: chercher par email
         if not pers and request.user.email:
             try:
                 pers = Personnel.objects.filter(
-                    email__iexact=request.user.email, id_etablissement=etab_id
+                    email__iexact=request.user.email, id_etablissement=etab_id,
+                    id_pays=int(id_pays) if id_pays else None
                 ).first()
             except Exception:
                 pass
@@ -726,8 +728,8 @@ def espace_enseignant_view(request):
             try:
                 with connections['default'].cursor() as cur:
                     cur.execute(
-                        "SELECT nom, postnom, prenom, email, telephone, imageUrl FROM personnel WHERE id_personnel = %s",
-                        [pers.id_personnel]
+                        "SELECT nom, postnom, prenom, email, telephone, imageUrl FROM personnel WHERE id_personnel = %s AND id_etablissement = %s AND id_pays = %s",
+                        [pers.id_personnel, etab_id, int(id_pays) if id_pays else 0]
                     )
                     sql_row = cur.fetchone()
                     if sql_row:
@@ -1576,6 +1578,7 @@ def api_communication_contacts(request):
     }
 
     current_pers = int(pers_id) if pers_id else 0
+    id_pays_val = getattr(request, 'id_pays', None) or request.session.get('id_pays')
 
     # ── 1. Tout le personnel en fonction, classé par type ──
     try:
@@ -1595,11 +1598,11 @@ def api_communication_contacts(request):
                     WHERE id_etablissement = %s
                     GROUP BY id_personnel_id
                 ) ac_sub ON ac_sub.id_personnel_id = p.id_personnel
-                WHERE p.id_etablissement = %s
+                WHERE p.id_etablissement = %s AND p.id_pays = %s
                   AND p.en_fonction = 1
                   AND p.id_personnel != %s
                 ORDER BY pt.type, p.nom, p.prenom
-            """, [etab_id, etab_id, current_pers])
+            """, [etab_id, etab_id, id_pays_val, current_pers])
             types_seen = set()
             for row in cur.fetchall():
                 nm = f"{row[1] or ''} {row[3] or ''}".strip()
@@ -1632,8 +1635,10 @@ def api_communication_contacts(request):
                 SELECT DISTINCT ac.classe_id, ac.groupe, ac.section_id,
                        eac.id as eac_id
                 FROM attribution_cours ac
+                JOIN countryStructure.etablissements e_hub
+                    ON e_hub.id_etablissement = ac.id_etablissement
                 JOIN countryStructure.etablissements_annees ea
-                    ON ea.etablissement_id = ac.id_etablissement
+                    ON ea.etablissement_id = e_hub.id
                 JOIN countryStructure.etablissements_annees_classes eac
                     ON eac.etablissement_annee_id = ea.id
                     AND eac.classe_id = ac.classe_id
@@ -1669,9 +1674,9 @@ def api_communication_contacts(request):
                     WHERE ei.classe_id = %s
                       AND (COALESCE(ei.groupe,'') = COALESCE(%s,''))
                       AND (COALESCE(ei.section_id,0) = COALESCE(%s,0))
-                      AND ei.status = 1 AND ei.id_etablissement = %s
+                      AND ei.status = 1 AND ei.id_etablissement = %s AND ei.id_pays = %s
                     ORDER BY e.nom, e.prenom
-                """, [classe_id, groupe, section_id, etab_id])
+                """, [classe_id, groupe, section_id, etab_id, id_pays_val])
                 students = []
                 student_rows = cur.fetchall()
                 for s in student_rows:
@@ -1719,12 +1724,12 @@ def api_communication_contacts(request):
                 SELECT g.id_group, g.name, g.description, g.avatar_color, g.created_by,
                        (SELECT COUNT(*) FROM communication_group_member WHERE id_group = g.id_group) as n_members
                 FROM communication_group g
-                WHERE g.id_etablissement = %s
+                WHERE g.id_etablissement = %s AND g.id_pays = %s
                   AND (g.created_by = %s
                        OR EXISTS (SELECT 1 FROM communication_group_member gm
                                   WHERE gm.id_group = g.id_group AND gm.id_personnel = %s))
                 ORDER BY g.name
-            """, [etab_id, current_pers, current_pers])
+            """, [etab_id, id_pays_val, current_pers, current_pers])
             for gr in cur.fetchall():
                 # Charger les membres
                 cur.execute("""
@@ -1768,9 +1773,11 @@ def api_communication_messages(request):
     if not thread_id:
         return JsonResponse({'success': False, 'error': 'thread_id requis'}, status=400)
 
+    id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
     messages = Communication.objects.filter(
         id_etablissement=etab_id,
-        thread_id=thread_id
+        thread_id=thread_id,
+        id_pays=int(id_pays) if id_pays else None,
     ).order_by('created_at').values(
         'id_communication', 'sender_name', 'sender_personnel_id', 'sender_eleve_id',
         'sender_parent_id', 'scope', 'direction', 'message', 'subject',
@@ -1809,7 +1816,8 @@ def api_communication_messages(request):
     Communication.objects.filter(
         id_etablissement=etab_id,
         thread_id=thread_id,
-        is_read=False
+        is_read=False,
+        id_pays=int(id_pays) if id_pays else None,
     ).exclude(
         sender_personnel_id=current_pers
     ).update(is_read=True, read_at=__import__('django.utils.timezone', fromlist=['now']).now())
@@ -1906,9 +1914,11 @@ def api_communication_send(request):
         attachment_url = f'/{file_path}'
         attachment_name = uploaded_file.name
 
+    id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
     comm = Communication.objects.create(
         id_etablissement=etab_id,
         id_annee=annee_id,
+        id_pays=int(id_pays) if id_pays else None,
         sender_personnel_id=sender_id,
         sender_name=sender_name,
         scope=scope,
@@ -1976,8 +1986,8 @@ def api_communication_send(request):
                         WHERE ei.classe_id = %s
                           AND (COALESCE(ei.groupe,'') = COALESCE(%s,''))
                           AND (COALESCE(ei.section_id,0) = COALESCE(%s,0))
-                          AND ei.status = 1 AND ei.id_etablissement = %s
-                    """, [bk[0], bk[1], bk[2], etab_id])
+                          AND ei.status = 1 AND ei.id_etablissement = %s AND ei.id_pays = %s
+                    """, [bk[0], bk[1], bk[2], etab_id, int(id_pays) if id_pays else 0])
                     for row in cur.fetchall():
                         eleve_name = f"{row[0] or ''} {row[1] or ''}".strip()
                         if row[2]:
@@ -2058,7 +2068,8 @@ def api_communication_threads(request):
     current_pers = int(pers_id) if pers_id else 0
 
     threads = Communication.objects.filter(
-        id_etablissement=etab_id
+        id_etablissement=etab_id,
+        id_pays=int(id_pays) if id_pays else None,
     ).values('thread_id').annotate(
         last_msg=Max('created_at'),
         msg_count=Count('id_communication'),
@@ -2069,11 +2080,13 @@ def api_communication_threads(request):
     for t in threads:
         last_comm = Communication.objects.filter(
             id_etablissement=etab_id,
+            id_pays=int(id_pays) if id_pays else None,
             thread_id=t['thread_id']
         ).order_by('-created_at').first()
 
         first_comm = Communication.objects.filter(
             id_etablissement=etab_id,
+            id_pays=int(id_pays) if id_pays else None,
             thread_id=t['thread_id']
         ).order_by('created_at').first()
 
@@ -2110,9 +2123,9 @@ def api_communication_teachers(request):
             cur.execute("""
                 SELECT p.id_personnel, p.nom, p.postnom, p.prenom, p.email
                 FROM personnel p
-                WHERE p.id_etablissement = %s AND p.en_fonction = 1 AND p.id_personnel != %s
+                WHERE p.id_etablissement = %s AND p.id_pays = %s AND p.en_fonction = 1 AND p.id_personnel != %s
                 ORDER BY p.nom, p.prenom
-            """, [etab_id, current_pers])
+            """, [etab_id, id_pays_val, current_pers])
             for row in cur.fetchall():
                 nm = f"{row[1] or ''} {row[3] or ''}".strip()
                 if nm:
@@ -2157,8 +2170,10 @@ def api_communication_group_create(request):
     member_ids = data.get('members', [])
     avatar_color = data.get('avatar_color', '#128c7e')
 
+    id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
     group = CommunicationGroup.objects.create(
         id_etablissement=etab_id,
+        id_pays=int(id_pays) if id_pays else None,
         name=name,
         description=description,
         created_by=pers_id,
@@ -2209,7 +2224,8 @@ def api_communication_group_update(request):
     if not group_id:
         return JsonResponse({'success': False, 'error': 'id_group requis'}, status=400)
 
-    group = CommunicationGroup.objects.filter(id_group=group_id, id_etablissement=etab_id).first()
+    id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
+    group = CommunicationGroup.objects.filter(id_group=group_id, id_etablissement=etab_id, id_pays=int(id_pays) if id_pays else None).first()
     if not group:
         return JsonResponse({'success': False, 'error': 'Groupe non trouvé'}, status=404)
 
@@ -2267,22 +2283,23 @@ def api_communication_heartbeat(request):
     pers_id, etab_id = _get_personnel_id(request)
     if not etab_id or not pers_id:
         return JsonResponse({'success': False}, status=400)
+    id_pays_val = getattr(request, 'id_pays', None) or request.session.get('id_pays')
 
     try:
         with connections['default'].cursor() as cur:
             # Upsert : mettre à jour ma présence
             cur.execute("""
-                INSERT INTO personnel_presence (id_personnel, id_etablissement, last_activity, is_online)
-                VALUES (%s, %s, NOW(), 1)
-                ON DUPLICATE KEY UPDATE last_activity = NOW(), is_online = 1, id_etablissement = %s
-            """, [pers_id, etab_id, etab_id])
+                INSERT INTO personnel_presence (id_personnel, id_etablissement, last_activity, is_online, id_pays)
+                VALUES (%s, %s, NOW(), 1, %s)
+                ON DUPLICATE KEY UPDATE last_activity = NOW(), is_online = 1, id_etablissement = %s, id_pays = %s
+            """, [pers_id, etab_id, id_pays_val, etab_id, id_pays_val])
 
             # Marquer offline ceux inactifs > 2 minutes
             cur.execute("""
                 UPDATE personnel_presence
                 SET is_online = 0
-                WHERE id_etablissement = %s AND last_activity < DATE_SUB(NOW(), INTERVAL 2 MINUTE)
-            """, [etab_id])
+                WHERE id_etablissement = %s AND id_pays = %s AND last_activity < DATE_SUB(NOW(), INTERVAL 2 MINUTE)
+            """, [etab_id, id_pays_val])
 
             # Retourner la liste des collègues en ligne
             cur.execute("""
@@ -2291,9 +2308,9 @@ def api_communication_heartbeat(request):
                        pp.last_activity
                 FROM personnel_presence pp
                 JOIN personnel p ON p.id_personnel = pp.id_personnel
-                WHERE pp.id_etablissement = %s AND pp.is_online = 1 AND pp.id_personnel != %s
+                WHERE pp.id_etablissement = %s AND pp.id_pays = %s AND pp.is_online = 1 AND pp.id_personnel != %s
                 ORDER BY p.nom
-            """, [etab_id, pers_id])
+            """, [etab_id, id_pays_val, pers_id])
             online = []
             for row in cur.fetchall():
                 nm = (row[1] or '').strip()
@@ -2393,16 +2410,17 @@ def api_communication_meeting_create(request):
     room_name = f"MonEcole_Meet_{room_hash}"
 
     _, sender_name = _get_sender_info(pers_id, etab_id)
+    id_pays_val = getattr(request, 'id_pays', None) or request.session.get('id_pays')
 
     try:
         with connections['default'].cursor() as cur:
             cur.execute("""
                 INSERT INTO communication_meeting
                     (id_etablissement, title, description, room_name, created_by,
-                     scheduled_at, duration_minutes, status, share_token)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, 'scheduled', %s)
+                     scheduled_at, duration_minutes, status, share_token, id_pays)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'scheduled', %s, %s)
             """, [etab_id, title, description, room_name, pers_id,
-                  scheduled_at, duration, share_token])
+                  scheduled_at, duration, share_token, id_pays_val])
             meeting_id = cur.lastrowid
 
             # Ajouter le créateur comme invité (accepté)
@@ -2459,6 +2477,7 @@ def api_communication_meetings_list(request):
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
 
     current_pers = int(pers_id) if pers_id else 0
+    id_pays_val = getattr(request, 'id_pays', None) or request.session.get('id_pays')
     meetings = []
 
     try:
@@ -2471,14 +2490,14 @@ def api_communication_meetings_list(request):
                        (SELECT COUNT(*) FROM communication_meeting_invitee WHERE id_meeting = m.id_meeting) as n_invitees,
                        (SELECT rsvp FROM communication_meeting_invitee WHERE id_meeting = m.id_meeting AND id_personnel = %s) as my_rsvp
                 FROM communication_meeting m
-                JOIN personnel p ON p.id_personnel = m.created_by
-                WHERE m.id_etablissement = %s
+                JOIN personnel p ON p.id_personnel = m.created_by AND p.id_etablissement = m.id_etablissement
+                WHERE m.id_etablissement = %s AND m.id_pays = %s
                   AND (m.created_by = %s
                        OR EXISTS (SELECT 1 FROM communication_meeting_invitee mi
                                   WHERE mi.id_meeting = m.id_meeting AND mi.id_personnel = %s))
                 ORDER BY m.scheduled_at DESC
                 LIMIT 50
-            """, [current_pers, etab_id, current_pers, current_pers])
+            """, [current_pers, etab_id, id_pays_val, current_pers, current_pers])
 
             for row in cur.fetchall():
                 scheme = 'https' if request.is_secure() else 'http'
@@ -2517,6 +2536,7 @@ def api_communication_meeting_join(request):
     import hashlib
 
     pers_id, etab_id = _get_personnel_id(request)
+    id_pays_val = getattr(request, 'id_pays', None) or request.session.get('id_pays')
     token = request.GET.get('token', '')
     if not token:
         return JsonResponse({'success': False, 'error': 'Token requis'}, status=400)
@@ -2529,9 +2549,9 @@ def api_communication_meeting_join(request):
                        CONCAT(COALESCE(p.nom,''), ' ', COALESCE(p.prenom,'')) as creator_name
                 FROM communication_meeting m
                 JOIN personnel p ON p.id_personnel = m.created_by
-                WHERE m.share_token = %s
+                WHERE m.share_token = %s AND m.id_etablissement = %s AND m.id_pays = %s
                 LIMIT 1
-            """, [token])
+            """, [token, etab_id, id_pays_val])
             row = cur.fetchone()
             if not row:
                 return JsonResponse({'success': False, 'error': 'Réunion non trouvée'}, status=404)
@@ -2573,14 +2593,15 @@ def api_communication_meeting_cancel(request):
     meeting_id = data.get('id_meeting')
     if not meeting_id:
         return JsonResponse({'success': False, 'error': 'id_meeting requis'}, status=400)
+    id_pays_val = getattr(request, 'id_pays', None) or request.session.get('id_pays')
 
     try:
         with connections['default'].cursor() as cur:
             cur.execute("""
                 UPDATE communication_meeting
                 SET status = 'cancelled'
-                WHERE id_meeting = %s AND created_by = %s AND id_etablissement = %s
-            """, [meeting_id, pers_id, etab_id])
+                WHERE id_meeting = %s AND created_by = %s AND id_etablissement = %s AND id_pays = %s
+            """, [meeting_id, pers_id, etab_id, id_pays_val])
             if cur.rowcount == 0:
                 return JsonResponse({'success': False, 'error': 'Réunion non trouvée ou non autorisé'}, status=404)
     except Exception as e:
