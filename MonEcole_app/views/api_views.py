@@ -6941,7 +6941,7 @@ def dashboard_etablissement_view(request):
             ) if active_cycle_ids else set()
             # Toujours inclure le type Période (subdivision universelle)
             if allowed_type_ids:
-                periode_type = RepartitionType.objects.filter(code='P', id_pays=pays.id_pays).values_list('id_type', flat=True).first()
+                periode_type = RepartitionType.objects.filter(code='P', id_pays=pays.id_pays).values_list('pk', flat=True).first()
                 if periode_type:
                     allowed_type_ids.add(periode_type)
 
@@ -7617,7 +7617,7 @@ def toggle_calendar_synch(request):
                     ).values_list('type_racine_id', flat=True)
                 )
                 # Toujours inclure le type Période
-                periode_type = RepartitionType.objects.filter(code='P', id_pays=etab.pays_id).values_list('id_type', flat=True).first()
+                periode_type = RepartitionType.objects.filter(code='P', id_pays=etab.pays_id).values_list('pk', flat=True).first()
                 if periode_type:
                     allowed_type_ids.add(periode_type)
 
