@@ -1330,6 +1330,10 @@ async function saveComposition() {
 
 <!-- ============ NOTES JS ============ -->
 <script>
+// Répartitions disponibles — TOUJOURS défini en premier, hors IIFE
+window._repartitionsData = JSON.parse('{{ repartitions_notes_json|escapejs }}');
+</script>
+<script>
 (function() {
     const classeSelect = document.getElementById('notes-classe-select');
     if (!classeSelect) return;
@@ -1351,9 +1355,6 @@ async function saveComposition() {
             }
         })
         .catch(e => console.error('populateNotesClasses', e));
-
-    // Répartitions disponibles pour cet établissement/année
-    window._repartitionsData = JSON.parse('{{ repartitions_notes_json|escapejs }}');
 })();
 
 // ---- NOTES PAR EVALUATION — 3-MODE ARCHITECTURE ----
