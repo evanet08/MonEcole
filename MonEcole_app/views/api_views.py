@@ -8016,15 +8016,28 @@ def get_repartition_instances(request):
         annee_id = request.GET.get('annee_id')
         qs = RepartitionInstance.objects.select_related('type', 'annee').filter(pays_id=etab.pays_id)
         if type_id:
-            qs = qs.filter(type_id=type_id)
+            # Frontend sends id_type (business key), resolve to surrogate PK
+            rt = RepartitionType.objects.filter(id_type=type_id, pays_id=etab.pays_id).first()
+            if rt:
+                # Include child types from hierarchy for accordion display
+                child_type_pks = list(
+                    RepartitionHierarchie.objects.filter(
+                        type_parent=rt, pays_id=etab.pays_id, is_active=True
+                    ).values_list('type_enfant_id', flat=True)
+                )
+                type_pks = [rt.pk] + child_type_pks
+                qs = qs.filter(type_id__in=type_pks)
+            else:
+                qs = qs.none()
         if annee_id:
+            # annee_id from frontend is the surrogate PK
             qs = qs.filter(annee_id=annee_id)
 
         instances = []
         for inst in qs:
             instances.append({
                 'id_instance': inst.id_instance,
-                'type_id': inst.type_id,
+                'type_id': inst.type.id_type,
                 'type_nom': inst.type.nom,
                 'type_code': inst.type.code,
                 'annee_id': inst.annee_id,
@@ -8061,11 +8074,11 @@ def save_repartition_instance(request):
         if not type_id or not nom or not code:
             return JsonResponse({'success': False, 'error': 'Type, nom et code requis.'}, status=400)
 
-        rtype = get_object_or_404(RepartitionType, pk=type_id, id_pays=etab.pays_id)
+        rtype = get_object_or_404(RepartitionType, id_type=type_id, pays_id=etab.pays_id)
         annee = Annee.objects.filter(pk=annee_id, pays_id=etab.pays_id).first() if annee_id else None
 
         if id_instance:
-            obj = get_object_or_404(RepartitionInstance, pk=id_instance, pays_id=etab.pays_id)
+            obj = get_object_or_404(RepartitionInstance, id_instance=id_instance, pays_id=etab.pays_id)
             obj.type = rtype
             obj.annee = annee
             obj.nom = nom
@@ -8093,7 +8106,7 @@ def delete_repartition_instance(request):
         etab, err = _get_tenant_etab(request)
         if err: return err
         data = json.loads(request.body)
-        obj = get_object_or_404(RepartitionInstance, pk=data.get('id_instance'), pays_id=etab.pays_id)
+        obj = get_object_or_404(RepartitionInstance, id_instance=data.get('id_instance'), pays_id=etab.pays_id)
         obj.delete()
         return JsonResponse({'success': True})
     except Exception as e:
@@ -8183,10 +8196,11 @@ def delete_repartition_hierarchie(request):
 def get_repartition_configs_cycle(request):
     """Retourne les configurations répartition par cycle."""
     try:
-        id_pays = request.GET.get('id_pays')
-        qs = RepartitionConfigCycle.objects.select_related('cycle', 'type_racine', 'cycle__pays').all()
-        if id_pays:
-            qs = qs.filter(cycle__pays__id_pays=id_pays)
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        qs = RepartitionConfigCycle.objects.select_related('cycle', 'type_racine', 'cycle__pays').filter(
+            cycle__pays_id=etab.pays_id, type_racine__pays_id=etab.pays_id
+        )
 
         configs = []
         for c in qs:
@@ -8209,6 +8223,8 @@ def get_repartition_configs_cycle(request):
 def save_repartition_config_cycle(request):
     """Créer ou modifier une config de répartition par cycle."""
     try:
+        etab, err = _get_tenant_etab(request)
+        if err: return err
         data = json.loads(request.body)
         config_id = data.get('id')
         cycle_id = data.get('cycle_id')
@@ -8219,8 +8235,8 @@ def save_repartition_config_cycle(request):
         if not cycle_id or not type_racine_id:
             return JsonResponse({'success': False, 'error': 'Cycle et type racine requis.'}, status=400)
 
-        cycle = get_object_or_404(Cycle, id_cycle=cycle_id)
-        tr = get_object_or_404(RepartitionType, pk=type_racine_id)
+        cycle = get_object_or_404(Cycle, id_cycle=cycle_id, pays_id=etab.pays_id)
+        tr = get_object_or_404(RepartitionType, pk=type_racine_id, pays_id=etab.pays_id)
 
         if config_id:
             obj = get_object_or_404(RepartitionConfigCycle, id=config_id)
@@ -8243,8 +8259,10 @@ def save_repartition_config_cycle(request):
 def delete_repartition_config_cycle(request):
     """Supprimer une config de répartition par cycle."""
     try:
+        etab, err = _get_tenant_etab(request)
+        if err: return err
         data = json.loads(request.body)
-        obj = get_object_or_404(RepartitionConfigCycle, id=data.get('id'))
+        obj = get_object_or_404(RepartitionConfigCycle, id=data.get('id'), cycle__pays_id=etab.pays_id)
         obj.delete()
         return JsonResponse({'success': True})
     except Exception as e:
