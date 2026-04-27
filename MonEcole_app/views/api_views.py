@@ -9220,7 +9220,7 @@ def _get_or_create_repartition_config(repartition_id, etab_id):
         return config
 
     etab_annee = EtablissementAnnee.objects.filter(
-        etablissement_id=etab_id,
+        etablissement__id_etablissement=etab_id,
         annee=ri.annee
     ).first()
 
@@ -11853,7 +11853,7 @@ def get_bulletin_overview(request):
             return JsonResponse({'success': False, 'error': 'Pas d\'année ouverte.'})
 
         ea = EtablissementAnnee.objects.filter(
-            etablissement_id=etab_id, annee=annee, id_pays=etab.pays_id
+            etablissement__id_etablissement=etab_id, annee=annee, id_pays=etab.pays_id
         ).first()
         if not ea:
             return JsonResponse({'success': False, 'error': 'Config étab-année introuvable.'})
@@ -12769,7 +12769,7 @@ def dashboard_horaire(request):
                 return JsonResponse({'success': False, 'error': 'id_annee requis'})
 
             etab_annee = EtablissementAnnee.objects.filter(
-                etablissement_id=etab_id, annee_id=annee_id
+                etablissement__id_etablissement=etab_id, annee_id=annee_id
             ).first()
             if not etab_annee:
                 return JsonResponse({'success': True, 'periods': []})
