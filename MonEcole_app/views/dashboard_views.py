@@ -903,8 +903,8 @@ def communication_view(request):
             try:
                 with connections['default'].cursor() as cur:
                     cur.execute(
-                        "SELECT nom, postnom, prenom, email, telephone, imageUrl FROM personnel WHERE id_personnel = %s",
-                        [pers.id_personnel]
+                        "SELECT nom, postnom, prenom, email, telephone, imageUrl FROM personnel WHERE id_personnel = %s AND id_etablissement = %s AND id_pays = %s",
+                        [pers.id_personnel, etab_id, int(id_pays) if id_pays else 0]
                     )
                     sql_row = cur.fetchone()
                     if sql_row:
