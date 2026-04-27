@@ -5172,7 +5172,9 @@ def dashboard_campus_list(request):
                 elif id_etablissement:
                     cur.execute("SELECT * FROM campus WHERE id_etablissement=%s ORDER BY campus", [id_etablissement])
                 else:
-                    cur.execute("SELECT * FROM campus WHERE id_pays=%s ORDER BY campus", [id_pays]) if id_pays else cur.execute("SELECT * FROM campus ORDER BY campus")
+                    if not id_pays:
+                        return JsonResponse({'success': False, 'error': 'id_etablissement ou id_pays requis'}, status=400)
+                    cur.execute("SELECT * FROM campus WHERE id_pays=%s ORDER BY campus", [id_pays])
                 rows = cur.fetchall()
                 return JsonResponse({'success': True, 'campus': [
                     {
@@ -5252,8 +5254,10 @@ def dashboard_campus_update(request):
                     params.append(int(data['is_active']))
                 if not sets:
                     return JsonResponse({'success': False, 'error': 'Aucun champ à modifier'}, status=400)
-                params.append(campus_id)
-                cur.execute(f"UPDATE campus SET {', '.join(sets)} WHERE idCampus = %s", params)
+                etab_id = data.get('id_etablissement')
+                id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
+                params.extend([campus_id, etab_id, id_pays])
+                cur.execute(f"UPDATE campus SET {', '.join(sets)} WHERE idCampus = %s AND id_etablissement = %s AND id_pays = %s", params)
                 conn.commit()
                 return JsonResponse({'success': True})
         finally:
@@ -5275,14 +5279,16 @@ def dashboard_campus_delete(request):
         try:
             with conn.cursor() as cur:
                 # Check if students are enrolled in this campus
-                cur.execute("SELECT COUNT(*) as nb FROM eleve_inscription WHERE idCampus_id = %s", [campus_id])
+                etab_id = data.get('id_etablissement')
+                id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
+                cur.execute("SELECT COUNT(*) as nb FROM eleve_inscription WHERE idCampus_id = %s AND id_etablissement = %s AND id_pays = %s", [campus_id, etab_id, id_pays])
                 row = cur.fetchone()
                 if row and row['nb'] > 0:
                     return JsonResponse({
                         'success': False,
                         'error': f"Impossible de supprimer : {row['nb']} élève(s) inscrit(s) dans ce campus."
                     }, status=400)
-                cur.execute("DELETE FROM campus WHERE idCampus = %s", [campus_id])
+                cur.execute("DELETE FROM campus WHERE idCampus = %s AND id_etablissement = %s AND id_pays = %s", [campus_id, etab_id, id_pays])
                 conn.commit()
                 return JsonResponse({'success': True})
         finally:
@@ -13309,8 +13315,13 @@ def document_types_api(request):
                 doc_id = data.get('id')
                 with conn.cursor() as cur:
                     # Also delete associated student documents
-                    cur.execute("DELETE FROM document_eleve WHERE id_document_type=%s", [doc_id])
-                    cur.execute("DELETE FROM document_type WHERE id=%s", [doc_id])
+                    id_etablissement = data.get('id_etablissement')
+                    if id_etablissement:
+                        cur.execute("DELETE FROM document_eleve WHERE id_document_type=%s AND id_etablissement=%s", [doc_id, id_etablissement])
+                        cur.execute("DELETE FROM document_type WHERE id=%s AND id_etablissement=%s", [doc_id, id_etablissement])
+                    else:
+                        cur.execute("DELETE FROM document_eleve WHERE id_document_type=%s", [doc_id])
+                        cur.execute("DELETE FROM document_type WHERE id=%s", [doc_id])
                     conn.commit()
                 return JsonResponse({'success': True})
         finally:
@@ -13397,7 +13408,9 @@ def eleve_documents_api(request):
                 doc_id = data.get('id')
                 with conn.cursor() as cur:
                     # Get file path to delete physical file
-                    cur.execute("SELECT file_url FROM document_eleve WHERE id=%s", [doc_id])
+                    id_etablissement = data.get('id_etablissement')
+                    id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
+                    cur.execute("SELECT file_url FROM document_eleve WHERE id=%s AND id_etablissement=%s", [doc_id, id_etablissement])
                     row = cur.fetchone()
                     if row and row.get('file_url'):
                         import os
@@ -13408,7 +13421,7 @@ def eleve_documents_api(request):
                                 os.remove(filepath)
                             except Exception:
                                 pass
-                    cur.execute("DELETE FROM document_eleve WHERE id=%s", [doc_id])
+                    cur.execute("DELETE FROM document_eleve WHERE id=%s AND id_etablissement=%s", [doc_id, id_etablissement])
                     conn.commit()
                 return JsonResponse({'success': True})
         finally:
