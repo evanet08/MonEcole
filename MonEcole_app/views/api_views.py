@@ -8944,7 +8944,7 @@ def save_evaluation(request):
 
                     # Sync evaluation_repartition when repartition changes
                     if repartition_id:
-                        config = _get_or_create_repartition_config(int(repartition_id), etab_id)
+                        config = _get_or_create_repartition_config(int(repartition_id), etab_id, pays_id=etab.pays_id)
                         if config:
                             cur.execute("DELETE FROM evaluation_repartition WHERE id_evaluation = %s", [new_id])
                             cur.execute("""
@@ -8968,7 +8968,7 @@ def save_evaluation(request):
 
                     # Auto-create evaluation_repartition entry
                     if repartition_id:
-                        config = _get_or_create_repartition_config(int(repartition_id), etab_id)
+                        config = _get_or_create_repartition_config(int(repartition_id), etab_id, pays_id=etab.pays_id)
                         if config:
                             cur.execute("""
                                 INSERT INTO evaluation_repartition (id_evaluation, id_repartition_config)
@@ -9065,10 +9065,13 @@ def get_evaluation_candidates(request):
         if not bk:
             return JsonResponse({'success': False, 'error': 'Classe introuvable.'}, status=404)
 
-        # Get repartition config dates
+        # Get repartition config dates — resolve by business key
+        ri_obj = RepartitionInstance.objects.filter(
+            id_instance=repartition_id, pays_id=etab.pays_id
+        ).first() or RepartitionInstance.objects.filter(pk=repartition_id).first()
         config = RepartitionConfigEtabAnnee.objects.filter(
-            repartition_id=repartition_id
-        ).first()
+            repartition=ri_obj
+        ).first() if ri_obj else None
 
         conn = _get_spoke_connection()
         try:
@@ -9162,9 +9165,15 @@ def assign_evaluations(request):
         if not bk:
             return JsonResponse({'success': False, 'error': 'Classe introuvable.'}, status=404)
 
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+
+        ri_obj = RepartitionInstance.objects.filter(
+            id_instance=repartition_id, pays_id=etab.pays_id
+        ).first() or RepartitionInstance.objects.filter(pk=repartition_id).first()
         config = RepartitionConfigEtabAnnee.objects.filter(
-            repartition_id=repartition_id
-        ).first()
+            repartition=ri_obj
+        ).first() if ri_obj else None
         if not config:
             return JsonResponse({'success': False, 'error': 'Configuration de répartition introuvable.'}, status=404)
 
@@ -9202,18 +9211,30 @@ def assign_evaluations(request):
 # NOTES — HELPER: AUTO-PROVISION REPARTITION CONFIG
 # ============================================================
 
-def _get_or_create_repartition_config(repartition_id, etab_id):
+def _get_or_create_repartition_config(repartition_id, etab_id, pays_id=None):
     """
     Ensures a RepartitionConfigEtabAnnee exists for the given repartition instance
     AND the current establishment. Without the etab filter, multi-tenant setups
     could return a config from a different establishment, causing config_id mismatches
     when reading notes back on the bulletin.
+
+    repartition_id: business key (id_instance) sent from frontend.
+    etab_id: business key (id_etablissement) of the establishment.
+    pays_id: country id for scoping.
     """
-    # Find the EtablissementAnnee for this etab first
-    try:
-        ri = RepartitionInstance.objects.select_related('type').get(pk=repartition_id)
-    except RepartitionInstance.DoesNotExist:
-        # Fallback: try without etab filter (single-tenant)
+    # Resolve RepartitionInstance: try by business key first, then by pk
+    ri = None
+    if pays_id:
+        ri = RepartitionInstance.objects.select_related('type').filter(
+            id_instance=repartition_id, pays_id=pays_id
+        ).first()
+    if not ri:
+        # Fallback: try by pk (backward compat)
+        ri = RepartitionInstance.objects.select_related('type').filter(
+            pk=repartition_id
+        ).first()
+    if not ri:
+        # Last fallback: return any config matching repartition_id
         config = RepartitionConfigEtabAnnee.objects.filter(
             repartition_id=repartition_id
         ).select_related('repartition', 'repartition__type').first()
@@ -9227,7 +9248,7 @@ def _get_or_create_repartition_config(repartition_id, etab_id):
     if etab_annee:
         # Filter by BOTH repartition AND establishment to get the correct config_id
         config = RepartitionConfigEtabAnnee.objects.filter(
-            repartition_id=repartition_id,
+            repartition=ri,
             etablissement_annee_id=etab_annee.id
         ).select_related('repartition', 'repartition__type').first()
 
@@ -9280,7 +9301,7 @@ def get_notes_grid(request):
         etab_id = etab.id_etablissement
 
         # Get repartition config for dates (auto-creates if synched mode)
-        config = _get_or_create_repartition_config(repartition_id, etab_id)
+        config = _get_or_create_repartition_config(repartition_id, etab_id, pays_id=etab.pays_id)
 
         repartition_name = config.repartition.nom if config else ''
 
@@ -9543,7 +9564,7 @@ def download_notes_template(request):
         if err: return err
         etab_id = etab.id_etablissement
 
-        config = _get_or_create_repartition_config(repartition_id, etab_id)
+        config = _get_or_create_repartition_config(repartition_id, etab_id, pays_id=etab.pays_id)
 
         conn = _get_spoke_connection()
         try:
@@ -9906,7 +9927,7 @@ def import_exam_notes_excel(request):
             return JsonResponse({'success': False, 'error': 'Aucun cours dans le modèle.'}, status=400)
 
         # Get config
-        config = _get_or_create_repartition_config(repartition_id, etab_id)
+        config = _get_or_create_repartition_config(repartition_id, etab_id, pays_id=etab.pays_id)
         if not config:
             return JsonResponse({'success': False, 'error': 'Configuration de répartition introuvable.'}, status=404)
 
@@ -10759,7 +10780,7 @@ def calculate_notes_bulletin(request):
             return JsonResponse({'success': False, 'error': 'classe_id et repartition_id requis.'}, status=400)
 
         # Get the repartition config (auto-creates if synched mode)
-        config = _get_or_create_repartition_config(repartition_id, etab_id)
+        config = _get_or_create_repartition_config(repartition_id, etab_id, pays_id=etab.pays_id)
 
         if not config:
             return JsonResponse({'success': False, 'error': 'Configuration de répartition introuvable.'}, status=404)
@@ -11399,7 +11420,7 @@ def get_exam_grid(request):
         etab_id = etab.id_etablissement
 
         # Get repartition config (auto-creates if synched mode)
-        config = _get_or_create_repartition_config(repartition_id, etab_id)
+        config = _get_or_create_repartition_config(repartition_id, etab_id, pays_id=etab.pays_id)
         repartition_name = config.repartition.nom if config else ''
         rep_type = config.repartition.type if config else None
 
@@ -11544,7 +11565,7 @@ def save_exam_notes(request):
             return JsonResponse({'success': False, 'error': 'Aucune note à enregistrer.'}, status=400)
 
         # Get config
-        config = _get_or_create_repartition_config(repartition_id, etab_id)
+        config = _get_or_create_repartition_config(repartition_id, etab_id, pays_id=etab.pays_id)
         if not config:
             return JsonResponse({'success': False, 'error': 'Configuration de répartition introuvable.'}, status=404)
 
@@ -11651,7 +11672,7 @@ def download_exam_template(request):
         if err: return err
         etab_id = etab.id_etablissement
 
-        config = _get_or_create_repartition_config(repartition_id, etab_id)
+        config = _get_or_create_repartition_config(repartition_id, etab_id, pays_id=etab.pays_id)
         from django.db import connections
         rep_type_id = config.repartition.type_id if config else None
 
@@ -12123,7 +12144,7 @@ def get_notes_bulletin(request):
         if err: return err
         etab_id = etab.id_etablissement
 
-        config = _get_or_create_repartition_config(repartition_id, etab_id)
+        config = _get_or_create_repartition_config(repartition_id, etab_id, pays_id=etab.pays_id)
 
         if not config:
             return JsonResponse({'success': False, 'error': 'Config introuvable.'}, status=404)
