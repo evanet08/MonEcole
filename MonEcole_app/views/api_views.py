@@ -2842,7 +2842,8 @@ def save_cours_annee(request):
 
         if id_cours_annee:
             # UPDATE: only update fields that are explicitly in the request
-            ca = get_object_or_404(CoursAnnee, id_cours_annee=id_cours_annee)
+            id_pays_val = data.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
+            ca = get_object_or_404(CoursAnnee, id_cours_annee=id_cours_annee, id_pays=id_pays_val)
             for f in int_fields_names:
                 if f in data:
                     v = data[f]

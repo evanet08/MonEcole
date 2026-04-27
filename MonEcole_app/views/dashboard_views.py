@@ -797,7 +797,8 @@ def espace_enseignant_view(request):
                         FROM etablissements_annees_classes eac
                         JOIN etablissements_annees ea ON ea.id = eac.etablissement_annee_id
                         JOIN classes cl ON cl.id_classe = eac.classe_id AND cl.id_pays = ea.id_pays
-                        WHERE ea.etablissement_id = %s AND ea.annee_id = %s
+                        JOIN etablissements e ON e.id = ea.etablissement_id
+                        WHERE e.id_etablissement = %s AND ea.annee_id = %s
                     """, [etab_id, annee_id])
                     active_cycle_ids = [r['cycle_id'] for r in hcur.fetchall()]
 
@@ -1018,6 +1019,7 @@ def api_enseignant_dashboard(request):
     import pymysql, sys
     print(f"[api_enseignant_dashboard] CALLED by personnel_id={request.session.get('personnel_id')}, email={request.user.email}", file=sys.stderr, flush=True)
     etab_id = _get_etab_id(request)
+    id_pays_val = getattr(request, 'id_pays', None) or request.session.get('id_pays')
     print(f"[api_enseignant_dashboard] etab_id={etab_id}", file=sys.stderr, flush=True)
     if not etab_id:
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
@@ -1046,9 +1048,9 @@ def api_enseignant_dashboard(request):
                 SELECT p.id_personnel, p.nom, p.postnom, p.prenom, p.matricule,
                        p.telephone, p.prenom as first_name, p.nom as last_name, p.email
                 FROM personnel p
-                WHERE p.id_personnel = %s AND p.id_etablissement = %s
+                WHERE p.id_personnel = %s AND p.id_etablissement = %s AND p.id_pays = %s
                 LIMIT 1
-            """, [request.user.id_personnel, etab_id])
+            """, [request.user.id_personnel, etab_id, id_pays_val])
             pers = cur.fetchone()
 
             # Fallback: chercher par email (personnel ajouté via dashboard avec user_id bidon)
@@ -1059,9 +1061,9 @@ def api_enseignant_dashboard(request):
                         SELECT p.id_personnel, p.nom, p.postnom, p.prenom, p.matricule,
                                p.telephone, p.email as email
                         FROM personnel p
-                        WHERE LOWER(p.email) = LOWER(%s) AND p.id_etablissement = %s
+                        WHERE LOWER(p.email) = LOWER(%s) AND p.id_etablissement = %s AND p.id_pays = %s
                         LIMIT 1
-                    """, [user_email, etab_id])
+                    """, [user_email, etab_id, id_pays_val])
                     pers = cur.fetchone()
                     if pers:
                         # Remplir les champs manquants pour compatibilité
@@ -1081,7 +1083,7 @@ def api_enseignant_dashboard(request):
                 # Debug: print to stderr for journalctl
                 import sys
                 print(f"[api_enseignant_dashboard] Personnel NOT FOUND: personnel_id={request.user.id_personnel}, email={request.user.email}, etab_id={etab_id}", file=sys.stderr, flush=True)
-                cur.execute("SELECT id_personnel, email, nom, prenom FROM personnel WHERE id_etablissement = %s LIMIT 5", [etab_id])
+                cur.execute("SELECT id_personnel, email, nom, prenom FROM personnel WHERE id_etablissement = %s AND id_pays = %s LIMIT 5", [etab_id, id_pays_val])
                 all_pers = cur.fetchall()
                 print(f"[api_enseignant_dashboard] First 5 personnel for etab {etab_id}: {all_pers}", file=sys.stderr, flush=True)
                 conn.close()
@@ -1100,9 +1102,9 @@ def api_enseignant_dashboard(request):
                        ac.groupe, ac.section_id,
                        ac.id_cycle_id, ac.idCampus_id, ac.date_attribution
                 FROM attribution_cours ac
-                WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s
+                WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s AND ac.id_pays = %s
                 ORDER BY ac.date_attribution DESC
-            """, [personnel_id, etab_id])
+            """, [personnel_id, etab_id, id_pays_val])
             attributions = cur.fetchall()
 
             # Get Hub data for course & class names
@@ -1132,7 +1134,8 @@ def api_enseignant_dashboard(request):
                     hub_cur.execute("""
                         SELECT ea.id FROM etablissements_annees ea
                         JOIN annees a ON a.id = ea.annee_id
-                        WHERE ea.etablissement_id = %s
+                        JOIN etablissements e ON e.id = ea.etablissement_id
+                        WHERE e.id_etablissement = %s
                           AND a.isOpen = 1
                         ORDER BY a.annee DESC LIMIT 1
                     """, [etab_id])
@@ -1179,8 +1182,8 @@ def api_enseignant_dashboard(request):
                             SELECT cl.nom AS classe_nom, cy.nom AS cycle_nom
                             FROM classes cl
                             LEFT JOIN cycles cy ON cy.id = cl.cycle_id
-                            WHERE cl.id_classe = %s
-                        """, [classe_id])
+                            WHERE cl.id_classe = %s AND cl.id_pays = %s
+                        """, [classe_id, id_pays_val])
                         cl = hub_cur.fetchone()
                         if cl:
                             grp = att.get('groupe') or ''
@@ -1212,8 +1215,8 @@ def api_enseignant_dashboard(request):
                     cur.execute("""
                         SELECT COUNT(*) as n FROM eleve_inscription
                         WHERE classe_id = %s AND groupe <=> %s AND section_id <=> %s
-                          AND status = 1 AND id_etablissement = %s
-                    """, [classe_id, att.get('groupe'), att.get('section_id'), etab_id])
+                          AND status = 1 AND id_etablissement = %s AND id_pays = %s
+                    """, [classe_id, att.get('groupe'), att.get('section_id'), etab_id, id_pays_val])
                     r = cur.fetchone()
                     n_eleves = r['n'] if r else 0
                 except Exception:
@@ -1253,10 +1256,10 @@ def api_enseignant_dashboard(request):
                     JOIN attribution_cours ac ON ac.id_cours_id = h.id_cours_id
                         AND ac.classe_id = h.classe_id
                         AND ac.groupe <=> h.groupe AND ac.section_id <=> h.section_id
-                    WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s
+                    WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s AND ac.id_pays = %s
                     ORDER BY h.date DESC, h.debut
                     LIMIT 50
-                """, [personnel_id, etab_id])
+                """, [personnel_id, etab_id, id_pays_val])
                 for row in cur.fetchall():
                     lookup_key = f"{row['id_cours_id']}_{row['classe_id']}"
                     info = cours_lookup.get(lookup_key, {})
@@ -1286,8 +1289,8 @@ def api_enseignant_dashboard(request):
                         AND ac.classe_id = h.classe_id
                         AND ac.groupe <=> h.groupe AND ac.section_id <=> h.section_id
                     LEFT JOIN horaire_presence hp ON hp.id_horaire_id = h.id_horaire
-                    WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s
-                """, [personnel_id, etab_id])
+                    WHERE ac.id_personnel_id = %s AND ac.id_etablissement = %s AND ac.id_pays = %s
+                """, [personnel_id, etab_id, id_pays_val])
                 row = cur.fetchone()
                 if row:
                     presences_stats = {
@@ -1306,8 +1309,8 @@ def api_enseignant_dashboard(request):
                     placeholders = ','.join(['%s'] * len(attr_cours_ids))
                     cur.execute(f"""
                         SELECT COUNT(*) as n FROM evaluation
-                        WHERE id_cours_classe_id IN ({placeholders}) AND id_etablissement = %s
-                    """, attr_cours_ids + [etab_id])
+                        WHERE id_cours_classe_id IN ({placeholders}) AND id_etablissement = %s AND id_pays = %s
+                    """, attr_cours_ids + [etab_id, id_pays_val])
                     r = cur.fetchone()
                     n_evaluations = r['n'] if r else 0
             except Exception:
@@ -1339,6 +1342,7 @@ def api_enseignant_presences(request):
     """API Présences enseignant: GET = charger élèves+présences, POST = sauvegarder."""
     import pymysql
     etab_id = _get_etab_id(request)
+    id_pays_val = getattr(request, 'id_pays', None) or request.session.get('id_pays')
     if not etab_id:
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
     db_settings = connections['default'].settings_dict
@@ -1372,9 +1376,9 @@ def api_enseignant_presences(request):
                         SELECT DISTINCT e.id_eleve, e.nom, e.prenom, e.genre
                         FROM eleve_inscription ei JOIN eleve e ON e.id_eleve=ei.id_eleve_id
                         WHERE ei.classe_id=%s AND ei.groupe <=> %s AND ei.section_id <=> %s
-                          AND ei.status=1 AND ei.id_etablissement=%s
+                          AND ei.status=1 AND ei.id_etablissement=%s AND ei.id_pays=%s
                         ORDER BY e.nom, e.prenom
-                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], etab_id])
+                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], etab_id, id_pays_val])
                     eleves = cur.fetchall()
                 else:
                     eleves = []
@@ -1421,7 +1425,7 @@ def api_enseignant_presences(request):
                     if ex:
                         cur.execute("UPDATE horaire_presence SET present_ou_absent=%s, si_absent_motif=%s, comportement_note=%s WHERE id_horaire_presence=%s", [pres, motif, comp, ex['id_horaire_presence']])
                     else:
-                        cur.execute("INSERT INTO horaire_presence (id_horaire_id,id_eleve_id,present_ou_absent,date_presence,si_absent_motif,id_etablissement,comportement_note) VALUES (%s,%s,%s,%s,%s,%s,%s)", [horaire_id, eid, pres, h_date, motif, etab_id, comp])
+                        cur.execute("INSERT INTO horaire_presence (id_horaire_id,id_eleve_id,present_ou_absent,date_presence,si_absent_motif,id_etablissement,comportement_note,id_pays) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)", [horaire_id, eid, pres, h_date, motif, etab_id, comp, id_pays_val])
                 conn.commit()
             conn.close()
             return JsonResponse({'success': True, 'saved': len(records)})
@@ -1437,6 +1441,7 @@ def api_enseignant_presences(request):
     """API Presences enseignant: GET = charger eleves+presences, POST = sauvegarder."""
     import pymysql
     etab_id = _get_etab_id(request)
+    id_pays_val = getattr(request, 'id_pays', None) or request.session.get('id_pays')
     if not etab_id:
         return JsonResponse({'success': False, 'error': 'Etablissement non trouve'}, status=400)
     db_settings = connections['default'].settings_dict
@@ -1464,9 +1469,9 @@ def api_enseignant_presences(request):
                     SELECT DISTINCT e.id_eleve, e.nom, e.prenom, e.genre
                     FROM eleve_inscription ei JOIN eleve e ON e.id_eleve=ei.id_eleve_id
                     WHERE ei.classe_id=%s AND ei.groupe <=> %s AND ei.section_id <=> %s
-                      AND ei.status=1 AND ei.id_etablissement=%s
+                      AND ei.status=1 AND ei.id_etablissement=%s AND ei.id_pays=%s
                     ORDER BY e.nom, e.prenom
-                """, [horaire['classe_id'], horaire['groupe'], horaire['section_id'], etab_id])
+                """, [horaire['classe_id'], horaire['groupe'], horaire['section_id'], etab_id, id_pays_val])
                 eleves = cur.fetchall()
                 cur.execute("SELECT id_horaire_presence, id_eleve_id, present_ou_absent, si_absent_motif, comportement_note FROM horaire_presence WHERE id_horaire_id=%s", [horaire_id])
                 presences = {}
@@ -1505,7 +1510,7 @@ def api_enseignant_presences(request):
                     if ex:
                         cur.execute("UPDATE horaire_presence SET present_ou_absent=%s, si_absent_motif=%s, comportement_note=%s WHERE id_horaire_presence=%s", [pres, motif, comp, ex['id_horaire_presence']])
                     else:
-                        cur.execute("INSERT INTO horaire_presence (id_horaire_id,id_eleve_id,present_ou_absent,date_presence,si_absent_motif,id_etablissement,comportement_note) VALUES (%s,%s,%s,%s,%s,%s,%s)", [horaire_id, eid, pres, h_date, motif, etab_id, comp])
+                        cur.execute("INSERT INTO horaire_presence (id_horaire_id,id_eleve_id,present_ou_absent,date_presence,si_absent_motif,id_etablissement,comportement_note,id_pays) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)", [horaire_id, eid, pres, h_date, motif, etab_id, comp, id_pays_val])
                 conn.commit()
             conn.close()
             return JsonResponse({'success': True, 'saved': len(records)})
