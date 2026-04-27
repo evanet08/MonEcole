@@ -844,13 +844,17 @@ async function onEvalClasseChange() {
 
     if (!classeId) return;
     try {
-        const res = await fetch('/api/evaluations/cours/?classe_id=' + classeId);
+        const res = await fetch('/api/dashboard/attribution-cours/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+            body: JSON.stringify({action: 'list', id_etablissement: ETAB_ID, id_classe: classeId})
+        });
         const data = await res.json();
         if (data.success) {
-            data.cours.forEach(c => {
+            (data.courses || []).forEach(c => {
                 const opt = document.createElement('option');
                 opt.value = c.id_cours_classe;
-                opt.textContent = c.nom + ' (' + c.code + ')';
+                opt.textContent = c.cours + ' (' + c.code_cours + ')';
                 coursSelect.appendChild(opt);
             });
             coursSelect.disabled = false;
@@ -1190,15 +1194,19 @@ async function onCompClasseChange() {
         repSelect.disabled = false;
     }
 
-    // Populate courses
+    // Populate courses (same API as Attribution des Cours)
     try {
-        const res = await fetch('/api/evaluations/cours/?classe_id=' + classeId);
+        const res = await fetch('/api/dashboard/attribution-cours/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+            body: JSON.stringify({action: 'list', id_etablissement: ETAB_ID, id_classe: classeId})
+        });
         const data = await res.json();
         if (data.success) {
-            data.cours.forEach(c => {
+            (data.courses || []).forEach(c => {
                 const opt = document.createElement('option');
                 opt.value = c.id_cours_classe;
-                opt.textContent = c.nom + ' (' + c.code + ')';
+                opt.textContent = c.cours + ' (' + c.code_cours + ')';
                 coursSelect.appendChild(opt);
             });
             coursSelect.disabled = false;
