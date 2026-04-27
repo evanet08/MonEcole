@@ -677,23 +677,30 @@
 <!-- ============ EVALUATIONS JS ============ -->
 <script>
 (function(){
-    // Populate eval class selectors with same data as notes
+    // Populate eval class selectors via API (same as Attribution des Cours)
     const evalClasseSelect = document.getElementById('eval-classe-select');
     const compClasseSelect = document.getElementById('comp-classe-select');
     if (!evalClasseSelect) return;
-    const classesData = [
-        {% for c in classes_detail %}
-        { eac_id: {{ c.eac_id }}, nom: "{{ c.classe_nom|escapejs }}", cycle: "{{ c.cycle_nom|escapejs }}", section: "{{ c.section_nom|escapejs }}" },
-        {% endfor %}
-    ];
-    classesData.forEach(function(c) {
-        const opt1 = document.createElement('option');
-        var label = (c.section && c.section !== '-') ? c.section : c.cycle;
-        opt1.value = c.eac_id; opt1.textContent = c.nom + ' (' + label + ')';
-        evalClasseSelect.appendChild(opt1);
-        const opt2 = opt1.cloneNode(true);
-        compClasseSelect.appendChild(opt2);
-    });
+    const etabId = '{{ etab.id_etablissement }}';
+    const anneeId = '{% if annee_active %}{{ annee_active.id }}{% endif %}';
+    fetch('/api/get-etablissement-config/?id_etablissement=' + etabId + '&id_annee=' + (anneeId || ''))
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.activated_classes) {
+                data.activated_classes.forEach(function(c) {
+                    const grp = c.groupe ? ' (' + c.groupe + ')' : '';
+                    const sec = (c.section_nom && c.section_nom !== '-') ? ' - ' + c.section_nom : '';
+                    const label = c.classe_nom + sec + grp;
+                    const opt1 = document.createElement('option');
+                    opt1.value = c.classe_par_annee_id;
+                    opt1.textContent = label;
+                    evalClasseSelect.appendChild(opt1);
+                    const opt2 = opt1.cloneNode(true);
+                    compClasseSelect.appendChild(opt2);
+                });
+            }
+        })
+        .catch(e => console.error('populateEvalClasses', e));
 })();
 
 // CSRF Token for all evaluation API calls
@@ -1318,18 +1325,24 @@ async function saveComposition() {
 (function() {
     const classeSelect = document.getElementById('notes-classe-select');
     if (!classeSelect) return;
-    const classesData = [
-        {% for c in classes_detail %}
-        { eac_id: {{ c.eac_id }}, nom: "{{ c.classe_nom|escapejs }}", cycle: "{{ c.cycle_nom|escapejs }}", section: "{{ c.section_nom|escapejs }}" },
-        {% endfor %}
-    ];
-    classesData.forEach(function(c) {
-        const opt = document.createElement('option');
-        opt.value = c.eac_id;
-        var label = (c.section && c.section !== '-') ? c.section : c.cycle;
-        opt.textContent = c.nom + ' (' + label + ')';
-        classeSelect.appendChild(opt);
-    });
+    const etabId = '{{ etab.id_etablissement }}';
+    const anneeId = '{% if annee_active %}{{ annee_active.id }}{% endif %}';
+    fetch('/api/get-etablissement-config/?id_etablissement=' + etabId + '&id_annee=' + (anneeId || ''))
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.activated_classes) {
+                data.activated_classes.forEach(function(c) {
+                    const grp = c.groupe ? ' (' + c.groupe + ')' : '';
+                    const sec = (c.section_nom && c.section_nom !== '-') ? ' - ' + c.section_nom : '';
+                    const label = c.classe_nom + sec + grp;
+                    const opt = document.createElement('option');
+                    opt.value = c.classe_par_annee_id;
+                    opt.textContent = label;
+                    classeSelect.appendChild(opt);
+                });
+            }
+        })
+        .catch(e => console.error('populateNotesClasses', e));
 
     // Répartitions disponibles pour cet établissement/année
     window._repartitionsData = JSON.parse('{{ repartitions_notes_json|escapejs }}');
@@ -2422,17 +2435,24 @@ function toggleBulletinAccordion(accId) {
 (function(){
     var delibClasseSelect = document.getElementById('delib-classe-select');
     if (!delibClasseSelect) return;
-    var classesData = [
-        {% for c in classes_detail %}
-        { eac_id: {{ c.eac_id }}, nom: "{{ c.classe_nom|escapejs }}", cycle: "{{ c.cycle_nom|escapejs }}", section: "{{ c.section_nom|escapejs }}" },
-        {% endfor %}
-    ];
-    classesData.forEach(function(c) {
-        var opt = document.createElement('option');
-        var label = (c.section && c.section !== '-') ? c.section : c.cycle;
-        opt.value = c.eac_id; opt.textContent = c.nom + ' (' + label + ')';
-        delibClasseSelect.appendChild(opt);
-    });
+    var etabId = '{{ etab.id_etablissement }}';
+    var anneeId = '{% if annee_active %}{{ annee_active.id }}{% endif %}';
+    fetch('/api/get-etablissement-config/?id_etablissement=' + etabId + '&id_annee=' + (anneeId || ''))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success && data.activated_classes) {
+                data.activated_classes.forEach(function(c) {
+                    var grp = c.groupe ? ' (' + c.groupe + ')' : '';
+                    var sec = (c.section_nom && c.section_nom !== '-') ? ' - ' + c.section_nom : '';
+                    var label = c.classe_nom + sec + grp;
+                    var opt = document.createElement('option');
+                    opt.value = c.classe_par_annee_id;
+                    opt.textContent = label;
+                    delibClasseSelect.appendChild(opt);
+                });
+            }
+        })
+        .catch(function(e) { console.error('populateDelibClasses', e); });
 })();
 
 var _currentDelibTab = 'periode';
