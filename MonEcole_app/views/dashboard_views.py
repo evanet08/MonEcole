@@ -59,6 +59,17 @@ def _get_etab_id(request):
     return None
 
 
+
+
+def _safe_int(val, default=None):
+    """Safely convert to int, returns default for None/empty/invalid."""
+    if val is None or val == '':
+        return default
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return default
+
 def _get_dashboard_context(request):
     """
     Construit le contexte complet pour le dashboard, identique à eSchool.
@@ -709,7 +720,7 @@ def espace_enseignant_view(request):
         if pers_id:
             id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
             pers = Personnel.objects.filter(
-                id_personnel=pers_id, id_etablissement=etab_id, id_pays=int(id_pays) if id_pays else None
+                id_personnel=pers_id, id_etablissement=etab_id, id_pays=_safe_int(id_pays)
             ).first()
 
         # 2. Fallback: chercher par email
@@ -717,7 +728,7 @@ def espace_enseignant_view(request):
             try:
                 pers = Personnel.objects.filter(
                     email__iexact=request.user.email, id_etablissement=etab_id,
-                    id_pays=int(id_pays) if id_pays else None
+                    id_pays=_safe_int(id_pays)
                 ).first()
             except Exception:
                 pass
@@ -729,7 +740,7 @@ def espace_enseignant_view(request):
                 with connections['default'].cursor() as cur:
                     cur.execute(
                         "SELECT nom, postnom, prenom, email, telephone, imageUrl FROM personnel WHERE id_personnel = %s AND id_etablissement = %s AND id_pays = %s",
-                        [pers.id_personnel, etab_id, int(id_pays) if id_pays else 0]
+                        [pers.id_personnel, etab_id, _safe_int(id_pays, 0)]
                     )
                     sql_row = cur.fetchone()
                     if sql_row:
@@ -904,7 +915,7 @@ def communication_view(request):
                 with connections['default'].cursor() as cur:
                     cur.execute(
                         "SELECT nom, postnom, prenom, email, telephone, imageUrl FROM personnel WHERE id_personnel = %s AND id_etablissement = %s AND id_pays = %s",
-                        [pers.id_personnel, etab_id, int(id_pays) if id_pays else 0]
+                        [pers.id_personnel, etab_id, _safe_int(id_pays, 0)]
                     )
                     sql_row = cur.fetchone()
                     if sql_row:
@@ -1782,7 +1793,7 @@ def api_communication_messages(request):
     messages = Communication.objects.filter(
         id_etablissement=etab_id,
         thread_id=thread_id,
-        id_pays=int(id_pays) if id_pays else None,
+        id_pays=_safe_int(id_pays),
     ).order_by('created_at').values(
         'id_communication', 'sender_name', 'sender_personnel_id', 'sender_eleve_id',
         'sender_parent_id', 'scope', 'direction', 'message', 'subject',
@@ -1822,7 +1833,7 @@ def api_communication_messages(request):
         id_etablissement=etab_id,
         thread_id=thread_id,
         is_read=False,
-        id_pays=int(id_pays) if id_pays else None,
+        id_pays=_safe_int(id_pays),
     ).exclude(
         sender_personnel_id=current_pers
     ).update(is_read=True, read_at=__import__('django.utils.timezone', fromlist=['now']).now())
@@ -1923,7 +1934,7 @@ def api_communication_send(request):
     comm = Communication.objects.create(
         id_etablissement=etab_id,
         id_annee=annee_id,
-        id_pays=int(id_pays) if id_pays else None,
+        id_pays=_safe_int(id_pays),
         sender_personnel_id=sender_id,
         sender_name=sender_name,
         scope=scope,
@@ -1992,7 +2003,7 @@ def api_communication_send(request):
                           AND (COALESCE(ei.groupe,'') = COALESCE(%s,''))
                           AND (COALESCE(ei.section_id,0) = COALESCE(%s,0))
                           AND ei.status = 1 AND ei.id_etablissement = %s AND ei.id_pays = %s
-                    """, [bk[0], bk[1], bk[2], etab_id, int(id_pays) if id_pays else 0])
+                    """, [bk[0], bk[1], bk[2], etab_id, _safe_int(id_pays, 0)])
                     for row in cur.fetchall():
                         eleve_name = f"{row[0] or ''} {row[1] or ''}".strip()
                         if row[2]:
@@ -2074,7 +2085,7 @@ def api_communication_threads(request):
 
     threads = Communication.objects.filter(
         id_etablissement=etab_id,
-        id_pays=int(id_pays) if id_pays else None,
+        id_pays=_safe_int(id_pays),
     ).values('thread_id').annotate(
         last_msg=Max('created_at'),
         msg_count=Count('id_communication'),
@@ -2085,13 +2096,13 @@ def api_communication_threads(request):
     for t in threads:
         last_comm = Communication.objects.filter(
             id_etablissement=etab_id,
-            id_pays=int(id_pays) if id_pays else None,
+            id_pays=_safe_int(id_pays),
             thread_id=t['thread_id']
         ).order_by('-created_at').first()
 
         first_comm = Communication.objects.filter(
             id_etablissement=etab_id,
-            id_pays=int(id_pays) if id_pays else None,
+            id_pays=_safe_int(id_pays),
             thread_id=t['thread_id']
         ).order_by('created_at').first()
 
@@ -2178,7 +2189,7 @@ def api_communication_group_create(request):
     id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
     group = CommunicationGroup.objects.create(
         id_etablissement=etab_id,
-        id_pays=int(id_pays) if id_pays else None,
+        id_pays=_safe_int(id_pays),
         name=name,
         description=description,
         created_by=pers_id,
@@ -2230,7 +2241,7 @@ def api_communication_group_update(request):
         return JsonResponse({'success': False, 'error': 'id_group requis'}, status=400)
 
     id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
-    group = CommunicationGroup.objects.filter(id_group=group_id, id_etablissement=etab_id, id_pays=int(id_pays) if id_pays else None).first()
+    group = CommunicationGroup.objects.filter(id_group=group_id, id_etablissement=etab_id, id_pays=_safe_int(id_pays)).first()
     if not group:
         return JsonResponse({'success': False, 'error': 'Groupe non trouvé'}, status=404)
 
