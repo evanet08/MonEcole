@@ -8892,6 +8892,8 @@ def save_evaluation(request):
 
         if not title or not date_eval or not ponderer_eval:
             return JsonResponse({'success': False, 'error': 'Titre, date et maximum requis.'}, status=400)
+        if not classe_id or not cours_id:
+            return JsonResponse({'success': False, 'error': 'Classe et cours requis.'}, status=400)
 
         # Handle PDF upload
         document_url = None

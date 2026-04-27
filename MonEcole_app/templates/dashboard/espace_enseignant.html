@@ -434,7 +434,7 @@ async function submitEval(){
     const fd=new FormData();
     const editId=document.getElementById('evalEditId').value;
     if(editId)fd.append('id_evaluation',editId);
-    fd.append('classe_id',cid);fd.append('cours_id',crs);
+    fd.append('id_classe_id',cid);fd.append('id_cours_classe_id',crs);
     fd.append('title',document.getElementById('evalTitle').value);
     fd.append('id_type_eval',document.getElementById('evalType').value);
     fd.append('ponderer_eval',document.getElementById('evalMax').value);
