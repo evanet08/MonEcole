@@ -505,7 +505,7 @@ def generer_bulletin_pdf(request):
                     if idx > 0:
                         elements.append(PageBreak())
 
-                    elements.append(Spacer(1, 3*mm))
+                    elements.append(Spacer(1, 1*mm))
                     institution = Institution.objects.get(id_ecole=idCampus)
                     logo_path = institution.logo_ecole.path if institution.logo_ecole else None
                     emblem_path = institution.logo_ministere.path if institution.logo_ministere else None

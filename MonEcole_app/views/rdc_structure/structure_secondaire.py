@@ -403,11 +403,11 @@ def calculer_pourcentages_secondaire(table_data, style_center):
     max_tj_sem1 = get_val(max_gen_idx, 1)
     max_tj_sem2 = get_val(max_gen_idx, 8)
 
-    # Pondération par période = Max TJ / nombre de périodes (2 par semestre)
-    max_per_p1 = max_tj_sem1 / 2 if max_tj_sem1 > 0 else 0
-    max_per_p2 = max_tj_sem1 / 2 if max_tj_sem1 > 0 else 0
-    max_per_p3 = max_tj_sem2 / 2 if max_tj_sem2 > 0 else 0
-    max_per_p4 = max_tj_sem2 / 2 if max_tj_sem2 > 0 else 0
+    # Max par période (colonnes 1 et 8) — déjà = maxima_tj / 2 après le fix
+    max_per_p1 = max_tj_sem1 if max_tj_sem1 > 0 else 0
+    max_per_p2 = max_tj_sem1 if max_tj_sem1 > 0 else 0
+    max_per_p3 = max_tj_sem2 if max_tj_sem2 > 0 else 0
+    max_per_p4 = max_tj_sem2 if max_tj_sem2 > 0 else 0
 
     max_exam_sem1 = get_val(max_gen_idx, 4)
     max_exam_sem2 = get_val(max_gen_idx, 11)
@@ -538,7 +538,13 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
 
             for cpc in sd['cours']:
                 nom_cours = cpc.id_cours.cours
-                ponderation = cpc.maxima_tj if cpc.maxima_tj is not None else "-"
+                # max_par_periode = maxima_tj / nombre_de_periodes (2 par semestre)
+                maxima_tj_val = cpc.maxima_tj if cpc.maxima_tj is not None else "-"
+                if maxima_tj_val != "-":
+                    ponderation = float(maxima_tj_val) / 2  # 2 périodes par semestre
+                    ponderation = int(ponderation) if ponderation == int(ponderation) else ponderation
+                else:
+                    ponderation = "-"
                 exam = cpc.maxima_exam if cpc.maxima_exam is not None else "-"
                 row = [Paragraph(nom_cours, style_normal)]
                 id_cpc = cpc.id_cours_id
@@ -573,15 +579,15 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                         note_ex = exam_notes.get(col, "-")
                         row.append(Paragraph(str(note_ex), style_center))
                     elif col == 6: 
-                        # Max TOT.SEM = Max TJ (ponderation) + Max Exam
-                        pond_val = float(ponderation) if ponderation != "-" else 0.0
+                        # Max TOT.SEM = maxima_tj (full) + Max Exam
+                        pond_val = float(maxima_tj_val) if maxima_tj_val != "-" else 0.0
                         val_tot_sem_t1 = pond_val + float(val_exam_t1)
                         display_tot_sem = str(int(val_tot_sem_t1)) if val_tot_sem_t1 == int(val_tot_sem_t1) else str(val_tot_sem_t1)
                         row.append(Paragraph(display_tot_sem, style_center_bold))
 
                     elif col == 13: 
-                        # Max TOT.SEM = Max TJ (ponderation) + Max Exam
-                        pond_val = float(ponderation) if ponderation != "-" else 0.0
+                        # Max TOT.SEM = maxima_tj (full) + Max Exam
+                        pond_val = float(maxima_tj_val) if maxima_tj_val != "-" else 0.0
                         val_tot_sem_t2 = pond_val + float(val_exam_t2)
                         display_tot_sem = str(int(val_tot_sem_t2)) if val_tot_sem_t2 == int(val_tot_sem_t2) else str(val_tot_sem_t2)
                         row.append(Paragraph(display_tot_sem, style_center_bold))

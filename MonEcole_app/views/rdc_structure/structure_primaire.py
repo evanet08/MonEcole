@@ -448,9 +448,9 @@ def create_bulletin_title(elements, style_title,id_annee,id_classe):
     except:
         # messages.error(request, "Classe ou année introuvable.")
         return HttpResponse('<script>history.back();</script>', status=404)
-    elements.append(Spacer(1, 2*mm))
+    elements.append(Spacer(1, 1*mm))
     elements.append(Paragraph(f"<font color='black'><b>BULLETIN DE L'ELEVE DE DEGRE ({classe_name}) | Année Scolaire: {annee_obj.annee}</b></font>", style_title))
-    elements.append(Spacer(1, 2*mm))
+    elements.append(Spacer(1, 1*mm))
 
 def get_periodes_par_trimestre(trimestres_data, id_annee, id_campus, id_cycle, id_classe):
     """
@@ -1362,10 +1362,9 @@ def calculer_pourcentages(table_data, style_center):
     }
     for col, max_col in period_map.items():
         max_per = max_vals.get(max_col, 0)
-        # Chaque période = max_per / 2 (2 périodes par trimestre)
-        max_per_half = max_per / 2 if max_per > 0 else 0
-        if max_per_half > 0:
-            pct = sous_total_sums[col] / max_per_half * 100
+        # max_per = somme des pondérations par période (déjà = maxima_tj / 2)
+        if max_per > 0:
+            pct = sous_total_sums[col] / max_per * 100
             pourcentage_row[col] = Paragraph(format_pct(pct), style_center)
         else:
             pourcentage_row[col] = Paragraph("-", style_center)
@@ -1692,12 +1691,17 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
 
             for cpc in sd['cours']:
                 nom_cours = cpc.id_cours.cours
-                ponderation = cpc.maxima_periode if cpc.maxima_periode is not None else "-"
+                # max_par_periode = maxima_tj / nombre_de_periodes (2 par trimestre)
+                maxima_tj_val = cpc.maxima_tj if cpc.maxima_tj is not None else "-"
+                if maxima_tj_val != "-":
+                    ponderation = float(maxima_tj_val) / 2  # 2 périodes par trimestre
+                    ponderation = int(ponderation) if ponderation == int(ponderation) else ponderation
+                else:
+                    ponderation = "-"
                 max_exam = cpc.maxima_exam if cpc.maxima_exam is not None else "-"
-                maxima_tj = cpc.maxima_tj if cpc.maxima_tj is not None else "-"
-                # Max Trim = maxima_tj + maxima_exam
-                if maxima_tj != "-" and max_exam != "-":
-                    max_trim_val = float(maxima_tj) + float(max_exam)
+                # Max Trim = maxima_tj (full) + maxima_exam
+                if maxima_tj_val != "-" and max_exam != "-":
+                    max_trim_val = float(maxima_tj_val) + float(max_exam)
                 else:
                     max_trim_val = "-"
                 max_annee = max_trim_val * 3 if max_trim_val != "-" else "-"
@@ -1739,13 +1743,12 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
                     elif col in [2, 3, 9, 10, 16, 17]: # notes de période
                         note_val = notes_cours_periodes.get(col, "-")
                         # Echec période: rouge si < 50% du max PAR PÉRIODE
-                        # ponderation = max pour les 2 périodes combinées
-                        # max individuel par période = ponderation / 2
-                        # seuil d'échec = 50% du max individuel = ponderation / 4
+                        # ponderation = max par période (maxima_tj / 2)
+                        # seuil d'échec = 50% du max par période = ponderation / 2
                         echec_p = False
                         if note_val != "-" and ponderation != "-":
                             try:
-                                echec_p = float(note_val) < float(ponderation) / 4
+                                echec_p = float(note_val) < float(ponderation) / 2
                             except (ValueError, TypeError):
                                 pass
                         if echec_p:
@@ -1797,7 +1800,26 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
 
     num_rows = len(table_data)
     col_widths = [30*mm] + [7.4*mm] * 22
-    table = Table(table_data, colWidths=col_widths, rowHeights=[4.5*mm] * num_rows)
+
+    # ── Hauteur dynamique : adapter à la page A4 pour rester sur 1 page ──
+    # Éléments avant le tableau : header(~26mm) + NID(~6mm) + line2(~20mm) + title(~6mm) = ~58mm
+    # Footer : spacer(1mm) + footer_table(~15mm) = ~16mm  |  Total hors-tableau ≈ 77mm
+    # Page A4 portrait = 297mm, topMargin=0, bottomMargin=5mm → usable=292mm
+    _page_h = 297 * mm
+    _other_elements_h = 77 * mm   # header + NID + line2 + title + footer + spacers
+    _bottom_margin = 5 * mm
+    _available_h = _page_h - _bottom_margin - _other_elements_h
+    _ideal_rh = 4.5 * mm
+    _min_rh = 3 * mm
+
+    if num_rows * _ideal_rh <= _available_h:
+        _rh = [_ideal_rh] * num_rows
+    elif num_rows * _min_rh <= _available_h:
+        _rh = [_available_h / num_rows] * num_rows
+    else:
+        _rh = [_min_rh] * num_rows  # Minimum — may still be tight
+
+    table = Table(table_data, colWidths=col_widths, rowHeights=_rh)
     
     # ── Colonnes structurelles (Max per, Max Exam, MAX TRIM) en gras ──
     # Colonnes maxima : 1,4,6,8,11,13,15,18,20,22 (vertical bold)
@@ -1970,7 +1992,7 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
 
 def create_footer(elements, style_normal, style_center, id_classe=None, etab_url=''):
     """Footer matching official RDC bulletin format."""
-    elements.append(Spacer(1, 5*mm))  # Detach footer from content
+    elements.append(Spacer(1, 1*mm))  # Detach footer from content
     # Retrieve institution info for dynamic footer
     chef_nom = ""
     ville = ""
