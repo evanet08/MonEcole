@@ -454,15 +454,26 @@ def create_bulletin_title(elements, style_title,id_annee,id_classe):
 
 def get_periodes_par_trimestre(trimestres_data, id_annee, id_campus, id_cycle, id_classe):
     """
-    Récupère les noms des périodes par trimestre via ORM Annee_periode.
-    Retourne une liste de 3 listes (une par trimestre), chaque sous-liste
-    contenant les noms des 2 périodes enfants.
+    Récupère les noms des périodes par trimestre.
+    Gère deux structures de données :
+      1) Périodes liées via parent_id (has_parent=1)
+      2) Périodes plates indépendantes (has_parent=0) — distribuées par ordre
     """
+    from django.db import connections
+
     periodes_labels = []
 
-    for trimestre_tuple in trimestres_data:
-        config_id_trimestre = trimestre_tuple[0]  # Hub PK (repartition_configs_etab_annee.id)
+    # Résoudre EAC → etab_annee_id
+    try:
+        eac = EtablissementAnneeClasse.objects.get(id=id_classe)
+        etab_annee_id = eac.etablissement_annee_id
+    except EtablissementAnneeClasse.DoesNotExist:
+        return [["-", "-"]] * 3
 
+    # === Tentative 1 : périodes liées par parent_id ===
+    found_linked = False
+    for trimestre_tuple in trimestres_data:
+        config_id_trimestre = trimestre_tuple[0]
         labels_trimestre = []
         try:
             periodes = Annee_periode.objects.filter(
@@ -472,13 +483,47 @@ def get_periodes_par_trimestre(trimestres_data, id_annee, id_campus, id_cycle, i
             for p in periodes:
                 nom = p.repartition.nom if p.repartition else "-"
                 labels_trimestre.append(nom)
+                found_linked = True
         except Exception:
             pass
-
         while len(labels_trimestre) < 2:
             labels_trimestre.append("-")
-
         periodes_labels.append(labels_trimestre)
+
+    if found_linked:
+        while len(periodes_labels) < 3:
+            periodes_labels.append(["-", "-"])
+        return periodes_labels
+
+    # === Tentative 2 : périodes plates (pas de parent_id) ===
+    # Récupérer toutes les configs de type "Période" pour cet etab_annee
+    periodes_labels = []
+    try:
+        with connections['countryStructure'].cursor() as cur:
+            cur.execute("""
+                SELECT ri.nom
+                FROM repartition_configs_etab_annee rc
+                JOIN repartition_instances ri ON ri.id = rc.repartition_id
+                JOIN repartition_types rt ON rt.id = ri.type_id
+                WHERE rc.etablissement_annee_id = %s
+                  AND rt.code = 'P'
+                  AND rc.is_open = 1
+                ORDER BY ri.code, rc.id
+            """, [etab_annee_id])
+            all_period_names = [row[0] for row in cur.fetchall()]
+    except Exception:
+        all_period_names = []
+
+    # Distribuer les périodes sur les trimestres (2 par trimestre)
+    nb_trim = len(trimestres_data) or 3
+    per_trim = max(len(all_period_names) // nb_trim, 1) if all_period_names else 0
+    for i in range(nb_trim):
+        start = i * per_trim
+        end = start + per_trim
+        chunk = all_period_names[start:end] if per_trim > 0 else []
+        while len(chunk) < 2:
+            chunk.append("-")
+        periodes_labels.append(chunk[:2])
 
     while len(periodes_labels) < 3:
         periodes_labels.append(["-", "-"])

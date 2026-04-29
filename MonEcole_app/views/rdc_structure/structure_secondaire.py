@@ -482,7 +482,9 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
     ])
 
     # Fetch dynamic period names for each semestre
+    # Tentative 1: périodes liées via parent_id
     _per_labels = []
+    _found_linked = False
     for s_tuple in trimestres_data:
         _s_labels = []
         try:
@@ -492,11 +494,40 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
             for _p in _periodes:
                 _nom = _p.repartition.nom if _p.repartition else "-"
                 _s_labels.append(_nom)
+                _found_linked = True
         except Exception:
             pass
         while len(_s_labels) < 2:
             _s_labels.append("-")
         _per_labels.append(_s_labels)
+
+    # Tentative 2: périodes plates (pas de parent_id)
+    if not _found_linked:
+        _per_labels = []
+        try:
+            from django.db import connections
+            eac = EtablissementAnneeClasse.objects.get(id=id_classe)
+            with connections['countryStructure'].cursor() as cur:
+                cur.execute("""
+                    SELECT ri.nom
+                    FROM repartition_configs_etab_annee rc
+                    JOIN repartition_instances ri ON ri.id = rc.repartition_id
+                    JOIN repartition_types rt ON rt.id = ri.type_id
+                    WHERE rc.etablissement_annee_id = %s
+                      AND rt.code = 'P' AND rc.is_open = 1
+                    ORDER BY ri.code, rc.id
+                """, [eac.etablissement_annee_id])
+                all_pnames = [row[0] for row in cur.fetchall()]
+            nb_sem = len(trimestres_data) or 2
+            per_sem = max(len(all_pnames) // nb_sem, 1) if all_pnames else 0
+            for i in range(nb_sem):
+                chunk = all_pnames[i*per_sem:(i+1)*per_sem] if per_sem > 0 else []
+                while len(chunk) < 2:
+                    chunk.append("-")
+                _per_labels.append(chunk[:2])
+        except Exception:
+            _per_labels = []
+
     while len(_per_labels) < 2:
         _per_labels.append(["-", "-"])
 
