@@ -11232,8 +11232,7 @@ def sync_all_notes_bulletin(request):
                             continue
 
                         eval_ids = [e['id_evaluation'] for e in evals]
-                        total_max_evals = sum(e['ponderer_eval'] or 0 for e in evals)
-                        if total_max_evals == 0:
+                        if not eval_ids:
                             continue
 
                         placeholders = ','.join(['%s'] * len(eval_ids))
@@ -11249,29 +11248,48 @@ def sync_all_notes_bulletin(request):
                             if cur.fetchone():
                                 continue
 
-                            # Sum raw grades from eleve_note
+                            # Fetch individual notes for each evaluation
                             cur.execute(f"""
-                                SELECT COALESCE(SUM(en.note), 0) AS total_note
+                                SELECT en.id_evaluation_id, en.note
                                 FROM eleve_note en
                                 WHERE en.id_eleve_id = %s
                                   AND en.id_evaluation_id IN ({placeholders})
                             """, [eleve_id] + eval_ids)
-                            row = cur.fetchone()
-                            raw_total = float(row['total_note']) if row else 0
+                            raw_notes = {r['id_evaluation_id']: float(r['note']) if r['note'] is not None else None
+                                         for r in cur.fetchall()}
 
-                            # Scale to period max
-                            scaled = round((raw_total / total_max_evals) * period_max, 2)
+                            # Normalized weighted calculation:
+                            # - Normalize each note to [0,1] (note / eval_max)
+                            # - Apply equal weight to each evaluation
+                            # - Scale result to period_max
+                            n_evals_count = len(evals)
+                            equal_weight = 100.0 / n_evals_count if n_evals_count > 0 else 0
+                            weighted_sum = 0.0
+                            weight_used = 0.0
+                            for ev in evals:
+                                note = raw_notes.get(ev['id_evaluation'])
+                                ev_max = ev['ponderer_eval'] or 0
+                                if note is not None and ev_max > 0:
+                                    normalized = note / ev_max  # [0,1]
+                                    weighted_sum += normalized * equal_weight
+                                    weight_used += equal_weight
 
-                            cur.execute("""
-                                INSERT INTO note_bulletin
-                                    (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                     note, maxima, source_type, date_calcul, id_etablissement, id_pays)
-                                VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', NOW(), %s, %s)
-                                ON DUPLICATE KEY UPDATE
-                                    note = VALUES(note), maxima = VALUES(maxima),
-                                    date_calcul = NOW(), updated_at = NOW()
-                            """, [eleve_id, cours_id, config_id, tj_nt_id, scaled, period_max, etab_id, etab.pays_id])
-                            calculated += 1
+                            if weight_used > 0:
+                                scaled = round((weighted_sum / weight_used) * period_max, 2)
+                            else:
+                                scaled = None
+
+                            if scaled is not None:
+                                cur.execute("""
+                                    INSERT INTO note_bulletin
+                                        (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
+                                         note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                                    VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', NOW(), %s, %s)
+                                    ON DUPLICATE KEY UPDATE
+                                        note = VALUES(note), maxima = VALUES(maxima),
+                                        date_calcul = NOW(), updated_at = NOW()
+                                """, [eleve_id, cours_id, config_id, tj_nt_id, scaled, period_max, etab_id, etab.pays_id])
+                                calculated += 1
 
                 # ============================================
                 # PHASE 2: Process PARENTS (trimestres/semestres → HERITAGE + FORMULE)
