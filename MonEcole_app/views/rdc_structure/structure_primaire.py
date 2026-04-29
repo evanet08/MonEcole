@@ -481,7 +481,7 @@ def get_periodes_par_trimestre(trimestres_data, id_annee, id_campus, id_cycle, i
                 has_parent=True
             ).select_related('repartition').order_by('id_periode')[:2]
             for p in periodes:
-                nom = p.repartition.nom if p.repartition else "-"
+                nom = p.repartition.code if p.repartition and p.repartition.code else "-"
                 labels_trimestre.append(nom)
                 found_linked = True
         except Exception:
@@ -501,7 +501,7 @@ def get_periodes_par_trimestre(trimestres_data, id_annee, id_campus, id_cycle, i
     try:
         with connections['countryStructure'].cursor() as cur:
             cur.execute("""
-                SELECT ri.nom
+                SELECT ri.code
                 FROM repartition_configs_etab_annee rc
                 JOIN repartition_instances ri ON ri.id = rc.repartition_id
                 JOIN repartition_types rt ON rt.id = ri.type_id

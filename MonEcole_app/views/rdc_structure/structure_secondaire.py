@@ -492,7 +492,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                 id_trimestre_annee_id=s_tuple[0], has_parent=True
             ).select_related('repartition').order_by('id_periode')[:2]
             for _p in _periodes:
-                _nom = _p.repartition.nom if _p.repartition else "-"
+                _nom = _p.repartition.code if _p.repartition and _p.repartition.code else "-"
                 _s_labels.append(_nom)
                 _found_linked = True
         except Exception:
@@ -509,7 +509,7 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
             eac = EtablissementAnneeClasse.objects.get(id=id_classe)
             with connections['countryStructure'].cursor() as cur:
                 cur.execute("""
-                    SELECT ri.nom
+                    SELECT ri.code
                     FROM repartition_configs_etab_annee rc
                     JOIN repartition_instances ri ON ri.id = rc.repartition_id
                     JOIN repartition_types rt ON rt.id = ri.type_id
