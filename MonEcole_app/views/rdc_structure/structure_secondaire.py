@@ -10,7 +10,7 @@ from django.contrib import messages
 import os
 import logging
 from decimal import Decimal, ROUND_HALF_UP
-from MonEcole_app.models import Campus,Annee_trimestre,EtablissementAnneeClasse,Annee
+from MonEcole_app.models import Campus,Annee_trimestre,Annee_periode,EtablissementAnneeClasse,Annee
 from .structure_primaire import (get_styles,check_image_paths,
                                  create_header,create_nid_section,
                                  create_line2_left,get_cours_classe_rdc,
@@ -481,11 +481,30 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
         None      
     ])
 
+    # Fetch dynamic period names for each semestre
+    _per_labels = []
+    for s_tuple in trimestres_data:
+        _s_labels = []
+        try:
+            _periodes = Annee_periode.objects.filter(
+                id_trimestre_annee_id=s_tuple[0], has_parent=True
+            ).select_related('repartition').order_by('id_periode')[:2]
+            for _p in _periodes:
+                _nom = _p.repartition.nom if _p.repartition else "-"
+                _s_labels.append(_nom)
+        except Exception:
+            pass
+        while len(_s_labels) < 2:
+            _s_labels.append("-")
+        _per_labels.append(_s_labels)
+    while len(_per_labels) < 2:
+        _per_labels.append(["-", "-"])
+
     table_data.append([
         Paragraph("BRANCHES", style_center),
-        Paragraph("Max", style_center), Paragraph("1e P", style_center), Paragraph("2e P", style_center),
+        Paragraph("Max", style_center), Paragraph(f"<b>{_per_labels[0][0]}</b>", style_center_bold), Paragraph(f"<b>{_per_labels[0][1]}</b>", style_center_bold),
         None, None, None, None,
-        Paragraph("Max", style_center), Paragraph("3e P", style_center), Paragraph("4e P", style_center),
+        Paragraph("Max", style_center), Paragraph(f"<b>{_per_labels[1][0]}</b>", style_center_bold), Paragraph(f"<b>{_per_labels[1][1]}</b>", style_center_bold),
         None, None, None, None,
         None, None, 
         Paragraph("", style_center),  

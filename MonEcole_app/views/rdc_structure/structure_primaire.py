@@ -454,38 +454,24 @@ def create_bulletin_title(elements, style_title,id_annee,id_classe):
 
 def get_periodes_par_trimestre(trimestres_data, id_annee, id_campus, id_cycle, id_classe):
     """
-    Récupère les noms des périodes par trimestre via requête Hub directe
-    pour éviter le JOIN cross-DB (Annee_periode → RepartitionInstance).
+    Récupère les noms des périodes par trimestre via ORM Annee_periode.
+    Retourne une liste de 3 listes (une par trimestre), chaque sous-liste
+    contenant les noms des 2 périodes enfants.
     """
-    from django.db import connections
-
     periodes_labels = []
 
-    # Résoudre EAC → etab_annee_id
-    try:
-        eac = EtablissementAnneeClasse.objects.get(id=id_classe)
-        etab_annee_id = eac.etablissement_annee_id
-    except EtablissementAnneeClasse.DoesNotExist:
-        return [["-", "-"]] * 3
-
     for trimestre_tuple in trimestres_data:
-        config_id_trimestre = trimestre_tuple[0]
+        config_id_trimestre = trimestre_tuple[0]  # Hub PK (repartition_configs_etab_annee.id)
 
         labels_trimestre = []
         try:
-            with connections['countryStructure'].cursor() as cur:
-                cur.execute("""
-                    SELECT ri.nom
-                    FROM repartition_configs_etab_annee rc
-                    JOIN repartition_instances ri ON ri.id = rc.repartition_id
-                    WHERE rc.etablissement_annee_id = %s
-                      AND rc.parent_id = %s
-                      AND rc.has_parent = 1
-                    ORDER BY rc.id
-                    LIMIT 2
-                """, [etab_annee_id, config_id_trimestre])
-                for row in cur.fetchall():
-                    labels_trimestre.append(row[0])
+            periodes = Annee_periode.objects.filter(
+                id_trimestre_annee_id=config_id_trimestre,
+                has_parent=True
+            ).select_related('repartition').order_by('id_periode')[:2]
+            for p in periodes:
+                nom = p.repartition.nom if p.repartition else "-"
+                labels_trimestre.append(nom)
         except Exception:
             pass
 
@@ -1667,7 +1653,7 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
         p1 = periodes_par_trim[i][0] if len(periodes_par_trim[i]) > 0 else "-"
         p2 = periodes_par_trim[i][1] if len(periodes_par_trim[i]) > 1 else "-"
         sous_header.extend([
-            Paragraph("<b>Max per</b>", style_center_bold), Paragraph(p1, style_center), Paragraph(p2, style_center),
+            Paragraph("<b>Max per</b>", style_center_bold), Paragraph(f"<b>{p1}</b>", style_center_bold), Paragraph(f"<b>{p2}</b>", style_center_bold),
             Paragraph("<b>Max<br/>Exam</b>", style_center_bold), Paragraph("PTS.OBT", style_center),
             Paragraph("<b>MAX TRIM</b>", style_center_bold), Paragraph("<b>PTS.OBT</b>", style_center_bold),
         ])
