@@ -519,9 +519,9 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
                 """, [eac.etablissement_annee_id])
                 all_pnames = [row[0] for row in cur.fetchall()]
             nb_sem = len(trimestres_data) or 2
-            per_sem = max(len(all_pnames) // nb_sem, 1) if all_pnames else 0
             for i in range(nb_sem):
-                chunk = all_pnames[i*per_sem:(i+1)*per_sem] if per_sem > 0 else []
+                start = i * 2
+                chunk = all_pnames[start:start + 2]
                 while len(chunk) < 2:
                     chunk.append("-")
                 _per_labels.append(chunk[:2])

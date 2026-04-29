@@ -514,13 +514,11 @@ def get_periodes_par_trimestre(trimestres_data, id_annee, id_campus, id_cycle, i
     except Exception:
         all_period_names = []
 
-    # Distribuer les périodes sur les trimestres (2 par trimestre)
+    # Distribuer les périodes sur les trimestres (toujours 2 par trimestre)
     nb_trim = len(trimestres_data) or 3
-    per_trim = max(len(all_period_names) // nb_trim, 1) if all_period_names else 0
     for i in range(nb_trim):
-        start = i * per_trim
-        end = start + per_trim
-        chunk = all_period_names[start:end] if per_trim > 0 else []
+        start = i * 2
+        chunk = all_period_names[start:start + 2]
         while len(chunk) < 2:
             chunk.append("-")
         periodes_labels.append(chunk[:2])
