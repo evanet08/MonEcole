@@ -79,8 +79,11 @@ def apply_rounded_values(table_data, skip_rows=None):
             except (ValueError, TypeError):
                 continue
 
-            # Si c'est déjà un entier, pas besoin de toucher
+            # Si c'est déjà un entier exact, nettoyer l'affichage (30.0 → 30)
             if float_val == int(float_val):
+                if '.' in clean:
+                    new_text = original_text.replace(clean, str(int(float_val)))
+                    row[col_idx] = _Paragraph(new_text, cell.style)
                 continue
 
             # Arrondi classique ROUND_HALF_UP (scolaire)
