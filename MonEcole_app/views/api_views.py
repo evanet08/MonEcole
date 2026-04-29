@@ -12611,7 +12611,7 @@ def get_cours_annee_data(request):
             annee__id_annee=id_annee,
         )
         if etab_id:
-            configs_filter['etablissement__id_etablissement'] = etab_id
+            configs_filter['etablissement__id_ecole'] = etab_id
         else:
             configs_filter['etablissement__isnull'] = True
         configs_qs = CoursAnnee.objects.filter(**configs_filter).select_related('cours')
