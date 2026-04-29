@@ -2395,7 +2395,7 @@ def get_cours_data(request):
             return JsonResponse({'success': True, 'cours': [], 'classes': []})
 
         # Récupérer les sections globales (pour les cycles à sections)
-        all_sections = list(Section.objects.filter(pays_id=id_pays).order_by('nom').values('id_section', 'nom', 'code'))
+        all_sections = list(Section.objects.filter(id_pays=id_pays).order_by('nom').values('id_section', 'nom', 'code'))
 
         # Récupérer les classes activées pour cet établissement (via EAC)
         id_etablissement = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
@@ -2755,7 +2755,7 @@ def get_cours_annee_data(request):
         if not pays:
             return JsonResponse({'success': True, 'cours_annee': [], 'annees': []})
 
-        annees = list(Annee.objects.filter(pays=pays).order_by('-annee').values('id_annee', 'annee', 'isOpen'))
+        annees = list(Annee.objects.filter(pays_id=pays.id_pays).order_by('-annee').values('id_annee', 'annee', 'isOpen'))
 
         # Récupérer les domaines du pays
         domaines = list(Domaine.objects.filter(pays=pays).values('id_domaine', 'nom', 'code'))
@@ -3748,7 +3748,7 @@ def get_sections_list(request):
         id_pays = request.GET.get('id_pays') or getattr(request, 'id_pays', None) or request.session.get('id_pays')
         sections = Section.objects.all().order_by('type_subdivision', 'code')
         if id_pays:
-            sections = sections.filter(pays_id=id_pays)
+            sections = sections.filter(id_pays=id_pays)
         type_id = request.GET.get('type_id')
         if type_id:
             sections = sections.filter(type_subdivision_id=type_id)
@@ -12396,7 +12396,7 @@ def get_cours_data(request):
 
         all_sections = []
         if Section:
-            all_sections = list(Section.objects.filter(pays_id=pays.id_pays).order_by('nom').values('id_section', 'nom', 'code'))
+            all_sections = list(Section.objects.filter(id_pays=pays.id_pays).order_by('nom').values('id_section', 'nom', 'code'))
 
         # Récupérer les classes activées pour cet établissement
         id_etablissement = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
@@ -12456,7 +12456,7 @@ def get_cours_data(request):
             domaine_map = {d['id_domaine']: d['nom'] for d in Domaine.objects.filter(pays=pays).values('id_domaine', 'nom')}
         section_map = {}
         if Section:
-            section_map = {s['id_section']: s['nom'] for s in Section.objects.filter(pays_id=pays.id_pays).values('id_section', 'nom')}
+            section_map = {s['id_section']: s['nom'] for s in Section.objects.filter(id_pays=pays.id_pays).values('id_section', 'nom')}
 
         cours_qs = Cours.objects.filter(classe__cycle__pays=pays)
         if id_classe:
@@ -12598,16 +12598,23 @@ def get_cours_annee_data(request):
             domaine_map = {d['id_domaine']: d['nom'] for d in Domaine.objects.filter(pays=pays).values('id_domaine', 'nom')}
         section_map = {}
         if Section:
-            section_map = {s['id_section']: s['nom'] for s in Section.objects.filter(pays_id=pays.id_pays).values('id_section', 'nom')}
+            section_map = {s['id_section']: s['nom'] for s in Section.objects.filter(id_pays=pays.id_pays).values('id_section', 'nom')}
 
         # Get tenant etab for per-establishment configs
         etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
 
-        # Les configs existantes (check for etablissement-specific then national)
+        # Les configs existantes — filtrer par établissement pour isolation
         configs_map = {}
-        configs_qs = CoursAnnee.objects.filter(id_pays=id_pays,
-            cours__classe__id_classe=id_classe, annee__id_annee=id_annee
-        ).select_related('cours')
+        configs_filter = dict(
+            id_pays=id_pays,
+            cours__classe__id_classe=id_classe,
+            annee__id_annee=id_annee,
+        )
+        if etab_id:
+            configs_filter['etablissement__id_etablissement'] = etab_id
+        else:
+            configs_filter['etablissement__isnull'] = True
+        configs_qs = CoursAnnee.objects.filter(**configs_filter).select_related('cours')
         if id_section:
             configs_qs = configs_qs.filter(cours__section_id=id_section)
         else:
