@@ -62,14 +62,14 @@ def _get_children(id_parent, id_pays=None):
     children = []
 
     for eleve in eleves:
-        # Chercher l'inscription active
+        # Chercher l'inscription active — PAS de select_related (classes est Hub)
         insc_filters = {'id_eleve': eleve, 'status': True}
         if id_pays:
             insc_filters['id_pays'] = id_pays
 
         inscription = Eleve_inscription.objects.filter(
             **insc_filters
-        ).select_related('id_classe', 'idCampus').order_by('-id_annee_id').first()
+        ).order_by('-id_annee_id').first()
 
         child = {
             'id_eleve': eleve.id_eleve,
@@ -84,11 +84,31 @@ def _get_children(id_parent, id_pays=None):
         }
 
         if inscription:
-            child['classe'] = str(inscription.id_classe) if inscription.id_classe else ''
-            child['campus'] = str(inscription.idCampus) if inscription.idCampus else ''
             child['id_inscription'] = inscription.id_inscription
 
-        # Résoudre le nom de l'établissement
+            # Résoudre le nom de la classe depuis le Hub (countryStructure)
+            classe_id = inscription.id_classe_id  # raw FK value (classe_id column)
+            if classe_id:
+                try:
+                    with connections['countryStructure'].cursor() as cur:
+                        cur.execute("SELECT nom FROM classes WHERE id_classe=%s LIMIT 1", [classe_id])
+                        row = cur.fetchone()
+                        child['classe'] = row[0] if row else f'Classe {classe_id}'
+                except Exception:
+                    child['classe'] = f'Classe {classe_id}'
+
+            # Résoudre le campus depuis le spoke
+            campus_id = inscription.idCampus_id  # raw FK value
+            if campus_id:
+                try:
+                    with connections['default'].cursor() as cur:
+                        cur.execute("SELECT campus FROM campus WHERE id_campus=%s LIMIT 1", [campus_id])
+                        row = cur.fetchone()
+                        child['campus'] = row[0] if row else ''
+                except Exception:
+                    child['campus'] = ''
+
+        # Résoudre le nom de l'établissement depuis le Hub
         if eleve.id_etablissement:
             try:
                 with connections['countryStructure'].cursor() as cur:
@@ -356,14 +376,40 @@ def parent_child_view(request, id_eleve):
     except Eleve.DoesNotExist:
         return redirect('parent_home')
 
-    # Inscription active
+    # Inscription active — PAS de select_related (classes est Hub cross-DB)
     insc_filters = {'id_eleve': eleve, 'status': True}
     if parent_data.get('id_pays'):
         insc_filters['id_pays'] = parent_data['id_pays']
 
     inscription = Eleve_inscription.objects.filter(
         **insc_filters
-    ).select_related('id_classe', 'idCampus').order_by('-id_annee_id').first()
+    ).order_by('-id_annee_id').first()
+
+    # Résoudre les noms cross-DB
+    classe_nom = ''
+    campus_nom = ''
+    if inscription:
+        # Classe → Hub
+        classe_id = inscription.id_classe_id
+        if classe_id:
+            try:
+                with connections['countryStructure'].cursor() as cur:
+                    cur.execute("SELECT nom FROM classes WHERE id_classe=%s LIMIT 1", [classe_id])
+                    row = cur.fetchone()
+                    classe_nom = row[0] if row else f'Classe {classe_id}'
+            except Exception:
+                classe_nom = f'Classe {classe_id}'
+
+        # Campus → Spoke
+        campus_id = inscription.idCampus_id
+        if campus_id:
+            try:
+                with connections['default'].cursor() as cur:
+                    cur.execute("SELECT campus FROM campus WHERE id_campus=%s LIMIT 1", [campus_id])
+                    row = cur.fetchone()
+                    campus_nom = row[0] if row else ''
+            except Exception:
+                campus_nom = ''
 
     # Stocker l'établissement de l'enfant en session
     if eleve.id_etablissement:
@@ -373,6 +419,8 @@ def parent_child_view(request, id_eleve):
         'parent_data': parent_data,
         'eleve': eleve,
         'inscription': inscription,
+        'classe_nom': classe_nom,
+        'campus_nom': campus_nom,
         'active_section': 'child',
     }
     return render(request, 'pwa/parent_child.html', context)

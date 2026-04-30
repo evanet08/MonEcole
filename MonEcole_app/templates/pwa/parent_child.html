@@ -164,7 +164,7 @@
     </div>
     <div class="profile-name">{{ eleve.prenom }} {{ eleve.nom }}</div>
     <div class="profile-class">
-        {% if inscription %}{{ inscription.id_classe }}{% endif %}
+        {% if classe_nom %}{{ classe_nom }}{% endif %}
     </div>
 </div>
 
@@ -217,11 +217,11 @@
         <div class="info-grid">
             <div class="info-item full">
                 <div class="info-label">Classe</div>
-                <div class="info-value">{{ inscription.id_classe }}</div>
+                <div class="info-value">{{ classe_nom|default:"—" }}</div>
             </div>
             <div class="info-item">
                 <div class="info-label">Campus</div>
-                <div class="info-value">{{ inscription.idCampus|default:"—" }}</div>
+                <div class="info-value">{{ campus_nom|default:"—" }}</div>
             </div>
             <div class="info-item">
                 <div class="info-label">Redoublant</div>
