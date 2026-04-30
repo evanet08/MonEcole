@@ -213,6 +213,17 @@
                     <span>Continuer</span>
                     <i class="fas fa-arrow-right"></i>
                 </button>
+
+                <div class="login-separator"><hr><span>OU</span><hr></div>
+
+                <div class="form-group">
+                    <label>Mot de passe</label>
+                    <input type="password" class="form-input" id="inputLoginPwd" placeholder="Mot de passe" autocomplete="current-password">
+                </div>
+                <button class="btn-primary-pwa" style="background:linear-gradient(135deg,#059669,#10b981)" onclick="loginPassword()">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Se connecter</span>
+                </button>
             </div>
 
             <!-- Step 2: OTP -->
@@ -230,6 +241,25 @@
                 </button>
                 <button class="resend-link" onclick="requestOtp()">
                     <i class="fas fa-redo" style="font-size:0.7rem"></i> Renvoyer le code
+                </button>
+            </div>
+
+            <!-- Step 3: Create Password -->
+            <div class="login-step" id="step-password">
+                <h2><i class="fas fa-lock" style="color:#6366f1;margin-right:6px"></i> Créer un mot de passe</h2>
+                <p class="subtitle">Pour vos prochaines connexions, pas besoin de code</p>
+                <div id="msg-password" class="login-message"></div>
+                <div class="form-group">
+                    <label>Mot de passe</label>
+                    <input type="password" class="form-input" id="inputPassword" placeholder="Minimum 4 caractères" autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <label>Confirmer</label>
+                    <input type="password" class="form-input" id="inputPasswordConfirm" placeholder="Confirmez le mot de passe">
+                </div>
+                <button class="btn-primary-pwa" id="btnSetPassword" onclick="setPassword()">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Créer et continuer</span>
                 </button>
             </div>
         </div>
@@ -319,8 +349,13 @@
                 const d = await r.json();
 
                 if (d.success) {
-                    showMsg('msg-otp', 'Connexion réussie ! Redirection...', 'success');
-                    setTimeout(() => { window.location.href = d.redirect_url || '/parent/'; }, 800);
+                    if (d.needs_password) {
+                        showMsg('msg-otp', 'Code vérifié !', 'success');
+                        setTimeout(() => { goToStep('step-password'); }, 600);
+                    } else {
+                        showMsg('msg-otp', 'Connexion réussie ! Redirection...', 'success');
+                        setTimeout(() => { window.location.href = d.redirect_url || '/parent/'; }, 800);
+                    }
                 } else {
                     showMsg('msg-otp', d.error || 'Code incorrect.', 'error');
                     btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i><span>Valider</span>';
@@ -351,6 +386,62 @@
         // Enter key support
         document.getElementById('inputEmail').addEventListener('keypress', e => { if (e.key === 'Enter') checkEmail(); });
         document.getElementById('inputOtp').addEventListener('keypress', e => { if (e.key === 'Enter') verifyOtp(); });
+
+        // ── Step 4: Set Password ──
+        async function setPassword() {
+            const pwd = document.getElementById('inputPassword').value;
+            const pwd2 = document.getElementById('inputPasswordConfirm').value;
+            if (!pwd || pwd.length < 4) { showMsg('msg-password', 'Minimum 4 caractères.', 'error'); return; }
+            if (pwd !== pwd2) { showMsg('msg-password', 'Les mots de passe ne correspondent pas.', 'error'); return; }
+
+            const btn = document.getElementById('btnSetPassword');
+            btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Création...';
+            try {
+                const r = await fetch('/parent/api/set-password/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ password: pwd })
+                });
+                const d = await r.json();
+                if (d.success) {
+                    showMsg('msg-password', 'Mot de passe créé ! Redirection...', 'success');
+                    setTimeout(() => { window.location.href = d.redirect_url || '/parent/'; }, 800);
+                } else {
+                    showMsg('msg-password', d.error || 'Erreur.', 'error');
+                    btn.disabled = false; btn.innerHTML = '<i class="fas fa-check-circle"></i><span>Créer et continuer</span>';
+                }
+            } catch (e) {
+                showMsg('msg-password', 'Erreur de connexion.', 'error');
+                btn.disabled = false; btn.innerHTML = '<i class="fas fa-check-circle"></i><span>Créer et continuer</span>';
+            }
+        }
+        document.getElementById('inputPasswordConfirm')?.addEventListener('keypress', e => { if (e.key === 'Enter') setPassword(); });
+
+        // ── Login with Password ──
+        async function loginPassword() {
+            const email = document.getElementById('inputEmail').value.trim();
+            const pwd = document.getElementById('inputLoginPwd').value;
+            if (!email) { showMsg('msg-email', 'Entrez votre email.', 'error'); return; }
+            if (!pwd) { showMsg('msg-email', 'Entrez votre mot de passe.', 'error'); return; }
+            hideMsg('msg-email');
+            try {
+                const r = await fetch('/parent/api/login-password/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ email, password: pwd })
+                });
+                const d = await r.json();
+                if (d.success) {
+                    showMsg('msg-email', 'Connexion réussie !', 'success');
+                    setTimeout(() => { window.location.href = d.redirect_url || '/parent/'; }, 800);
+                } else {
+                    showMsg('msg-email', d.error || 'Identifiants incorrects.', 'error');
+                }
+            } catch (e) {
+                showMsg('msg-email', 'Erreur de connexion.', 'error');
+            }
+        }
+        document.getElementById('inputLoginPwd').addEventListener('keypress', e => { if (e.key === 'Enter') loginPassword(); });
 
         // PWA install hint
         let deferredPrompt;

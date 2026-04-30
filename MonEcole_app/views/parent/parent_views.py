@@ -195,6 +195,9 @@ def parent_check_email(request):
         # Stocker l'email et parent trouvé en session pour l'OTP
         request.session['_parent_auth_email'] = email
         request.session['_parent_auth_id'] = parent.id_parent
+        # Stocker id_pays depuis le parent trouvé (critique pour multi-tenant)
+        if parent.id_pays:
+            request.session['id_pays'] = parent.id_pays
 
         # Déterminer le nom du parent
         parent_name = ''
@@ -307,21 +310,144 @@ def parent_verify_otp(request):
                 'error': f'Code incorrect. {3 - attempts} tentative(s) restante(s).'
             }, status=400)
 
-        # ── Code correct → créer la session parent ──
+        # ── Code correct ──
         id_parent = request.session.get('_parent_auth_id')
         parent_email = request.session.get('_parent_auth_email', '')
         parent_name = request.session.get('_parent_auth_name', '')
         id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
 
         # Clean OTP data
-        for k in ('_parent_otp_code', '_parent_otp_expires', '_parent_otp_attempts',
-                   '_parent_auth_email', '_parent_auth_id', '_parent_auth_name'):
+        for k in ('_parent_otp_code', '_parent_otp_expires', '_parent_otp_attempts'):
             request.session.pop(k, None)
 
-        # Créer la session parent
+        # Vérifier si un mot de passe existe déjà
+        has_password = False
+        try:
+            eleve = Eleve.objects.filter(id_parent=id_parent).first()
+            if eleve and eleve.password_parent:
+                has_password = True
+        except Exception:
+            pass
+
+        if not has_password:
+            # Pas de mot de passe → demander la création
+            request.session['_parent_otp_verified'] = True
+            return JsonResponse({
+                'success': True,
+                'needs_password': True,
+                'message': 'Code vérifié ! Créez votre mot de passe.',
+            })
+
+        # Mot de passe existe → créer la session directement
+        for k in ('_parent_auth_email', '_parent_auth_id', '_parent_auth_name'):
+            request.session.pop(k, None)
+
         request.session['user_type'] = 'parent'
         request.session['id_parent'] = id_parent
         request.session['parent_email'] = parent_email
+        request.session['parent_name'] = parent_name
+        request.session['id_pays'] = id_pays
+        request.session['_last_activity'] = time.time()
+
+        return JsonResponse({
+            'success': True,
+            'needs_password': False,
+            'redirect_url': '/parent/',
+            'message': 'Connexion réussie !',
+        })
+
+    except Exception as e:
+        logger.exception("parent_verify_otp error")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def parent_set_password(request):
+    """Étape 4 : Créer le mot de passe après vérification OTP."""
+    try:
+        if not request.session.get('_parent_otp_verified'):
+            return JsonResponse({'success': False, 'error': 'OTP non vérifié.'}, status=400)
+
+        data = json.loads(request.body)
+        password = data.get('password', '').strip()
+        if not password or len(password) < 4:
+            return JsonResponse({'success': False, 'error': 'Mot de passe (min 4 caractères) requis.'}, status=400)
+
+        id_parent = request.session.get('_parent_auth_id')
+        parent_email = request.session.get('_parent_auth_email', '')
+        parent_name = request.session.get('_parent_auth_name', '')
+        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
+
+        # Enregistrer le mot de passe sur tous les enfants de ce parent
+        import hashlib
+        hashed = hashlib.sha256(password.encode()).hexdigest()
+        Eleve.objects.filter(id_parent=id_parent).update(password_parent=hashed)
+
+        # Nettoyer et créer la session
+        for k in ('_parent_otp_verified', '_parent_auth_email', '_parent_auth_id', '_parent_auth_name'):
+            request.session.pop(k, None)
+
+        request.session['user_type'] = 'parent'
+        request.session['id_parent'] = id_parent
+        request.session['parent_email'] = parent_email
+        request.session['parent_name'] = parent_name
+        request.session['id_pays'] = id_pays
+        request.session['_last_activity'] = time.time()
+
+        return JsonResponse({
+            'success': True,
+            'redirect_url': '/parent/',
+            'message': 'Mot de passe créé ! Bienvenue.',
+        })
+
+    except Exception as e:
+        logger.exception("parent_set_password error")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def parent_login_password(request):
+    """Connexion directe par email + mot de passe (sans OTP)."""
+    try:
+        data = json.loads(request.body)
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '').strip()
+
+        if not email or not password:
+            return JsonResponse({'success': False, 'error': 'Email et mot de passe requis.'}, status=400)
+
+        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
+
+        from django.db.models import Q
+        filters = Q(emailPere__iexact=email) | Q(emailMere__iexact=email)
+        parents_qs = Parent.objects.filter(filters)
+        if id_pays:
+            parents_qs = parents_qs.filter(id_pays=id_pays)
+        parent = parents_qs.first()
+
+        if not parent:
+            return JsonResponse({'success': False, 'error': 'Email non trouvé.'}, status=404)
+
+        # Vérifier le mot de passe
+        import hashlib
+        hashed = hashlib.sha256(password.encode()).hexdigest()
+        eleve = Eleve.objects.filter(id_parent=parent.id_parent, password_parent=hashed).first()
+
+        if not eleve:
+            return JsonResponse({'success': False, 'error': 'Mot de passe incorrect.'}, status=401)
+
+        # Déterminer le nom du parent
+        parent_name = ''
+        if parent.emailPere and parent.emailPere.lower() == email:
+            parent_name = parent.nomsPere or ''
+        elif parent.emailMere and parent.emailMere.lower() == email:
+            parent_name = parent.nomsMere or ''
+
+        request.session['user_type'] = 'parent'
+        request.session['id_parent'] = parent.id_parent
+        request.session['parent_email'] = email
         request.session['parent_name'] = parent_name
         request.session['id_pays'] = id_pays
         request.session['_last_activity'] = time.time()
@@ -333,7 +459,7 @@ def parent_verify_otp(request):
         })
 
     except Exception as e:
-        logger.exception("parent_verify_otp error")
+        logger.exception("parent_login_password error")
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
