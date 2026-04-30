@@ -90,7 +90,7 @@ function onPayClasseChange(){
             sel.appendChild(o);
         });
     });
-    loadPayHistory();
+    loadPayAll();
 }
 function onPayEleveChange(){
     const e=$('pay-eleve').value;
@@ -147,17 +147,97 @@ function loadComptes(){
         });
     });
 }
-function loadPayHistory(){
+function switchPayTab(btn){
+    document.querySelectorAll('#payTabs .config-tab').forEach(t=>t.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('#sec-paiements .config-tab-content').forEach(c=>c.classList.remove('active'));
+    $(btn.dataset.tab).classList.add('active');
+}
+function loadPayAll(){loadPayPending();loadPayValidated();loadPayRejected();}
+function loadPayPending(){
+    const a=$('pay-annee').value,c=$('pay-classe').value;if(!c)return;
+    get(R.paiSubmit+'?id_annee='+a+'&id_classe='+c).then(d=>{
+        const wrap=$('pay-pending-wrap');
+        $('pay-pending-count').textContent=d.data?d.data.length:0;
+        if(!d.success||!d.data||!d.data.length){wrap.innerHTML='<div class="rec-empty"><i class="fas fa-inbox"></i>Aucun paiement en attente</div>';return;}
+        let h='<table class="rec-table"><thead><tr><th>N°</th><th>Élève</th><th>Variable</th><th>Montant</th><th>Date</th><th>Bordereau</th><th style="width:120px">Actions</th></tr></thead><tbody>';
+        d.data.forEach((p,i)=>{
+            const bord=p.bordereau?`<a href="${p.bordereau}" target="_blank" class="rec-btn rec-btn-outline" style="padding:2px 6px;font-size:.58rem"><i class="fas fa-image"></i></a>`:'—';
+            h+=`<tr>
+                <td>${i+1}</td><td style="font-weight:600">${p.eleve_nom} ${p.eleve_prenom}</td>
+                <td>${p.variable}</td><td style="font-weight:700">${fmt(p.montant)} Fbu</td>
+                <td style="font-size:.7rem">${p.date_paie||'—'}</td><td>${bord}</td>
+                <td>
+                    <button onclick="updatePayField(${p.id_paiement},'status','true')" class="rec-btn rec-btn-success" style="padding:2px 6px;font-size:.58rem" title="Valider"><i class="fas fa-check"></i></button>
+                    <button onclick="updatePayField(${p.id_paiement},'is_rejected','true')" class="rec-btn rec-btn-outline" style="padding:2px 6px;font-size:.58rem;color:#dc2626" title="Rejeter"><i class="fas fa-times"></i></button>
+                </td>
+            </tr>`;
+        });
+        h+='</tbody></table>';wrap.innerHTML=h;
+    });
+}
+function loadPayValidated(){
     const a=$('pay-annee').value,c=$('pay-classe').value;if(!c)return;
     get(R.paiValid+'?id_annee='+a+'&id_classe='+c).then(d=>{
-        if(!d.success||!d.data.length){$('pay-history-wrap').innerHTML='<div class="rec-empty"><i class="fas fa-inbox"></i>Aucun paiement</div>';return;}
-        let h='<table class="rec-table"><thead><tr><th>N°</th><th>Élève</th><th>Variable</th><th>Montant</th><th>Statut</th><th>Actions</th></tr></thead><tbody>';
-        d.data.forEach((p,i)=>{
-            const badge=p.is_rejected?'<span class="rec-badge rec-badge-danger"><i class="fas fa-times-circle"></i> Rejeté</span>':'<span class="rec-badge rec-badge-success"><i class="fas fa-check-circle"></i> Validé</span>';
-            h+=`<tr><td>${i+1}</td><td style="font-weight:600">${p.eleve_nom} ${p.eleve_prenom}</td><td>${p.variable}</td><td style="font-weight:700">${fmt(p.montant)} Fbu</td><td>${badge}</td><td><a href="${R.invoice}${p.id_paiement}/" target="_blank" class="rec-btn rec-btn-outline" style="padding:2px 8px;font-size:.62rem"><i class="fas fa-file-pdf"></i></a></td></tr>`;
+        const wrap=$('pay-validated-wrap');
+        const validOnly=(d.data||[]).filter(p=>!p.is_rejected);
+        const rejectedOnly=(d.data||[]).filter(p=>p.is_rejected);
+        $('pay-valid-count').textContent=validOnly.length;
+        $('pay-rejected-count').textContent=rejectedOnly.length;
+        // Show export buttons
+        const btns=$('pay-export-btns');if(btns)btns.style.display=validOnly.length?'flex':'none';
+        if(!validOnly.length){wrap.innerHTML='<div class="rec-empty"><i class="fas fa-inbox"></i>Aucun paiement validé</div>';} else {
+        let h='<table class="rec-table"><thead><tr><th>N°</th><th>Élève</th><th>Variable</th><th>Montant</th><th>Date</th><th>Bordereau</th><th style="width:140px">Actions</th></tr></thead><tbody>';
+        validOnly.forEach((p,i)=>{
+            const bord=p.bordereau?`<a href="${p.bordereau}" target="_blank" class="rec-btn rec-btn-outline" style="padding:2px 6px;font-size:.58rem"><i class="fas fa-image"></i></a>`:'—';
+            h+=`<tr>
+                <td>${i+1}</td><td style="font-weight:600">${p.eleve_nom} ${p.eleve_prenom}</td>
+                <td>${p.variable}</td><td style="font-weight:700">${fmt(p.montant)} Fbu</td>
+                <td style="font-size:.7rem">${p.date_paie||'—'}</td><td>${bord}</td>
+                <td>
+                    <a href="${R.invoice}${p.id_paiement}/" target="_blank" class="rec-btn rec-btn-outline" style="padding:2px 6px;font-size:.58rem" title="Facture PDF"><i class="fas fa-file-pdf" style="color:#dc2626"></i></a>
+                    <button onclick="updatePayField(${p.id_paiement},'is_rejected','true')" class="rec-btn rec-btn-outline" style="padding:2px 6px;font-size:.58rem;color:#f59e0b" title="Rejeter"><i class="fas fa-ban"></i></button>
+                    <button onclick="deletePay(${p.id_paiement})" class="rec-btn rec-btn-outline" style="padding:2px 6px;font-size:.58rem;color:#dc2626" title="Supprimer"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>`;
         });
-        h+='</tbody></table>';$('pay-history-wrap').innerHTML=h;
+        h+='</tbody></table>';wrap.innerHTML=h;}
+        // Rejected tab
+        const rWrap=$('pay-rejected-wrap');
+        if(!rejectedOnly.length){rWrap.innerHTML='<div class="rec-empty"><i class="fas fa-inbox"></i>Aucun paiement rejeté</div>';} else {
+        let hr='<table class="rec-table"><thead><tr><th>N°</th><th>Élève</th><th>Variable</th><th>Montant</th><th>Date</th><th style="width:100px">Actions</th></tr></thead><tbody>';
+        rejectedOnly.forEach((p,i)=>{
+            hr+=`<tr style="opacity:.7"><td>${i+1}</td><td style="font-weight:600">${p.eleve_nom} ${p.eleve_prenom}</td><td>${p.variable}</td><td style="font-weight:700;text-decoration:line-through">${fmt(p.montant)} Fbu</td><td style="font-size:.7rem">${p.date_paie||'—'}</td>
+            <td><button onclick="updatePayField(${p.id_paiement},'is_rejected','false')" class="rec-btn rec-btn-success" style="padding:2px 6px;font-size:.58rem" title="Restaurer"><i class="fas fa-undo"></i></button>
+            <button onclick="deletePay(${p.id_paiement})" class="rec-btn rec-btn-outline" style="padding:2px 6px;font-size:.58rem;color:#dc2626" title="Supprimer"><i class="fas fa-trash"></i></button></td></tr>`;
+        });
+        hr+='</tbody></table>';rWrap.innerHTML=hr;}
     });
+}
+function loadPayRejected(){/* Handled inside loadPayValidated */}
+function updatePayField(id,field,value){
+    const fd=new FormData();
+    fd.append('csrfmiddlewaretoken',document.querySelector('[name=csrfmiddlewaretoken]')?.value||'');
+    fd.append('id_paiement',id);fd.append('field',field);fd.append('value',value);
+    post('/api/recouvrement/update-paiement-field/',fd).then(d=>{if(d.success){toast('Mis à jour',true);loadPayAll();}else toast(d.error||'Erreur',false);});
+}
+function deletePay(id){
+    if(!confirm('Supprimer ce paiement définitivement ?'))return;
+    const fd=new FormData();fd.append('csrfmiddlewaretoken',document.querySelector('[name=csrfmiddlewaretoken]')?.value||'');
+    post('/api/recouvrement/delete-paiement/'+id+'/',fd).then(d=>{if(d.success){toast('Supprimé',true);loadPayAll();loadVarsRestant();}else toast(d.error||'Erreur',false);});
+}
+function exportFicheClasse(){
+    const a=$('pay-annee').value,c=$('pay-classe').value;if(!c)return;
+    const opt=$('pay-classe').selectedOptions[0];
+    const campus=opt?.dataset.campus||'',cycle=opt?.dataset.cycle||'';
+    window.open('/api/recouvrement/fiche-paie-classe/?id_annee='+a+'&id_classe='+c+'&idCampus='+campus+'&id_cycle='+cycle,'_blank');
+}
+function exportFicheEleve(){
+    const a=$('pay-annee').value,c=$('pay-classe').value,e=$('pay-eleve').value;
+    if(!e){toast('Sélectionnez un élève',false);return;}
+    const opt=$('pay-classe').selectedOptions[0];
+    const campus=opt?.dataset.campus||'',cycle=opt?.dataset.cycle||'';
+    window.open('/api/recouvrement/fiche-paie-eleve/?id_annee='+a+'&id_classe='+c+'&id_eleve='+e+'&idCampus='+campus+'&id_cycle='+cycle,'_blank');
 }
 
 /* ========== CONFIGURATION ========== */
@@ -402,7 +482,7 @@ function setupForms(){
     const cof=$('compte-form');
     if(cof)cof.onsubmit=function(e){e.preventDefault();post(R.saveCompte,new FormData(cof)).then(d=>{if(d.success){cof.reset();loadBanques();toast('Compte ajouté',true);}else toast(d.error,false);});};
     const pf=$('pay-form');
-    if(pf)pf.onsubmit=function(e){e.preventDefault();post(R.savePai,new FormData(pf)).then(d=>{if(d.success){pf.reset();togglePayForm();loadPayHistory();loadVarsRestant();toast('Paiement enregistré',true);}else toast(d.error,false);});};
+    if(pf)pf.onsubmit=function(e){e.preventDefault();post(R.savePai,new FormData(pf)).then(d=>{if(d.success){pf.reset();togglePayForm();loadPayAll();loadVarsRestant();toast('Paiement enregistré',true);}else toast(d.error,false);});};
     const of=$('op-form');
     if(of)of.onsubmit=function(e){e.preventDefault();
         $('op-annee').value=$('caisse-annee')?.value||'';

@@ -144,10 +144,11 @@ def rec_get_paiements_submitted(request):
         id_annee_id=annee_id, id_classe_id=classe_id,
         status=False, is_rejected=False,
         id_pays=id_pays, id_etablissement=id_etab
-    ).select_related('id_eleve', 'id_variable')
+    ).select_related('id_eleve', 'id_variable').order_by('-date_paie')
     data = [{'id_paiement': p.id_paiement, 'variable': p.id_variable.variable,
-             'montant': p.montant, 'bordereau': p.bordereau.name if p.bordereau else '',
+             'montant': p.montant, 'bordereau': p.bordereau.url if p.bordereau else '',
              'status': p.status, 'eleve_nom': p.id_eleve.nom, 'eleve_prenom': p.id_eleve.prenom,
+             'date_paie': p.date_paie.strftime('%d/%m/%Y') if p.date_paie else '',
              } for p in paiements]
     return JsonResponse({'success': True, 'data': data})
 
@@ -166,10 +167,13 @@ def rec_get_paiements_validated(request):
     ).select_related('id_eleve', 'id_variable')
     data = [{'id_paiement': p.id_paiement, 'id_eleve': p.id_eleve.id_eleve,
              'variable': p.id_variable.variable, 'montant': p.montant,
-             'bordereau': p.bordereau.name if p.bordereau else '', 'status': p.status,
+             'bordereau': p.bordereau.url if p.bordereau else '',
+             'status': p.status,
              'eleve_nom': p.id_eleve.nom, 'eleve_prenom': p.id_eleve.prenom,
              'is_rejected': p.is_rejected,
-             } for p in paiements]
+             'date_paie': p.date_paie.strftime('%d/%m/%Y') if p.date_paie else '',
+             'date_saisie': p.date_saisie.strftime('%d/%m/%Y') if p.date_saisie else '',
+             } for p in paiements.order_by('-date_paie')]
     return JsonResponse({'success': True, 'data': data})
 
 

@@ -112,10 +112,29 @@
             <div id="pay-vars-grid"></div>
         </div>
     </div>
-    <!-- Historique -->
+    <!-- Paiements Tabs -->
     <div class="dash-section" style="padding:12px 16px">
-        <div class="dash-section-title" style="font-size:.8rem"><i class="fas fa-history"></i> Historique des paiements</div>
-        <div style="overflow-x:auto;max-height:50vh;overflow-y:auto" id="pay-history-wrap"><div class="rec-empty"><i class="fas fa-search"></i>Sélectionnez une classe pour voir les paiements</div></div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="dash-section-title" style="font-size:.8rem"><i class="fas fa-history"></i> Paiements de la classe</div>
+            <div class="d-flex gap-2" id="pay-export-btns" style="display:none!important">
+                <button class="rec-btn rec-btn-outline" onclick="exportFicheClasse()" style="padding:3px 10px;font-size:.62rem"><i class="fas fa-file-pdf" style="color:#dc2626"></i> Fiche Classe</button>
+                <button class="rec-btn rec-btn-outline" onclick="exportFicheEleve()" style="padding:3px 10px;font-size:.62rem" id="btn-fiche-eleve"><i class="fas fa-file-pdf" style="color:#2563eb"></i> Fiche Élève</button>
+            </div>
+        </div>
+        <div class="config-tabs" id="payTabs">
+            <button class="config-tab active" data-tab="pay-tab-pending" onclick="switchPayTab(this)"><i class="fas fa-clock"></i>En attente <span id="pay-pending-count" class="rec-badge rec-badge-warning" style="font-size:.55rem;margin-left:4px">0</span></button>
+            <button class="config-tab" data-tab="pay-tab-validated" onclick="switchPayTab(this)"><i class="fas fa-check-circle"></i>Validés <span id="pay-valid-count" class="rec-badge rec-badge-success" style="font-size:.55rem;margin-left:4px">0</span></button>
+            <button class="config-tab" data-tab="pay-tab-rejected" onclick="switchPayTab(this)"><i class="fas fa-times-circle"></i>Rejetés <span id="pay-rejected-count" class="rec-badge rec-badge-danger" style="font-size:.55rem;margin-left:4px">0</span></button>
+        </div>
+        <div class="config-tab-content active" id="pay-tab-pending">
+            <div style="overflow-x:auto;max-height:50vh;overflow-y:auto" id="pay-pending-wrap"><div class="rec-empty"><i class="fas fa-search"></i>Sélectionnez une classe</div></div>
+        </div>
+        <div class="config-tab-content" id="pay-tab-validated">
+            <div style="overflow-x:auto;max-height:50vh;overflow-y:auto" id="pay-validated-wrap"><div class="rec-empty"><i class="fas fa-search"></i>Sélectionnez une classe</div></div>
+        </div>
+        <div class="config-tab-content" id="pay-tab-rejected">
+            <div style="overflow-x:auto;max-height:50vh;overflow-y:auto" id="pay-rejected-wrap"><div class="rec-empty"><i class="fas fa-search"></i>Sélectionnez une classe</div></div>
+        </div>
     </div>
 </div>
 

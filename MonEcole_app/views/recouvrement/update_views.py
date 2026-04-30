@@ -231,9 +231,17 @@ def rec_update_variable_obligatoire(request):
     id_pays, id_etab = _require_tenant(request)
     if not id_pays: return _tenant_error()
     try:
-        data = json.loads(request.body)
-        v = Variable.objects.get(id_variable=data.get('id_variable'), id_pays=id_pays, id_etablissement=id_etab)
-        v.estObligatoire = data.get('estObligatoire', False)
+        # Support both JSON body and form data
+        if request.content_type and 'json' in request.content_type:
+            data = json.loads(request.body)
+        else:
+            data = request.POST
+        var_id = data.get('id_variable')
+        val = data.get('estObligatoire')
+        if isinstance(val, str):
+            val = val.lower() in ('true', '1', 'yes')
+        v = Variable.objects.get(id_variable=var_id, id_pays=id_pays, id_etablissement=id_etab)
+        v.estObligatoire = bool(val)
         v.save()
         return JsonResponse({'success': True})
     except Variable.DoesNotExist:
