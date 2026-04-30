@@ -230,14 +230,14 @@ function exportFicheClasse(){
     const a=$('pay-annee').value,c=$('pay-classe').value;if(!c)return;
     const opt=$('pay-classe').selectedOptions[0];
     const campus=opt?.dataset.campus||'',cycle=opt?.dataset.cycle||'';
-    window.open('/api/recouvrement/fiche-paie-classe/?id_annee='+a+'&id_classe='+c+'&idCampus='+campus+'&id_cycle='+cycle,'_blank');
+    window.open('/api/recouvrement/fiche-paie/?id_annee='+a+'&id_classe='+c+'&idCampus='+campus+'&id_cycle='+cycle,'_blank');
 }
 function exportFicheEleve(){
     const a=$('pay-annee').value,c=$('pay-classe').value,e=$('pay-eleve').value;
     if(!e){toast('Sélectionnez un élève',false);return;}
     const opt=$('pay-classe').selectedOptions[0];
     const campus=opt?.dataset.campus||'',cycle=opt?.dataset.cycle||'';
-    window.open('/api/recouvrement/fiche-paie-eleve/?id_annee='+a+'&id_classe='+c+'&id_eleve='+e+'&idCampus='+campus+'&id_cycle='+cycle,'_blank');
+    window.open('/api/recouvrement/fiche-paie/?id_annee='+a+'&id_classe='+c+'&id_eleve='+e+'&idCampus='+campus+'&id_cycle='+cycle,'_blank');
 }
 
 /* ========== CONFIGURATION ========== */
