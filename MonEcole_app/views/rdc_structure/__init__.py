@@ -93,3 +93,83 @@ def apply_rounded_values(table_data, skip_rows=None):
             new_text = original_text.replace(clean, str(rounded_int))
             row[col_idx] = _Paragraph(new_text, cell.style)
 
+
+def resolve_bulletin_title(titre_template, id_classe, id_annee, id_campus=None):
+    """
+    Résout un titre de bulletin dynamique en remplaçant les variables [xxx].
+
+    Variables supportées :
+        [classe]        → nom de la classe (ex: "1ère Primaire")
+        [annee]         → année scolaire (ex: "2025-2026")
+        [etablissement] → nom de l'établissement
+        [cycle]         → nom du cycle (ex: "Primaire")
+
+    Args:
+        titre_template: str avec variables entre crochets, ou vide/None
+        id_classe: EAC surrogate ID (pour résoudre classe)
+        id_annee: business key id_annee (pour résoudre année)
+        id_campus: campus ID (pour résoudre établissement)
+
+    Returns:
+        str: titre résolu, ou None si titre_template est vide/None
+             (le caller utilise alors le titre par défaut)
+    """
+    if not titre_template or not titre_template.strip():
+        return None
+
+    import re
+    import logging
+    logger = logging.getLogger(__name__)
+
+    titre = titre_template.strip()
+    variables = re.findall(r'\[(\w+)\]', titre)
+
+    if not variables:
+        return titre  # Pas de variables, retourner tel quel
+
+    context = {}
+
+    # Résoudre les variables nécessaires
+    if 'classe' in variables or 'cycle' in variables:
+        try:
+            from MonEcole_app.models.country_structure import EtablissementAnneeClasse
+            eac = EtablissementAnneeClasse.objects.select_related(
+                'classe', 'classe__cycle'
+            ).get(id=id_classe)
+            context['classe'] = eac.classe.classe.strip() if eac.classe else ''
+            if eac.classe and eac.classe.cycle:
+                context['cycle'] = eac.classe.cycle.nom.strip()
+            else:
+                context['cycle'] = ''
+        except Exception as e:
+            logger.warning(f"[resolve_bulletin_title] EAC {id_classe} not found: {e}")
+            context['classe'] = ''
+            context['cycle'] = ''
+
+    if 'annee' in variables:
+        try:
+            from MonEcole_app.models.country_structure import Annee
+            annee_obj = Annee.objects.filter(id_annee=id_annee).first()
+            context['annee'] = str(annee_obj.annee).strip() if annee_obj else ''
+        except Exception as e:
+            logger.warning(f"[resolve_bulletin_title] Annee {id_annee} not found: {e}")
+            context['annee'] = ''
+
+    if 'etablissement' in variables:
+        try:
+            from MonEcole_app.models import Institution
+            if id_campus:
+                inst = Institution.objects.filter(id_ecole=id_campus).first()
+                context['etablissement'] = inst.ecole.strip() if inst and inst.ecole else ''
+            else:
+                context['etablissement'] = ''
+        except Exception as e:
+            logger.warning(f"[resolve_bulletin_title] Institution {id_campus} not found: {e}")
+            context['etablissement'] = ''
+
+    # Remplacer les variables
+    for var in variables:
+        value = context.get(var, '')
+        titre = titre.replace(f'[{var}]', value)
+
+    return titre

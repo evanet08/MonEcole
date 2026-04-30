@@ -420,6 +420,12 @@ def generer_bulletin_pdf(request):
         code_model = (bcm.id_model.code_model or '').strip()
         code_lower = code_model.lower()
         rounded_values = getattr(bcm, 'roundedValues', False)
+        # Dynamic bulletin title — resolve [variable] placeholders
+        from MonEcole_app.views.rdc_structure import resolve_bulletin_title
+        dynamic_title = resolve_bulletin_title(
+            getattr(bcm, 'titre_sur_bulletin', '') or '',
+            id_classe, id_annee, idCampus
+        )
         margin = 5 * mm
 
         # Déterminer le cycle par code_model (Hub: bulletin_model.code_model)
@@ -476,7 +482,7 @@ def generer_bulletin_pdf(request):
                     left_table = create_line2_left(elements, style_normal, id_campus=idCampus)
                     right_table = create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
                     create_line2_section__secondaire_rdc(elements, left_table, right_table)
-                    create_bulletin_title__secondaire_superieur(elements, style_title, style_right, id_classe=id_classe, id_annee=id_annee)
+                    create_bulletin_title__secondaire_superieur(elements, style_title, style_right, id_classe=id_classe, id_annee=id_annee, dynamic_title=dynamic_title)
                     create_bulletin_maternelle(
                         elements, style_normal, style_center, style_title,
                         id_annee, idCampus, id_cycle, id_classe, id_eleve,
@@ -516,7 +522,7 @@ def generer_bulletin_pdf(request):
                     left_table = create_line2_left(elements, style_normal, id_campus=idCampus)
                     right_table = create_line2_right(elements, eleve, style_normal, id_classe)
                     create_line2_section(elements, left_table, right_table)
-                    create_bulletin_title(elements, style_title, id_annee, id_classe)
+                    create_bulletin_title(elements, style_title, id_annee, id_classe, dynamic_title=dynamic_title)
                     create_notes_table(
                         elements, style_center, style_normal,
                         id_annee, idCampus, id_cycle, id_classe, id_eleve,
@@ -579,7 +585,7 @@ def generer_bulletin_pdf(request):
                     left_table = create_line2_left(elements, style_normal, id_campus=idCampus)
                     right_table = create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
                     create_line2_section__secondaire_rdc(elements, left_table, right_table)
-                    create_bulletin_title__secondaire_rdc(elements, style_title, style_right, id_annee, id_classe)
+                    create_bulletin_title__secondaire_rdc(elements, style_title, style_right, id_annee, id_classe, dynamic_title=dynamic_title)
                     create_notes_table__secondaire_rdc(
                         elements, style_center, style_normal,
                         id_annee, idCampus, id_cycle, id_classe, id_eleve,
@@ -628,7 +634,7 @@ def generer_bulletin_pdf(request):
                         left_table = create_line2_left(elements, style_normal, id_campus=idCampus)
                         right_table = create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
                         create_line2_section__secondaire_rdc(elements, left_table, right_table)
-                        create_bulletin_title__secondaire_superieur(elements, style_title, style_right, id_classe=id_classe, id_annee=id_annee)
+                        create_bulletin_title__secondaire_superieur(elements, style_title, style_right, id_classe=id_classe, id_annee=id_annee, dynamic_title=dynamic_title)
                         create_notes_table_superieur(
                             elements, style_center, style_normal,
                             id_annee, idCampus, id_cycle, id_classe, id_eleve,
@@ -667,7 +673,7 @@ def generer_bulletin_pdf(request):
                         left_table = create_line2_left(elements, style_normal, id_campus=idCampus)
                         right_table = create_line2_right__secondaire_rdc(elements, eleve, id_classe, style_normal)
                         create_line2_section__secondaire_rdc(elements, left_table, right_table)
-                        create_bulletin_title__secondaire_superieur(elements, style_title, style_right, id_classe=id_classe, id_annee=id_annee)
+                        create_bulletin_title__secondaire_superieur(elements, style_title, style_right, id_classe=id_classe, id_annee=id_annee, dynamic_title=dynamic_title)
                         create_bulletin_content_cycle_superieur(
                             elements, style_normal, style_center,
                             id_annee, idCampus, id_cycle, id_classe, id_eleve,

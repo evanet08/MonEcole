@@ -55,6 +55,7 @@ class BulletinClasseModel(models.Model):
     )
     id_pays = models.IntegerField(null=True, blank=True)
     roundedValues = models.BooleanField(default=False)
+    titre_sur_bulletin = models.CharField(max_length=500, blank=True, null=True, default='')
 
     class Meta:
         db_table = 'bulletin_classe_model'

@@ -230,7 +230,7 @@ def create_line2_section__secondaire_rdc(elements, left_table, right_table):
     elements.append(line2_table)
     elements.append(Spacer(1, 0.5*mm))
 
-def create_bulletin_title__secondaire_rdc(elements, style_title, style_right,id_annee,id_classe):
+def create_bulletin_title__secondaire_rdc(elements, style_title, style_right, id_annee, id_classe, dynamic_title=None):
     try:
         eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
         annee_obj = Annee.objects.filter(id_annee=id_annee).first()
@@ -240,10 +240,16 @@ def create_bulletin_title__secondaire_rdc(elements, style_title, style_right,id_
         # messages.error(request, "Classe ou année introuvable.")
         return HttpResponse('<script>history.back();</script>', status=404)
     elements.append(Spacer(1, 2*mm))
-    title_data = [
-        [Paragraph(f"<font color='black'><b>BULLETIN D'EDUCATION DE BASE DE : Classe de {classe_name}</b></font>", style_title),
-         Paragraph(f"<font color='black'><b>ANNEE SCOLAIRE {annee_obj.annee}</b></font>", style_right)]
-    ]
+    if dynamic_title:
+        title_data = [
+            [Paragraph(f"<font color='black'><b>{dynamic_title}</b></font>", style_title),
+             Paragraph("", style_right)]
+        ]
+    else:
+        title_data = [
+            [Paragraph(f"<font color='black'><b>BULLETIN D'EDUCATION DE BASE DE : Classe de {classe_name}</b></font>", style_title),
+             Paragraph(f"<font color='black'><b>ANNEE SCOLAIRE {annee_obj.annee}</b></font>", style_right)]
+        ]
     title_table = Table(title_data, colWidths=[100*mm, 100*mm])
     title_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),

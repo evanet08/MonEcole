@@ -439,7 +439,7 @@ def create_line2_section(elements, left_table, right_table):
     elements.append(line2_table)
     elements.append(Spacer(1, 0.5*mm))
 
-def create_bulletin_title(elements, style_title,id_annee,id_classe):
+def create_bulletin_title(elements, style_title, id_annee, id_classe, dynamic_title=None):
     try:
         annee_obj = Annee.objects.filter(id_annee=id_annee).first()
         eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
@@ -449,7 +449,11 @@ def create_bulletin_title(elements, style_title,id_annee,id_classe):
         # messages.error(request, "Classe ou année introuvable.")
         return HttpResponse('<script>history.back();</script>', status=404)
     elements.append(Spacer(1, 1*mm))
-    elements.append(Paragraph(f"<font color='black'><b>BULLETIN DE L'ELEVE DE DEGRE ({classe_name}) | Année Scolaire: {annee_obj.annee}</b></font>", style_title))
+    if dynamic_title:
+        title_text = dynamic_title
+    else:
+        title_text = f"BULLETIN DE L'ELEVE DE DEGRE ({classe_name}) | Année Scolaire: {annee_obj.annee}"
+    elements.append(Paragraph(f"<font color='black'><b>{title_text}</b></font>", style_title))
     elements.append(Spacer(1, 1*mm))
 
 def get_periodes_par_trimestre(trimestres_data, id_annee, id_campus, id_cycle, id_classe):

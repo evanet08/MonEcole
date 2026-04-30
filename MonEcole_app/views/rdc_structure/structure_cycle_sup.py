@@ -202,12 +202,36 @@ def ajouter_cours_groupes_dans_table(
 
 
 
-def create_bulletin_title__secondaire_superieur(elements, style_title, style_right):
+def create_bulletin_title__secondaire_superieur(elements, style_title, style_right, id_classe=None, id_annee=None, dynamic_title=None):
     elements.append(Spacer(1, 2*mm))
-    title_data = [
-        [Paragraph("<font color='black'><b>BULLETIN DE : 4ème CONSTRUCTRION</b></font>", style_title),
-         Paragraph("<font color='black'><b>|ANNEE SCOLAIRE : 2025-2026</b></font>", style_right)]
-    ]
+    if dynamic_title:
+        title_data = [
+            [Paragraph(f"<font color='black'><b>{dynamic_title}</b></font>", style_title),
+             Paragraph("", style_right)]
+        ]
+    else:
+        # Fallback: résoudre classe et année pour le titre par défaut
+        classe_label = "4ème CONSTRUCTION"
+        annee_label = "2025-2026"
+        if id_classe:
+            try:
+                from MonEcole_app.models.country_structure import EtablissementAnneeClasse
+                eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
+                classe_label = eac.classe.classe.strip() if eac.classe else classe_label
+            except Exception:
+                pass
+        if id_annee:
+            try:
+                from MonEcole_app.models.country_structure import Annee
+                annee_obj = Annee.objects.filter(id_annee=id_annee).first()
+                if annee_obj:
+                    annee_label = str(annee_obj.annee)
+            except Exception:
+                pass
+        title_data = [
+            [Paragraph(f"<font color='black'><b>BULLETIN DE : {classe_label}</b></font>", style_title),
+             Paragraph(f"<font color='black'><b>|ANNEE SCOLAIRE : {annee_label}</b></font>", style_right)]
+        ]
     title_table = Table(title_data, colWidths=[100*mm, 100*mm])
     title_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
