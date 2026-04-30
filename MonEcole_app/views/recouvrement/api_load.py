@@ -301,3 +301,62 @@ def rec_get_date_butoires(request):
              'date_butoire': d.date_butoire.strftime('%Y-%m-%d') if d.date_butoire else '',
              } for d in qs.select_related('id_variable')]
     return JsonResponse({'success': True, 'data': data})
+
+
+@login_required(login_url='login')
+def rec_get_all_variables(request):
+    """All variables for this establishment (for prix assignment)."""
+    id_pays, id_etab = _require_tenant(request)
+    if not id_pays: return _tenant_error()
+    qs = Variable.objects.filter(
+        id_pays=id_pays, id_etablissement=id_etab
+    ).select_related('id_variable_categorie').order_by('id_variable_categorie__nom', 'variable')
+    data = [{
+        'id_variable': v.id_variable,
+        'variable': v.variable,
+        'categorie': v.id_variable_categorie.nom if v.id_variable_categorie else '',
+        'id_categorie': v.id_variable_categorie_id,
+    } for v in qs]
+    return JsonResponse({'success': True, 'variables': data})
+
+
+@login_required(login_url='login')
+def rec_get_prix_classe(request):
+    """
+    Prix configuration for a year + class.
+    Returns all variables with their current price (if set) for the given class.
+    This is the core business logic: variables drive the pricing, class is context.
+    """
+    id_pays, id_etab = _require_tenant(request)
+    if not id_pays: return _tenant_error()
+    annee_id = request.GET.get('id_annee')
+    classe_id = request.GET.get('id_classe')
+    if not all([annee_id, classe_id]):
+        return JsonResponse({'success': False, 'error': 'Paramètres manquants'}, status=400)
+
+    # All variables for this establishment
+    all_vars = Variable.objects.filter(
+        id_pays=id_pays, id_etablissement=id_etab
+    ).select_related('id_variable_categorie').order_by('id_variable_categorie__nom', 'variable')
+
+    # Existing prix for this year + class
+    existing_prix = {
+        vp.id_variable_id: vp
+        for vp in VariablePrix.objects.filter(
+            id_annee_id=annee_id, id_classe_id=classe_id,
+            id_pays=id_pays, id_etablissement=id_etab
+        )
+    }
+
+    result = []
+    for v in all_vars:
+        vp = existing_prix.get(v.id_variable)
+        result.append({
+            'id_variable': v.id_variable,
+            'variable': v.variable,
+            'categorie': v.id_variable_categorie.nom if v.id_variable_categorie else '',
+            'prix': vp.prix if vp else None,
+            'id_prix': vp.id_prix if vp else None,
+        })
+
+    return JsonResponse({'success': True, 'variables': result})

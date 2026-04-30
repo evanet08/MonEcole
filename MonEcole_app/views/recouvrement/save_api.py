@@ -111,19 +111,17 @@ def rec_save_variable_prix(request):
         groupe = request.POST.get('groupe', '')
         if not all([annee_id, classe_id, variable_id, prix]):
             return JsonResponse({'success': False, 'error': 'Champs obligatoires manquants'}, status=400)
-        if VariablePrix.objects.filter(
+        vp, created = VariablePrix.objects.update_or_create(
             id_annee_id=annee_id, id_classe_id=classe_id, id_variable_id=variable_id,
-            id_pays=id_pays, id_etablissement=id_etab
-        ).exists():
-            return JsonResponse({'success': False, 'error': 'Cette combinaison existe déjà'}, status=400)
-        vp = VariablePrix(
-            id_annee_id=annee_id, id_classe_id=classe_id, id_variable_id=variable_id,
-            idCampus_id=campus_id, id_cycle_id=cycle_id, prix=int(prix),
-            groupe=groupe or None,
-            id_pays=id_pays, id_etablissement=id_etab
+            id_pays=id_pays, id_etablissement=id_etab,
+            defaults={
+                'idCampus_id': campus_id if campus_id else None,
+                'id_cycle_id': cycle_id if cycle_id else None,
+                'prix': int(prix),
+                'groupe': groupe or None,
+            }
         )
-        vp.save()
-        return JsonResponse({'success': True})
+        return JsonResponse({'success': True, 'created': created})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 

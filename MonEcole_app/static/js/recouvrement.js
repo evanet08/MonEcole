@@ -10,7 +10,8 @@ const R={
     savePrix:'/api/recouvrement/save-variable-prix/',savePai:'/api/recouvrement/save-paiement/',
     ops:'/api/recouvrement/operations/',catOps:'/api/recouvrement/categories-operations/',
     saveCatOp:'/api/recouvrement/save-categorie-operation/',saveOp:'/api/recouvrement/save-operation/',
-    invoice:'/api/recouvrement/invoice/'
+    invoice:'/api/recouvrement/invoice/',
+    allVars:'/api/recouvrement/variables-all/',prixClasse:'/api/recouvrement/prix-classe/'
 };
 function fmt(n){return n!=null?(n).toLocaleString('fr-FR'):'—';}
 function $(id){return document.getElementById(id);}
@@ -174,15 +175,13 @@ function loadCategories(){
     });
 }
 function loadVariables(){
-    get(R.categories).then(d=>{
-        if(!d.categories)return;
-        const cats={};d.categories.forEach(c=>{cats[c.id_variable_categorie]=c.nom;});
-        // For now load all variables by fetching categories (variables come via prix)
+    get(R.allVars).then(d=>{
         const list=$('var-list');
-        if(list){
-            // We need a dedicated endpoint but for now use categories
-            list.innerHTML='<div class="rec-empty"><i class="fas fa-tags"></i>Les variables apparaîtront après création</div>';
-        }
+        if(!list)return;
+        if(!d.success||!d.variables||!d.variables.length){list.innerHTML='<div class="rec-empty"><i class="fas fa-tags"></i>Aucune variable</div>';return;}
+        let h='<table class="rec-table"><thead><tr><th>N°</th><th>Variable</th><th>Catégorie</th></tr></thead><tbody>';
+        d.variables.forEach((v,i)=>{h+=`<tr><td>${i+1}</td><td style="font-weight:600">${v.variable}</td><td>${v.categorie||'—'}</td></tr>`;});
+        h+='</tbody></table>';list.innerHTML=h;
     });
 }
 function loadBanques(){
@@ -215,7 +214,54 @@ function loadBanques(){
     });
 }
 function loadPrixClasses(){loadClasses('prix-classe',$('prix-annee').value);}
-function loadPrix(){/* TODO: load prix grid for selected classe */}
+function loadPrix(){
+    const a=$('prix-annee')?.value, sel=$('prix-classe'), c=sel?.value;
+    const grid=$('prix-grid');
+    if(!c||!a){grid.innerHTML='<div class="rec-empty"><i class="fas fa-hand-pointer"></i>Sélectionnez une année et une classe pour configurer les prix</div>';return;}
+    grid.innerHTML='<div class="rec-empty"><i class="fas fa-spinner fa-spin"></i>Chargement…</div>';
+    const opt=sel.selectedOptions[0];
+    const campusId=opt?.dataset.campus||'', cycleId=opt?.dataset.cycle||'', groupe=opt?.dataset.groupe||'';
+    get(R.prixClasse+'?id_annee='+a+'&id_classe='+c).then(d=>{
+        if(!d.success){grid.innerHTML='<div class="rec-empty"><i class="fas fa-exclamation-triangle"></i>'+d.error+'</div>';return;}
+        if(!d.variables||!d.variables.length){grid.innerHTML='<div class="rec-empty"><i class="fas fa-tags"></i>Aucune variable configurée. Créez d\'abord des variables dans l\'onglet <strong>Variables</strong>.</div>';return;}
+        let h='<table class="rec-table"><thead><tr><th style="width:30px">N°</th><th>Variable</th><th>Catégorie</th><th style="width:140px">Prix (Fbu)</th><th style="width:100px">Action</th></tr></thead><tbody>';
+        d.variables.forEach((v,i)=>{
+            const hasPrice=v.prix!==null&&v.prix!==undefined;
+            const badgeCls=hasPrice?'rec-badge-success':'rec-badge-warning';
+            const badgeTxt=hasPrice?'Défini':'Non défini';
+            h+=`<tr id="prix-row-${v.id_variable}">
+                <td>${i+1}</td>
+                <td style="font-weight:600">${v.variable}</td>
+                <td><span class="rec-badge ${badgeCls}" style="font-size:.58rem"><i class="fas fa-${hasPrice?'check':'exclamation-circle'}"></i> ${badgeTxt}</span> ${v.categorie}</td>
+                <td><input type="number" id="prix-input-${v.id_variable}" value="${hasPrice?v.prix:''}" min="0" placeholder="0" style="width:100%;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:.75rem;text-align:right" /></td>
+                <td><button onclick="savePrixVariable(${v.id_variable},'${a}','${c}','${campusId}','${cycleId}','${groupe}')" class="rec-btn rec-btn-success" style="padding:3px 10px;font-size:.65rem"><i class="fas fa-save"></i> Enregistrer</button></td>
+            </tr>`;
+        });
+        h+='</tbody></table>';
+        // Summary
+        const total=d.variables.filter(v=>v.prix!==null&&v.prix!==undefined).length;
+        const missing=d.variables.length-total;
+        h+=`<div style="margin-top:10px;font-size:.72rem;color:#64748b;display:flex;gap:16px;align-items:center">
+            <span><i class="fas fa-check-circle" style="color:#059669"></i> <strong>${total}</strong> prix défini${total>1?'s':''}</span>
+            ${missing?'<span><i class="fas fa-exclamation-circle" style="color:#d97706"></i> <strong>'+missing+'</strong> en attente</span>':''}
+        </div>`;
+        grid.innerHTML=h;
+    });
+}
+function savePrixVariable(varId,anneeId,classeId,campusId,cycleId,groupe){
+    const inp=$('prix-input-'+varId);
+    const prix=inp?.value;
+    if(!prix||parseInt(prix)<=0){toast('Veuillez entrer un prix valide',false);return;}
+    const fd=new FormData();
+    fd.append('csrfmiddlewaretoken',document.querySelector('[name=csrfmiddlewaretoken]')?.value||'');
+    fd.append('id_annee',anneeId);fd.append('id_classe',classeId);
+    fd.append('id_variable',varId);fd.append('prix',prix);
+    fd.append('idCampus',campusId);fd.append('id_cycle',cycleId);fd.append('groupe',groupe);
+    post(R.savePrix,fd).then(d=>{
+        if(d.success){toast('Prix enregistré',true);loadPrix();}
+        else toast(d.error||'Erreur',false);
+    });
+}
 
 /* ========== CAISSE ========== */
 function loadOperations(){

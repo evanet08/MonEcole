@@ -228,6 +228,8 @@ urlpatterns = [
     path('api/recouvrement/operations/', rec_api.rec_get_operations_caisse, name='rec_get_operations'),
     path('api/recouvrement/categories-operations/', rec_api.rec_get_categories_operations, name='rec_get_cat_ops'),
     path('api/recouvrement/dates-butoires/', rec_api.rec_get_date_butoires, name='rec_get_dates'),
+    path('api/recouvrement/variables-all/', rec_api.rec_get_all_variables, name='rec_get_all_vars'),
+    path('api/recouvrement/prix-classe/', rec_api.rec_get_prix_classe, name='rec_get_prix_classe'),
     # Save
     path('api/recouvrement/save-categorie-variable/', rec_save.rec_save_categorie_variable, name='rec_save_cat'),
     path('api/recouvrement/save-variable/', rec_save.rec_save_variable, name='rec_save_var'),
