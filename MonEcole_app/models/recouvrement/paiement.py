@@ -11,7 +11,7 @@ class Eleve_reduction_prix(models.Model):
     id_cycle = models.ForeignKey("MonEcole_app.Cycle",on_delete=models.PROTECT,null=False,
                                  db_column='id_cycle_id', db_constraint=False)
     id_classe = models.ForeignKey('MonEcole_app.Classe', on_delete=models.PROTECT, null=False,
-                                  db_column='classe_id', db_constraint=False)
+                                  db_column='id_classe_id', db_constraint=False)
     groupe = models.CharField(max_length=5, null=True, blank=True)
     section = models.ForeignKey('MonEcole_app.Section', on_delete=models.SET_NULL,
                                 null=True, blank=True, db_column='section_id',
@@ -44,7 +44,7 @@ class Paiement(models.Model):
     id_cycle = models.ForeignKey("MonEcole_app.Cycle",on_delete=models.PROTECT,null=False,
                                  db_column='id_cycle_id', db_constraint=False)
     id_classe = models.ForeignKey('MonEcole_app.Classe', on_delete=models.PROTECT, null=False,
-                                  db_column='classe_id', db_constraint=False)
+                                  db_column='id_classe_id', db_constraint=False)
     groupe = models.CharField(max_length=5, null=True, blank=True)
     section = models.ForeignKey('MonEcole_app.Section', on_delete=models.SET_NULL,
                                 null=True, blank=True, db_column='section_id',
@@ -68,7 +68,7 @@ class PenaliteConfig(models.Model):
     id_cycle = models.ForeignKey("MonEcole_app.Cycle", on_delete=models.PROTECT, null=True, blank=True,
                                  db_column='id_cycle_id', db_constraint=False)
     id_classe = models.ForeignKey('MonEcole_app.Classe', on_delete=models.PROTECT, null=True, blank=True,
-                                  db_column='classe_id', db_constraint=False)
+                                  db_column='id_classe_id', db_constraint=False)
     groupe = models.CharField(max_length=5, null=True, blank=True)
     section = models.ForeignKey('MonEcole_app.Section', on_delete=models.SET_NULL,
                                 null=True, blank=True, db_column='section_id',
