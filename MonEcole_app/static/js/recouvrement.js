@@ -101,7 +101,18 @@ function loadVarsRestant(){
     const a=$('pay-annee').value,c=$('pay-classe').value,e=$('pay-eleve').value;
     if(!e)return;
     get(R.varsRestant+'?id_annee='+a+'&id_classe='+c+'&id_eleve='+e).then(d=>{
-        if(!d.success||!d.variables.length){$('pay-variables-cards').style.display='none';return;}
+        if(!d.success||!d.variables||!d.variables.length){
+            $('pay-variables-cards').style.display='';
+            $('pay-vars-grid').innerHTML='<div class="rec-empty" style="font-size:.72rem"><i class="fas fa-exclamation-triangle" style="color:#d97706"></i> Aucun prix configur\u00e9 pour cette classe. <br>Allez dans <strong>Configuration \u2192 Prix</strong> pour d\u00e9finir les prix des variables.</div>';
+            // Fallback: load ALL variables into the dropdown
+            const sel=$('pf-variable');sel.innerHTML='<option value="">\u2014 Variable \u2014</option>';
+            get(R.allVars).then(vd=>{
+                if(vd.success)(vd.variables||[]).forEach(v=>{
+                    const o=document.createElement('option');o.value=v.id_variable;o.textContent=v.variable;sel.appendChild(o);
+                });
+            });
+            return;
+        }
         $('pay-variables-cards').style.display='';
         let h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">';
         d.variables.forEach(v=>{
@@ -114,15 +125,15 @@ function loadVarsRestant(){
                     <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width .8s"></div>
                 </div>
                 <div style="display:flex;justify-content:space-between;font-size:.62rem">
-                    <span style="color:#64748b">Payé: ${fmt(v.total_deja_paye)}</span>
+                    <span style="color:#64748b">Pay\u00e9: ${fmt(v.total_deja_paye)}</span>
                     <span style="font-weight:700;color:${color}">Reste: ${fmt(v.reste_a_payer)}</span>
                 </div>
-                ${v.reduction?'<div style="font-size:.58rem;color:#7c3aed;margin-top:2px"><i class="fas fa-percentage" style="font-size:.5rem"></i> Réduction: '+v.reduction+'%</div>':''}
+                ${v.reduction?'<div style="font-size:.58rem;color:#7c3aed;margin-top:2px"><i class="fas fa-percentage" style="font-size:.5rem"></i> R\u00e9duction: '+v.reduction+'%</div>':''}
             </div>`;
         });
         h+='</div>';$('pay-vars-grid').innerHTML=h;
         // Fill variable select in form
-        const sel=$('pf-variable');sel.innerHTML='<option value="">— Variable —</option>';
+        const sel=$('pf-variable');sel.innerHTML='<option value="">\u2014 Variable \u2014</option>';
         d.variables.forEach(v=>{if(v.reste_a_payer>0){const o=document.createElement('option');o.value=v.id_variable;o.textContent=v.nom_variable+' (reste: '+fmt(v.reste_a_payer)+')';sel.appendChild(o);}});
     });
 }
