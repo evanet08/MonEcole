@@ -19,7 +19,8 @@ from MonEcole_app.models.recouvrement import (
     VariableDerogation, Eleve_reduction_prix, Paiement, PenaliteConfig,
     Banque, Compte, CategorieOperation, OperationCaisse,
 )
-from MonEcole_app.models.country_structure import Cycle, Classe
+from MonEcole_app.models.country_structure import Cycle
+from MonEcole_app.models.classe import Classe
 from .helpers import _get_tenant, _require_tenant, _tenant_error, logger
 
 
