@@ -28,7 +28,7 @@ def get_cours_classe_rdc(id_annee, id_campus, id_cycle, id_classe):
     
     try:
         eac = EtablissementAnneeClasse.objects.select_related(
-            'etablissement_annee', 'classe'
+            'etablissement_annee', 'classe', 'classe__cycle'
         ).get(id=id_classe)
         hub_classe_id = eac.classe_id
         etab_id = eac.etablissement_annee.etablissement_id
@@ -72,16 +72,23 @@ def get_cours_classe_rdc(id_annee, id_campus, id_cycle, id_classe):
         return []
     
     # ── Récupérer les configs annuelles (Cours_par_classe) pour ces cours ──
-    # CRITICAL: scope by etablissement_id AND id_pays to prevent cross-tenant contamination
+    # CRITICAL: etablissement_id only applies when coursUniformes=False for the cycle
+    # When coursUniformes=True (default), courses are national → no etablissement_id filter
     cpc_filter = {
         'id_cours_id__in': cours_pks,
         'id_annee_id': id_annee,
         'is_obligatory': True,
     }
-    if etab_id:
-        cpc_filter['etablissement_id'] = etab_id
     if pays_id:
         cpc_filter['id_pays'] = pays_id
+
+    # Check if this cycle uses non-uniform courses (coursUniformes=False)
+    try:
+        cycle_obj = eac.classe.cycle
+        if cycle_obj and not cycle_obj.coursUniformes and etab_id:
+            cpc_filter['etablissement_id'] = etab_id
+    except Exception:
+        pass  # If we can't resolve cycle, don't add etablissement_id filter
 
     cpc_qs = Cours_par_classe.objects.filter(
         **cpc_filter

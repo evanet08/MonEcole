@@ -824,12 +824,22 @@ def _get_bulletin_context(eac):
     except Exception:
         pays_id = getattr(eac, 'id_pays', None)
 
+    # Check if this cycle uses non-uniform courses
+    cours_uniformes = True
+    try:
+        cycle_obj = eac.classe.cycle
+        if cycle_obj:
+            cours_uniformes = cycle_obj.coursUniformes
+    except Exception:
+        pass
+
     # 1. cours_annee → id_cours (Hub)
-    # CRITICAL: scope by id_pays on cours table AND etablissement_id on cours_annee
+    # CRITICAL: scope by id_pays on cours table
+    # etablissement_id on cours_annee ONLY when coursUniformes=False
     cours_annee_to_cours = {}
     try:
         with connections['countryStructure'].cursor() as cur:
-            if pays_id and etab_id:
+            if pays_id and not cours_uniformes and etab_id:
                 cur.execute("""
                     SELECT ca.id_cours_annee, ca.cours_id
                     FROM cours_annee ca
@@ -860,7 +870,8 @@ def _get_bulletin_context(eac):
         logger.warning(f"[_get_bulletin_context] cours_annee query failed: {e}")
 
     logger.info(f"[_get_bulletin_context] classe_id={eac.classe_id}, pays_id={pays_id}, "
-                f"etab_id={etab_id}: {len(cours_annee_to_cours)} cours_annee mappings")
+                f"etab_id={etab_id}, coursUniformes={cours_uniformes}: "
+                f"{len(cours_annee_to_cours)} cours_annee mappings")
 
     # 2. repartition_config → repartition_id (Hub)
     config_to_rep = {}
