@@ -88,11 +88,40 @@ def rec_generate_invoice(request, id_paiement):
     if not id_pays:
         return HttpResponse('Tenant non identifié', status=403)
     try:
+        # Only select_related on spoke-local FKs
         p = Paiement.objects.select_related(
-            'idCampus', 'id_classe', 'id_annee', 'id_variable', 'id_eleve'
+            'id_variable', 'id_eleve'
         ).get(id_paiement=id_paiement, id_pays=id_pays, id_etablissement=id_etab)
 
         institution = Institution.objects.first()
+
+        # Resolve hub data manually (cross-database)
+        annee_label = '—'
+        try:
+            a = Annee.objects.using('default').filter(id_annee=p.id_annee_id, pays_id=id_pays).first()
+            if not a:
+                a = Annee.objects.filter(id_annee=p.id_annee_id).first()
+            if a:
+                annee_label = a.annee
+        except Exception:
+            pass
+
+        classe_label = '—'
+        try:
+            from MonEcole_app.models import Classe as ClasseHub
+            cls = ClasseHub.objects.filter(id_classe=p.id_classe_id, id_pays=id_pays).first()
+            if cls:
+                classe_label = cls.classe
+        except Exception:
+            pass
+
+        campus_label = '—'
+        try:
+            c = Campus.objects.filter(id_campus=p.idCampus_id, id_pays=id_pays).first()
+            if c:
+                campus_label = c.campus
+        except Exception:
+            pass
 
         response = HttpResponse(content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="facture_{id_paiement}.pdf"'
@@ -105,9 +134,9 @@ def rec_generate_invoice(request, id_paiement):
 
         elts = []
         info_text = (
-            f"Campus: <b>{p.idCampus.campus}</b><br/>"
-            f"Classe: <b>{p.id_classe.classe}</b><br/>"
-            f"Année: <b>{p.id_annee.annee}</b><br/>"
+            f"Campus: <b>{campus_label}</b><br/>"
+            f"Classe: <b>{classe_label}</b><br/>"
+            f"Année: <b>{annee_label}</b><br/>"
             f"Élève: <b>{p.id_eleve.nom} {p.id_eleve.prenom}</b><br/>"
             f"Date: <b>{datetime.now().strftime('%d/%m/%Y %H:%M')}</b>"
         )
