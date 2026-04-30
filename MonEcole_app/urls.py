@@ -24,6 +24,7 @@ from MonEcole_app.views.recouvrement import invoice_paiement as rec_inv
 from MonEcole_app.views import api_views
 from MonEcole_app.views.pdf import generer_bulletin_pdf
 from MonEcole_app.views.parent import parent_views as pv
+from MonEcole_app.views.parent import parent_eval_api, parent_payment_api, parent_dashboard_api, parent_comm_api
 
 urlpatterns = [
     # Page login
@@ -269,4 +270,30 @@ urlpatterns = [
     path('parent/api/children/', pv.api_parent_children, name='api_parent_children'),
     path('parent/api/child-notes/', pv.api_parent_child_notes, name='api_parent_child_notes'),
     path('parent/api/child-payments/', pv.api_parent_child_payments, name='api_parent_child_payments'),
+
+    # ── Parent: Profil complet + update + photo ──
+    path('parent/api/profile/', pv.api_parent_child_profile, name='api_parent_child_profile'),
+    path('parent/api/profile/update/', pv.api_parent_update_profile, name='api_parent_update_profile'),
+    path('parent/api/profile/photo/', pv.api_parent_upload_photo, name='api_parent_upload_photo'),
+
+    # ── Parent: Évaluations & Notes ──
+    path('parent/api/evaluations/', parent_eval_api.api_parent_evaluations, name='api_parent_evaluations'),
+    path('parent/api/notes/', parent_eval_api.api_parent_notes, name='api_parent_notes'),
+    path('parent/api/bulletin/', parent_eval_api.api_parent_bulletin, name='api_parent_bulletin'),
+    path('parent/api/resultats/', parent_eval_api.api_parent_resultats, name='api_parent_resultats'),
+
+    # ── Parent: Paiements ──
+    path('parent/api/payments/summary/', parent_payment_api.api_parent_payments_summary, name='api_parent_payments_summary'),
+    path('parent/api/payments/options/', parent_payment_api.api_parent_payment_options, name='api_parent_payment_options'),
+    path('parent/api/payments/submit/', parent_payment_api.api_parent_payment_submit, name='api_parent_payment_submit'),
+
+    # ── Parent: Dashboard synthétique ──
+    path('parent/api/dashboard/', parent_dashboard_api.api_parent_dashboard, name='api_parent_dashboard'),
+
+    # ── Parent: Communication ──
+    path('parent/api/messages/', parent_comm_api.api_parent_messages, name='api_parent_messages'),
+    path('parent/api/messages/send/', parent_comm_api.api_parent_send_message, name='api_parent_send_message'),
+    path('parent/api/messages/contacts/', parent_comm_api.api_parent_contacts, name='api_parent_contacts'),
+    path('parent/api/messages/read/', parent_comm_api.api_parent_mark_read, name='api_parent_mark_read'),
 ]
+

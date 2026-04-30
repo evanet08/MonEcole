@@ -542,3 +542,230 @@ def api_parent_child_payments(request):
     except Exception as e:
         logger.exception("api_parent_child_payments error")
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ═══════════════════════════════════════════════════════════════
+# API — Profil élève (lecture + mise à jour partielle)
+# ═══════════════════════════════════════════════════════════════
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def api_parent_child_profile(request):
+    """Profil complet d'un enfant, avec résolution ref_administrative."""
+    parent_data = _get_parent_session(request)
+    if not parent_data:
+        return JsonResponse({'success': False, 'error': 'Non connecté'}, status=401)
+
+    id_eleve = request.GET.get('id_eleve')
+    if not id_eleve:
+        return JsonResponse({'success': False, 'error': 'id_eleve requis'}, status=400)
+
+    filters = {'id_eleve': id_eleve, 'id_parent': parent_data['id_parent']}
+    if parent_data.get('id_pays'):
+        filters['id_pays'] = parent_data['id_pays']
+
+    if not Eleve.objects.filter(**filters).exists():
+        return JsonResponse({'success': False, 'error': 'Accès refusé'}, status=403)
+
+    try:
+        eleve = Eleve.objects.get(id_eleve=id_eleve)
+        parent = None
+        try:
+            from MonEcole_app.models.eleves.parent import Parent
+            parent = Parent.objects.filter(id_parent=eleve.id_parent).first()
+        except Exception:
+            pass
+
+        # Résoudre ref_administrative naissance et résidence
+        def resolve_ref_admin(ref_str, id_pays):
+            """Résoudre une chaîne ref_administrative (ex: '1-2-14-47') en noms."""
+            if not ref_str:
+                return []
+            parts = [p.strip() for p in ref_str.split('-') if p.strip()]
+            if not parts:
+                return []
+            ids = []
+            for p in parts:
+                try:
+                    ids.append(int(p))
+                except (ValueError, TypeError):
+                    pass
+            if not ids:
+                return []
+            try:
+                with connections['countryStructure'].cursor() as cur:
+                    placeholders = ','.join(['%s'] * len(ids))
+                    cur.execute(f"""
+                        SELECT a.id_structure, a.nom, a.ordre
+                        FROM administrativeStructures a
+                        WHERE a.id_structure IN ({placeholders}) AND a.pays_id = %s
+                        ORDER BY a.ordre
+                    """, ids + [id_pays])
+                    return [{'id': r[0], 'nom': r[1], 'ordre': r[2]} for r in cur.fetchall()]
+            except Exception:
+                return []
+
+        id_pays = parent_data.get('id_pays') or eleve.id_pays
+
+        profile = {
+            'id_eleve': eleve.id_eleve,
+            'nom': eleve.nom or '',
+            'prenom': eleve.prenom or '',
+            'genre': eleve.genre or 'M',
+            'etat_civil': eleve.etat_civil or '',
+            'date_naissance': str(eleve.date_naissance) if eleve.date_naissance else '',
+            'telephone': str(eleve.telephone) if eleve.telephone else '',
+            'email': eleve.email or '',
+            'nationalite': eleve.nationalite or '',
+            'matricule': eleve.matricule or '',
+            'code_eleve': eleve.code_eleve or '',
+            'IDNational': eleve.IDNational or '',
+            'photo': eleve.imageUrl.url if eleve.imageUrl else '',
+            'ref_administrative_naissance': eleve.ref_administrative_naissance or '',
+            'ref_administrative_residence': eleve.ref_administrative_residence or '',
+            'naissance_chain': resolve_ref_admin(eleve.ref_administrative_naissance, id_pays),
+            'residence_chain': resolve_ref_admin(eleve.ref_administrative_residence, id_pays),
+        }
+
+        # Données parent
+        parent_info = {}
+        if parent:
+            parent_info = {
+                'nom_pere': parent.nomsPere or '',
+                'tel_pere': parent.telephonePere or '',
+                'email_pere': parent.emailPere or '',
+                'nom_mere': parent.nomsMere or '',
+                'tel_mere': parent.telephoneMere or '',
+                'email_mere': parent.emailMere or '',
+                'pere_en_vie': parent.pere_en_vie,
+                'mere_en_vie': parent.mere_en_vie,
+            }
+
+        # Résoudre la hiérarchie administrative pour les dropdowns
+        admin_types = []
+        admin_instances = {}
+        try:
+            with connections['countryStructure'].cursor() as cur:
+                cur.execute("""
+                    SELECT id_structure, code, nom, ordre
+                    FROM administrativeStructuresTypes
+                    WHERE pays_id = %s ORDER BY ordre
+                """, [id_pays])
+                admin_types = [{'id': r[0], 'code': r[1], 'nom': r[2], 'ordre': r[3]} for r in cur.fetchall()]
+
+                cur.execute("""
+                    SELECT id_structure, nom, ordre, code
+                    FROM administrativeStructures
+                    WHERE pays_id = %s ORDER BY ordre, nom
+                """, [id_pays])
+                for r in cur.fetchall():
+                    ordre = r[2]
+                    if ordre not in admin_instances:
+                        admin_instances[ordre] = []
+                    admin_instances[ordre].append({
+                        'id': r[0], 'nom': r[1], 'code': r[3] or '',
+                    })
+        except Exception:
+            pass
+
+        return JsonResponse({
+            'success': True,
+            'profile': profile,
+            'parent': parent_info,
+            'admin_types': admin_types,
+            'admin_instances': admin_instances,
+        })
+
+    except Exception as e:
+        logger.exception("api_parent_child_profile error")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_parent_update_profile(request):
+    """Met à jour les champs modifiables du profil élève par le parent."""
+    parent_data = _get_parent_session(request)
+    if not parent_data:
+        return JsonResponse({'success': False, 'error': 'Non connecté'}, status=401)
+
+    try:
+        data = json.loads(request.body)
+        id_eleve = data.get('id_eleve')
+        if not id_eleve:
+            return JsonResponse({'success': False, 'error': 'id_eleve requis'}, status=400)
+
+        filters = {'id_eleve': id_eleve, 'id_parent': parent_data['id_parent']}
+        if parent_data.get('id_pays'):
+            filters['id_pays'] = parent_data['id_pays']
+
+        try:
+            eleve = Eleve.objects.get(**filters)
+        except Eleve.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Accès refusé'}, status=403)
+
+        # Champs modifiables par le parent
+        editable_fields = {
+            'telephone': 'telephone',
+            'email': 'email',
+            'nationalite': 'nationalite',
+            'etat_civil': 'etat_civil',
+            'ref_administrative_naissance': 'ref_administrative_naissance',
+            'ref_administrative_residence': 'ref_administrative_residence',
+        }
+
+        updated = []
+        for json_key, model_field in editable_fields.items():
+            if json_key in data:
+                setattr(eleve, model_field, data[json_key] or None)
+                updated.append(model_field)
+
+        if updated:
+            eleve.save(update_fields=updated)
+
+        return JsonResponse({'success': True, 'updated': updated})
+
+    except Exception as e:
+        logger.exception("api_parent_update_profile error")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_parent_upload_photo(request):
+    """Upload de la photo de l'élève."""
+    parent_data = _get_parent_session(request)
+    if not parent_data:
+        return JsonResponse({'success': False, 'error': 'Non connecté'}, status=401)
+
+    id_eleve = request.POST.get('id_eleve')
+    if not id_eleve:
+        return JsonResponse({'success': False, 'error': 'id_eleve requis'}, status=400)
+
+    filters = {'id_eleve': id_eleve, 'id_parent': parent_data['id_parent']}
+    if parent_data.get('id_pays'):
+        filters['id_pays'] = parent_data['id_pays']
+
+    try:
+        eleve = Eleve.objects.get(**filters)
+    except Eleve.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Accès refusé'}, status=403)
+
+    photo = request.FILES.get('photo')
+    if not photo:
+        return JsonResponse({'success': False, 'error': 'Fichier photo requis'}, status=400)
+
+    if photo.size > 5 * 1024 * 1024:
+        return JsonResponse({'success': False, 'error': 'Photo trop volumineuse (max 5MB)'}, status=400)
+
+    try:
+        eleve.imageUrl = photo
+        eleve.save(update_fields=['imageUrl'])
+        return JsonResponse({
+            'success': True,
+            'photo_url': eleve.imageUrl.url if eleve.imageUrl else '',
+        })
+    except Exception as e:
+        logger.exception("api_parent_upload_photo error")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+

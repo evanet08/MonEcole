@@ -173,11 +173,17 @@
     <button class="tab-btn active" onclick="showTab('profil', this)">
         <i class="fas fa-user"></i> Profil
     </button>
+    <button class="tab-btn" onclick="showTab('dashboard', this)">
+        <i class="fas fa-tachometer-alt"></i> Tableau
+    </button>
     <button class="tab-btn" onclick="showTab('notes', this)">
         <i class="fas fa-chart-bar"></i> Notes
     </button>
     <button class="tab-btn" onclick="showTab('payments', this)">
         <i class="fas fa-credit-card"></i> Paiements
+    </button>
+    <button class="tab-btn" onclick="showTab('comm', this)">
+        <i class="fas fa-comments"></i> Messages
     </button>
 </div>
 
@@ -256,13 +262,53 @@
     </div>
 </div>
 
+<!-- Tab: Dashboard -->
+<div class="tab-pane" id="tab-dashboard">
+    <div class="detail-section">
+        <p class="section-title">Présence</p>
+        <div id="presenceStats" style="display:flex;gap:8px;margin-bottom:12px">
+            <div class="info-item" style="flex:1;text-align:center"><div class="info-label">Taux</div><div class="info-value" id="tauxPresence">—</div></div>
+            <div class="info-item" style="flex:1;text-align:center"><div class="info-label">Présences</div><div class="info-value" id="nbPresents">—</div></div>
+            <div class="info-item" style="flex:1;text-align:center"><div class="info-label">Absences</div><div class="info-value" id="nbAbsents" style="color:#dc2626">—</div></div>
+        </div>
+        <div id="absencesList"></div>
+    </div>
+    <div class="detail-section">
+        <p class="section-title">Conduite</p>
+        <div id="conduiteList"><div class="loading-skeleton"></div></div>
+    </div>
+    <div class="detail-section">
+        <p class="section-title">Évolution des Résultats</p>
+        <div id="evolutionList"><div class="loading-skeleton"></div></div>
+    </div>
+</div>
+
 <!-- Tab: Payments -->
 <div class="tab-pane" id="tab-payments">
     <div class="detail-section" id="payments">
-        <p class="section-title">Historique des Paiements</p>
+        <p class="section-title">Soldes</p>
+        <div id="paymentsSummary"></div>
+        <p class="section-title" style="margin-top:16px">Historique des Paiements</p>
         <div id="paymentsList">
             <div class="loading-skeleton"></div>
             <div class="loading-skeleton"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Communication -->
+<div class="tab-pane" id="tab-comm">
+    <div class="detail-section">
+        <p class="section-title">Messages</p>
+        <div id="commThreads"><div class="loading-skeleton"></div><div class="loading-skeleton"></div></div>
+        <div id="commCompose" style="margin-top:12px">
+            <select id="commContact" class="info-item" style="width:100%;padding:10px;font-size:0.82rem;border-radius:10px;margin-bottom:8px">
+                <option value="">Choisir un destinataire...</option>
+            </select>
+            <div style="display:flex;gap:6px">
+                <input id="commInput" type="text" placeholder="Votre message..." style="flex:1;padding:10px 14px;border:1px solid #e2e8f0;border-radius:10px;font-size:0.82rem">
+                <button onclick="sendMessage()" style="background:linear-gradient(135deg,#1e3a8a,#6366f1);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:0.82rem;font-weight:600;cursor:pointer"><i class="fas fa-paper-plane"></i></button>
+            </div>
         </div>
     </div>
 </div>
@@ -271,20 +317,17 @@
 {% block page_js %}
 <script>
     const ID_ELEVE = {{ eleve.id_eleve }};
-    let notesLoaded = false;
-    let paymentsLoaded = false;
+    let notesLoaded=false, paymentsLoaded=false, dashLoaded=false, commLoaded=false;
 
     function showTab(name, btn) {
-        // Tabs
         document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
         document.getElementById('tab-' + name).classList.add('active');
-        // Buttons
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-
-        // Lazy load
         if (name === 'notes' && !notesLoaded) loadNotes();
         if (name === 'payments' && !paymentsLoaded) loadPayments();
+        if (name === 'dashboard' && !dashLoaded) loadDashboard();
+        if (name === 'comm' && !commLoaded) loadComm();
     }
 
     async function loadNotes() {
@@ -362,6 +405,93 @@
         } catch (e) {
             document.getElementById('paymentsList').innerHTML = '<div class="empty-tab"><i class="fas fa-exclamation-circle"></i>Erreur de chargement.</div>';
         }
+    }
+
+    async function loadDashboard() {
+        try {
+            const r = await fetch(`/parent/api/dashboard/?id_eleve=${ID_ELEVE}`);
+            const d = await r.json();
+            if (!d.success) return;
+            const db = d.dashboard;
+            // Presence
+            if (db.presence) {
+                document.getElementById('tauxPresence').textContent = (db.presence.taux_presence||100)+'%';
+                document.getElementById('nbPresents').textContent = db.presence.presents||0;
+                document.getElementById('nbAbsents').textContent = db.presence.absents||0;
+                let ah='';
+                (db.presence.absences_recentes||[]).forEach(a=>{
+                    ah+=`<div class="note-row"><div><div class="note-cours">${a.date}</div><div class="note-type">${a.creneau}</div></div><div style="font-size:0.75rem;color:#dc2626">${a.motif}</div></div>`;
+                });
+                document.getElementById('absencesList').innerHTML=ah||'<div class="empty-tab">Aucune absence</div>';
+            }
+            // Conduite
+            let ch='';
+            (db.conduite||[]).forEach(c=>{
+                ch+=`<div class="note-row"><div><div class="note-cours">${c.motif}</div><div class="note-type">${c.date}</div></div><div class="note-value ${c.quote>=5?'good':c.quote>=3?'average':'poor'}">${c.quote}/10</div></div>`;
+            });
+            document.getElementById('conduiteList').innerHTML=ch||'<div class="empty-tab"><i class="fas fa-smile"></i>Aucun incident</div>';
+            // Evolution
+            let eh='';
+            (db.resultats_evolution||[]).forEach(r=>{
+                eh+=`<div class="note-row"><div><div class="note-cours">Période ${r.periode_id}</div><div class="note-type">Place: ${r.place}</div></div><div class="note-value ${r.pourcentage>=60?'good':r.pourcentage>=50?'average':'poor'}">${r.pourcentage}%</div></div>`;
+            });
+            document.getElementById('evolutionList').innerHTML=eh||'<div class="empty-tab"><i class="fas fa-chart-line"></i>Pas encore de résultats</div>';
+            dashLoaded=true;
+        } catch(e) { console.error(e); }
+    }
+
+    async function loadComm() {
+        try {
+            // Load contacts
+            const cr = await fetch(`/parent/api/messages/contacts/?id_eleve=${ID_ELEVE}`);
+            const cd = await cr.json();
+            if (cd.success) {
+                const sel=document.getElementById('commContact');
+                sel.innerHTML='<option value="">Choisir un destinataire...</option>';
+                (cd.contacts.direction||[]).forEach(c=>{sel.innerHTML+=`<option value="${c.id_personnel}">${c.nom} (Direction)</option>`;});
+                (cd.contacts.enseignants||[]).forEach(c=>{sel.innerHTML+=`<option value="${c.id_personnel}">${c.nom} (Enseignant)</option>`;});
+            }
+            // Load messages
+            const mr = await fetch(`/parent/api/messages/?id_eleve=${ID_ELEVE}`);
+            const md = await mr.json();
+            const ct=document.getElementById('commThreads');
+            if (!md.success||!md.threads||md.threads.length===0) {
+                ct.innerHTML='<div class="empty-tab"><i class="fas fa-inbox"></i>Aucun message</div>';
+            } else {
+                let h='';
+                md.threads.forEach(t=>{
+                    const unread=t.unread?`<span style="background:#dc2626;color:#fff;border-radius:50%;padding:2px 7px;font-size:0.65rem;font-weight:700">${t.unread}</span>`:'';
+                    h+=`<div class="payment-row" style="cursor:pointer" onclick="toggleThread('${t.thread_id}')">
+                        <div class="payment-info"><div class="payment-label">${t.subject||'Message'} ${unread}</div><div class="payment-date">${t.last_sender} · ${t.last_date} ${t.last_time}</div></div>
+                    </div>
+                    <div id="thread-${t.thread_id}" style="display:none;padding:0 8px 8px">`;
+                    (t.messages||[]).forEach(m=>{
+                        const align=m.is_mine?'margin-left:auto;background:#1e3a8a;color:#fff':'background:#f1f5f9';
+                        h+=`<div style="max-width:80%;padding:8px 12px;border-radius:12px;margin:4px 0;font-size:0.8rem;${align}">
+                            <div style="font-size:0.65rem;opacity:0.7">${m.sender_name} · ${m.time}</div>${m.message}</div>`;
+                    });
+                    h+='</div>';
+                });
+                ct.innerHTML=h;
+            }
+            commLoaded=true;
+        } catch(e) { console.error(e); }
+    }
+
+    function toggleThread(tid) {
+        const el=document.getElementById('thread-'+tid);
+        el.style.display=el.style.display==='none'?'block':'none';
+    }
+
+    async function sendMessage() {
+        const contact=document.getElementById('commContact').value;
+        const msg=document.getElementById('commInput').value.trim();
+        if (!msg) return;
+        try {
+            const r=await fetch('/parent/api/messages/send/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id_eleve:ID_ELEVE,message:msg,target_personnel_id:contact||null,scope:contact?'teacher':'direction'})});
+            const d=await r.json();
+            if (d.success) { document.getElementById('commInput').value=''; commLoaded=false; loadComm(); }
+        } catch(e) { console.error(e); }
     }
 </script>
 {% endblock %}
