@@ -5,6 +5,7 @@ class VariableCategorie(models.Model):
     id_variable_categorie = models.AutoField(primary_key=True)
     nom = models.CharField(max_length=200,null=False)
     id_pays = models.IntegerField(null=True, blank=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "recouvrment_variable_categorie"
@@ -19,6 +20,7 @@ class Variable(models.Model):
     id_variable_categorie = models.ForeignKey('VariableCategorie',on_delete=models.PROTECT,null=False)
     estObligatoire = models.BooleanField(default=False)
     id_pays = models.IntegerField(null=True, blank=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "recouvrment_variable"
@@ -42,6 +44,7 @@ class VariableDatebutoire(models.Model):
                                 db_constraint=False)
     date_butoire = models.DateField()
     id_pays = models.IntegerField(null=True, blank=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "recouvrment_variable_datebutoire"
@@ -66,6 +69,7 @@ class VariableDerogation(models.Model):
     id_variable = models.ForeignKey(Variable,on_delete=models.PROTECT,null=False)
     date_derogation = models.DateField()
     id_pays = models.IntegerField(null=True, blank=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "recouvrment_variable_derogation"
@@ -89,6 +93,7 @@ class VariablePrix(models.Model):
                                 null=True, blank=True, db_column='section_id',
                                 db_constraint=False)
     id_pays = models.IntegerField(null=True, blank=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "recouvrment_variable_prix"
@@ -102,6 +107,7 @@ class Banque(models.Model):
     banque = models.CharField(max_length=200,null=False)
     sigle = models.CharField(max_length=120,null=True,blank=True)
     id_pays = models.IntegerField(null=True, blank=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "recouvrment_banque"
@@ -115,6 +121,7 @@ class Compte(models.Model):
     compte = models.CharField(max_length=200,null=False)
     id_banque = models.ForeignKey(Banque,on_delete=models.PROTECT,null=False)
     id_pays = models.IntegerField(null=True, blank=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "recouvrment_compte"

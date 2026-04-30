@@ -653,6 +653,19 @@ def administration_view(request):
 
 
 @login_required(login_url='login')
+def recouvrement_view(request):
+    """Page Recouvrement — Module de gestion financière scolaire."""
+    context = _get_dashboard_context(request)
+    if context is None:
+        return render(request, 'dashboard/no_tenant.html')
+    context['active_page'] = 'recouvrement'
+    if not context.get('active_section') or context['active_section'] == 'dashboard':
+        context['active_section'] = 'dashboard'
+    _add_module_context(context, request, 'recouvrement')
+    return render(request, 'dashboard/recouvrement.html', context)
+
+
+@login_required(login_url='login')
 def enseignements_view(request):
     """Page Enseignements : Enseignants + Cours & Pondérations + Attribution."""
     context = _get_dashboard_context(request)

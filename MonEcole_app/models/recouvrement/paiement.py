@@ -19,6 +19,7 @@ class Eleve_reduction_prix(models.Model):
     id_variable = models.ForeignKey(Variable,on_delete=models.PROTECT,null=False)
     pourcentage = models.PositiveIntegerField()
     id_pays = models.IntegerField(null=True, blank=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = 'recouvrment_reduction_prix'
@@ -51,9 +52,41 @@ class Paiement(models.Model):
     status = models.BooleanField(default=False)
     is_rejected = models.BooleanField(default=False)
     id_pays = models.IntegerField(null=True, blank=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
 
     class Meta:
         db_table = 'recouvrment_paiement'
 
     def __str__(self):
         return self.montant
+
+
+class PenaliteConfig(models.Model):
+    id_penalite_regle = models.AutoField(primary_key=True)
+    id_annee = models.ForeignKey("Annee", on_delete=models.PROTECT, null=False, db_constraint=False)
+    idCampus = models.ForeignKey("Campus", on_delete=models.PROTECT, null=True, blank=True)
+    id_cycle = models.ForeignKey("MonEcole_app.Cycle", on_delete=models.PROTECT, null=True, blank=True,
+                                 db_column='id_cycle_id', db_constraint=False)
+    id_classe = models.ForeignKey('MonEcole_app.Classe', on_delete=models.PROTECT, null=True, blank=True,
+                                  db_column='classe_id', db_constraint=False)
+    groupe = models.CharField(max_length=5, null=True, blank=True)
+    section = models.ForeignKey('MonEcole_app.Section', on_delete=models.SET_NULL,
+                                null=True, blank=True, db_column='section_id',
+                                db_constraint=False)
+    id_variable = models.ForeignKey(Variable, on_delete=models.PROTECT, null=True, blank=True)
+    type_penalite = models.CharField(
+        max_length=20,
+        choices=[('FORFAIT', 'Forfait'), ('POURCENTAGE', 'Pourcentage')],
+    )
+    valeur = models.FloatField()
+    plafond = models.PositiveIntegerField(null=True, blank=True)
+    actif = models.BooleanField(default=True)
+    id_pays = models.IntegerField(null=True, blank=True)
+    id_etablissement = models.IntegerField(null=True, blank=True)
+
+    class Meta:
+        db_table = "recouvrement_penalite"
+
+    def __str__(self):
+        cible = self.id_variable.variable if self.id_variable else "Toutes variables"
+        return f"{cible} - {self.valeur}{'%' if self.type_penalite == 'POURCENTAGE' else ' FORFAIT'}"

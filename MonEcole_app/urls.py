@@ -5,6 +5,7 @@ from MonEcole_app.views.dashboard_views import (
     administration_view, enseignements_view,
     evaluations_view, scolarite_view,
     espace_enseignant_view, communication_view,
+    recouvrement_view,
     api_enseignant_dashboard, api_enseignant_debug,
     api_enseignant_presences,
     api_communication_contacts,
@@ -15,6 +16,11 @@ from MonEcole_app.views.dashboard_views import (
     api_communication_meeting_create, api_communication_meetings_list,
     api_communication_meeting_join, api_communication_meeting_cancel,
 )
+from MonEcole_app.views.recouvrement import api_load as rec_api
+from MonEcole_app.views.recouvrement import save_api as rec_save
+from MonEcole_app.views.recouvrement import update_views as rec_upd
+from MonEcole_app.views.recouvrement import create_base as rec_base
+from MonEcole_app.views.recouvrement import invoice_paiement as rec_inv
 from MonEcole_app.views import api_views
 from MonEcole_app.views.pdf import generer_bulletin_pdf
 
@@ -43,6 +49,7 @@ urlpatterns = [
     path('dashboard/scolarite/', scolarite_view, name='dashboard_scolarite'),
     path('dashboard/enseignant/', espace_enseignant_view, name='dashboard_enseignant'),
     path('dashboard/communication/', communication_view, name='dashboard_communication'),
+    path('dashboard/recouvrement/', recouvrement_view, name='dashboard_recouvrement'),
 
     # API Enseignant
     path('api/enseignant/dashboard/', api_enseignant_dashboard, name='api_enseignant_dashboard'),
@@ -203,4 +210,48 @@ urlpatterns = [
     path('api/bulletins/classes/', api_views.get_deliberated_classes, name='get_deliberated_classes'),
     path('api/bulletins/eleves/', api_views.get_bulletin_eleves, name='get_bulletin_eleves'),
     path('generer_bulletin_pdf/', generer_bulletin_pdf, name='generer_bulletin_pdf'),
+
+    # ============ RECOUVREMENT ============
+    path('api/recouvrement/dashboard-data/', rec_base.rec_dashboard_data, name='rec_dashboard_data'),
+    path('api/recouvrement/dashboard-details/', rec_base.rec_dashboard_details, name='rec_dashboard_details'),
+    path('api/recouvrement/classes/', rec_api.rec_get_classes_actives, name='rec_get_classes'),
+    path('api/recouvrement/eleves/', rec_api.rec_get_eleves_classe, name='rec_get_eleves'),
+    path('api/recouvrement/variables-restant/', rec_api.rec_get_variables_restant, name='rec_get_variables'),
+    path('api/recouvrement/banques/', rec_api.rec_get_banques, name='rec_get_banques'),
+    path('api/recouvrement/categories/', rec_api.rec_get_categories, name='rec_get_categories'),
+    path('api/recouvrement/comptes/<int:id_banque>/', rec_api.rec_get_comptes_banque, name='rec_get_comptes'),
+    path('api/recouvrement/paiements-submitted/', rec_api.rec_get_paiements_submitted, name='rec_paiements_submitted'),
+    path('api/recouvrement/paiements-validated/', rec_api.rec_get_paiements_validated, name='rec_paiements_validated'),
+    path('api/recouvrement/paiements-eleve/', rec_api.rec_get_paiements_eleve, name='rec_paiements_eleve'),
+    path('api/recouvrement/derogation-reduction/', rec_api.rec_get_existing_derogation_reduction, name='rec_derog_red'),
+    path('api/recouvrement/penalites/', rec_api.rec_get_penalites, name='rec_get_penalites'),
+    path('api/recouvrement/operations/', rec_api.rec_get_operations_caisse, name='rec_get_operations'),
+    path('api/recouvrement/categories-operations/', rec_api.rec_get_categories_operations, name='rec_get_cat_ops'),
+    path('api/recouvrement/dates-butoires/', rec_api.rec_get_date_butoires, name='rec_get_dates'),
+    # Save
+    path('api/recouvrement/save-categorie-variable/', rec_save.rec_save_categorie_variable, name='rec_save_cat'),
+    path('api/recouvrement/save-variable/', rec_save.rec_save_variable, name='rec_save_var'),
+    path('api/recouvrement/save-banque/', rec_save.rec_save_banque, name='rec_save_banque'),
+    path('api/recouvrement/save-compte/', rec_save.rec_save_compte, name='rec_save_compte'),
+    path('api/recouvrement/save-variable-prix/', rec_save.rec_save_variable_prix, name='rec_save_prix'),
+    path('api/recouvrement/save-paiement/', rec_save.rec_save_paiement, name='rec_save_paiement'),
+    path('api/recouvrement/save-derogation/', rec_save.rec_save_derogation, name='rec_save_derog'),
+    path('api/recouvrement/save-reduction/', rec_save.rec_save_reduction, name='rec_save_red'),
+    path('api/recouvrement/save-date-butoire/', rec_save.rec_save_date_butoire, name='rec_save_date'),
+    path('api/recouvrement/save-penalite/', rec_save.rec_save_penalite, name='rec_save_pen'),
+    path('api/recouvrement/save-categorie-operation/', rec_save.rec_save_categorie_operation, name='rec_save_cat_op'),
+    path('api/recouvrement/save-operation/', rec_save.rec_save_operation_caisse, name='rec_save_op'),
+    path('api/recouvrement/delete-paiement/<int:id_paiement>/', rec_save.rec_delete_paiement, name='rec_del_paie'),
+    path('api/recouvrement/delete-operation/<int:id_operation>/', rec_save.rec_delete_operation, name='rec_del_op'),
+    # Update
+    path('api/recouvrement/update-paiement-field/', rec_upd.rec_update_paiement_field, name='rec_upd_field'),
+    path('api/recouvrement/update-categorie/<int:categorie_id>/', rec_upd.rec_update_categorie, name='rec_upd_cat'),
+    path('api/recouvrement/update-variable/<int:variable_id>/', rec_upd.rec_update_variable, name='rec_upd_var'),
+    path('api/recouvrement/update-banque/<int:banque_id>/', rec_upd.rec_update_banque, name='rec_upd_banque'),
+    path('api/recouvrement/update-compte/<int:compte_id>/', rec_upd.rec_update_compte, name='rec_upd_compte'),
+    path('api/recouvrement/update-paiement/<int:id_paiement>/', rec_upd.rec_update_paiement, name='rec_upd_paie'),
+    path('api/recouvrement/update-variable-obligatoire/', rec_upd.rec_update_variable_obligatoire, name='rec_upd_oblig'),
+    # PDF
+    path('api/recouvrement/invoice/<int:id_paiement>/', rec_inv.rec_generate_invoice, name='rec_invoice'),
+    path('api/recouvrement/fiche-paie/', rec_inv.rec_generate_fiche_paie_classe, name='rec_fiche_paie'),
 ]

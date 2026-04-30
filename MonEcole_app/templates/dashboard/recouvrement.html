@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+
+{% block title %}Recouvrement — {{ etab.nom }}{% endblock %}
+{% block meta_description %}Gestion financière de {{ etab.nom }}{% endblock %}
+{% block page_indicator %}Recouvrement{% endblock %}
+
+{% block sidebar_items %}
+<a href="/dashboard/recouvrement/?section=dashboard" class="nav-item {% if active_section == 'dashboard' %}active{% endif %}" title="Dashboard">
+    <i class="fas fa-th-large" style="color:#6366f1"></i><span>Dashboard</span>
+</a>
+<a href="/dashboard/recouvrement/?section=paiements" class="nav-item {% if active_section == 'paiements' %}active{% endif %}" title="Paiements">
+    <i class="fas fa-money-bill-wave" style="color:#10b981"></i><span>Paiements</span>
+</a>
+<a href="/dashboard/recouvrement/?section=variables" class="nav-item {% if active_section == 'variables' %}active{% endif %}" title="Variables">
+    <i class="fas fa-tags" style="color:#f59e0b"></i><span>Variables</span>
+</a>
+<a href="/dashboard/recouvrement/?section=banques" class="nav-item {% if active_section == 'banques' %}active{% endif %}" title="Banques">
+    <i class="fas fa-university" style="color:#0ea5e9"></i><span>Banques</span>
+</a>
+<a href="/dashboard/recouvrement/?section=caisse" class="nav-item {% if active_section == 'caisse' %}active{% endif %}" title="Caisse">
+    <i class="fas fa-cash-register" style="color:#ef4444"></i><span>Caisse</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<div id="rec-app" data-id-pays="{{ id_pays }}" data-id-etab="{{ id_etablissement }}">
+
+{% if active_section == 'dashboard' %}
+<div class="workspace-card" id="rec-dashboard-section">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0"><i class="fas fa-chart-line me-2" style="color:#6366f1"></i>Tableau de bord financier</h5>
+        <select id="rec-annee-select" class="form-select" style="width:200px">
+            {% for a in annees %}<option value="{{ a.id }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="row g-3 mb-4" id="rec-stats-cards">
+        <div class="col-md-2"><div class="card text-center p-3 border-0 shadow-sm" style="background:linear-gradient(135deg,#6366f1,#818cf8);color:#fff;border-radius:12px"><div class="fs-4 fw-bold" id="stat-transactions">0</div><small>Transactions</small></div></div>
+        <div class="col-md-2"><div class="card text-center p-3 border-0 shadow-sm" style="background:linear-gradient(135deg,#10b981,#34d399);color:#fff;border-radius:12px"><div class="fs-4 fw-bold" id="stat-paye">0</div><small>Total payé</small></div></div>
+        <div class="col-md-2"><div class="card text-center p-3 border-0 shadow-sm" style="background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#fff;border-radius:12px"><div class="fs-4 fw-bold" id="stat-attendu">0</div><small>Total attendu</small></div></div>
+        <div class="col-md-2"><div class="card text-center p-3 border-0 shadow-sm" style="background:linear-gradient(135deg,#ef4444,#f87171);color:#fff;border-radius:12px"><div class="fs-4 fw-bold" id="stat-reste">0</div><small>Reste à payer</small></div></div>
+        <div class="col-md-2"><div class="card text-center p-3 border-0 shadow-sm" style="background:linear-gradient(135deg,#8b5cf6,#a78bfa);color:#fff;border-radius:12px"><div class="fs-4 fw-bold" id="stat-dette">0</div><small>En dette</small></div></div>
+        <div class="col-md-2"><div class="card text-center p-3 border-0 shadow-sm" style="background:linear-gradient(135deg,#64748b,#94a3b8);color:#fff;border-radius:12px"><div class="fs-4 fw-bold" id="stat-rejete">0</div><small>Rejetés</small></div></div>
+    </div>
+    <div id="rec-details-table"></div>
+</div>
+
+{% elif active_section == 'paiements' %}
+<div class="workspace-card" id="rec-paiements-section">
+    <h5 class="fw-bold mb-3"><i class="fas fa-money-bill-wave me-2" style="color:#10b981"></i>Gestion des paiements</h5>
+    <div class="row g-3 mb-3">
+        <div class="col-md-3"><select id="pay-annee" class="form-select"><option value="">Année...</option>{% for a in annees %}<option value="{{ a.id }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
+        <div class="col-md-3"><select id="pay-classe" class="form-select"><option value="">Classe...</option></select></div>
+        <div class="col-md-3"><select id="pay-eleve" class="form-select"><option value="">Élève...</option></select></div>
+    </div>
+    <div id="pay-variables-list" class="mb-3"></div>
+    <div class="card border-0 shadow-sm p-3 mb-3" id="pay-form-card" style="display:none;border-radius:12px">
+        <h6 class="fw-bold">Nouveau paiement</h6>
+        <form id="pay-form">{% csrf_token %}
+            <input type="hidden" name="id_annee" id="pf-annee">
+            <input type="hidden" name="id_classe" id="pf-classe">
+            <input type="hidden" name="id_eleve" id="pf-eleve">
+            <input type="hidden" name="idCampus" id="pf-campus">
+            <input type="hidden" name="id_cycle" id="pf-cycle">
+            <input type="hidden" name="groupe" id="pf-groupe">
+            <div class="row g-2">
+                <div class="col-md-3"><label class="form-label">Variable</label><select name="id_variable" id="pf-variable" class="form-select" required></select></div>
+                <div class="col-md-2"><label class="form-label">Montant</label><input type="number" name="montant" class="form-control" required min="1"></div>
+                <div class="col-md-2"><label class="form-label">Date</label><input type="date" name="date_paie" class="form-control" required></div>
+                <div class="col-md-3"><label class="form-label">Compte</label><select name="id_compte" id="pf-compte" class="form-select" required></select></div>
+                <div class="col-md-2"><label class="form-label">Bordereau</label><input type="file" name="bordereau" class="form-control"></div>
+            </div>
+            <button type="submit" class="btn btn-success mt-2"><i class="fas fa-save me-1"></i>Enregistrer</button>
+        </form>
+    </div>
+    <div id="pay-history-table"></div>
+</div>
+
+{% elif active_section == 'variables' %}
+<div class="workspace-card" id="rec-variables-section">
+    <h5 class="fw-bold mb-3"><i class="fas fa-tags me-2" style="color:#f59e0b"></i>Variables & Prix</h5>
+    <ul class="nav nav-tabs mb-3" id="var-tabs">
+        <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-categories">Catégories</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-variables">Variables</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-prix">Prix</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-reductions">Réductions</a></li>
+    </ul>
+    <div class="tab-content">
+        <div class="tab-pane active" id="tab-categories">
+            <form id="cat-form" class="row g-2 mb-3">{% csrf_token %}<div class="col-md-4"><input type="text" name="nom" class="form-control" placeholder="Nom catégorie" required></div><div class="col-auto"><button class="btn btn-primary"><i class="fas fa-plus me-1"></i>Ajouter</button></div></form>
+            <div id="cat-list"></div>
+        </div>
+        <div class="tab-pane" id="tab-variables">
+            <form id="var-form" class="row g-2 mb-3">{% csrf_token %}<div class="col-md-3"><select name="id_variable_categorie" class="form-select" required><option value="">Catégorie</option></select></div><div class="col-md-4"><input type="text" name="variable" class="form-control" placeholder="Nom variable" required></div><div class="col-auto"><button class="btn btn-primary"><i class="fas fa-plus me-1"></i>Ajouter</button></div></form>
+            <div id="var-list"></div>
+        </div>
+        <div class="tab-pane" id="tab-prix">
+            <div class="row g-2 mb-3">
+                <div class="col-md-3"><select id="prix-annee" class="form-select"><option value="">Année</option>{% for a in annees %}<option value="{{ a.id }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
+                <div class="col-md-3"><select id="prix-classe" class="form-select"><option value="">Classe</option></select></div>
+            </div>
+            <div id="prix-list"></div>
+        </div>
+        <div class="tab-pane" id="tab-reductions"><div id="red-list"></div></div>
+    </div>
+</div>
+
+{% elif active_section == 'banques' %}
+<div class="workspace-card" id="rec-banques-section">
+    <h5 class="fw-bold mb-3"><i class="fas fa-university me-2" style="color:#0ea5e9"></i>Banques & Comptes</h5>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm p-3" style="border-radius:12px">
+                <h6 class="fw-bold">Banques</h6>
+                <form id="banque-form" class="row g-2 mb-3">{% csrf_token %}<div class="col-md-5"><input type="text" name="banque" class="form-control" placeholder="Nom" required></div><div class="col-md-4"><input type="text" name="sigle" class="form-control" placeholder="Sigle"></div><div class="col-auto"><button class="btn btn-primary btn-sm"><i class="fas fa-plus"></i></button></div></form>
+                <div id="banque-list"></div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm p-3" style="border-radius:12px">
+                <h6 class="fw-bold">Comptes</h6>
+                <form id="compte-form" class="row g-2 mb-3">{% csrf_token %}<div class="col-md-4"><select name="id_banque" class="form-select" required><option value="">Banque</option></select></div><div class="col-md-5"><input type="text" name="compte" class="form-control" placeholder="N° compte" required></div><div class="col-auto"><button class="btn btn-primary btn-sm"><i class="fas fa-plus"></i></button></div></form>
+                <div id="compte-list"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% elif active_section == 'caisse' %}
+<div class="workspace-card" id="rec-caisse-section">
+    <h5 class="fw-bold mb-3"><i class="fas fa-cash-register me-2" style="color:#ef4444"></i>Entrées & Sorties de caisse</h5>
+    <div class="row g-2 mb-3">
+        <div class="col-md-3"><select id="caisse-annee" class="form-select"><option value="">Année</option>{% for a in annees %}<option value="{{ a.id }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
+        <div class="col-md-3"><select id="caisse-type" class="form-select"><option value="">Tout</option><option value="ENTREE">Entrées</option><option value="SORTIE">Sorties</option></select></div>
+    </div>
+    <div class="row g-3 mb-3" id="caisse-stats">
+        <div class="col-md-4"><div class="card text-center p-2 border-0 shadow-sm" style="background:linear-gradient(135deg,#10b981,#34d399);color:#fff;border-radius:10px"><div class="fs-5 fw-bold" id="caisse-entrees">0</div><small>Entrées</small></div></div>
+        <div class="col-md-4"><div class="card text-center p-2 border-0 shadow-sm" style="background:linear-gradient(135deg,#ef4444,#f87171);color:#fff;border-radius:10px"><div class="fs-5 fw-bold" id="caisse-sorties">0</div><small>Sorties</small></div></div>
+        <div class="col-md-4"><div class="card text-center p-2 border-0 shadow-sm" style="background:linear-gradient(135deg,#6366f1,#818cf8);color:#fff;border-radius:10px"><div class="fs-5 fw-bold" id="caisse-solde">0</div><small>Solde</small></div></div>
+    </div>
+    <div id="caisse-operations-table"></div>
+</div>
+{% endif %}
+
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+const REC_URLS = {
+    dashboardData: '/api/recouvrement/dashboard-data/',
+    dashboardDetails: '/api/recouvrement/dashboard-details/',
+    classes: '/api/recouvrement/classes/',
+    eleves: '/api/recouvrement/eleves/',
+    variables: '/api/recouvrement/variables-restant/',
+    banques: '/api/recouvrement/banques/',
+    categories: '/api/recouvrement/categories/',
+    comptes: '/api/recouvrement/comptes/',
+    paiements_submitted: '/api/recouvrement/paiements-submitted/',
+    paiements_validated: '/api/recouvrement/paiements-validated/',
+    paiements_eleve: '/api/recouvrement/paiements-eleve/',
+    save_paiement: '/api/recouvrement/save-paiement/',
+    save_categorie: '/api/recouvrement/save-categorie-variable/',
+    save_variable: '/api/recouvrement/save-variable/',
+    save_banque: '/api/recouvrement/save-banque/',
+    save_compte: '/api/recouvrement/save-compte/',
+    save_prix: '/api/recouvrement/save-variable-prix/',
+    operations: '/api/recouvrement/operations/',
+    categories_op: '/api/recouvrement/categories-operations/',
+};
+
+function fmt(n){return (n||0).toLocaleString('fr-FR');}
+
+// Dashboard stats loader
+function loadDashStats(){
+    const annee = document.getElementById('rec-annee-select')?.value;
+    if(!annee) return;
+    fetch(REC_URLS.dashboardData+'?annee='+annee).then(r=>r.json()).then(d=>{
+        if(!d.success) return;
+        const s=d.stats;
+        document.getElementById('stat-transactions').textContent=fmt(s.total_transactions);
+        document.getElementById('stat-paye').textContent=fmt(s.total_paye);
+        document.getElementById('stat-attendu').textContent=fmt(s.total_attendu);
+        document.getElementById('stat-reste').textContent=fmt(s.reste_a_payer);
+        document.getElementById('stat-dette').textContent=fmt(s.eleves_en_dette);
+        document.getElementById('stat-rejete').textContent=fmt(s.total_rejete);
+    });
+}
+
+// Classes loader for selects
+function loadClasses(selectId, anneeId, cb){
+    const sel=document.getElementById(selectId);
+    if(!sel)return;
+    sel.innerHTML='<option value="">Classe...</option>';
+    fetch(REC_URLS.classes+'?annee_id='+anneeId).then(r=>r.json()).then(d=>{
+        if(d.success)(d.classes||[]).forEach(c=>{
+            const o=document.createElement('option');
+            o.value=c.id_classe;
+            o.textContent=c.campus_nom+' - '+c.classe_nom+(c.groupe?' '+c.groupe:'');
+            o.dataset.campus=c.id_campus;o.dataset.cycle=c.id_cycle;o.dataset.groupe=c.groupe;
+            sel.appendChild(o);
+        });
+        if(cb)cb();
+    });
+}
+
+// Eleves loader
+function loadEleves(selectId, anneeId, classeId){
+    const sel=document.getElementById(selectId);
+    if(!sel)return;
+    sel.innerHTML='<option value="">Élève...</option>';
+    if(!classeId)return;
+    fetch(REC_URLS.eleves+'?id_annee='+anneeId+'&id_classe='+classeId).then(r=>r.json()).then(d=>{
+        if(d.success)(d.data||[]).forEach(e=>{
+            const o=document.createElement('option');o.value=e.id_eleve;o.textContent=e.nom_complet;
+            sel.appendChild(o);
+        });
+    });
+}
+
+// Banques loader
+function loadBanques(){
+    fetch(REC_URLS.banques).then(r=>r.json()).then(d=>{
+        if(!d.banques)return;
+        const list=document.getElementById('banque-list');
+        if(list){
+            let h='<table class="table table-sm"><thead><tr><th>Banque</th><th>Sigle</th></tr></thead><tbody>';
+            d.banques.forEach(b=>{h+='<tr><td>'+b.banque+'</td><td>'+(b.sigle||'-')+'</td></tr>';});
+            h+='</tbody></table>';list.innerHTML=h;
+        }
+        // Fill selects
+        document.querySelectorAll('select[name="id_banque"]').forEach(sel=>{
+            sel.innerHTML='<option value="">Banque</option>';
+            d.banques.forEach(b=>{sel.innerHTML+='<option value="'+b.id_banque+'">'+b.banque+'</option>';});
+        });
+    });
+}
+
+// Categories loader
+function loadCategories(){
+    fetch(REC_URLS.categories).then(r=>r.json()).then(d=>{
+        if(!d.categories)return;
+        const list=document.getElementById('cat-list');
+        if(list){
+            let h='<table class="table table-sm"><thead><tr><th>Catégorie</th></tr></thead><tbody>';
+            d.categories.forEach(c=>{h+='<tr><td>'+c.nom+'</td></tr>';});
+            h+='</tbody></table>';list.innerHTML=h;
+        }
+        document.querySelectorAll('select[name="id_variable_categorie"]').forEach(sel=>{
+            sel.innerHTML='<option value="">Catégorie</option>';
+            d.categories.forEach(c=>{sel.innerHTML+='<option value="'+c.id_variable_categorie+'">'+c.nom+'</option>';});
+        });
+    });
+}
+
+// Caisse operations
+function loadOperations(){
+    const annee=document.getElementById('caisse-annee')?.value||'';
+    const type=document.getElementById('caisse-type')?.value||'';
+    let url=REC_URLS.operations+'?annee='+annee+'&type='+type;
+    fetch(url).then(r=>r.json()).then(d=>{
+        if(!d.success)return;
+        const s=d.stats||{};
+        if(document.getElementById('caisse-entrees'))document.getElementById('caisse-entrees').textContent=fmt(s.entrees);
+        if(document.getElementById('caisse-sorties'))document.getElementById('caisse-sorties').textContent=fmt(s.sorties);
+        if(document.getElementById('caisse-solde'))document.getElementById('caisse-solde').textContent=fmt((s.entrees||0)-(s.sorties||0));
+        const tbl=document.getElementById('caisse-operations-table');
+        if(tbl){
+            let h='<table class="table table-sm table-striped"><thead><tr><th>Date</th><th>Type</th><th>Catégorie</th><th>Montant</th><th>Source/Bénéf.</th><th>Mode</th></tr></thead><tbody>';
+            (d.operations||[]).forEach(o=>{
+                const color=o.type_operation==='ENTREE'?'text-success':'text-danger';
+                h+='<tr><td>'+o.date+'</td><td class="'+color+'">'+o.type_operation+'</td><td>'+o.categorie+'</td><td class="fw-bold">'+o.montant_formatted+'</td><td>'+o.source_beneficiaire+'</td><td>'+o.mode_paiement+'</td></tr>';
+            });
+            h+='</tbody></table>';tbl.innerHTML=h;
+        }
+    });
+}
+
+// Form handlers
+function setupForms(){
+    // Cat form
+    const cf=document.getElementById('cat-form');
+    if(cf)cf.onsubmit=function(e){e.preventDefault();fetch(REC_URLS.save_categorie,{method:'POST',body:new FormData(cf)}).then(r=>r.json()).then(d=>{if(d.success){cf.reset();loadCategories();}else alert(d.error);});};
+    // Banque form
+    const bf=document.getElementById('banque-form');
+    if(bf)bf.onsubmit=function(e){e.preventDefault();fetch(REC_URLS.save_banque,{method:'POST',body:new FormData(bf)}).then(r=>r.json()).then(d=>{if(d.success){bf.reset();loadBanques();}else alert(d.error);});};
+    // Compte form
+    const cof=document.getElementById('compte-form');
+    if(cof)cof.onsubmit=function(e){e.preventDefault();fetch(REC_URLS.save_compte,{method:'POST',body:new FormData(cof)}).then(r=>r.json()).then(d=>{if(d.success){cof.reset();loadBanques();}else alert(d.error);});};
+    // Paiement form
+    const pf=document.getElementById('pay-form');
+    if(pf)pf.onsubmit=function(e){e.preventDefault();const fd=new FormData(pf);fetch(REC_URLS.save_paiement,{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.success){pf.reset();alert('Paiement enregistré');}else alert(d.error);});};
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', function(){
+    const recAnnee=document.getElementById('rec-annee-select');
+    if(recAnnee){loadDashStats();recAnnee.onchange=loadDashStats;}
+    const payAnnee=document.getElementById('pay-annee');
+    const payClasse=document.getElementById('pay-classe');
+    if(payAnnee){
+        loadClasses('pay-classe',payAnnee.value);
+        payAnnee.onchange=function(){loadClasses('pay-classe',this.value);};
+    }
+    if(payClasse)payClasse.onchange=function(){
+        loadEleves('pay-eleve',document.getElementById('pay-annee').value,this.value);
+        document.getElementById('pay-form-card').style.display='block';
+    };
+    const prixAnnee=document.getElementById('prix-annee');
+    if(prixAnnee){loadClasses('prix-classe',prixAnnee.value);prixAnnee.onchange=function(){loadClasses('prix-classe',this.value);};}
+    loadBanques();loadCategories();
+    if(document.getElementById('caisse-annee')){
+        loadOperations();
+        document.getElementById('caisse-annee').onchange=loadOperations;
+        document.getElementById('caisse-type').onchange=loadOperations;
+    }
+    setupForms();
+});
+</script>
+{% endblock %}

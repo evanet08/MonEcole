@@ -43,7 +43,7 @@ MODULE_URL_MAPPING = {
     'Enseignement': 'dashboard_enseignements',
     'Espace_Enseignant': 'dashboard_enseignant',
     'Communication': 'dashboard_communication',
-    'Recouvrement': 'dashboard_administration',
+    'Recouvrement': 'dashboard_recouvrement',
     'Bibliotheque': 'dashboard_administration',
     'Direction': 'dashboard_administration',
 }
@@ -55,7 +55,7 @@ MODULE_ID_TO_PAGE = {
     3: {'page': 'evaluations', 'url': '/dashboard/evaluations/', 'icon': 'fas fa-clipboard-check', 'label': 'Évaluations'},
     4: {'page': 'enseignements', 'url': '/dashboard/enseignements/', 'icon': 'fas fa-chalkboard-teacher', 'label': 'Enseignements'},
     5: {'page': 'espace_enseignant', 'url': '/dashboard/enseignant/', 'icon': 'fas fa-chalkboard', 'label': 'Espace Enseignant'},
-    6: {'page': 'administration', 'url': '/dashboard/administration/', 'icon': 'fas fa-money-bill', 'label': 'Recouvrement'},
+    6: {'page': 'recouvrement', 'url': '/dashboard/recouvrement/', 'icon': 'fas fa-money-bill-wave', 'label': 'Recouvrement'},
     7: {'page': 'communication', 'url': '/dashboard/communication/', 'icon': 'fas fa-comments', 'label': 'Communication'},
     8: {'page': 'administration', 'url': '/dashboard/administration/', 'icon': 'fas fa-crown', 'label': 'Direction'},
 }
@@ -76,6 +76,7 @@ url_module_name = [
     ('dashboard_scolarite', 'dashboard_scolarite'),
     ('dashboard_evaluations', 'dashboard_evaluations'),
     ('dashboard_enseignements', 'dashboard_enseignements'),
+    ('dashboard_recouvrement', 'dashboard_recouvrement'),
 ]
 
 type_name = [('Travail Journalier','Travail Journalier'),
