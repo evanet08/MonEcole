@@ -42,7 +42,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div><div class="dash-section-title"><i class="fas fa-chart-bar"></i> Aperçu Financier</div><div class="dash-section-sub">Répartition des paiements par variable</div></div>
                     <div class="rec-selector" style="margin-bottom:0">
-                        <select id="dash-annee" onchange="loadDashboard()">{% for a in annees %}<option value="{{ a.id }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select>
+                        <select id="dash-annee" onchange="loadDashboard()">{% for a in annees_list %}<option value="{{ a.id_annee }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select>
                     </div>
                 </div>
                 <div id="dash-chart-area" style="min-height:200px"><div class="rec-empty"><i class="fas fa-chart-area"></i>Chargement...</div></div>
@@ -78,7 +78,7 @@
         <div><h2>Gestion des Paiements</h2><div class="section-desc">Enregistrez et suivez les paiements des élèves</div></div>
     </div>
     <div class="rec-selector">
-        <div><label>Année</label><select id="pay-annee" onchange="onPayAnneeChange()">{% for a in annees %}<option value="{{ a.id }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
+        <div><label>Année</label><select id="pay-annee" onchange="onPayAnneeChange()">{% for a in annees_list %}<option value="{{ a.id_annee }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
         <div><label>Classe</label><select id="pay-classe" onchange="onPayClasseChange()"><option value="">— Sélectionner —</option></select></div>
         <div><label>Élève</label><select id="pay-eleve" onchange="onPayEleveChange()"><option value="">— Sélectionner —</option></select></div>
         <button class="rec-btn rec-btn-primary" onclick="togglePayForm()" id="btnNewPay" style="display:none"><i class="fas fa-plus"></i> Payer</button>
@@ -172,7 +172,7 @@
                 <div><div class="dash-section-title"><i class="fas fa-money-check-alt"></i> Prix par Classe</div><div class="dash-section-sub">Associez un montant à chaque variable pour chaque classe</div></div>
             </div>
             <div class="rec-selector">
-                <div><label>Année</label><select id="prix-annee" onchange="loadPrixClasses()">{% for a in annees %}<option value="{{ a.id }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
+                <div><label>Année</label><select id="prix-annee" onchange="loadPrixClasses()">{% for a in annees_list %}<option value="{{ a.id_annee }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
                 <div><label>Classe</label><select id="prix-classe" onchange="loadPrix()"><option value="">— Sélectionner —</option></select></div>
             </div>
             <div id="prix-form-wrap" style="display:none"></div>
@@ -227,7 +227,7 @@
         <div class="stat-card grad-blue"><div class="stat-icon"><i class="fas fa-balance-scale"></i></div><div class="stat-info"><div class="stat-label">Solde</div><div class="stat-value" id="caisse-solde">—</div></div></div>
     </div>
     <div class="rec-selector">
-        <div><label>Année</label><select id="caisse-annee" onchange="loadOperations()">{% for a in annees %}<option value="{{ a.id }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
+        <div><label>Année</label><select id="caisse-annee" onchange="loadOperations()">{% for a in annees_list %}<option value="{{ a.id_annee }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
         <div><label>Type</label><select id="caisse-type" onchange="loadOperations()"><option value="">Tous</option><option value="ENTREE">Entrées</option><option value="SORTIE">Sorties</option></select></div>
         <button class="rec-btn rec-btn-success" onclick="toggleOpForm()"><i class="fas fa-plus"></i> Nouvelle opération</button>
     </div>
