@@ -15,12 +15,16 @@ def get_cours_classe_rdc(id_annee, id_campus, id_cycle, id_classe):
     Si un cours est assigné à un sous-domaine (parent_id IS NOT NULL),
     il apparaît sous le domaine parent avec le sous-domaine comme label intermédiaire.
     
+    CRITICAL: All queries are now scoped by id_pays AND id_etablissement
+    to prevent cross-country/cross-tenant domain contamination.
+    
     Retourne une liste de:
         {'domaine': str, 'sous_domaines': [{'nom': str, 'cours': [cpc]}]}
     Si pas de sous-domaines, tous les cours du domaine sont dans un seul sous-domaine vide.
     """
-    from MonEcole_app.models.country_structure import EtablissementAnneeClasse
+    from MonEcole_app.models.country_structure import EtablissementAnneeClasse, Etablissement
     from MonEcole_app.models.enseignmnts.matiere import Cours
+    from MonEcole_app.models.campus import Campus
     
     try:
         eac = EtablissementAnneeClasse.objects.select_related(
@@ -32,33 +36,76 @@ def get_cours_classe_rdc(id_annee, id_campus, id_cycle, id_classe):
         logger.error(f"[get_cours_classe_rdc] EAC {id_classe} not found")
         return []
 
-    # Trouver les cours liés à cette classe du catalogue Hub
-    # CRITICAL: use pk (surrogate) not id_cours (business key) — cours_id FK stores surrogate PK
-    cours_pks = list(Cours.objects.filter(classe_id=hub_classe_id).values_list('pk', flat=True))
+    # ── Résoudre le pays_id via l'établissement ──
+    pays_id = None
+    try:
+        etab = Etablissement.objects.get(id_etablissement=etab_id)
+        pays_id = etab.pays_id
+    except Etablissement.DoesNotExist:
+        # Fallback via campus
+        try:
+            campus = Campus.objects.get(idCampus=id_campus)
+            if campus.id_etablissement:
+                etab = Etablissement.objects.get(id_etablissement=campus.id_etablissement)
+                pays_id = etab.pays_id
+        except Exception:
+            pass
+
+    if not pays_id:
+        logger.error(f"[get_cours_classe_rdc] Could not resolve pays_id for etab_id={etab_id}")
+        # Fallback: try to get pays_id from EAC
+        pays_id = getattr(eac, 'id_pays', None)
+
+    logger.warning(f"[get_cours_classe_rdc] Resolved: pays_id={pays_id}, etab_id={etab_id}, "
+                   f"hub_classe_id={hub_classe_id}, EAC={id_classe}")
+
+    # ── Trouver les cours liés à cette classe du catalogue Hub ──
+    # CRITICAL: filter by id_pays to prevent cross-country course contamination
+    cours_filter = {'classe_id': hub_classe_id}
+    if pays_id:
+        cours_filter['id_pays'] = pays_id
+    cours_pks = list(Cours.objects.filter(**cours_filter).values_list('pk', flat=True))
     
     if not cours_pks:
-        logger.warning(f"[get_cours_classe_rdc] No cours found for hub_classe_id={hub_classe_id}")
+        logger.warning(f"[get_cours_classe_rdc] No cours found for hub_classe_id={hub_classe_id}, "
+                       f"pays_id={pays_id}")
         return []
     
-    # Récupérer les configs annuelles (Cours_par_classe) pour ces cours
+    # ── Récupérer les configs annuelles (Cours_par_classe) pour ces cours ──
+    # CRITICAL: scope by etablissement_id AND id_pays to prevent cross-tenant contamination
+    cpc_filter = {
+        'id_cours_id__in': cours_pks,
+        'id_annee_id': id_annee,
+        'is_obligatory': True,
+    }
+    if etab_id:
+        cpc_filter['etablissement_id'] = etab_id
+    if pays_id:
+        cpc_filter['id_pays'] = pays_id
+
     cpc_qs = Cours_par_classe.objects.filter(
-        id_cours_id__in=cours_pks,
-        id_annee_id=id_annee,
-        is_obligatory=True
+        **cpc_filter
     ).select_related('id_cours').order_by('ordre_cours')
 
-    # Récupérer les domaines depuis le Hub (avec parent_id et ordre)
+    # ── Récupérer les domaines depuis le Hub ──
+    # CRITICAL: filter by pays_id to prevent cross-country domain contamination
     from MonEcole_app.models.country_structure import Domaine
     domaines_dict = {}
     try:
-        for d in Domaine.objects.all():
+        domaine_filter = {}
+        if pays_id:
+            domaine_filter['pays_id'] = pays_id
+        for d in Domaine.objects.filter(**domaine_filter):
             domaines_dict[d.id_domaine] = {
                 'nom': d.nom,
                 'parent_id': d.parent_id,
                 'ordre': d.ordre or 0,
             }
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error(f"[get_cours_classe_rdc] Domaine query failed: {e}")
+
+    logger.warning(f"[get_cours_classe_rdc] Loaded {len(domaines_dict)} domaines for pays_id={pays_id}, "
+                   f"{len(cours_pks)} cours PKs, {cpc_qs.count()} cours_annee configs")
 
     def get_root_domaine(dom_id):
         """Remonte au domaine racine (parent_id IS NULL)."""
@@ -80,6 +127,14 @@ def get_cours_classe_rdc(id_annee, id_campus, id_cycle, id_classe):
         # Priority: domaine_id from cours_annee, fallback to cours table
         domaine_id = cpc.domaine_id or cpc.id_cours.domaine_id
         if not domaine_id:
+            hierarchy[0][None].append((cpc.ordre_cours, cpc))
+            continue
+        
+        # CRITICAL: Verify that the domaine_id exists in our country-scoped dict
+        # If the domaine_id points to a domain from another country, skip mapping
+        if domaine_id not in domaines_dict:
+            logger.warning(f"[get_cours_classe_rdc] Course '{cpc.id_cours.cours}' has domaine_id={domaine_id} "
+                           f"which is NOT in pays_id={pays_id} domaines — placing in 'Non classé'")
             hierarchy[0][None].append((cpc.ordre_cours, cpc))
             continue
             
@@ -143,6 +198,6 @@ def get_cours_classe_rdc(id_annee, id_campus, id_cycle, id_classe):
     )
     logger.warning(
         f"[get_cours_classe_rdc] Found {total_cours} cours in {total_doms} domaines "
-        f"(has_sous_domaines={has_subs}) for EAC {id_classe}"
+        f"(has_sous_domaines={has_subs}) for EAC {id_classe}, pays_id={pays_id}"
     )
     return domaines_ordonnes

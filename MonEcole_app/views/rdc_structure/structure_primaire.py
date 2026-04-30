@@ -804,28 +804,63 @@ def _get_bulletin_context(eac):
     - cours_annee_to_cours: {id_cours_annee: id_cours_id}
     - config_to_rep: {id_repartition_config: repartition_id}
     - rep_to_code: {repartition_id: code}  (P1, P2, S1, S2, T1, etc.)
+    
+    CRITICAL: All queries scoped by id_pays AND etablissement_id
+    to prevent cross-country/cross-tenant data contamination.
     """
     from django.db import connections
     import logging
     logger = logging.getLogger(__name__)
 
     etab_annee_id = eac.etablissement_annee_id
+    etab_id = eac.etablissement_annee.etablissement_id
+
+    # Resolve pays_id via établissement
+    pays_id = None
+    try:
+        from MonEcole_app.models.country_structure import Etablissement
+        _etab = Etablissement.objects.get(id_etablissement=etab_id)
+        pays_id = _etab.pays_id
+    except Exception:
+        pays_id = getattr(eac, 'id_pays', None)
 
     # 1. cours_annee → id_cours (Hub)
+    # CRITICAL: scope by id_pays on cours table AND etablissement_id on cours_annee
     cours_annee_to_cours = {}
     try:
         with connections['countryStructure'].cursor() as cur:
-            cur.execute("""
-                SELECT ca.id_cours_annee, ca.cours_id
-                FROM cours_annee ca
-                WHERE ca.cours_id IN (
-                    SELECT id FROM cours WHERE classe_id = %s
-                )
-            """, [eac.classe_id])
+            if pays_id and etab_id:
+                cur.execute("""
+                    SELECT ca.id_cours_annee, ca.cours_id
+                    FROM cours_annee ca
+                    WHERE ca.cours_id IN (
+                        SELECT id FROM cours WHERE classe_id = %s AND id_pays = %s
+                    )
+                    AND ca.etablissement_id = %s
+                """, [eac.classe_id, pays_id, etab_id])
+            elif pays_id:
+                cur.execute("""
+                    SELECT ca.id_cours_annee, ca.cours_id
+                    FROM cours_annee ca
+                    WHERE ca.cours_id IN (
+                        SELECT id FROM cours WHERE classe_id = %s AND id_pays = %s
+                    )
+                """, [eac.classe_id, pays_id])
+            else:
+                cur.execute("""
+                    SELECT ca.id_cours_annee, ca.cours_id
+                    FROM cours_annee ca
+                    WHERE ca.cours_id IN (
+                        SELECT id FROM cours WHERE classe_id = %s
+                    )
+                """, [eac.classe_id])
             for row in cur.fetchall():
                 cours_annee_to_cours[row[0]] = row[1]
     except Exception as e:
         logger.warning(f"[_get_bulletin_context] cours_annee query failed: {e}")
+
+    logger.info(f"[_get_bulletin_context] classe_id={eac.classe_id}, pays_id={pays_id}, "
+                f"etab_id={etab_id}: {len(cours_annee_to_cours)} cours_annee mappings")
 
     # 2. repartition_config → repartition_id (Hub)
     config_to_rep = {}
