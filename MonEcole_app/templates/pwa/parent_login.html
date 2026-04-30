@@ -1,0 +1,369 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1e3a8a">
+    <title>MonEcole — Connexion Parent</title>
+    <meta name="description" content="Connectez-vous à MonEcole pour suivre la scolarité de vos enfants">
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+    <link rel="icon" href="{% static 'MonEcole_app/icons/icon-512.png' %}" type="image/png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            margin: 0; padding: 0;
+            min-height: 100vh; min-height: 100dvh;
+            display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b4fcf 40%, #6366f1 70%, #818cf8 100%);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .login-container {
+            width: calc(100% - 32px); max-width: 400px;
+            padding: 16px;
+        }
+
+        /* Logo / Brand */
+        .login-brand {
+            text-align: center; margin-bottom: 28px;
+        }
+        .login-brand-icon {
+            width: 72px; height: 72px; border-radius: 20px;
+            background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
+            display: inline-flex; align-items: center; justify-content: center;
+            margin-bottom: 14px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .login-brand-icon img {
+            width: 52px; height: 52px; border-radius: 12px;
+        }
+        .login-brand h1 {
+            color: white; font-size: 1.5rem; font-weight: 800;
+            margin: 0 0 4px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .login-brand p {
+            color: rgba(255,255,255,0.7); font-size: 0.82rem;
+            margin: 0;
+        }
+
+        /* Card */
+        .login-card {
+            background: white; border-radius: 24px;
+            padding: 28px 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .login-card h2 {
+            font-size: 1.15rem; font-weight: 700; color: #1e293b;
+            margin: 0 0 4px; text-align: center;
+        }
+        .login-card .subtitle {
+            font-size: 0.78rem; color: #94a3b8; text-align: center;
+            margin-bottom: 24px;
+        }
+
+        /* Steps */
+        .login-step { display: none; }
+        .login-step.active { display: block; }
+
+        /* Input */
+        .form-group { margin-bottom: 18px; }
+        .form-group label {
+            font-size: 0.72rem; font-weight: 700; color: #64748b;
+            text-transform: uppercase; letter-spacing: 0.8px;
+            margin-bottom: 6px; display: block;
+        }
+        .form-input {
+            width: 100%; padding: 14px 16px; border: 2px solid #e2e8f0;
+            border-radius: 14px; font-size: 0.95rem; color: #1e293b;
+            outline: none; transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        .form-input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 4px rgba(99,102,241,0.12);
+        }
+        .form-input::placeholder { color: #cbd5e1; }
+
+        /* OTP Input */
+        .otp-input {
+            font-size: 1.6rem; font-weight: 700; text-align: center;
+            letter-spacing: 12px; padding: 16px;
+        }
+
+        /* Button */
+        .btn-primary-pwa {
+            width: 100%; padding: 14px; border-radius: 14px;
+            border: none; cursor: pointer; font-family: 'Inter', sans-serif;
+            font-size: 0.9rem; font-weight: 700; color: white;
+            background: linear-gradient(135deg, #1e3a8a 0%, #6366f1 100%);
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 16px rgba(30,58,138,0.3);
+        }
+        .btn-primary-pwa:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(30,58,138,0.4); }
+        .btn-primary-pwa:active { transform: translateY(0); }
+        .btn-primary-pwa:disabled {
+            opacity: 0.6; cursor: not-allowed;
+            transform: none; box-shadow: none;
+        }
+
+        /* Separator */
+        .login-separator {
+            display: flex; align-items: center; gap: 12px;
+            margin: 20px 0;
+        }
+        .login-separator hr { flex: 1; border: none; border-top: 1px solid #e2e8f0; }
+        .login-separator span { font-size: 0.72rem; color: #94a3b8; font-weight: 600; }
+
+        /* Link admin */
+        .admin-link {
+            text-align: center; margin-top: 18px;
+        }
+        .admin-link a {
+            color: rgba(255,255,255,0.6); font-size: 0.78rem;
+            text-decoration: none; transition: color 0.2s;
+        }
+        .admin-link a:hover { color: white; }
+
+        /* Messages */
+        .login-message {
+            padding: 10px 14px; border-radius: 10px;
+            font-size: 0.8rem; margin-bottom: 14px;
+            display: none;
+        }
+        .login-message.error {
+            display: block; background: rgba(220,38,38,0.08);
+            color: #dc2626; border: 1px solid rgba(220,38,38,0.15);
+        }
+        .login-message.success {
+            display: block; background: rgba(5,150,105,0.08);
+            color: #059669; border: 1px solid rgba(5,150,105,0.15);
+        }
+        .login-message.info {
+            display: block; background: rgba(99,102,241,0.08);
+            color: #6366f1; border: 1px solid rgba(99,102,241,0.15);
+        }
+
+        /* Resend link */
+        .resend-link {
+            display: block; text-align: center; margin-top: 12px;
+            color: #6366f1; font-size: 0.78rem; text-decoration: underline;
+            cursor: pointer; background: none; border: none; font-family: 'Inter', sans-serif;
+        }
+        .resend-link:hover { color: #4f46e5; }
+
+        /* Parent name display */
+        .welcome-name {
+            font-size: 1rem; font-weight: 700; color: #1e293b;
+            text-align: center; margin-bottom: 4px;
+        }
+
+        /* Animations */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .login-step.active { animation: fadeUp 0.3s ease; }
+
+        /* PWA install banner */
+        .pwa-install-hint {
+            text-align: center; margin-top: 14px; padding: 10px;
+            background: rgba(255,255,255,0.08); border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        .pwa-install-hint p {
+            color: rgba(255,255,255,0.7); font-size: 0.72rem; margin: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-container">
+        <!-- Brand -->
+        <div class="login-brand">
+            <div class="login-brand-icon">
+                <img src="{% static 'MonEcole_app/icons/icon-512.png' %}" alt="MonEcole">
+            </div>
+            <h1>MonEcole</h1>
+            <p>Espace Parents — Suivez la scolarité de vos enfants</p>
+        </div>
+
+        <!-- Login Card -->
+        <div class="login-card">
+            <!-- Step 1: Email -->
+            <div class="login-step active" id="step-email">
+                <h2><i class="fas fa-envelope" style="color:#6366f1;margin-right:6px"></i> Connexion</h2>
+                <p class="subtitle">Entrez l'email enregistré auprès de l'école</p>
+                <div id="msg-email" class="login-message"></div>
+                <div class="form-group">
+                    <label>Adresse email</label>
+                    <input type="email" class="form-input" id="inputEmail" placeholder="parent@exemple.com" autocomplete="email" autofocus>
+                </div>
+                <button class="btn-primary-pwa" id="btnCheckEmail" onclick="checkEmail()">
+                    <span>Continuer</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- Step 2: OTP -->
+            <div class="login-step" id="step-otp">
+                <h2><i class="fas fa-shield-alt" style="color:#059669;margin-right:6px"></i> Vérification</h2>
+                <p class="subtitle" id="otpSubtitle">Un code a été envoyé à votre email</p>
+                <div id="msg-otp" class="login-message"></div>
+                <div class="form-group">
+                    <label>Code de vérification</label>
+                    <input type="text" class="form-input otp-input" id="inputOtp" maxlength="6" placeholder="• • • • • •" inputmode="numeric" autocomplete="one-time-code">
+                </div>
+                <button class="btn-primary-pwa" id="btnVerifyOtp" onclick="verifyOtp()">
+                    <i class="fas fa-check"></i>
+                    <span>Valider</span>
+                </button>
+                <button class="resend-link" onclick="requestOtp()">
+                    <i class="fas fa-redo" style="font-size:0.7rem"></i> Renvoyer le code
+                </button>
+            </div>
+        </div>
+
+        <!-- Admin Link -->
+        <div class="admin-link">
+            <a href="/login/"><i class="fas fa-user-shield" style="margin-right:4px"></i> Espace Administration</a>
+        </div>
+
+        <!-- PWA Install Hint -->
+        <div class="pwa-install-hint" id="pwaInstallHint" style="display:none">
+            <p><i class="fas fa-mobile-alt" style="margin-right:4px"></i> Ajoutez MonEcole à votre écran d'accueil pour un accès rapide</p>
+        </div>
+    </div>
+
+    <script>
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+        // ── Step 1: Check Email ──
+        async function checkEmail() {
+            const email = document.getElementById('inputEmail').value.trim();
+            if (!email) { showMsg('msg-email', 'Veuillez entrer votre email.', 'error'); return; }
+
+            const btn = document.getElementById('btnCheckEmail');
+            btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Vérification...';
+            hideMsg('msg-email');
+
+            try {
+                const r = await fetch('/parent/api/check-email/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ email })
+                });
+                const d = await r.json();
+
+                if (d.success) {
+                    // Email trouvé → envoyer OTP
+                    showMsg('msg-email', `Bienvenue ${d.parent_name || ''} ! Envoi du code...`, 'success');
+                    await requestOtp();
+                    goToStep('step-otp');
+                } else {
+                    showMsg('msg-email', d.error || 'Email non trouvé.', 'error');
+                }
+            } catch (e) {
+                showMsg('msg-email', 'Erreur de connexion. Vérifiez votre réseau.', 'error');
+            }
+
+            btn.disabled = false; btn.innerHTML = '<span>Continuer</span><i class="fas fa-arrow-right"></i>';
+        }
+
+        // ── Step 2: Request OTP ──
+        async function requestOtp() {
+            hideMsg('msg-otp');
+            try {
+                const r = await fetch('/parent/api/request-otp/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: '{}'
+                });
+                const d = await r.json();
+                if (d.success) {
+                    document.getElementById('otpSubtitle').textContent = `Code envoyé à ${d.masked_email}`;
+                    showMsg('msg-otp', 'Code envoyé ! Vérifiez votre boîte de réception.', 'info');
+                } else {
+                    showMsg('msg-otp', d.error || 'Erreur lors de l\'envoi.', 'error');
+                }
+            } catch (e) {
+                showMsg('msg-otp', 'Erreur de connexion.', 'error');
+            }
+        }
+
+        // ── Step 3: Verify OTP ──
+        async function verifyOtp() {
+            const code = document.getElementById('inputOtp').value.trim();
+            if (code.length !== 6) { showMsg('msg-otp', 'Entrez les 6 chiffres.', 'error'); return; }
+
+            const btn = document.getElementById('btnVerifyOtp');
+            btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Vérification...';
+            hideMsg('msg-otp');
+
+            try {
+                const r = await fetch('/parent/api/verify-otp/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ code })
+                });
+                const d = await r.json();
+
+                if (d.success) {
+                    showMsg('msg-otp', 'Connexion réussie ! Redirection...', 'success');
+                    setTimeout(() => { window.location.href = d.redirect_url || '/parent/'; }, 800);
+                } else {
+                    showMsg('msg-otp', d.error || 'Code incorrect.', 'error');
+                    btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i><span>Valider</span>';
+                }
+            } catch (e) {
+                showMsg('msg-otp', 'Erreur de connexion.', 'error');
+                btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i><span>Valider</span>';
+            }
+        }
+
+        // ── Helpers ──
+        function goToStep(id) {
+            document.querySelectorAll('.login-step').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function showMsg(id, msg, type) {
+            const el = document.getElementById(id);
+            el.className = 'login-message ' + type;
+            el.textContent = msg;
+        }
+        function hideMsg(id) {
+            const el = document.getElementById(id);
+            el.className = 'login-message';
+            el.style.display = 'none';
+        }
+
+        // Enter key support
+        document.getElementById('inputEmail').addEventListener('keypress', e => { if (e.key === 'Enter') checkEmail(); });
+        document.getElementById('inputOtp').addEventListener('keypress', e => { if (e.key === 'Enter') verifyOtp(); });
+
+        // PWA install hint
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', e => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('pwaInstallHint').style.display = 'block';
+        });
+
+        // Register SW
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(() => {});
+        }
+    </script>
+</body>
+</html>

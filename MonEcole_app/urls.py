@@ -23,6 +23,7 @@ from MonEcole_app.views.recouvrement import create_base as rec_base
 from MonEcole_app.views.recouvrement import invoice_paiement as rec_inv
 from MonEcole_app.views import api_views
 from MonEcole_app.views.pdf import generer_bulletin_pdf
+from MonEcole_app.views.parent import parent_views as pv
 
 urlpatterns = [
     # Page login
@@ -256,4 +257,16 @@ urlpatterns = [
     # PDF
     path('api/recouvrement/invoice/<int:id_paiement>/', rec_inv.rec_generate_invoice, name='rec_invoice'),
     path('api/recouvrement/fiche-paie/', rec_inv.rec_generate_fiche_paie_classe, name='rec_fiche_paie'),
+
+    # ============ PARENT PORTAL (PWA) ============
+    path('parent/login/', pv.parent_login_view, name='parent_login'),
+    path('parent/logout/', pv.parent_logout, name='parent_logout'),
+    path('parent/api/check-email/', pv.parent_check_email, name='parent_check_email'),
+    path('parent/api/request-otp/', pv.parent_request_otp, name='parent_request_otp'),
+    path('parent/api/verify-otp/', pv.parent_verify_otp, name='parent_verify_otp'),
+    path('parent/', pv.parent_home, name='parent_home'),
+    path('parent/child/<int:id_eleve>/', pv.parent_child_view, name='parent_child'),
+    path('parent/api/children/', pv.api_parent_children, name='api_parent_children'),
+    path('parent/api/child-notes/', pv.api_parent_child_notes, name='api_parent_child_notes'),
+    path('parent/api/child-payments/', pv.api_parent_child_payments, name='api_parent_child_payments'),
 ]

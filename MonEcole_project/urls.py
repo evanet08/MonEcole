@@ -10,4 +10,7 @@ urlpatterns = [
     path('', include('MonEcole_app.urls')),
     # Serve media files (evaluations, photos, etc.) - works with gunicorn
     re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
+    # PWA assets — served from root for proper SW scope
+    path('manifest.json', serve, {'document_root': settings.BASE_DIR / 'MonEcole_app' / 'static', 'path': 'manifest.json'}),
+    path('sw.js', serve, {'document_root': settings.BASE_DIR / 'MonEcole_app' / 'static', 'path': 'sw.js'}),
 ]

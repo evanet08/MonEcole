@@ -1,0 +1,22 @@
+{
+  "name": "MonEcole",
+  "short_name": "MonEcole",
+  "description": "Plateforme de gestion scolaire - Espace Parents & Enseignants",
+  "start_url": "/parent/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#1e3a8a",
+  "background_color": "#f0f4ff",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/static/MonEcole_app/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education"],
+  "prefer_related_applications": false
+}

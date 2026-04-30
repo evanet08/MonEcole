@@ -19,6 +19,9 @@ EXEMPT_PATHS = (
     '/favicon.ico',
     '/media/',
     '/admin/',
+    '/parent/',
+    '/sw.js',
+    '/manifest.json',
 )
 
 SESSION_INACTIVITY_TIMEOUT = 600  # 10 minutes

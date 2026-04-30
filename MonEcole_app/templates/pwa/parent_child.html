@@ -1,0 +1,367 @@
+{% extends "pwa/parent_base.html" %}
+{% load static %}
+
+{% block title %}{{ eleve.prenom }} {{ eleve.nom }}{% endblock %}
+{% block header_title %}{{ eleve.prenom }} {{ eleve.nom }}{% endblock %}
+{% block meta_description %}MonEcole — Profil de {{ eleve.prenom }} {{ eleve.nom }}{% endblock %}
+
+{% block header_actions %}
+<button class="pwa-header-btn" onclick="navigateTo('/parent/')" title="Retour">
+    <i class="fas fa-arrow-left"></i>
+</button>
+{% endblock %}
+
+{% block page_css %}
+<style>
+    /* Profile Header */
+    .profile-hero {
+        background: linear-gradient(135deg, #1e3a8a 0%, #6366f1 100%);
+        padding: 24px 16px 28px; text-align: center;
+        position: relative; overflow: hidden;
+    }
+    .profile-hero::after {
+        content: ''; position: absolute; bottom: -20px; left: -20px; right: -20px;
+        height: 40px; background: var(--bg);
+        border-radius: 50% 50% 0 0;
+    }
+    .profile-avatar {
+        width: 72px; height: 72px; border-radius: 20px;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-weight: 800; color: white; font-size: 1.4rem;
+        background: rgba(255,255,255,0.15);
+        border: 3px solid rgba(255,255,255,0.3);
+        margin-bottom: 10px; position: relative;
+    }
+    .profile-avatar img {
+        width: 100%; height: 100%; object-fit: cover;
+        border-radius: 17px; position: absolute;
+    }
+    .profile-name {
+        color: white; font-size: 1.2rem; font-weight: 700; margin: 0 0 2px;
+    }
+    .profile-class {
+        color: rgba(255,255,255,0.7); font-size: 0.82rem;
+    }
+
+    /* Sections */
+    .detail-section {
+        padding: 0 16px 16px;
+    }
+    .detail-section:first-of-type { padding-top: 16px; }
+
+    /* Info Grid */
+    .info-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    }
+    .info-item {
+        background: white; border-radius: 14px; padding: 14px;
+        border: 1px solid #e8ecf5;
+    }
+    .info-item.full { grid-column: 1 / -1; }
+    .info-label {
+        font-size: 0.62rem; font-weight: 700; color: #94a3b8;
+        text-transform: uppercase; letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+    .info-value {
+        font-size: 0.88rem; font-weight: 600; color: #1e293b;
+    }
+
+    /* Tab Navigation */
+    .tab-nav {
+        display: flex; gap: 6px; padding: 16px 16px 12px;
+        overflow-x: auto; scrollbar-width: none;
+    }
+    .tab-nav::-webkit-scrollbar { display: none; }
+    .tab-btn {
+        padding: 8px 16px; border-radius: 20px;
+        font-size: 0.78rem; font-weight: 600;
+        border: 1px solid #e2e8f0; background: white;
+        color: #64748b; cursor: pointer;
+        white-space: nowrap; transition: all 0.2s;
+        display: flex; align-items: center; gap: 6px;
+        flex-shrink: 0;
+    }
+    .tab-btn.active {
+        background: linear-gradient(135deg, #1e3a8a, #6366f1);
+        color: white; border-color: transparent;
+        box-shadow: 0 3px 12px rgba(30,58,138,0.25);
+    }
+    .tab-btn i { font-size: 0.7rem; }
+
+    /* Tab Content */
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* Notes Table */
+    .notes-list { padding: 0; margin: 0; list-style: none; }
+    .note-row {
+        background: white; border-radius: 12px; padding: 12px 14px;
+        margin-bottom: 8px; display: flex; align-items: center;
+        justify-content: space-between; gap: 10px;
+        border: 1px solid #e8ecf5;
+    }
+    .note-cours {
+        font-size: 0.82rem; font-weight: 600; color: #1e293b;
+        flex: 1; min-width: 0;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .note-type { font-size: 0.65rem; color: #94a3b8; }
+    .note-value {
+        font-size: 1rem; font-weight: 700; border-radius: 8px;
+        padding: 4px 10px; min-width: 45px; text-align: center;
+    }
+    .note-value.good { background: rgba(5,150,105,0.1); color: #059669; }
+    .note-value.average { background: rgba(217,119,6,0.1); color: #d97706; }
+    .note-value.poor { background: rgba(220,38,38,0.1); color: #dc2626; }
+
+    /* Payment row */
+    .payment-row {
+        background: white; border-radius: 12px; padding: 12px 14px;
+        margin-bottom: 8px; display: flex; align-items: center;
+        justify-content: space-between; gap: 10px;
+        border: 1px solid #e8ecf5;
+    }
+    .payment-info { flex: 1; }
+    .payment-label { font-size: 0.82rem; font-weight: 600; color: #1e293b; }
+    .payment-date { font-size: 0.68rem; color: #94a3b8; }
+    .payment-amount { font-size: 0.95rem; font-weight: 700; }
+    .payment-status {
+        font-size: 0.6rem; font-weight: 700; padding: 3px 8px;
+        border-radius: 6px; text-transform: uppercase;
+    }
+    .payment-status.validated { background: rgba(5,150,105,0.1); color: #059669; }
+    .payment-status.pending { background: rgba(217,119,6,0.1); color: #d97706; }
+
+    /* Loading */
+    .loading-skeleton {
+        height: 60px; border-radius: 12px; margin-bottom: 8px;
+        background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    .empty-tab {
+        text-align: center; padding: 30px 16px;
+        color: #94a3b8; font-size: 0.82rem;
+    }
+    .empty-tab i {
+        font-size: 2rem; margin-bottom: 10px;
+        display: block; opacity: 0.4;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Profile Hero -->
+<div class="profile-hero">
+    <div class="profile-avatar">
+        {{ eleve.prenom|first }}{{ eleve.nom|first }}
+        {% if eleve.imageUrl %}
+        <img src="{{ eleve.imageUrl.url }}" alt="{{ eleve.prenom }}" onerror="this.remove()">
+        {% endif %}
+    </div>
+    <div class="profile-name">{{ eleve.prenom }} {{ eleve.nom }}</div>
+    <div class="profile-class">
+        {% if inscription %}{{ inscription.id_classe }}{% endif %}
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="tab-nav">
+    <button class="tab-btn active" onclick="showTab('profil', this)">
+        <i class="fas fa-user"></i> Profil
+    </button>
+    <button class="tab-btn" onclick="showTab('notes', this)">
+        <i class="fas fa-chart-bar"></i> Notes
+    </button>
+    <button class="tab-btn" onclick="showTab('payments', this)">
+        <i class="fas fa-credit-card"></i> Paiements
+    </button>
+</div>
+
+<!-- Tab: Profil -->
+<div class="tab-pane active" id="tab-profil">
+    <div class="detail-section">
+        <p class="section-title">Informations Personnelles</p>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Nom</div>
+                <div class="info-value">{{ eleve.nom }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Prénom</div>
+                <div class="info-value">{{ eleve.prenom }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Genre</div>
+                <div class="info-value">{% if eleve.genre == 'M' %}Masculin{% elif eleve.genre == 'F' %}Féminin{% else %}{{ eleve.genre }}{% endif %}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Date de naissance</div>
+                <div class="info-value">{{ eleve.date_naissance|date:"d/m/Y"|default:"—" }}</div>
+            </div>
+            {% if eleve.matricule %}
+            <div class="info-item full">
+                <div class="info-label">Matricule</div>
+                <div class="info-value">{{ eleve.matricule }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if inscription %}
+    <div class="detail-section">
+        <p class="section-title">Scolarité</p>
+        <div class="info-grid">
+            <div class="info-item full">
+                <div class="info-label">Classe</div>
+                <div class="info-value">{{ inscription.id_classe }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Campus</div>
+                <div class="info-value">{{ inscription.idCampus|default:"—" }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Redoublant</div>
+                <div class="info-value">{% if inscription.redoublement %}Oui{% else %}Non{% endif %}</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if eleve.ref_administrative_naissance %}
+    <div class="detail-section">
+        <p class="section-title">Lieu de Naissance</p>
+        <div class="info-grid">
+            <div class="info-item full">
+                <div class="info-label">Référence Administrative</div>
+                <div class="info-value">{{ eleve.ref_administrative_naissance }}</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Tab: Notes -->
+<div class="tab-pane" id="tab-notes">
+    <div class="detail-section" id="notes">
+        <p class="section-title">Notes & Évaluations</p>
+        <div id="notesList">
+            <div class="loading-skeleton"></div>
+            <div class="loading-skeleton"></div>
+            <div class="loading-skeleton"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Payments -->
+<div class="tab-pane" id="tab-payments">
+    <div class="detail-section" id="payments">
+        <p class="section-title">Historique des Paiements</p>
+        <div id="paymentsList">
+            <div class="loading-skeleton"></div>
+            <div class="loading-skeleton"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+    const ID_ELEVE = {{ eleve.id_eleve }};
+    let notesLoaded = false;
+    let paymentsLoaded = false;
+
+    function showTab(name, btn) {
+        // Tabs
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+        document.getElementById('tab-' + name).classList.add('active');
+        // Buttons
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // Lazy load
+        if (name === 'notes' && !notesLoaded) loadNotes();
+        if (name === 'payments' && !paymentsLoaded) loadPayments();
+    }
+
+    async function loadNotes() {
+        try {
+            const r = await fetch(`/parent/api/child-notes/?id_eleve=${ID_ELEVE}`);
+            const d = await r.json();
+            const container = document.getElementById('notesList');
+
+            if (!d.success || !d.notes || d.notes.length === 0) {
+                container.innerHTML = '<div class="empty-tab"><i class="fas fa-clipboard-list"></i>Aucune note disponible pour le moment.</div>';
+                notesLoaded = true;
+                return;
+            }
+
+            let html = '<ul class="notes-list">';
+            d.notes.forEach(n => {
+                const noteVal = n.note !== null ? parseFloat(n.note) : null;
+                let cls = 'average';
+                if (noteVal !== null) {
+                    if (noteVal >= 14) cls = 'good';
+                    else if (noteVal < 10) cls = 'poor';
+                }
+                html += `
+                    <li class="note-row">
+                        <div>
+                            <div class="note-cours">${n.cours || '—'}</div>
+                            <div class="note-type">${n.type_note || ''}</div>
+                        </div>
+                        <div class="note-value ${cls}">
+                            ${noteVal !== null ? noteVal.toFixed(1) : '—'}
+                        </div>
+                    </li>`;
+            });
+            html += '</ul>';
+            container.innerHTML = html;
+            notesLoaded = true;
+
+        } catch (e) {
+            document.getElementById('notesList').innerHTML = '<div class="empty-tab"><i class="fas fa-exclamation-circle"></i>Erreur de chargement.</div>';
+        }
+    }
+
+    async function loadPayments() {
+        try {
+            const r = await fetch(`/parent/api/child-payments/?id_eleve=${ID_ELEVE}`);
+            const d = await r.json();
+            const container = document.getElementById('paymentsList');
+
+            if (!d.success || !d.payments || d.payments.length === 0) {
+                container.innerHTML = '<div class="empty-tab"><i class="fas fa-receipt"></i>Aucun paiement enregistré.</div>';
+                paymentsLoaded = true;
+                return;
+            }
+
+            let html = '';
+            d.payments.forEach(p => {
+                const status = (p.statut || '').toLowerCase();
+                const statusCls = status === 'validé' || status === 'validated' ? 'validated' : 'pending';
+                const statusLabel = status === 'validé' || status === 'validated' ? 'Validé' : (status || 'En attente');
+                html += `
+                    <div class="payment-row">
+                        <div class="payment-info">
+                            <div class="payment-label">${p.rubrique || 'Paiement'}</div>
+                            <div class="payment-date">${p.date_paiement || '—'}</div>
+                        </div>
+                        <div style="text-align:right">
+                            <div class="payment-amount">${p.montant ? p.montant.toLocaleString() : '—'} ${p.devise || ''}</div>
+                            <span class="payment-status ${statusCls}">${statusLabel}</span>
+                        </div>
+                    </div>`;
+            });
+            container.innerHTML = html;
+            paymentsLoaded = true;
+
+        } catch (e) {
+            document.getElementById('paymentsList').innerHTML = '<div class="empty-tab"><i class="fas fa-exclamation-circle"></i>Erreur de chargement.</div>';
+        }
+    }
+</script>
+{% endblock %}
