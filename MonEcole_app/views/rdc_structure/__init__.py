@@ -130,15 +130,14 @@ def resolve_bulletin_title(titre_template, id_classe, id_annee, id_campus=None):
     context = {}
 
     # Résoudre les variables nécessaires
+    # IMPORTANT: utiliser les mêmes imports que create_bulletin_title (structure_primaire.py)
     if 'classe' in variables or 'cycle' in variables:
         try:
-            from MonEcole_app.models.country_structure import EtablissementAnneeClasse
-            eac = EtablissementAnneeClasse.objects.select_related(
-                'classe', 'classe__cycle'
-            ).get(id=id_classe)
+            from MonEcole_app.models import EtablissementAnneeClasse
+            eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
             context['classe'] = eac.classe.classe.strip() if eac.classe else ''
-            if eac.classe and eac.classe.cycle:
-                context['cycle'] = eac.classe.cycle.nom.strip()
+            if 'cycle' in variables and eac.classe and eac.classe.cycle_id:
+                context['cycle'] = str(eac.classe.cycle).strip() if eac.classe.cycle else ''
             else:
                 context['cycle'] = ''
         except Exception as e:
@@ -148,7 +147,7 @@ def resolve_bulletin_title(titre_template, id_classe, id_annee, id_campus=None):
 
     if 'annee' in variables:
         try:
-            from MonEcole_app.models.country_structure import Annee
+            from MonEcole_app.models import Annee
             annee_obj = Annee.objects.filter(id_annee=id_annee).first()
             context['annee'] = str(annee_obj.annee).strip() if annee_obj else ''
         except Exception as e:
@@ -173,3 +172,4 @@ def resolve_bulletin_title(titre_template, id_classe, id_annee, id_campus=None):
         titre = titre.replace(f'[{var}]', value)
 
     return titre
+
