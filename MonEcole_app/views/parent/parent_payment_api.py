@@ -51,7 +51,7 @@ def api_parent_payments_summary(request):
 
         # Trouver l'inscription active
         insc = Eleve_inscription.objects.filter(
-            id_eleve=eleve, status=True
+            id_eleve=eleve, status=True, id_etablissement=etab_id
         ).order_by('-id_annee_id').first()
 
         if not insc:
@@ -233,7 +233,7 @@ def api_parent_payment_submit(request):
 
         eleve = Eleve.objects.get(id_eleve=id_eleve)
         insc = Eleve_inscription.objects.filter(
-            id_eleve=eleve, status=True
+            id_eleve=eleve, status=True, id_etablissement=eleve.id_etablissement
         ).order_by('-id_annee_id').first()
 
         if not insc:

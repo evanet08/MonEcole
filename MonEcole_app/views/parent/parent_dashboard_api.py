@@ -70,11 +70,13 @@ def api_parent_dashboard(request):
             # Résoudre cours
             cours_ids = [n['id_cours_id'] for n in notes_summary_raw]
             cours_names = {}
+            id_pays = parent_data.get('id_pays')
             if cours_ids:
                 try:
                     with connections['countryStructure'].cursor() as cur_hub:
                         placeholders = ','.join(['%s'] * len(cours_ids))
-                        cur_hub.execute(f"SELECT id_cours, cours FROM cours WHERE id_cours IN ({placeholders})", cours_ids)
+                        cur_hub.execute(f"SELECT id_cours, cours FROM cours WHERE id_cours IN ({placeholders}) AND pays_id = %s",
+                                        cours_ids + [id_pays])
                         cours_names = {row[0]: row[1] for row in cur_hub.fetchall()}
                 except Exception:
                     pass

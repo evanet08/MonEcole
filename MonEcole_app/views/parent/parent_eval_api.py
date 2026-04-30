@@ -44,6 +44,10 @@ def api_parent_evaluations(request):
         return err
 
     try:
+        eleve = Eleve.objects.get(id_eleve=id_eleve)
+        etab_id = eleve.id_etablissement
+        id_pays = parent_data.get('id_pays')
+
         with connections['default'].cursor() as cur:
             # Trouver l'inscription active
             cur.execute("""
@@ -51,8 +55,9 @@ def api_parent_evaluations(request):
                        ei.id_etablissement, ei.idCampus_id
                 FROM eleve_inscription ei
                 WHERE ei.id_eleve_id = %s AND ei.status = 1
+                  AND ei.id_etablissement = %s AND ei.id_pays = %s
                 ORDER BY ei.id_annee_id DESC LIMIT 1
-            """, [id_eleve])
+            """, [id_eleve, etab_id, id_pays])
             insc = cur.fetchone()
             if not insc:
                 return JsonResponse({'success': True, 'evaluations': []})
@@ -83,7 +88,8 @@ def api_parent_evaluations(request):
             try:
                 with connections['countryStructure'].cursor() as cur:
                     placeholders = ','.join(['%s'] * len(cours_ids))
-                    cur.execute(f"SELECT id_cours, cours FROM cours WHERE id_cours IN ({placeholders})", cours_ids)
+                    cur.execute(f"SELECT id_cours, cours FROM cours WHERE id_cours IN ({placeholders}) AND pays_id = %s",
+                                cours_ids + [id_pays])
                     cours_names = {row[0]: row[1] for row in cur.fetchall()}
             except Exception:
                 pass
@@ -119,6 +125,10 @@ def api_parent_notes(request):
         return err
 
     try:
+        eleve = Eleve.objects.get(id_eleve=id_eleve)
+        etab_id = eleve.id_etablissement
+        id_pays = parent_data.get('id_pays')
+
         with connections['default'].cursor() as cur:
             # Notes détaillées par évaluation
             cur.execute("""
@@ -130,8 +140,7 @@ def api_parent_notes(request):
                 LEFT JOIN eleve_note_type ent ON ent.id_type_note = en.id_type_note_id
                 WHERE en.id_eleve_id = %s AND en.id_etablissement = %s
                 ORDER BY en.id_cours_id, ev.date_eval DESC
-            """, [id_eleve, parent_data.get('id_pays') and
-                  Eleve.objects.filter(id_eleve=id_eleve).values_list('id_etablissement', flat=True).first()])
+            """, [id_eleve, etab_id])
 
             columns = [col[0] for col in cur.description]
             notes_raw = [dict(zip(columns, row)) for row in cur.fetchall()]
@@ -143,7 +152,8 @@ def api_parent_notes(request):
             try:
                 with connections['countryStructure'].cursor() as cur:
                     placeholders = ','.join(['%s'] * len(cours_ids))
-                    cur.execute(f"SELECT id_cours, cours FROM cours WHERE id_cours IN ({placeholders})", cours_ids)
+                    cur.execute(f"SELECT id_cours, cours FROM cours WHERE id_cours IN ({placeholders}) AND pays_id = %s",
+                                cours_ids + [id_pays])
                     cours_names = {row[0]: row[1] for row in cur.fetchall()}
             except Exception:
                 pass
