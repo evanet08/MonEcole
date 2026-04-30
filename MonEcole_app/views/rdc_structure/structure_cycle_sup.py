@@ -451,7 +451,18 @@ def create_notes_table_superieur(elements, style_center, style_normal,id_annee, 
         from MonEcole_app.views.rdc_structure import apply_rounded_values
         apply_rounded_values(table_data)
 
-    table = Table(table_data, colWidths=col_widths, rowHeights=[4 * mm] * len(table_data))
+    # ── Hauteur dynamique : TOUJOURS contraindre sur 1 page A4 ──
+    from MonEcole_app.views.rdc_structure import compute_single_page_layout
+    _rh = compute_single_page_layout(
+        table_data,
+        page_orientation='portrait',
+        other_elements_h=88,   # header + NID + line2 + title + footer supérieur
+        top_margin=0,
+        bottom_margin=5,
+        ideal_rh=4.0,
+        min_rh=2.2,
+    )
+    table = Table(table_data, colWidths=col_widths, rowHeights=_rh)
 
     table_style = TableStyle([
         ('GRID', (0, 0), (-1, -1), 0.3, colors.black),

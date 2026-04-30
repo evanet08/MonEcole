@@ -1881,40 +1881,16 @@ def create_notes_table(elements, style_center, style_normal, id_annee, id_campus
     col_widths = [30*mm] + [7.4*mm] * 22
 
     # ── Hauteur dynamique : TOUJOURS contraindre sur 1 page A4 ──
-    # Éléments hors-tableau mesurés avec marge :
-    #   header(~26mm) + NID(~8mm) + line2(~20mm) + title(~8mm) + footer(~22mm) + spacers(~6mm)
-    # Total hors-tableau ≈ 90mm (marge de sécurité incluse)
-    _page_h = 297 * mm
-    _other_elements_h = 92 * mm   # conservative estimate of all non-table content
-    _bottom_margin = 5 * mm
-    _available_h = _page_h - _bottom_margin - _other_elements_h
-    _ideal_rh = 4.5 * mm
-    _min_rh = 2.2 * mm   # absolute minimum — text still readable at fontSize=4
-
-    if num_rows * _ideal_rh <= _available_h:
-        _rh = [_ideal_rh] * num_rows
-    else:
-        # Calculate exact fit
-        _computed_rh = _available_h / num_rows
-        _rh = [max(_min_rh, _computed_rh)] * num_rows
-
-    # ── Auto-scale font sizes when rows are very tight ──
-    _actual_rh = _rh[0] if _rh else _ideal_rh
-    if _actual_rh < 3.5 * mm:
-        # Reduce font sizes in all Paragraph cells to fit tighter rows
-        _scale_delta = 1 if _actual_rh >= 2.8 * mm else 1.5
-        for row in table_data:
-            for ci, cell in enumerate(row):
-                if isinstance(cell, Paragraph) and hasattr(cell, 'style'):
-                    s = cell.style
-                    new_fs = max(3, s.fontSize - _scale_delta)
-                    new_lead = max(3.5, new_fs + 0.5)
-                    cell.style = ParagraphStyle(
-                        name=s.name + '_sc',
-                        parent=s,
-                        fontSize=new_fs,
-                        leading=new_lead,
-                    )
+    from MonEcole_app.views.rdc_structure import compute_single_page_layout
+    _rh = compute_single_page_layout(
+        table_data,
+        page_orientation='portrait',
+        other_elements_h=92,   # header + NID + line2 + title + footer + spacers
+        top_margin=0,
+        bottom_margin=5,
+        ideal_rh=4.5,
+        min_rh=2.2,
+    )
 
     table = Table(table_data, colWidths=col_widths, rowHeights=_rh)
     

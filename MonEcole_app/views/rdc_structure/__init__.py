@@ -7,6 +7,77 @@ from .structure_par_module import *
 from .structure_maternelle import *
 
 
+def compute_single_page_layout(table_data, page_orientation='portrait',
+                                other_elements_h=92, top_margin=0, bottom_margin=5,
+                                ideal_rh=4.5, min_rh=2.2):
+    """
+    Compute row heights to guarantee a bulletin table fits on a single A4 page.
+
+    This function dynamically scales row heights (and optionally font sizes)
+    to constrain any bulletin to exactly one page, regardless of how many
+    rows of courses/domaines are present.
+
+    Args:
+        table_data:         list of rows (each row = list of cells)
+        page_orientation:   'portrait' or 'landscape'
+        other_elements_h:   estimated height (mm) consumed by header+NID+line2+title+footer
+        top_margin:         top margin in mm
+        bottom_margin:      bottom margin in mm
+        ideal_rh:           ideal row height in mm (used when rows fit comfortably)
+        min_rh:             absolute minimum row height in mm
+
+    Returns:
+        list of row heights (in ReportLab points) — one per row in table_data.
+        Also mutates Paragraph styles in table_data if font scaling is needed.
+    """
+    from reportlab.lib.units import mm as _mm
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import Paragraph as _Paragraph
+    from reportlab.lib.styles import ParagraphStyle as _ParagraphStyle
+
+    page_h = A4[1] if page_orientation == 'portrait' else A4[0]
+    available_h = page_h - (top_margin * _mm) - (bottom_margin * _mm) - (other_elements_h * _mm)
+
+    num_rows = len(table_data)
+    if num_rows == 0:
+        return []
+
+    _ideal = ideal_rh * _mm
+    _min = min_rh * _mm
+
+    if num_rows * _ideal <= available_h:
+        row_heights = [_ideal] * num_rows
+    else:
+        computed = available_h / num_rows
+        row_heights = [max(_min, computed)] * num_rows
+
+    # ── Auto-scale font sizes when rows are very tight ──
+    actual_rh = row_heights[0]
+    threshold = 3.5 * _mm
+    if actual_rh < threshold:
+        scale_delta = 1.0 if actual_rh >= 2.8 * _mm else 1.5
+        _seen_styles = {}  # cache to avoid creating duplicate styles
+        for row in table_data:
+            for ci, cell in enumerate(row):
+                if isinstance(cell, _Paragraph) and hasattr(cell, 'style'):
+                    s = cell.style
+                    cache_key = (s.name, s.fontSize)
+                    if cache_key not in _seen_styles:
+                        new_fs = max(3, s.fontSize - scale_delta)
+                        new_lead = max(3.5, new_fs + 0.5)
+                        _seen_styles[cache_key] = _ParagraphStyle(
+                            name=s.name + '_sc',
+                            parent=s,
+                            fontSize=new_fs,
+                            leading=new_lead,
+                        )
+                    cell.style = _seen_styles[cache_key]
+
+    return row_heights
+
+
+
+
 def apply_rounded_values(table_data, skip_rows=None):
     """
     Post-traitement d'affichage : arrondit toutes les valeurs numériques

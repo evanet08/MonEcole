@@ -486,10 +486,21 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         from MonEcole_app.views.rdc_structure import apply_rounded_values
         apply_rounded_values(table_data)
 
+    # ── Hauteur dynamique : TOUJOURS contraindre sur 1 page A4 ──
+    from MonEcole_app.views.rdc_structure import compute_single_page_layout
+    _rh = compute_single_page_layout(
+        table_data,
+        page_orientation='portrait',
+        other_elements_h=85,   # header + NID + line2 + title maternelle
+        top_margin=5,
+        bottom_margin=5,
+        ideal_rh=5.5,
+        min_rh=3.0,
+    )
     main_table = Table(
         table_data,
         colWidths=col_widths,
-        rowHeights=5.5*mm,          # réduit pour mieux rentrer sur page 1
+        rowHeights=_rh,
         splitByRow=1,               # permet le fractionnement si trop long
         repeatRows=1                # répète l'entête sur page 2 si besoin
     )

@@ -903,18 +903,17 @@ def create_notes_table__secondaire_rdc(elements, style_center, style_normal, id_
         from MonEcole_app.views.rdc_structure import apply_rounded_values
         apply_rounded_values(table_data)
 
-    # Hauteur dynamique : adapter à la page A4 en tenant compte du header/footer (~75mm)
-    _page_h = 297 * mm
-    _other_elements_h = 80 * mm  # header + NID + line2 + title + footer
-    _available_h = _page_h - 5 * mm - _other_elements_h  # bottomMargin=5mm
-    _n_rows = max(len(table_data), 1)
-    _ideal_rh = 4.5 * mm
-    if _n_rows * _ideal_rh <= _available_h:
-        _rh = [_ideal_rh] * _n_rows
-    elif _n_rows * 3 * mm <= _available_h:
-        _rh = [_available_h / _n_rows] * _n_rows
-    else:
-        _rh = None  # Laisser ReportLab auto-dimensionner
+    # Hauteur dynamique : TOUJOURS contraindre sur 1 page A4
+    from MonEcole_app.views.rdc_structure import compute_single_page_layout
+    _rh = compute_single_page_layout(
+        table_data,
+        page_orientation='portrait',
+        other_elements_h=90,   # header + NID + line2 + title + footer secondaire
+        top_margin=0,
+        bottom_margin=5,
+        ideal_rh=4.5,
+        min_rh=2.2,
+    )
     table = Table(table_data, colWidths=col_widths, rowHeights=_rh)
     # ── Ligne PLACE : texte bleu foncé + gras ──
     for ridx, row in enumerate(table_data):
