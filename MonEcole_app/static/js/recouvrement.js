@@ -11,7 +11,10 @@ const R={
     ops:'/api/recouvrement/operations/',catOps:'/api/recouvrement/categories-operations/',
     saveCatOp:'/api/recouvrement/save-categorie-operation/',saveOp:'/api/recouvrement/save-operation/',
     invoice:'/api/recouvrement/invoice/',
-    allVars:'/api/recouvrement/variables-all/',prixClasse:'/api/recouvrement/prix-classe/'
+    allVars:'/api/recouvrement/variables-all/',prixClasse:'/api/recouvrement/prix-classe/',
+    penalites:'/api/recouvrement/penalites/',savePen:'/api/recouvrement/save-penalite/',
+    datesBut:'/api/recouvrement/dates-butoires/',saveDateBut:'/api/recouvrement/save-date-butoire/',
+    updOblig:'/api/recouvrement/update-variable-obligatoire/'
 };
 function fmt(n){return n!=null?(n).toLocaleString('fr-FR'):'—';}
 function $(id){return document.getElementById(id);}
@@ -179,10 +182,29 @@ function loadVariables(){
         const list=$('var-list');
         if(!list)return;
         if(!d.success||!d.variables||!d.variables.length){list.innerHTML='<div class="rec-empty"><i class="fas fa-tags"></i>Aucune variable</div>';return;}
-        let h='<table class="rec-table"><thead><tr><th>N°</th><th>Variable</th><th>Catégorie</th></tr></thead><tbody>';
-        d.variables.forEach((v,i)=>{h+=`<tr><td>${i+1}</td><td style="font-weight:600">${v.variable}</td><td>${v.categorie||'—'}</td></tr>`;});
+        let h='<table class="rec-table"><thead><tr><th>N°</th><th>Variable</th><th>Catégorie</th><th style="width:90px">Obligatoire</th></tr></thead><tbody>';
+        d.variables.forEach((v,i)=>{
+            const isOb=v.estObligatoire;
+            const cls=isOb?'rec-badge-success':'rec-badge-warning';
+            const txt=isOb?'Oui':'Non';
+            h+=`<tr><td>${i+1}</td><td style="font-weight:600">${v.variable}</td><td>${v.categorie||'—'}</td><td><button onclick="toggleObligatoire(${v.id_variable},${!isOb})" class="rec-btn ${isOb?'rec-btn-success':'rec-btn-outline'}" style="padding:2px 8px;font-size:.6rem"><i class="fas fa-${isOb?'check':'times'}"></i> ${txt}</button></td></tr>`;
+        });
         h+='</tbody></table>';list.innerHTML=h;
+        fillVarSelects(d.variables);
     });
+}
+function fillVarSelects(vars){
+    ['pen-variable','but-variable'].forEach(id=>{
+        const sel=$(id);if(!sel)return;
+        sel.innerHTML='<option value="">— Toutes —</option>';
+        vars.forEach(v=>{sel.innerHTML+=`<option value="${v.id_variable}">${v.variable}</option>`;});
+    });
+}
+function toggleObligatoire(varId,newVal){
+    const fd=new FormData();
+    fd.append('csrfmiddlewaretoken',document.querySelector('[name=csrfmiddlewaretoken]')?.value||'');
+    fd.append('id_variable',varId);fd.append('estObligatoire',newVal?'true':'false');
+    post(R.updOblig,fd).then(d=>{if(d.success){toast('Mis à jour',true);loadVariables();}else toast(d.error||'Erreur',false);});
 }
 function loadBanques(){
     get(R.banques).then(d=>{
@@ -260,6 +282,41 @@ function savePrixVariable(varId,anneeId,classeId,campusId,cycleId,groupe){
     post(R.savePrix,fd).then(d=>{
         if(d.success){toast('Prix enregistré',true);loadPrix();}
         else toast(d.error||'Erreur',false);
+    });
+}
+
+/* ========== PÉNALITÉS ========== */
+function loadPenalites(){
+    const a=$('pen-annee')?.value||'';
+    get(R.penalites+'?id_annee='+a).then(d=>{
+        const list=$('pen-list');
+        if(!list)return;
+        if(!d.success||!d.data||!d.data.length){list.innerHTML='<div class="rec-empty"><i class="fas fa-gavel"></i>Aucune pénalité configurée</div>';return;}
+        let h='<table class="rec-table"><thead><tr><th>N°</th><th>Variable</th><th>Type</th><th>Valeur</th><th>Plafond</th><th>Année</th><th>Statut</th></tr></thead><tbody>';
+        d.data.forEach((p,i)=>{
+            const typeBadge=p.type==='FORFAIT'?'<span class="rec-badge rec-badge-info"><i class="fas fa-coins"></i> Forfait</span>':'<span class="rec-badge rec-badge-warning"><i class="fas fa-percentage"></i> Pourcentage</span>';
+            const statBadge=p.actif?'<span class="rec-badge rec-badge-success"><i class="fas fa-check"></i> Actif</span>':'<span class="rec-badge rec-badge-danger"><i class="fas fa-times"></i> Inactif</span>';
+            h+=`<tr><td>${i+1}</td><td style="font-weight:600">${p.variable}</td><td>${typeBadge}</td><td style="font-weight:700">${p.valeur}${p.type==='POURCENTAGE'?'%':' Fbu'}</td><td>${p.plafond?fmt(p.plafond)+' Fbu':'—'}</td><td>${p.annee||'—'}</td><td>${statBadge}</td></tr>`;
+        });
+        h+='</tbody></table>';list.innerHTML=h;
+    });
+}
+
+/* ========== DATES BUTOIRES ========== */
+function loadButClasses(){loadClasses('but-classe',$('but-annee').value);}
+function loadButoires(){
+    const a=$('but-annee')?.value||'';
+    get(R.datesBut+'?id_annee='+a).then(d=>{
+        const list=$('but-list');
+        if(!list)return;
+        if(!d.success||!d.data||!d.data.length){list.innerHTML='<div class="rec-empty"><i class="fas fa-calendar-times"></i>Aucune date butoire configurée</div>';return;}
+        let h='<table class="rec-table"><thead><tr><th>N°</th><th>Variable</th><th>Date limite</th></tr></thead><tbody>';
+        d.data.forEach((b,i)=>{
+            const dateStr=b.date_butoire||'—';
+            const isPast=b.date_butoire&&new Date(b.date_butoire)<new Date();
+            h+=`<tr><td>${i+1}</td><td style="font-weight:600">${b.variable||'—'}</td><td style="font-weight:700;color:${isPast?'#dc2626':'#059669'}"><i class="fas fa-calendar-day"></i> ${dateStr}</td></tr>`;
+        });
+        h+='</tbody></table>';list.innerHTML=h;
     });
 }
 
@@ -358,6 +415,19 @@ function setupForms(){
         $('catop-annee').value=$('caisse-annee')?.value||$('dash-annee')?.value||'';
         post(R.saveCatOp,new FormData(copf)).then(d=>{if(d.success){copf.reset();loadCatOperations();toast('Catégorie ajoutée',true);}else toast(d.error,false);});
     };
+    // Pénalité form
+    const penf=$('pen-form');
+    if(penf)penf.onsubmit=function(e){e.preventDefault();
+        post(R.savePen,new FormData(penf)).then(d=>{if(d.success){penf.reset();loadPenalites();toast('Pénalité ajoutée',true);}else toast(d.error,false);});
+    };
+    // Date butoire form
+    const butf=$('but-form');
+    if(butf)butf.onsubmit=function(e){e.preventDefault();
+        const fd=new FormData(butf);
+        const cs=$('but-classe')?.selectedOptions[0];
+        if(cs){fd.append('idCampus',cs.dataset.campus||'');fd.append('id_cycle',cs.dataset.cycle||'');}
+        post(R.saveDateBut,fd).then(d=>{if(d.success){butf.reset();loadButoires();toast('Date butoire enregistrée',true);}else toast(d.error,false);});
+    };
 }
 
 /* ========== INIT ========== */
@@ -365,7 +435,7 @@ document.addEventListener('DOMContentLoaded',function(){
     loadDashboard();
     loadCategories();loadVariables();loadBanques();
     const pa=$('pay-annee');if(pa)loadClasses('pay-classe',pa.value);
-    loadPrixClasses();
+    loadPrixClasses();loadPenalites();loadButClasses();loadButoires();
     loadCatOperations();loadOperations();
     setupForms();
     // Make stat cards clickable for details

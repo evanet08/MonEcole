@@ -129,7 +129,9 @@
         <button class="config-tab active" data-tab="tab-categories" onclick="switchCfgTab(this)"><i class="fas fa-folder"></i>Catégories</button>
         <button class="config-tab" data-tab="tab-variables" onclick="switchCfgTab(this)"><i class="fas fa-tags"></i>Variables</button>
         <button class="config-tab" data-tab="tab-prix" onclick="switchCfgTab(this)"><i class="fas fa-money-check-alt"></i>Prix</button>
-        <button class="config-tab" data-tab="tab-banques" onclick="switchCfgTab(this)"><i class="fas fa-university"></i>Banques & Comptes</button>
+        <button class="config-tab" data-tab="tab-penalites" onclick="switchCfgTab(this)"><i class="fas fa-exclamation-triangle"></i>Pénalités</button>
+        <button class="config-tab" data-tab="tab-butoires" onclick="switchCfgTab(this)"><i class="fas fa-calendar-times"></i>Dates Butoires</button>
+        <button class="config-tab" data-tab="tab-banques" onclick="switchCfgTab(this)"><i class="fas fa-university"></i>Banques &amp; Comptes</button>
     </div>
 
     <!-- Tab: Catégories -->
@@ -178,6 +180,45 @@
             <div id="prix-grid">
                 <div class="rec-empty"><i class="fas fa-hand-pointer"></i>Sélectionnez une année et une classe pour configurer les prix</div>
             </div>
+        </div>
+    </div>
+
+    <!-- Tab: Pénalités -->
+    <div class="config-tab-content" id="tab-penalites">
+        <div class="dash-section">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div><div class="dash-section-title"><i class="fas fa-exclamation-triangle"></i> Règles de Pénalité</div><div class="dash-section-sub">Configurez les pénalités de retard (forfait ou pourcentage) par variable</div></div>
+            </div>
+            <div class="rec-form" style="margin-bottom:12px">
+                <form id="pen-form" class="d-flex gap-2 align-items-end flex-wrap">{% csrf_token %}
+                    <div><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Année</label><select name="id_annee" id="pen-annee" class="form-select form-select-sm" required style="font-size:.75rem;border-radius:8px">{% for a in annees_list %}<option value="{{ a.id_annee }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
+                    <div><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Variable</label><select name="id_variable" id="pen-variable" class="form-select form-select-sm" style="font-size:.75rem;border-radius:8px"><option value="">— Toutes —</option></select></div>
+                    <div><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Type</label><select name="type_penalite" class="form-select form-select-sm" required style="font-size:.75rem;border-radius:8px"><option value="FORFAIT">Forfait</option><option value="POURCENTAGE">Pourcentage (%)</option></select></div>
+                    <div><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Valeur</label><input type="number" name="valeur" class="form-control form-control-sm" required min="0" step="0.01" placeholder="0" style="font-size:.75rem;border-radius:8px;width:90px"></div>
+                    <div><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Plafond</label><input type="number" name="plafond" class="form-control form-control-sm" min="0" placeholder="—" style="font-size:.75rem;border-radius:8px;width:90px"></div>
+                    <button type="submit" class="rec-btn rec-btn-success" style="height:32px"><i class="fas fa-plus"></i> Ajouter</button>
+                </form>
+            </div>
+            <div id="pen-list"><div class="rec-empty"><i class="fas fa-spinner fa-spin"></i></div></div>
+        </div>
+    </div>
+
+    <!-- Tab: Dates Butoires -->
+    <div class="config-tab-content" id="tab-butoires">
+        <div class="dash-section">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div><div class="dash-section-title"><i class="fas fa-calendar-times"></i> Dates Butoires</div><div class="dash-section-sub">Fixez les dates limites de paiement par variable et classe</div></div>
+            </div>
+            <div class="rec-form" style="margin-bottom:12px">
+                <form id="but-form" class="d-flex gap-2 align-items-end flex-wrap">{% csrf_token %}
+                    <div><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Année</label><select name="id_annee" id="but-annee" class="form-select form-select-sm" required style="font-size:.75rem;border-radius:8px" onchange="loadButClasses()">{% for a in annees_list %}<option value="{{ a.id_annee }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
+                    <div><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Classe</label><select name="id_classe" id="but-classe" class="form-select form-select-sm" required style="font-size:.75rem;border-radius:8px"><option value="">— Sélectionner —</option></select></div>
+                    <div><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Variable</label><select name="id_variable" id="but-variable" class="form-select form-select-sm" required style="font-size:.75rem;border-radius:8px"><option value="">—</option></select></div>
+                    <div><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Date limite</label><input type="date" name="date_butoire" class="form-control form-control-sm" required style="font-size:.75rem;border-radius:8px"></div>
+                    <button type="submit" class="rec-btn rec-btn-success" style="height:32px"><i class="fas fa-plus"></i> Enregistrer</button>
+                </form>
+            </div>
+            <div id="but-list"><div class="rec-empty"><i class="fas fa-spinner fa-spin"></i></div></div>
         </div>
     </div>
 

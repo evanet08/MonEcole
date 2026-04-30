@@ -226,12 +226,15 @@ def rec_get_penalites(request):
     id_pays, id_etab = _require_tenant(request)
     if not id_pays: return _tenant_error()
     annee_id = request.GET.get('id_annee')
-    qs = PenaliteConfig.objects.filter(id_pays=id_pays, id_etablissement=id_etab, actif=True)
+    qs = PenaliteConfig.objects.filter(id_pays=id_pays, id_etablissement=id_etab)
     if annee_id:
         qs = qs.filter(id_annee_id=annee_id)
-    data = [{'id': p.id_penalite_regle, 'variable': p.id_variable.variable if p.id_variable else 'Toutes',
+    data = [{'id': p.id_penalite_regle,
+             'variable': p.id_variable.variable if p.id_variable else 'Toutes',
              'type': p.type_penalite, 'valeur': p.valeur, 'plafond': p.plafond,
-             } for p in qs.select_related('id_variable')]
+             'actif': p.actif,
+             'annee': str(p.id_annee.annee) if p.id_annee else '',
+             } for p in qs.select_related('id_variable', 'id_annee')]
     return JsonResponse({'success': True, 'data': data})
 
 
@@ -318,6 +321,7 @@ def rec_get_all_variables(request):
         'variable': v.variable,
         'categorie': v.id_variable_categorie.nom if v.id_variable_categorie else '',
         'id_categorie': v.id_variable_categorie_id,
+        'estObligatoire': v.estObligatoire,
     } for v in qs]
     return JsonResponse({'success': True, 'variables': data})
 
