@@ -212,6 +212,7 @@
                     <div id="compte-list"><div class="rec-empty"><i class="fas fa-spinner fa-spin"></i></div></div>
                 </div>
             </div>
+            </div>
         </div>
     </div>
 </div>
@@ -220,43 +221,81 @@
 <div class="etab-section {% if active_section == 'caisse' %}active-section{% endif %}" id="sec-caisse">
     <div class="section-header" style="background:linear-gradient(135deg,#7f1d1d,#dc2626,#f87171)">
         <i class="fas fa-cash-register"></i>
-        <div><h2>Entrées & Sorties de Caisse</h2><div class="section-desc">Suivi des flux financiers hors paiements scolaires</div></div>
+        <div><h2>Entrées &amp; Sorties de Caisse</h2><div class="section-desc">Suivi des flux financiers hors paiements scolaires</div></div>
     </div>
-    <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
+    <!-- Stat cards -->
+    <div class="stat-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="stat-card grad-purple"><div class="stat-icon"><i class="fas fa-chart-bar"></i></div><div class="stat-info"><div class="stat-label">Total Opérations</div><div class="stat-value" id="caisse-total">—</div></div></div>
         <div class="stat-card grad-emerald"><div class="stat-icon"><i class="fas fa-arrow-down"></i></div><div class="stat-info"><div class="stat-label">Total Entrées</div><div class="stat-value" id="caisse-entrees">—</div></div></div>
         <div class="stat-card grad-rose"><div class="stat-icon"><i class="fas fa-arrow-up"></i></div><div class="stat-info"><div class="stat-label">Total Sorties</div><div class="stat-value" id="caisse-sorties">—</div></div></div>
         <div class="stat-card grad-blue"><div class="stat-icon"><i class="fas fa-balance-scale"></i></div><div class="stat-info"><div class="stat-label">Solde</div><div class="stat-value" id="caisse-solde">—</div></div></div>
     </div>
-    <div class="rec-selector">
-        <div><label>Année</label><select id="caisse-annee" onchange="loadOperations()">{% for a in annees_list %}<option value="{{ a.id_annee }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
-        <div><label>Type</label><select id="caisse-type" onchange="loadOperations()"><option value="">Tous</option><option value="ENTREE">Entrées</option><option value="SORTIE">Sorties</option></select></div>
-        <button class="rec-btn rec-btn-success" onclick="toggleOpForm()"><i class="fas fa-plus"></i> Nouvelle opération</button>
+    <!-- Tabs -->
+    <div class="config-tabs" id="caisseTabs">
+        <button class="config-tab active" data-tab="tab-cat-ops" onclick="switchCaissTab(this)"><i class="fas fa-folder"></i>Catégories d'opérations</button>
+        <button class="config-tab" data-tab="tab-journal" onclick="switchCaissTab(this)"><i class="fas fa-list-alt"></i>Journal des opérations</button>
     </div>
-    <div id="op-form-wrap" style="display:none">
-        <div class="rec-form">
-            <div style="font-weight:700;font-size:.82rem;color:#7f1d1d;margin-bottom:10px"><i class="fas fa-plus-circle" style="margin-right:6px"></i>Nouvelle opération</div>
-            <form id="op-form">{% csrf_token %}
-                <div class="rec-form-grid">
-                    <div><label>Type *</label><select name="type_operation" id="op-type" required onchange="loadCatOps()"><option value="">—</option><option value="ENTREE">Entrée</option><option value="SORTIE">Sortie</option></select></div>
-                    <div><label>Catégorie *</label><select name="categorie" id="op-cat" required><option value="">—</option></select></div>
-                    <div><label>Montant *</label><input type="number" name="montant" required min="1" placeholder="0"></div>
-                    <div><label>Date *</label><input type="date" name="date_operation" required></div>
-                    <div><label>Mode</label><select name="mode_paiement"><option value="ESPECES">Espèces</option><option value="CHEQUE">Chèque</option><option value="VIREMENT">Virement</option><option value="AUTRE">Autre</option></select></div>
-                    <div><label>Source / Bénéf.</label><input type="text" name="source_beneficiaire" placeholder="Nom"></div>
-                    <div><label>Référence</label><input type="text" name="reference" placeholder="N° reçu"></div>
-                    <div><label>Description</label><input type="text" name="description" placeholder="Détails"></div>
-                </div>
-                <input type="hidden" name="id_annee" id="op-annee"><input type="hidden" name="idCampus" id="op-campus">
-                <div style="text-align:right;margin-top:10px">
-                    <button type="button" class="rec-btn rec-btn-outline" onclick="toggleOpForm()"><i class="fas fa-times"></i> Annuler</button>
-                    <button type="submit" class="rec-btn rec-btn-success"><i class="fas fa-save"></i> Enregistrer</button>
-                </div>
-            </form>
+
+    <!-- Tab: Catégories d'opérations -->
+    <div class="config-tab-content active" id="tab-cat-ops">
+        <div class="dash-section">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div><div class="dash-section-title"><i class="fas fa-folder"></i> Catégories d'opérations</div><div class="dash-section-sub">Organisez vos entrées et sorties par catégorie</div></div>
+            </div>
+            <div class="rec-form" style="margin-bottom:12px">
+                <form id="cat-op-form" class="d-flex gap-2 align-items-end flex-wrap">{% csrf_token %}
+                    <div style="min-width:120px"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Type</label><select name="type_operation" class="form-select form-select-sm" required style="font-size:.75rem;border-radius:8px"><option value="">—</option><option value="ENTREE">⬆️ Entrée</option><option value="SORTIE">⬇️ Sortie</option></select></div>
+                    <div style="flex:1"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Nom</label><input type="text" name="nom" class="form-control form-control-sm" placeholder="Ex: Fournitures bureau" required style="font-size:.75rem;border-radius:8px"></div>
+                    <div style="flex:1"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Description</label><input type="text" name="description" class="form-control form-control-sm" placeholder="Optionnel" style="font-size:.75rem;border-radius:8px"></div>
+                    <input type="hidden" name="id_annee" id="catop-annee">
+                    <input type="hidden" name="idCampus" id="catop-campus">
+                    <button type="submit" class="rec-btn rec-btn-success" style="height:32px"><i class="fas fa-plus"></i> Ajouter</button>
+                </form>
+            </div>
+            <div id="cat-op-list"><div class="rec-empty"><i class="fas fa-spinner fa-spin"></i></div></div>
         </div>
     </div>
-    <div class="dash-section" style="padding:12px 16px">
-        <div class="dash-section-title" style="font-size:.8rem"><i class="fas fa-list"></i> Journal des opérations</div>
-        <div style="overflow-x:auto;max-height:55vh;overflow-y:auto" id="op-table-wrap"><div class="rec-empty"><i class="fas fa-spinner fa-spin"></i></div></div>
+
+    <!-- Tab: Journal des opérations -->
+    <div class="config-tab-content" id="tab-journal">
+        <div class="dash-section">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div><div class="dash-section-title"><i class="fas fa-exchange-alt"></i> Journal des opérations</div><div class="dash-section-sub">Enregistrez et consultez toutes les opérations financières</div></div>
+                <div class="d-flex gap-2">
+                    <button class="rec-btn rec-btn-outline" style="padding:3px 10px;font-size:.65rem" onclick="exportOpsPDF()"><i class="fas fa-file-pdf" style="color:#dc2626"></i> PDF</button>
+                    <button class="rec-btn rec-btn-outline" style="padding:3px 10px;font-size:.65rem" onclick="exportOpsExcel()"><i class="fas fa-file-excel" style="color:#059669"></i> Excel</button>
+                </div>
+            </div>
+            <div class="rec-selector">
+                <div><label>Année</label><select id="caisse-annee" onchange="loadOperations()">{% for a in annees_list %}<option value="{{ a.id_annee }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
+                <div><label>Catégorie</label><select id="caisse-cat" onchange="loadOperations()"><option value="">Toutes</option></select></div>
+                <div><label>Type</label><select id="caisse-type" onchange="loadOperations()"><option value="">Tous</option><option value="ENTREE">⬆️ Entrées</option><option value="SORTIE">⬇️ Sorties</option></select></div>
+                <button class="rec-btn rec-btn-success" onclick="toggleOpForm()"><i class="fas fa-plus"></i> Nouvelle opération</button>
+            </div>
+            <div id="op-form-wrap" style="display:none">
+                <div class="rec-form">
+                    <div style="font-weight:700;font-size:.82rem;color:#7f1d1d;margin-bottom:10px"><i class="fas fa-plus-circle" style="margin-right:6px"></i>Nouvelle opération</div>
+                    <form id="op-form">{% csrf_token %}
+                        <div class="rec-form-grid">
+                            <div><label>Type *</label><select name="type_operation" id="op-type" required onchange="loadCatOps()"><option value="">—</option><option value="ENTREE">Entrée</option><option value="SORTIE">Sortie</option></select></div>
+                            <div><label>Catégorie *</label><select name="categorie" id="op-cat" required><option value="">—</option></select></div>
+                            <div><label>Montant *</label><input type="number" name="montant" required min="1" placeholder="0"></div>
+                            <div><label>Date *</label><input type="date" name="date_operation" required></div>
+                            <div><label>Mode</label><select name="mode_paiement"><option value="ESPECES">Espèces</option><option value="CHEQUE">Chèque</option><option value="VIREMENT">Virement</option><option value="AUTRE">Autre</option></select></div>
+                            <div><label>Source / Bénéf.</label><input type="text" name="source_beneficiaire" placeholder="Nom"></div>
+                            <div><label>Référence</label><input type="text" name="reference" placeholder="N° reçu"></div>
+                            <div><label>Description</label><input type="text" name="description" placeholder="Détails"></div>
+                        </div>
+                        <input type="hidden" name="id_annee" id="op-annee"><input type="hidden" name="idCampus" id="op-campus">
+                        <div style="text-align:right;margin-top:10px">
+                            <button type="button" class="rec-btn rec-btn-outline" onclick="toggleOpForm()"><i class="fas fa-times"></i> Annuler</button>
+                            <button type="submit" class="rec-btn rec-btn-success"><i class="fas fa-save"></i> Enregistrer</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div style="overflow-x:auto;max-height:55vh;overflow-y:auto" id="op-table-wrap"><div class="rec-empty"><i class="fas fa-spinner fa-spin"></i></div></div>
+        </div>
     </div>
 </div>
 {% endblock %}

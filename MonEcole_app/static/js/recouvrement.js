@@ -264,21 +264,54 @@ function savePrixVariable(varId,anneeId,classeId,campusId,cycleId,groupe){
 }
 
 /* ========== CAISSE ========== */
+function switchCaissTab(btn){
+    document.querySelectorAll('#caisseTabs .config-tab').forEach(t=>t.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('#sec-caisse .config-tab-content').forEach(c=>c.classList.remove('active'));
+    $(btn.dataset.tab).classList.add('active');
+}
+function loadCatOperations(){
+    get(R.catOps+'?annee=&type=').then(d=>{
+        const list=$('cat-op-list');
+        if(!list)return;
+        const cats=d.categories||[];
+        if(!cats.length){list.innerHTML='<div class="rec-empty"><i class="fas fa-folder-open"></i>Aucune catégorie d\'opération</div>';return;}
+        const entrees=cats.filter(c=>c.type_operation==='ENTREE');
+        const sorties=cats.filter(c=>c.type_operation==='SORTIE');
+        let h='<table class="rec-table"><thead><tr><th>N°</th><th>Nom</th><th>Type</th><th>Description</th></tr></thead><tbody>';
+        cats.forEach((c,i)=>{
+            const badge=c.type_operation==='ENTREE'?'rec-badge-success':'rec-badge-danger';
+            const icon=c.type_operation==='ENTREE'?'fa-arrow-down':'fa-arrow-up';
+            const label=c.type_operation==='ENTREE'?'Entrée':'Sortie';
+            h+=`<tr><td>${i+1}</td><td style="font-weight:600">${c.nom}</td><td><span class="rec-badge ${badge}"><i class="fas ${icon}"></i> ${label}</span></td><td style="color:#64748b;font-size:.72rem">${c.description||'—'}</td></tr>`;
+        });
+        h+='</tbody></table>';
+        h+=`<div style="margin-top:8px;font-size:.72rem;color:#64748b;display:flex;gap:16px">
+            <span><i class="fas fa-arrow-down" style="color:#059669"></i> <strong>${entrees.length}</strong> entrée${entrees.length>1?'s':''}</span>
+            <span><i class="fas fa-arrow-up" style="color:#dc2626"></i> <strong>${sorties.length}</strong> sortie${sorties.length>1?'s':''}</span>
+        </div>`;
+        list.innerHTML=h;
+        // Also fill caisse-cat filter
+        const catSel=$('caisse-cat');
+        if(catSel){catSel.innerHTML='<option value="">Toutes</option>';cats.forEach(c=>{const ic=c.type_operation==='ENTREE'?'⬆️':'⬇️';catSel.innerHTML+=`<option value="${c.id}">${ic} ${c.nom}</option>`;});}
+    });
+}
 function loadOperations(){
-    const a=$('caisse-annee')?.value||'',t=$('caisse-type')?.value||'';
-    get(R.ops+'?annee='+a+'&type='+t).then(d=>{
-        if(!d.success)return;
-        const s=d.stats||{};
+    const a=$('caisse-annee')?.value||'',t=$('caisse-type')?.value||'',cat=$('caisse-cat')?.value||'';
+    get(R.ops+'?annee='+a+'&type='+t+'&categorie='+cat).then(d=>{
+        if(!d.success)return;const s=d.stats||{};
+        if($('caisse-total'))$('caisse-total').textContent=s.total||'0';
         if($('caisse-entrees'))$('caisse-entrees').textContent=fmt(s.entrees);
         if($('caisse-sorties'))$('caisse-sorties').textContent=fmt(s.sorties);
         if($('caisse-solde'))$('caisse-solde').textContent=fmt((s.entrees||0)-(s.sorties||0));
         const wrap=$('op-table-wrap');
         if(!d.operations||!d.operations.length){wrap.innerHTML='<div class="rec-empty"><i class="fas fa-inbox"></i>Aucune opération</div>';return;}
-        let h='<table class="rec-table"><thead><tr><th>Date</th><th>Type</th><th>Catégorie</th><th>Montant</th><th>Source/Bénéf.</th><th>Mode</th><th>Réf.</th></tr></thead><tbody>';
-        d.operations.forEach(o=>{
+        let h='<table class="rec-table"><thead><tr><th>N°</th><th>Date</th><th>Catégorie</th><th>Type</th><th>Montant</th><th>Source/Bénéf.</th><th>Mode</th><th>Description</th><th>Réf.</th></tr></thead><tbody>';
+        d.operations.forEach((o,i)=>{
             const cls=o.type_operation==='ENTREE'?'rec-badge-success':'rec-badge-danger';
             const icon=o.type_operation==='ENTREE'?'fa-arrow-down':'fa-arrow-up';
-            h+=`<tr><td>${o.date}</td><td><span class="rec-badge ${cls}"><i class="fas ${icon}"></i> ${o.type_operation}</span></td><td>${o.categorie}</td><td style="font-weight:700">${o.montant_formatted} Fbu</td><td>${o.source_beneficiaire}</td><td>${o.mode_paiement}</td><td style="font-family:monospace;font-size:.62rem">${o.reference}</td></tr>`;
+            const label=o.type_operation==='ENTREE'?'Entrée':'Sortie';
+            h+=`<tr><td>${i+1}</td><td>${o.date}</td><td style="font-weight:600">${o.categorie}</td><td><span class="rec-badge ${cls}"><i class="fas ${icon}"></i> ${label}</span></td><td style="font-weight:700">${o.montant_formatted} Fbu</td><td>${o.source_beneficiaire||'—'}</td><td>${o.mode_paiement||'—'}</td><td style="color:#64748b;font-size:.72rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${o.description||''}">${o.description||'—'}</td><td style="font-family:monospace;font-size:.62rem">${o.reference||'—'}</td></tr>`;
         });
         h+='</tbody></table>';wrap.innerHTML=h;
     });
@@ -286,11 +319,19 @@ function loadOperations(){
 function toggleOpForm(){const w=$('op-form-wrap');w.style.display=w.style.display==='none'?'':'none';}
 function loadCatOps(){
     const t=$('op-type').value;if(!t)return;
-    const a=$('caisse-annee').value;
+    const a=$('caisse-annee')?.value||'';
     get(R.catOps+'?annee='+a+'&type='+t).then(d=>{
         const sel=$('op-cat');sel.innerHTML='<option value="">— Catégorie —</option>';
         (d.categories||[]).forEach(c=>{sel.innerHTML+=`<option value="${c.id}">${c.nom}</option>`;});
     });
+}
+function exportOpsPDF(){
+    const a=$('caisse-annee')?.value||'',t=$('caisse-type')?.value||'',cat=$('caisse-cat')?.value||'';
+    window.open('/api/recouvrement/operations-pdf/?annee='+a+'&type='+t+'&categorie='+cat,'_blank');
+}
+function exportOpsExcel(){
+    const a=$('caisse-annee')?.value||'',t=$('caisse-type')?.value||'',cat=$('caisse-cat')?.value||'';
+    window.location.href='/api/recouvrement/operations-excel/?annee='+a+'&type='+t+'&categorie='+cat;
 }
 
 /* ========== FORM HANDLERS ========== */
@@ -307,10 +348,15 @@ function setupForms(){
     if(pf)pf.onsubmit=function(e){e.preventDefault();post(R.savePai,new FormData(pf)).then(d=>{if(d.success){pf.reset();togglePayForm();loadPayHistory();loadVarsRestant();toast('Paiement enregistré',true);}else toast(d.error,false);});};
     const of=$('op-form');
     if(of)of.onsubmit=function(e){e.preventDefault();
-        $('op-annee').value=$('caisse-annee').value;
-        // Use first campus if available
+        $('op-annee').value=$('caisse-annee')?.value||'';
         const fd=new FormData(of);
         post(R.saveOp,fd).then(d=>{if(d.success){of.reset();toggleOpForm();loadOperations();toast('Opération enregistrée',true);}else toast(d.error,false);});
+    };
+    // Category operations form
+    const copf=$('cat-op-form');
+    if(copf)copf.onsubmit=function(e){e.preventDefault();
+        $('catop-annee').value=$('caisse-annee')?.value||$('dash-annee')?.value||'';
+        post(R.saveCatOp,new FormData(copf)).then(d=>{if(d.success){copf.reset();loadCatOperations();toast('Catégorie ajoutée',true);}else toast(d.error,false);});
     };
 }
 
@@ -320,7 +366,7 @@ document.addEventListener('DOMContentLoaded',function(){
     loadCategories();loadVariables();loadBanques();
     const pa=$('pay-annee');if(pa)loadClasses('pay-classe',pa.value);
     loadPrixClasses();
-    loadOperations();
+    loadCatOperations();loadOperations();
     setupForms();
     // Make stat cards clickable for details
     document.querySelectorAll('.stat-card').forEach(card=>{card.style.cursor='pointer';});

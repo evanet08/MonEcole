@@ -256,9 +256,11 @@ def rec_get_operations_caisse(request):
     if not id_pays: return _tenant_error()
     annee_id = request.GET.get('annee')
     type_op = request.GET.get('type')
+    categorie_id = request.GET.get('categorie')
     qs = OperationCaisse.objects.filter(id_pays=id_pays, id_etablissement=id_etab)
     if annee_id: qs = qs.filter(id_annee_id=annee_id)
     if type_op: qs = qs.filter(categorie__type_operation=type_op)
+    if categorie_id: qs = qs.filter(categorie_id=categorie_id)
     qs = qs.select_related('categorie').order_by('-date_operation')
     total_entrees = 0
     total_sorties = 0
