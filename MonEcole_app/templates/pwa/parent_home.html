@@ -7,21 +7,12 @@
 
 {% block page_css %}
 <style>
-    .welcome-section {
-        padding: 20px 16px 12px;
-    }
-    .welcome-greeting {
-        font-size: 1.3rem; font-weight: 800; color: #1e293b;
-        margin: 0 0 2px;
-    }
-    .welcome-subtitle {
-        font-size: 0.82rem; color: #94a3b8; margin: 0;
-    }
+    .welcome-section { padding: 20px 16px 12px; }
+    .welcome-greeting { font-size: 1.3rem; font-weight: 800; color: #1e293b; margin: 0 0 2px; }
+    .welcome-subtitle { font-size: 0.82rem; color: #94a3b8; margin: 0; }
 
-    /* Children Grid */
-    .children-section {
-        padding: 0 16px 20px;
-    }
+    .children-section { padding: 0 16px 20px; }
+
     .child-card {
         background: white; border-radius: 18px;
         padding: 18px; margin-bottom: 14px;
@@ -63,17 +54,24 @@
     .child-info { flex: 1; min-width: 0; }
     .child-name {
         font-size: 0.95rem; font-weight: 700; color: #1e293b;
-        margin: 0 0 3px; white-space: nowrap;
+        margin: 0 0 4px; white-space: nowrap;
         overflow: hidden; text-overflow: ellipsis;
     }
     .child-details {
         font-size: 0.72rem; color: #94a3b8;
-        display: flex; flex-direction: column; gap: 2px;
+        display: flex; flex-direction: column; gap: 3px;
     }
     .child-details span {
         display: flex; align-items: center; gap: 5px;
     }
     .child-details i { width: 12px; text-align: center; font-size: 0.65rem; }
+    .child-tag {
+        display: inline-flex; align-items: center; gap: 3px;
+        padding: 2px 7px; border-radius: 6px;
+        font-size: 0.58rem; font-weight: 600;
+    }
+    .child-tag.pays { background: #eff6ff; color: #1d4ed8; }
+    .child-tag.etab { background: #f0fdf4; color: #16a34a; }
 
     .child-arrow {
         color: #cbd5e1; font-size: 0.9rem; flex-shrink: 0;
@@ -81,10 +79,7 @@
     }
     .child-card:hover .child-arrow { transform: translateX(3px); color: #6366f1; }
 
-    /* Empty state */
-    .empty-state {
-        text-align: center; padding: 40px 20px;
-    }
+    .empty-state { text-align: center; padding: 40px 20px; }
     .empty-state-icon {
         width: 80px; height: 80px; border-radius: 50%;
         background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(59,130,246,0.1));
@@ -95,13 +90,9 @@
     .empty-state h3 { font-size: 1.1rem; font-weight: 700; color: #1e293b; margin: 0 0 6px; }
     .empty-state p { font-size: 0.82rem; color: #94a3b8; margin: 0; max-width: 280px; display: inline-block; }
 
-    /* Stats Banner */
-    .stats-banner {
-        display: flex; gap: 10px; padding: 0 16px 16px;
-    }
+    .stats-banner { display: flex; gap: 10px; padding: 0 16px 16px; }
     .stat-chip {
-        flex: 1; padding: 12px; border-radius: 14px;
-        text-align: center;
+        flex: 1; padding: 12px; border-radius: 14px; text-align: center;
         box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     }
     .stat-chip.children-count {
@@ -112,9 +103,7 @@
         background: linear-gradient(135deg, rgba(5,150,105,0.08), rgba(52,211,153,0.08));
         border: 1px solid rgba(5,150,105,0.15);
     }
-    .stat-chip .stat-value {
-        font-size: 1.3rem; font-weight: 800;
-    }
+    .stat-chip .stat-value { font-size: 1.3rem; font-weight: 800; }
     .stat-chip.children-count .stat-value { color: #6366f1; }
     .stat-chip.schools-count .stat-value { color: #059669; }
     .stat-chip .stat-label {
@@ -139,10 +128,8 @@
         <div class="stat-label">Enfant{{ children|length|pluralize:"s" }}</div>
     </div>
     <div class="stat-chip schools-count">
-        {% with schools=children|length %}
         <div class="stat-value"><i class="fas fa-school" style="font-size:1rem"></i></div>
-        <div class="stat-label">Établissement{{ schools|pluralize:"s" }}</div>
-        {% endwith %}
+        <div class="stat-label">Établissement{{ children|length|pluralize:"s" }}</div>
     </div>
 </div>
 {% endif %}
@@ -167,6 +154,9 @@
                 {% endif %}
                 {% if child.etablissement_nom %}
                 <span><i class="fas fa-school"></i> {{ child.etablissement_nom }}</span>
+                {% endif %}
+                {% if child.pays_nom %}
+                <span><i class="fas fa-globe-africa"></i> {{ child.pays_nom }}</span>
                 {% endif %}
             </div>
         </div>

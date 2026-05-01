@@ -1,497 +1,176 @@
 {% extends "pwa/parent_base.html" %}
 {% load static %}
-
 {% block title %}{{ eleve.prenom }} {{ eleve.nom }}{% endblock %}
 {% block header_title %}{{ eleve.prenom }} {{ eleve.nom }}{% endblock %}
-{% block meta_description %}MonEcole — Profil de {{ eleve.prenom }} {{ eleve.nom }}{% endblock %}
+{% block meta_description %}MonEcole — {{ eleve.prenom }} {{ eleve.nom }}{% endblock %}
 
 {% block header_actions %}
-<button class="pwa-header-btn" onclick="navigateTo('/parent/')" title="Retour">
-    <i class="fas fa-arrow-left"></i>
-</button>
+<button class="pwa-header-btn" onclick="navigateTo('/parent/')" title="Retour"><i class="fas fa-arrow-left"></i></button>
 {% endblock %}
 
 {% block page_css %}
 <style>
-    /* Profile Header */
-    .profile-hero {
-        background: linear-gradient(135deg, #1e3a8a 0%, #6366f1 100%);
-        padding: 24px 16px 28px; text-align: center;
-        position: relative; overflow: hidden;
-    }
-    .profile-hero::after {
-        content: ''; position: absolute; bottom: -20px; left: -20px; right: -20px;
-        height: 40px; background: var(--bg);
-        border-radius: 50% 50% 0 0;
-    }
-    .profile-avatar {
-        width: 72px; height: 72px; border-radius: 20px;
-        display: inline-flex; align-items: center; justify-content: center;
-        font-weight: 800; color: white; font-size: 1.4rem;
-        background: rgba(255,255,255,0.15);
-        border: 3px solid rgba(255,255,255,0.3);
-        margin-bottom: 10px; position: relative;
-    }
-    .profile-avatar img {
-        width: 100%; height: 100%; object-fit: cover;
-        border-radius: 17px; position: absolute;
-    }
-    .profile-name {
-        color: white; font-size: 1.2rem; font-weight: 700; margin: 0 0 2px;
-    }
-    .profile-class {
-        color: rgba(255,255,255,0.7); font-size: 0.82rem;
-    }
-
-    /* Sections */
-    .detail-section {
-        padding: 0 16px 16px;
-    }
-    .detail-section:first-of-type { padding-top: 16px; }
-
-    /* Info Grid */
-    .info-grid {
-        display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
-    }
-    .info-item {
-        background: white; border-radius: 14px; padding: 14px;
-        border: 1px solid #e8ecf5;
-    }
-    .info-item.full { grid-column: 1 / -1; }
-    .info-label {
-        font-size: 0.62rem; font-weight: 700; color: #94a3b8;
-        text-transform: uppercase; letter-spacing: 0.5px;
-        margin-bottom: 4px;
-    }
-    .info-value {
-        font-size: 0.88rem; font-weight: 600; color: #1e293b;
-    }
-
-    /* Tab Navigation */
-    .tab-nav {
-        display: flex; gap: 6px; padding: 16px 16px 12px;
-        overflow-x: auto; scrollbar-width: none;
-    }
-    .tab-nav::-webkit-scrollbar { display: none; }
-    .tab-btn {
-        padding: 8px 16px; border-radius: 20px;
-        font-size: 0.78rem; font-weight: 600;
-        border: 1px solid #e2e8f0; background: white;
-        color: #64748b; cursor: pointer;
-        white-space: nowrap; transition: all 0.2s;
-        display: flex; align-items: center; gap: 6px;
-        flex-shrink: 0;
-    }
-    .tab-btn.active {
-        background: linear-gradient(135deg, #1e3a8a, #6366f1);
-        color: white; border-color: transparent;
-        box-shadow: 0 3px 12px rgba(30,58,138,0.25);
-    }
-    .tab-btn i { font-size: 0.7rem; }
-
-    /* Tab Content */
-    .tab-pane { display: none; }
-    .tab-pane.active { display: block; }
-
-    /* Notes Table */
-    .notes-list { padding: 0; margin: 0; list-style: none; }
-    .note-row {
-        background: white; border-radius: 12px; padding: 12px 14px;
-        margin-bottom: 8px; display: flex; align-items: center;
-        justify-content: space-between; gap: 10px;
-        border: 1px solid #e8ecf5;
-    }
-    .note-cours {
-        font-size: 0.82rem; font-weight: 600; color: #1e293b;
-        flex: 1; min-width: 0;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .note-type { font-size: 0.65rem; color: #94a3b8; }
-    .note-value {
-        font-size: 1rem; font-weight: 700; border-radius: 8px;
-        padding: 4px 10px; min-width: 45px; text-align: center;
-    }
-    .note-value.good { background: rgba(5,150,105,0.1); color: #059669; }
-    .note-value.average { background: rgba(217,119,6,0.1); color: #d97706; }
-    .note-value.poor { background: rgba(220,38,38,0.1); color: #dc2626; }
-
-    /* Payment row */
-    .payment-row {
-        background: white; border-radius: 12px; padding: 12px 14px;
-        margin-bottom: 8px; display: flex; align-items: center;
-        justify-content: space-between; gap: 10px;
-        border: 1px solid #e8ecf5;
-    }
-    .payment-info { flex: 1; }
-    .payment-label { font-size: 0.82rem; font-weight: 600; color: #1e293b; }
-    .payment-date { font-size: 0.68rem; color: #94a3b8; }
-    .payment-amount { font-size: 0.95rem; font-weight: 700; }
-    .payment-status {
-        font-size: 0.6rem; font-weight: 700; padding: 3px 8px;
-        border-radius: 6px; text-transform: uppercase;
-    }
-    .payment-status.validated { background: rgba(5,150,105,0.1); color: #059669; }
-    .payment-status.pending { background: rgba(217,119,6,0.1); color: #d97706; }
-
-    /* Loading */
-    .loading-skeleton {
-        height: 60px; border-radius: 12px; margin-bottom: 8px;
-        background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
-        background-size: 200% 100%;
-        animation: shimmer 1.5s infinite;
-    }
-    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
-    .empty-tab {
-        text-align: center; padding: 30px 16px;
-        color: #94a3b8; font-size: 0.82rem;
-    }
-    .empty-tab i {
-        font-size: 2rem; margin-bottom: 10px;
-        display: block; opacity: 0.4;
-    }
+.profile-hero{background:linear-gradient(135deg,#1e3a8a 0%,#6366f1 100%);padding:24px 16px 28px;text-align:center;position:relative;overflow:hidden}
+.profile-hero::after{content:'';position:absolute;bottom:-20px;left:-20px;right:-20px;height:40px;background:var(--bg);border-radius:50% 50% 0 0}
+.profile-avatar{width:72px;height:72px;border-radius:20px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:1.4rem;background:rgba(255,255,255,.15);border:3px solid rgba(255,255,255,.3);margin-bottom:10px;position:relative}
+.profile-avatar img{width:100%;height:100%;object-fit:cover;border-radius:17px;position:absolute}
+.profile-name{color:#fff;font-size:1.2rem;font-weight:700;margin:0 0 2px}
+.profile-class{color:rgba(255,255,255,.7);font-size:.82rem}
+.section-pane{display:none;padding:16px}
+.section-pane.active{display:block}
+.sec-header{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);margin:0 0 10px 4px;display:flex;align-items:center;gap:6px}
+.sec-header i{font-size:.65rem}
+.sec-label{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin:0 0 6px}
+/* Data rows */
+.data-row{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid #e8ecf5}
+.data-main{flex:1;min-width:0}
+.data-title{font-size:.82rem;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.data-sub{font-size:.65rem;color:#94a3b8}
+.data-badge{font-size:.78rem;font-weight:700;border-radius:8px;padding:4px 10px;text-align:center;white-space:nowrap}
+.data-badge.good{background:rgba(5,150,105,.1);color:#059669}
+.data-badge.avg{background:rgba(217,119,6,.1);color:#d97706}
+.data-badge.poor{background:rgba(220,38,38,.1);color:#dc2626}
+.data-badge.na{background:#f1f5f9;color:#64748b}
+.empty-msg{text-align:center;padding:30px 16px;color:#94a3b8;font-size:.82rem}
+.empty-msg i{font-size:2rem;display:block;margin-bottom:10px;opacity:.4}
+.loading-sk{height:60px;border-radius:12px;margin-bottom:8px;background:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+/* Profile form */
+.pf-photo-wrap{text-align:center;margin-bottom:16px}
+.pf-avatar{width:80px;height:80px;border-radius:20px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:1.5rem;background:linear-gradient(135deg,#3b82f6,#6366f1);position:relative;overflow:hidden;margin-bottom:8px}
+.pf-avatar img{width:100%;height:100%;object-fit:cover;position:absolute}
+.pf-photo-btn{display:inline-flex;align-items:center;gap:4px;padding:6px 14px;border-radius:20px;background:#eff6ff;color:#1d4ed8;font-size:.72rem;font-weight:600;cursor:pointer}
+.pf-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pf-field{display:flex;flex-direction:column;gap:2px}
+.pf-field.full{grid-column:1/-1}
+.pf-field label{font-size:.6rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+.pf-field input,.pf-field select{padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.78rem;outline:none;font-family:inherit;background:#fff}
+.pf-field input:focus,.pf-field select:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.08)}
+.pf-field input:disabled{background:#f8fafc;color:#94a3b8}
+.pf-checkbox{display:flex;align-items:center;gap:6px;font-size:.75rem;color:#64748b;margin:6px 0 8px;cursor:pointer}
+.pf-checkbox input{width:16px;height:16px;accent-color:#6366f1}
+.pf-save-btn{width:100%;padding:12px;border:none;border-radius:12px;background:linear-gradient(135deg,#1e3a8a,#6366f1);color:#fff;font-size:.85rem;font-weight:700;cursor:pointer;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s}
+.pf-save-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(30,58,138,.3)}
+/* WhatsApp Communication */
+.wa-wrap{display:flex;height:calc(100vh - 56px - 28px);border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;background:#fff}
+.wa-sidebar{width:100%;display:flex;flex-direction:column;background:#fff;transition:all .3s}
+.wa-sidebar.hidden{display:none}
+.wa-sb-head{padding:14px 16px;background:linear-gradient(135deg,#075e54,#128c7e);color:#fff;font-size:.82rem;font-weight:700;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.wa-search{padding:8px 10px;border-bottom:1px solid #f1f5f9;background:#f8fafc;flex-shrink:0}
+.wa-search input{width:100%;padding:8px 14px;border:1px solid #e2e8f0;border-radius:22px;font-size:.72rem;outline:none;background:#fff}
+.wa-search input:focus{border-color:#128c7e}
+.wa-contacts{flex:1;overflow-y:auto;scrollbar-width:thin}
+.wa-contact{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;border-bottom:1px solid #f8fafc;transition:all .15s}
+.wa-contact:hover{background:#f0fdf4}
+.wa-contact.active{background:#dcfce7;border-left:3px solid #128c7e}
+.wa-contact-avatar{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;color:#fff;flex-shrink:0}
+.wa-contact-info{flex:1;min-width:0}
+.wa-contact-name{font-size:.75rem;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wa-contact-sub{font-size:.6rem;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wa-contact-meta{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0}
+.wa-unread-badge{background:#25d366;color:#fff;font-size:.5rem;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.wa-chat{flex:1;display:flex;flex-direction:column;background:#ece5dd;position:relative}
+.wa-chat-bg{position:absolute;inset:0;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Ccircle cx='20' cy='20' r='6' fill='%23128c7e'/%3E%3Ccircle cx='60' cy='60' r='4' fill='%23128c7e'/%3E%3C/svg%3E");pointer-events:none}
+.wa-chat-head{padding:12px 16px;background:linear-gradient(135deg,#075e54,#128c7e);color:#fff;display:flex;align-items:center;gap:10px;font-size:.8rem;font-weight:700;flex-shrink:0;z-index:1}
+.wa-chat-head .back-btn{background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;padding:4px}
+.wa-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:6px;z-index:1;scrollbar-width:thin}
+.wa-msg{max-width:82%;padding:8px 12px;border-radius:10px;font-size:.73rem;line-height:1.5;position:relative;animation:msgSlide .25s ease-out;word-wrap:break-word}
+.wa-msg.sent{align-self:flex-end;background:#dcf8c6;border-bottom-right-radius:3px}
+.wa-msg.recv{align-self:flex-start;background:#fff;border-bottom-left-radius:3px}
+.wa-msg .wa-msg-sender{font-size:.58rem;font-weight:700;color:#128c7e;margin-bottom:2px}
+.wa-msg-time{font-size:.5rem;color:#94a3b8;text-align:right;margin-top:3px}
+@keyframes msgSlide{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.wa-input-bar{display:flex;gap:8px;padding:10px 14px;background:#f0f2f5;border-top:1px solid #e2e8f0;flex-shrink:0;z-index:1}
+.wa-input-bar input{flex:1;padding:10px 16px;border:none;border-radius:22px;font-size:.75rem;outline:none;background:#fff}
+.wa-input-bar button{width:42px;height:42px;border-radius:50%;border:none;background:linear-gradient(135deg,#128c7e,#25d366);color:#fff;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.wa-empty{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#94a3b8;font-size:.8rem;z-index:1;gap:8px}
+.wa-empty i{font-size:4rem;opacity:.15;color:#128c7e}
+.wa-empty-text{font-weight:600;color:#64748b}
+.wa-empty-sub{font-size:.65rem;color:#94a3b8}
+@media(min-width:600px){.wa-sidebar{width:300px;border-right:1px solid #e2e8f0}.wa-sidebar.hidden{display:flex}}
+/* Info grid for read-only */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.info-item{background:#fff;border-radius:14px;padding:14px;border:1px solid #e8ecf5}
+.info-item.full{grid-column:1/-1}
+.info-label{font-size:.62rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.info-value{font-size:.88rem;font-weight:600;color:#1e293b}
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Profile Hero -->
 <div class="profile-hero">
     <div class="profile-avatar">
         {{ eleve.prenom|first }}{{ eleve.nom|first }}
-        {% if eleve.imageUrl %}
-        <img src="{{ eleve.imageUrl.url }}" alt="{{ eleve.prenom }}" onerror="this.remove()">
-        {% endif %}
+        {% if eleve.imageUrl %}<img src="{{ eleve.imageUrl.url }}" alt="{{ eleve.prenom }}" onerror="this.remove()">{% endif %}
     </div>
     <div class="profile-name">{{ eleve.prenom }} {{ eleve.nom }}</div>
-    <div class="profile-class">
-        {% if classe_nom %}{{ classe_nom }}{% endif %}
+    <div class="profile-class">{% if classe_nom %}{{ classe_nom }}{% endif %}{% if campus_nom %} · {{ campus_nom }}{% endif %}</div>
+</div>
+
+<!-- Section: Info (default visible) -->
+<div class="section-pane active" id="sec-info">
+    <p class="sec-header"><i class="fas fa-id-card"></i> Informations</p>
+    <div class="info-grid">
+        <div class="info-item"><div class="info-label">Nom</div><div class="info-value">{{ eleve.nom }}</div></div>
+        <div class="info-item"><div class="info-label">Prénom</div><div class="info-value">{{ eleve.prenom }}</div></div>
+        <div class="info-item"><div class="info-label">Genre</div><div class="info-value">{% if eleve.genre == 'F' %}Féminin{% else %}Masculin{% endif %}</div></div>
+        <div class="info-item"><div class="info-label">Date de naissance</div><div class="info-value">{{ eleve.date_naissance|default:"—" }}</div></div>
+        {% if eleve.matricule %}<div class="info-item"><div class="info-label">Matricule</div><div class="info-value">{{ eleve.matricule }}</div></div>{% endif %}
+        {% if eleve.code_eleve %}<div class="info-item"><div class="info-label">Code</div><div class="info-value">{{ eleve.code_eleve }}</div></div>{% endif %}
+        {% if classe_nom %}<div class="info-item full"><div class="info-label">Classe</div><div class="info-value">{{ classe_nom }}</div></div>{% endif %}
     </div>
 </div>
 
-<!-- Tabs -->
-<div class="tab-nav">
-    <button class="tab-btn active" onclick="showTab('profil', this)">
-        <i class="fas fa-user"></i> Profil
-    </button>
-    <button class="tab-btn" onclick="showTab('dashboard', this)">
-        <i class="fas fa-tachometer-alt"></i> Tableau
-    </button>
-    <button class="tab-btn" onclick="showTab('notes', this)">
-        <i class="fas fa-chart-bar"></i> Notes
-    </button>
-    <button class="tab-btn" onclick="showTab('payments', this)">
-        <i class="fas fa-credit-card"></i> Paiements
-    </button>
-    <button class="tab-btn" onclick="showTab('comm', this)">
-        <i class="fas fa-comments"></i> Messages
-    </button>
+<!-- Section: Profile Edit -->
+<div class="section-pane" id="sec-profile">
+    <p class="sec-header"><i class="fas fa-user-edit"></i> Modifier le profil</p>
+    <div id="profileForm"><div class="loading-sk"></div><div class="loading-sk"></div></div>
 </div>
 
-<!-- Tab: Profil -->
-<div class="tab-pane active" id="tab-profil">
-    <div class="detail-section">
-        <p class="section-title">Informations Personnelles</p>
-        <div class="info-grid">
-            <div class="info-item">
-                <div class="info-label">Nom</div>
-                <div class="info-value">{{ eleve.nom }}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Prénom</div>
-                <div class="info-value">{{ eleve.prenom }}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Genre</div>
-                <div class="info-value">{% if eleve.genre == 'M' %}Masculin{% elif eleve.genre == 'F' %}Féminin{% else %}{{ eleve.genre }}{% endif %}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Date de naissance</div>
-                <div class="info-value">{{ eleve.date_naissance|date:"d/m/Y"|default:"—" }}</div>
-            </div>
-            {% if eleve.matricule %}
-            <div class="info-item full">
-                <div class="info-label">Matricule</div>
-                <div class="info-value">{{ eleve.matricule }}</div>
-            </div>
-            {% endif %}
-        </div>
+<!-- Section: Dashboard -->
+<div class="section-pane" id="sec-dashboard">
+    <p class="sec-header"><i class="fas fa-tachometer-alt"></i> Tableau de bord</p>
+    <p class="sec-label">Présence</p>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+        <div class="info-item" style="flex:1;text-align:center"><div class="info-label">Taux</div><div class="info-value" id="tauxPresence">—</div></div>
+        <div class="info-item" style="flex:1;text-align:center"><div class="info-label">Présences</div><div class="info-value" id="nbPresents">—</div></div>
+        <div class="info-item" style="flex:1;text-align:center"><div class="info-label">Absences</div><div class="info-value" id="nbAbsents" style="color:#dc2626">—</div></div>
     </div>
-
-    {% if inscription %}
-    <div class="detail-section">
-        <p class="section-title">Scolarité</p>
-        <div class="info-grid">
-            <div class="info-item full">
-                <div class="info-label">Classe</div>
-                <div class="info-value">{{ classe_nom|default:"—" }}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Campus</div>
-                <div class="info-value">{{ campus_nom|default:"—" }}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Redoublant</div>
-                <div class="info-value">{% if inscription.redoublement %}Oui{% else %}Non{% endif %}</div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    {% if eleve.ref_administrative_naissance %}
-    <div class="detail-section">
-        <p class="section-title">Lieu de Naissance</p>
-        <div class="info-grid">
-            <div class="info-item full">
-                <div class="info-label">Référence Administrative</div>
-                <div class="info-value">{{ eleve.ref_administrative_naissance }}</div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
+    <div id="absencesList"></div>
+    <p class="sec-label" style="margin-top:16px">Conduite</p>
+    <div id="conduiteList"><div class="loading-sk"></div></div>
+    <p class="sec-label" style="margin-top:16px">Évolution</p>
+    <div id="evolutionList"><div class="loading-sk"></div></div>
 </div>
 
-<!-- Tab: Notes -->
-<div class="tab-pane" id="tab-notes">
-    <div class="detail-section" id="notes">
-        <p class="section-title">Notes & Évaluations</p>
-        <div id="notesList">
-            <div class="loading-skeleton"></div>
-            <div class="loading-skeleton"></div>
-            <div class="loading-skeleton"></div>
-        </div>
-    </div>
+<!-- Section: Notes -->
+<div class="section-pane" id="sec-notes">
+    <p class="sec-header"><i class="fas fa-chart-bar"></i> Notes & Évaluations</p>
+    <div id="notesList"><div class="loading-sk"></div><div class="loading-sk"></div><div class="loading-sk"></div></div>
 </div>
 
-<!-- Tab: Dashboard -->
-<div class="tab-pane" id="tab-dashboard">
-    <div class="detail-section">
-        <p class="section-title">Présence</p>
-        <div id="presenceStats" style="display:flex;gap:8px;margin-bottom:12px">
-            <div class="info-item" style="flex:1;text-align:center"><div class="info-label">Taux</div><div class="info-value" id="tauxPresence">—</div></div>
-            <div class="info-item" style="flex:1;text-align:center"><div class="info-label">Présences</div><div class="info-value" id="nbPresents">—</div></div>
-            <div class="info-item" style="flex:1;text-align:center"><div class="info-label">Absences</div><div class="info-value" id="nbAbsents" style="color:#dc2626">—</div></div>
-        </div>
-        <div id="absencesList"></div>
-    </div>
-    <div class="detail-section">
-        <p class="section-title">Conduite</p>
-        <div id="conduiteList"><div class="loading-skeleton"></div></div>
-    </div>
-    <div class="detail-section">
-        <p class="section-title">Évolution des Résultats</p>
-        <div id="evolutionList"><div class="loading-skeleton"></div></div>
-    </div>
+<!-- Section: Payments -->
+<div class="section-pane" id="sec-payments">
+    <p class="sec-header"><i class="fas fa-credit-card"></i> Paiements</p>
+    <p class="sec-label">Soldes</p>
+    <div id="paymentsSummary"><div class="loading-sk"></div></div>
+    <p class="sec-label" style="margin-top:16px">Historique</p>
+    <div id="paymentsList"><div class="loading-sk"></div></div>
 </div>
 
-<!-- Tab: Payments -->
-<div class="tab-pane" id="tab-payments">
-    <div class="detail-section" id="payments">
-        <p class="section-title">Soldes</p>
-        <div id="paymentsSummary"></div>
-        <p class="section-title" style="margin-top:16px">Historique des Paiements</p>
-        <div id="paymentsList">
-            <div class="loading-skeleton"></div>
-            <div class="loading-skeleton"></div>
-        </div>
-    </div>
-</div>
-
-<!-- Tab: Communication -->
-<div class="tab-pane" id="tab-comm">
-    <div class="detail-section">
-        <p class="section-title">Messages</p>
-        <div id="commThreads"><div class="loading-skeleton"></div><div class="loading-skeleton"></div></div>
-        <div id="commCompose" style="margin-top:12px">
-            <select id="commContact" class="info-item" style="width:100%;padding:10px;font-size:0.82rem;border-radius:10px;margin-bottom:8px">
-                <option value="">Choisir un destinataire...</option>
-            </select>
-            <div style="display:flex;gap:6px">
-                <input id="commInput" type="text" placeholder="Votre message..." style="flex:1;padding:10px 14px;border:1px solid #e2e8f0;border-radius:10px;font-size:0.82rem">
-                <button onclick="sendMessage()" style="background:linear-gradient(135deg,#1e3a8a,#6366f1);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:0.82rem;font-weight:600;cursor:pointer"><i class="fas fa-paper-plane"></i></button>
-            </div>
-        </div>
-    </div>
+<!-- Section: Communication -->
+<div class="section-pane" id="sec-comm">
+    <div id="commArea"><div class="loading-sk" style="height:200px"></div></div>
 </div>
 {% endblock %}
 
 {% block page_js %}
+<script>window._ELEVE_ID = {{ eleve.id_eleve }};</script>
+<script src="{% static 'MonEcole_app/js/parent_child.js' %}"></script>
 <script>
-    const ID_ELEVE = {{ eleve.id_eleve }};
-    let notesLoaded=false, paymentsLoaded=false, dashLoaded=false, commLoaded=false;
-
-    function showTab(name, btn) {
-        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-        document.getElementById('tab-' + name).classList.add('active');
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        if (name === 'notes' && !notesLoaded) loadNotes();
-        if (name === 'payments' && !paymentsLoaded) loadPayments();
-        if (name === 'dashboard' && !dashLoaded) loadDashboard();
-        if (name === 'comm' && !commLoaded) loadComm();
-    }
-
-    async function loadNotes() {
-        try {
-            const r = await fetch(`/parent/api/child-notes/?id_eleve=${ID_ELEVE}`);
-            const d = await r.json();
-            const container = document.getElementById('notesList');
-
-            if (!d.success || !d.notes || d.notes.length === 0) {
-                container.innerHTML = '<div class="empty-tab"><i class="fas fa-clipboard-list"></i>Aucune note disponible pour le moment.</div>';
-                notesLoaded = true;
-                return;
-            }
-
-            let html = '<ul class="notes-list">';
-            d.notes.forEach(n => {
-                const noteVal = n.note !== null ? parseFloat(n.note) : null;
-                let cls = 'average';
-                if (noteVal !== null) {
-                    if (noteVal >= 14) cls = 'good';
-                    else if (noteVal < 10) cls = 'poor';
-                }
-                html += `
-                    <li class="note-row">
-                        <div>
-                            <div class="note-cours">${n.cours || '—'}</div>
-                            <div class="note-type">${n.type_note || ''}</div>
-                        </div>
-                        <div class="note-value ${cls}">
-                            ${noteVal !== null ? noteVal.toFixed(1) : '—'}
-                        </div>
-                    </li>`;
-            });
-            html += '</ul>';
-            container.innerHTML = html;
-            notesLoaded = true;
-
-        } catch (e) {
-            document.getElementById('notesList').innerHTML = '<div class="empty-tab"><i class="fas fa-exclamation-circle"></i>Erreur de chargement.</div>';
-        }
-    }
-
-    async function loadPayments() {
-        try {
-            const r = await fetch(`/parent/api/child-payments/?id_eleve=${ID_ELEVE}`);
-            const d = await r.json();
-            const container = document.getElementById('paymentsList');
-
-            if (!d.success || !d.payments || d.payments.length === 0) {
-                container.innerHTML = '<div class="empty-tab"><i class="fas fa-receipt"></i>Aucun paiement enregistré.</div>';
-                paymentsLoaded = true;
-                return;
-            }
-
-            let html = '';
-            d.payments.forEach(p => {
-                const status = (p.statut || '').toLowerCase();
-                const statusCls = status === 'validé' || status === 'validated' ? 'validated' : 'pending';
-                const statusLabel = status === 'validé' || status === 'validated' ? 'Validé' : (status || 'En attente');
-                html += `
-                    <div class="payment-row">
-                        <div class="payment-info">
-                            <div class="payment-label">${p.rubrique || 'Paiement'}</div>
-                            <div class="payment-date">${p.date_paiement || '—'}</div>
-                        </div>
-                        <div style="text-align:right">
-                            <div class="payment-amount">${p.montant ? p.montant.toLocaleString() : '—'} ${p.devise || ''}</div>
-                            <span class="payment-status ${statusCls}">${statusLabel}</span>
-                        </div>
-                    </div>`;
-            });
-            container.innerHTML = html;
-            paymentsLoaded = true;
-
-        } catch (e) {
-            document.getElementById('paymentsList').innerHTML = '<div class="empty-tab"><i class="fas fa-exclamation-circle"></i>Erreur de chargement.</div>';
-        }
-    }
-
-    async function loadDashboard() {
-        try {
-            const r = await fetch(`/parent/api/dashboard/?id_eleve=${ID_ELEVE}`);
-            const d = await r.json();
-            if (!d.success) return;
-            const db = d.dashboard;
-            // Presence
-            if (db.presence) {
-                document.getElementById('tauxPresence').textContent = (db.presence.taux_presence||100)+'%';
-                document.getElementById('nbPresents').textContent = db.presence.presents||0;
-                document.getElementById('nbAbsents').textContent = db.presence.absents||0;
-                let ah='';
-                (db.presence.absences_recentes||[]).forEach(a=>{
-                    ah+=`<div class="note-row"><div><div class="note-cours">${a.date}</div><div class="note-type">${a.creneau}</div></div><div style="font-size:0.75rem;color:#dc2626">${a.motif}</div></div>`;
-                });
-                document.getElementById('absencesList').innerHTML=ah||'<div class="empty-tab">Aucune absence</div>';
-            }
-            // Conduite
-            let ch='';
-            (db.conduite||[]).forEach(c=>{
-                ch+=`<div class="note-row"><div><div class="note-cours">${c.motif}</div><div class="note-type">${c.date}</div></div><div class="note-value ${c.quote>=5?'good':c.quote>=3?'average':'poor'}">${c.quote}/10</div></div>`;
-            });
-            document.getElementById('conduiteList').innerHTML=ch||'<div class="empty-tab"><i class="fas fa-smile"></i>Aucun incident</div>';
-            // Evolution
-            let eh='';
-            (db.resultats_evolution||[]).forEach(r=>{
-                eh+=`<div class="note-row"><div><div class="note-cours">Période ${r.periode_id}</div><div class="note-type">Place: ${r.place}</div></div><div class="note-value ${r.pourcentage>=60?'good':r.pourcentage>=50?'average':'poor'}">${r.pourcentage}%</div></div>`;
-            });
-            document.getElementById('evolutionList').innerHTML=eh||'<div class="empty-tab"><i class="fas fa-chart-line"></i>Pas encore de résultats</div>';
-            dashLoaded=true;
-        } catch(e) { console.error(e); }
-    }
-
-    async function loadComm() {
-        try {
-            // Load contacts
-            const cr = await fetch(`/parent/api/messages/contacts/?id_eleve=${ID_ELEVE}`);
-            const cd = await cr.json();
-            if (cd.success) {
-                const sel=document.getElementById('commContact');
-                sel.innerHTML='<option value="">Choisir un destinataire...</option>';
-                (cd.contacts.direction||[]).forEach(c=>{sel.innerHTML+=`<option value="${c.id_personnel}">${c.nom} (Direction)</option>`;});
-                (cd.contacts.enseignants||[]).forEach(c=>{sel.innerHTML+=`<option value="${c.id_personnel}">${c.nom} (Enseignant)</option>`;});
-            }
-            // Load messages
-            const mr = await fetch(`/parent/api/messages/?id_eleve=${ID_ELEVE}`);
-            const md = await mr.json();
-            const ct=document.getElementById('commThreads');
-            if (!md.success||!md.threads||md.threads.length===0) {
-                ct.innerHTML='<div class="empty-tab"><i class="fas fa-inbox"></i>Aucun message</div>';
-            } else {
-                let h='';
-                md.threads.forEach(t=>{
-                    const unread=t.unread?`<span style="background:#dc2626;color:#fff;border-radius:50%;padding:2px 7px;font-size:0.65rem;font-weight:700">${t.unread}</span>`:'';
-                    h+=`<div class="payment-row" style="cursor:pointer" onclick="toggleThread('${t.thread_id}')">
-                        <div class="payment-info"><div class="payment-label">${t.subject||'Message'} ${unread}</div><div class="payment-date">${t.last_sender} · ${t.last_date} ${t.last_time}</div></div>
-                    </div>
-                    <div id="thread-${t.thread_id}" style="display:none;padding:0 8px 8px">`;
-                    (t.messages||[]).forEach(m=>{
-                        const align=m.is_mine?'margin-left:auto;background:#1e3a8a;color:#fff':'background:#f1f5f9';
-                        h+=`<div style="max-width:80%;padding:8px 12px;border-radius:12px;margin:4px 0;font-size:0.8rem;${align}">
-                            <div style="font-size:0.65rem;opacity:0.7">${m.sender_name} · ${m.time}</div>${m.message}</div>`;
-                    });
-                    h+='</div>';
-                });
-                ct.innerHTML=h;
-            }
-            commLoaded=true;
-        } catch(e) { console.error(e); }
-    }
-
-    function toggleThread(tid) {
-        const el=document.getElementById('thread-'+tid);
-        el.style.display=el.style.display==='none'?'block':'none';
-    }
-
-    async function sendMessage() {
-        const contact=document.getElementById('commContact').value;
-        const msg=document.getElementById('commInput').value.trim();
-        if (!msg) return;
-        try {
-            const r=await fetch('/parent/api/messages/send/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id_eleve:ID_ELEVE,message:msg,target_personnel_id:contact||null,scope:contact?'teacher':'direction'})});
-            const d=await r.json();
-            if (d.success) { document.getElementById('commInput').value=''; commLoaded=false; loadComm(); }
-        } catch(e) { console.error(e); }
-    }
+// Show info by default
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('sec-info').style.display = 'block';
+});
 </script>
 {% endblock %}

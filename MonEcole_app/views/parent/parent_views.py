@@ -127,6 +127,20 @@ def _get_children(id_parent, id_pays=None):
         else:
             child['etablissement_nom'] = ''
 
+        # Résoudre le nom du pays depuis le Hub
+        eleve_id_pays = eleve.id_pays or id_pays
+        if eleve_id_pays:
+            try:
+                with connections['countryStructure'].cursor() as cur:
+                    cur.execute("SELECT pays FROM pays WHERE id_pays=%s LIMIT 1", [eleve_id_pays])
+                    row = cur.fetchone()
+                    child['pays_nom'] = row[0] if row else ''
+                    child['id_pays'] = eleve_id_pays
+            except Exception:
+                child['pays_nom'] = ''
+        else:
+            child['pays_nom'] = ''
+
         children.append(child)
 
     return children

@@ -244,26 +244,38 @@
     {% if parent_data %}
     <div class="fab-overlay" id="fabOverlay" onclick="toggleFab()"></div>
     <div class="fab-container">
-        <div class="fab-menu" id="fabMenu">
-            <div class="fab-item" style="animation-delay: 0.05s">
+    <div class="fab-menu" id="fabMenu">
+            <div class="fab-item">
                 <span class="fab-label">Accueil</span>
                 <button class="fab-btn home" onclick="navigateTo('/parent/')"><i class="fas fa-home"></i></button>
             </div>
-            {% if request.session.child_id_etablissement %}
-            <div class="fab-item" style="animation-delay: 0.1s">
+            {% if active_section == 'child' %}
+            <div class="fab-item">
+                <span class="fab-label">Infos</span>
+                <button class="fab-btn home" onclick="showSection('info')"><i class="fas fa-id-card"></i></button>
+            </div>
+            <div class="fab-item">
+                <span class="fab-label">Profil</span>
+                <button class="fab-btn profile" onclick="showSection('profile')"><i class="fas fa-user-edit"></i></button>
+            </div>
+            <div class="fab-item">
+                <span class="fab-label">Tableau</span>
+                <button class="fab-btn" style="background:linear-gradient(135deg,#0d9488,#14b8a6)" onclick="showSection('dashboard')"><i class="fas fa-tachometer-alt"></i></button>
+            </div>
+            <div class="fab-item">
                 <span class="fab-label">Notes</span>
-                <button class="fab-btn notes" onclick="navigateTo('#notes')"><i class="fas fa-chart-bar"></i></button>
+                <button class="fab-btn notes" onclick="showSection('notes')"><i class="fas fa-chart-bar"></i></button>
             </div>
-            <div class="fab-item" style="animation-delay: 0.15s">
+            <div class="fab-item">
                 <span class="fab-label">Paiements</span>
-                <button class="fab-btn payments" onclick="navigateTo('#payments')"><i class="fas fa-credit-card"></i></button>
+                <button class="fab-btn payments" onclick="showSection('payments')"><i class="fas fa-credit-card"></i></button>
             </div>
-            <div class="fab-item" style="animation-delay: 0.2s">
+            <div class="fab-item">
                 <span class="fab-label">Messages</span>
-                <button class="fab-btn messages" onclick="navigateTo('#messages')"><i class="fas fa-comment-dots"></i></button>
+                <button class="fab-btn messages" onclick="showSection('comm')"><i class="fas fa-comment-dots"></i></button>
             </div>
             {% endif %}
-            <div class="fab-item" style="animation-delay: 0.25s">
+            <div class="fab-item">
                 <span class="fab-label">Déconnexion</span>
                 <button class="fab-btn logout" onclick="navigateTo('/parent/logout/')"><i class="fas fa-sign-out-alt"></i></button>
             </div>
