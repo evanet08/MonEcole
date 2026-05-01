@@ -4251,6 +4251,7 @@ def dashboard_add_eleve(request):
         try:
             with conn.cursor() as cur:
                 # Get classe_par_annee details (campus, cycle) — direct Hub query
+                # LEFT JOIN campus: campus may not exist yet for this establishment
                 cur.execute("""
                     SELECT eac.id, eac.classe_id, eac.groupe, eac.section_id,
                            ea.annee_id AS id_annee_id,
@@ -4259,12 +4260,12 @@ def dashboard_add_eleve(request):
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON eac.etablissement_annee_id = ea.id
                     JOIN countryStructure.classes cl ON cl.id = eac.classe_id
-                    JOIN db_monecole.campus c ON c.id_etablissement = ea.etablissement_id AND c.is_active = 1
+                    LEFT JOIN db_monecole.campus c ON c.id_etablissement = ea.etablissement_id AND c.is_active = 1
                     WHERE eac.id = %s
                 """, [classe_par_annee_id])
                 ca = cur.fetchone()
                 if not ca:
-                    return JsonResponse({'success': False, 'error': 'Classe active introuvable.'}, status=404)
+                    return JsonResponse({'success': False, 'error': 'Classe introuvable dans la configuration annuelle.'}, status=404)
 
                 # Handle parent: create new if needed
                 if not id_parent and parent_data:
@@ -4471,11 +4472,17 @@ def dashboard_eleve_template(request):
                 cell.font = data_font
                 cell.border = border
 
-    # Store class ID in hidden _Meta sheet
+    # Store class ID + tenant identifiers in hidden _Meta sheet
     if classe_par_annee_id:
         ws_meta = wb.create_sheet("_Meta")
         ws_meta.cell(row=1, column=1, value="classe_par_annee_id")
         ws_meta.cell(row=1, column=2, value=int(classe_par_annee_id))
+        ws_meta.cell(row=2, column=1, value="id_etablissement")
+        ws_meta.cell(row=2, column=2, value=int(id_etablissement))
+        id_pays_val = getattr(request, 'id_pays', None) or request.session.get('id_pays')
+        if id_pays_val:
+            ws_meta.cell(row=3, column=1, value="id_pays")
+            ws_meta.cell(row=3, column=2, value=int(id_pays_val))
         ws_meta.sheet_state = 'hidden'
 
     # Save to response
@@ -4519,12 +4526,21 @@ def dashboard_import_eleves(request):
         ws = wb.active
 
         # Try to read class ID from _Meta sheet if not provided in POST
-        if not classe_id and '_Meta' in wb.sheetnames:
+        if '_Meta' in wb.sheetnames:
             meta_ws = wb['_Meta']
             for row_m in meta_ws.iter_rows(min_row=1, values_only=True):
-                if row_m and len(row_m) >= 2 and str(row_m[0]).strip() in ('classe_par_annee_id', 'classe_par_annee_id'):
-                    classe_id = int(row_m[1])
-                    break
+                if row_m and len(row_m) >= 2:
+                    key = str(row_m[0]).strip()
+                    if key == 'classe_par_annee_id' and not classe_id:
+                        classe_id = int(row_m[1])
+                    elif key == 'id_etablissement':
+                        meta_etab = int(row_m[1])
+                        if meta_etab != id_etablissement:
+                            return JsonResponse({'success': False, 'error': f'Ce modèle a été généré pour un autre établissement (ID {meta_etab}).'}, status=400)
+                    elif key == 'id_pays' and id_pays:
+                        meta_pays = int(row_m[1])
+                        if meta_pays != int(id_pays):
+                            return JsonResponse({'success': False, 'error': f'Ce modèle a été généré pour un autre pays (ID {meta_pays}).'}, status=400)
 
         if not classe_id:
             return JsonResponse({'success': False, 'error': 'Classe non spécifiée. Sélectionnez une classe avant d\'importer.'}, status=400)
@@ -4675,21 +4691,21 @@ def dashboard_import_eleves(request):
         errors = []
         try:
             with conn.cursor() as cur:
-                # Verify class exists
+                # Verify class exists — LEFT JOIN campus (may not exist yet)
                 cur.execute("""
                     SELECT eac.id, eac.classe_id, eac.groupe, eac.section_id,
                            c.idCampus AS idCampus_id, ea.annee_id AS id_annee_id, cl.cycle_id AS cycle_id
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON eac.etablissement_annee_id = ea.id
                     JOIN countryStructure.classes cl ON cl.id = eac.classe_id
-                    JOIN db_monecole.campus c ON c.id_etablissement = ea.etablissement_id AND c.is_active = 1
+                    LEFT JOIN db_monecole.campus c ON c.id_etablissement = ea.etablissement_id AND c.is_active = 1
                     WHERE eac.id = %s
                 """,
                     [classe_id]
                 )
                 ca = cur.fetchone()
                 if not ca:
-                    return JsonResponse({'success': False, 'error': f'Classe {classe_id} introuvable.'}, status=400)
+                    return JsonResponse({'success': False, 'error': f'Classe {classe_id} introuvable dans la configuration annuelle.'}, status=400)
 
                 # trimestre/periode obsolètes — remplacés par le système de répartitions
 
@@ -5419,6 +5435,16 @@ def dashboard_eleves_list(request):
     search_query = request.GET.get('search', '').strip()
     print(f"[dashboard_eleves_list] CALLED: id_etablissement={id_etablissement}, classe_par_annee_id={classe_par_annee_id}, search={search_query}", file=sys.stderr, flush=True)
 
+    def _ensure_imageUrl_column(cur):
+        """Ensure the imageUrl column exists on eleve table. Returns True if column exists."""
+        try:
+            cur.execute("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='eleve' AND COLUMN_NAME='imageUrl'")
+            if not cur.fetchone():
+                cur.execute("ALTER TABLE eleve ADD COLUMN imageUrl VARCHAR(255) DEFAULT NULL")
+            return True
+        except Exception:
+            return False
+
     if not id_etablissement:
         return JsonResponse({'success': False, 'error': 'id_etablissement requis'}, status=400)
 
@@ -5430,11 +5456,13 @@ def dashboard_eleves_list(request):
                 with conn.cursor() as cur:
                     like_q = f'%{search_query}%'
                     id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
-                    cur.execute("""
+                    has_image_col = _ensure_imageUrl_column(cur)
+                    image_select = 'e.imageUrl' if has_image_col else "'' AS imageUrl"
+                    cur.execute(f"""
                         SELECT e.id_eleve, e.numero_serie, e.nom, e.prenom, e.genre,
                                e.date_naissance, e.telephone, e.id_parent, e.IDNational,
                                e.ref_administrative_naissance, e.ref_administrative_residence,
-                               e.imageUrl,
+                               {image_select},
                                p.nomsPere, p.telephonePere,
                                p.nomsMere, p.telephoneMere,
                                ei.id_inscription, ei.date_inscription, ei.redoublement, ei.isDelegue
@@ -5442,10 +5470,10 @@ def dashboard_eleves_list(request):
                         JOIN eleve_inscription ei ON ei.id_eleve_id = e.id_eleve
                         LEFT JOIN parents p ON p.id_parent = e.id_parent
                         WHERE ei.id_etablissement = %s AND ei.id_pays = %s AND ei.status = 1
-                          AND (e.nom LIKE %s OR e.prenom LIKE %s OR e.matricule LIKE %s)
+                          AND (e.nom LIKE %s OR e.prenom LIKE %s)
                         ORDER BY e.nom, e.prenom
                         LIMIT 50
-                    """, [id_etablissement, id_pays, like_q, like_q, like_q])
+                    """, [id_etablissement, id_pays, like_q, like_q])
                     students = cur.fetchall()
                     result = []
                     for stu in students:
@@ -5501,9 +5529,11 @@ def dashboard_eleves_list(request):
                 if not bk:
                     return JsonResponse({'success': False, 'error': 'Classe introuvable'}, status=404)
 
-                cur.execute("""
+                has_image_col = _ensure_imageUrl_column(cur)
+                image_select = 'e.imageUrl' if has_image_col else "'' AS imageUrl"
+                cur.execute(f"""
                     SELECT e.id_eleve, e.numero_serie, e.nom, e.prenom, e.genre,
-                           e.date_naissance, e.telephone, e.imageUrl, e.id_parent,
+                           e.date_naissance, e.telephone, {image_select}, e.id_parent,
                            e.ref_administrative_naissance, e.ref_administrative_residence, e.IDNational,
                            p.nomsPere, p.telephonePere, p.emailPere,
                            p.nomsMere, p.telephoneMere, p.emailMere,
