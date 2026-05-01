@@ -6554,6 +6554,7 @@ def dashboard_attribution_cours(request):
                             'cours': ca.cours.cours,
                             'code_cours': ca.cours.code_cours,
                             'maxima_exam': ca.maxima_exam,
+                            'maxima_tj': ca.maxima_tj,
                             'id_attribution': attr.get('id_attribution'),
                             'id_personnel': attr.get('id_personnel_id'),
                             'personnel_nom': pers_name,
@@ -8778,6 +8779,7 @@ def get_evaluation_cours(request):
             'nom': ca.cours.cours,
             'code': ca.cours.code_cours,
             'maxima_exam': ca.maxima_exam,
+            'maxima_tj': ca.maxima_tj,
             'maxima': ca.maxima_exam,
         } for ca in cours_annee_qs]
 
