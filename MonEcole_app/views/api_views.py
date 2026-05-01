@@ -4250,25 +4250,26 @@ def dashboard_add_eleve(request):
         conn = _get_spoke_connection()
         try:
             with conn.cursor() as cur:
-                # Get classe_par_annee details (campus, cycle) — direct Hub query
-                # LEFT JOIN campus: campus may not exist yet for this establishment
+                # Get classe_par_annee details (cycle) — Hub-only query
                 id_pays_val = int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 0)
                 cur.execute("""
                     SELECT eac.id, eac.classe_id, eac.groupe, eac.section_id,
                            ea.annee_id AS id_annee_id,
-                           ea.etablissement_id,
-                           c.idCampus AS idCampus_id,
                            cl.cycle_id AS cycle_id
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON eac.etablissement_annee_id = ea.id
                     JOIN countryStructure.classes cl ON cl.id = eac.classe_id
-                    LEFT JOIN db_monecole.campus c ON c.id_etablissement = ea.etablissement_id
-                                                  AND c.id_pays = %s AND c.is_active = 1
                     WHERE eac.id = %s
-                """, [id_pays_val, classe_par_annee_id])
+                """, [classe_par_annee_id])
                 ca = cur.fetchone()
                 if not ca:
                     return JsonResponse({'success': False, 'error': 'Classe introuvable dans la configuration annuelle.'}, status=404)
+
+                # Resolve campus separately (direct spoke query — established pattern)
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND id_pays = %s AND is_active = 1 LIMIT 1",
+                            [id_etablissement, id_pays_val])
+                campus_row = cur.fetchone()
+                campus_id = campus_row['idCampus'] if campus_row else None
 
                 # Handle parent: create new if needed
                 if not id_parent and parent_data:
@@ -4310,7 +4311,7 @@ def dashboard_add_eleve(request):
                      id_cycle_id, id_eleve_id, id_etablissement, id_pays)
                     VALUES (CURDATE(), 0, 1, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, [
-                    ca['id_annee_id'], ca['idCampus_id'], ca['classe_id'],
+                    ca['id_annee_id'], campus_id, ca['classe_id'],
                     ca['groupe'], ca['section_id'], ca['cycle_id'],
                     id_eleve, id_etablissement, id_pays_val
                 ])
@@ -4692,22 +4693,26 @@ def dashboard_import_eleves(request):
         errors = []
         try:
             with conn.cursor() as cur:
-                # Verify class exists — LEFT JOIN campus (may not exist yet)
+                # Verify class exists — Hub-only query
                 cur.execute("""
                     SELECT eac.id, eac.classe_id, eac.groupe, eac.section_id,
-                           c.idCampus AS idCampus_id, ea.annee_id AS id_annee_id, cl.cycle_id AS cycle_id
+                           ea.annee_id AS id_annee_id, cl.cycle_id AS cycle_id
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON eac.etablissement_annee_id = ea.id
                     JOIN countryStructure.classes cl ON cl.id = eac.classe_id
-                    LEFT JOIN db_monecole.campus c ON c.id_etablissement = ea.etablissement_id
-                                                  AND c.id_pays = %s AND c.is_active = 1
                     WHERE eac.id = %s
                 """,
-                    [id_pays, classe_id]
+                    [classe_id]
                 )
                 ca = cur.fetchone()
                 if not ca:
                     return JsonResponse({'success': False, 'error': f'Classe {classe_id} introuvable dans la configuration annuelle.'}, status=400)
+
+                # Resolve campus separately (direct spoke query)
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND id_pays = %s AND is_active = 1 LIMIT 1",
+                            [id_etablissement, id_pays])
+                campus_row = cur.fetchone()
+                campus_id = campus_row['idCampus'] if campus_row else None
 
                 # trimestre/periode obsolètes — remplacés par le système de répartitions
 
@@ -4819,7 +4824,7 @@ def dashboard_import_eleves(request):
                                      id_cycle_id, id_eleve_id, id_etablissement, id_pays)
                                     VALUES (CURDATE(), 0, 1, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                                 """, [
-                                    ca['id_annee_id'], ca['idCampus_id'], ca['classe_id'],
+                                    ca['id_annee_id'], campus_id, ca['classe_id'],
                                     ca['groupe'], ca['section_id'], ca['cycle_id'],
                                     existing['id_eleve'], id_etablissement, id_pays
                                 ])
@@ -4853,7 +4858,7 @@ def dashboard_import_eleves(request):
                                  id_cycle_id, id_eleve_id, id_etablissement, id_pays)
                                 VALUES (CURDATE(), 0, 1, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                             """, [
-                                ca['id_annee_id'], ca['idCampus_id'], ca['classe_id'],
+                                ca['id_annee_id'], campus_id, ca['classe_id'],
                                 ca['groupe'], ca['section_id'], ca['cycle_id'],
                                 id_eleve, id_etablissement, id_pays
                             ])
