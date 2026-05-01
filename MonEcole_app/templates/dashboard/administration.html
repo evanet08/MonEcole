@@ -249,6 +249,9 @@
 .ca-loading{text-align:center;padding:20px;color:#94a3b8;font-size:.78rem}
 /* Student Management */
 .eleve-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:.8rem}
+.pers-fk-select{padding:3px 6px;border-radius:8px;font-size:.62rem;cursor:pointer;outline:none;appearance:auto;max-width:140px;transition:all .2s}
+.pers-fk-select:hover{box-shadow:0 0 0 2px rgba(99,102,241,.15)}
+.pers-fk-select:focus{box-shadow:0 0 0 3px rgba(99,102,241,.2)}
 .eleve-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border-radius:6px;font-size:.7rem;font-weight:600;border:none;cursor:pointer;transition:all .15s}
 .eleve-btn-add{background:linear-gradient(135deg,#059669,#10b981);color:#fff}
 .eleve-btn-import{background:linear-gradient(135deg,#2563eb,#60a5fa);color:#fff}
@@ -3053,7 +3056,7 @@ const PERS_COLUMNS=[
     {key:'identiteUrl', label:'Pièce (URL)', editable:false, visible:false, group:'Identification'},
     // Qualification
     {key:'categorie_sigle', label:'Catégorie', editable:false, visible:true, group:'Qualification'},
-    {key:'type_label', label:'Type', editable:false, visible:true, group:'Qualification'},
+    {key:'type_label', label:'Fonction de l\'Agent', editable:false, visible:true, group:'Qualification'},
     {key:'diplome_label', label:'Diplôme', editable:false, visible:false, group:'Qualification'},
     {key:'specialite_label', label:'Spécialité', editable:false, visible:false, group:'Qualification'},
     {key:'vacation_label', label:'Vacation', editable:false, visible:false, group:'Qualification'},
@@ -3276,9 +3279,17 @@ function renderPersGrid(){
                 const gBg=p.genre==='M'?'#eff6ff':'#fdf2f8';
                 html+=`<td contenteditable="true" data-field="genre" data-id="${p.id_personnel}" data-original="${p.genre||''}" onblur="onPersCellBlur(this)" style="text-align:center;padding:8px 6px"><span style="display:inline-block;width:26px;height:26px;line-height:26px;border-radius:50%;background:${gBg};color:${gColor};font-weight:800;font-size:.65rem;text-align:center">${p.genre||''}</span></td>`;
             }else if(c.key==='categorie_sigle'){
+                const cats=personnelRefData.categories||[];
+                const curId=p.id_categorie_id||'';
                 const colors={'PE':'#6366f1','PA':'#0ea5e9','PAT':'#f59e0b'};
                 const col=colors[p.categorie_sigle]||'#64748b';
-                html+=`<td style="text-align:center;padding:8px 6px"><span style="font-size:.58rem;padding:3px 8px;border-radius:10px;font-weight:700;background:${col}15;color:${col}">${p.categorie_sigle||'—'}</span></td>`;
+                let opts=cats.map(cat=>`<option value="${cat.id}" ${String(cat.id)===String(curId)?'selected':''}>${cat.label} (${cat.sigle})</option>`).join('');
+                html+=`<td style="text-align:center;padding:4px 6px"><select class="pers-fk-select" data-id="${p.id_personnel}" data-field="id_categorie_id" onchange="onPersFkChange(this)" style="border:1.5px solid ${col}44;color:${col};background:${col}08;font-weight:700"><option value="">—</option>${opts}</select></td>`;
+            }else if(c.key==='type_label'){
+                const types=personnelRefData.types||[];
+                const curId=p.id_personnel_type_id||'';
+                let opts=types.map(t=>`<option value="${t.id}" ${String(t.id)===String(curId)?'selected':''}>${t.label} (${t.sigle})</option>`).join('');
+                html+=`<td style="text-align:center;padding:4px 6px"><select class="pers-fk-select" data-id="${p.id_personnel}" data-field="id_personnel_type_id" onchange="onPersFkChange(this)" style="border:1.5px solid #8b5cf644;color:#8b5cf6;background:#8b5cf608;font-weight:700"><option value="">—</option>${opts}</select></td>`;
             }else if(c.key==='matricule'){
                 html+=`<td style="padding:8px 10px"><span style="font-family:'Courier New',monospace;font-size:.65rem;color:#4f46e5;font-weight:600;background:#f0f1ff;padding:2px 6px;border-radius:4px">${p.matricule||''}</span></td>`;
             }else if(c.editable){
@@ -3386,6 +3397,34 @@ async function onPersCellBlur(td){
         showToast('Erreur connexion','error');
         td.textContent=original;
     }
+}
+
+async function onPersFkChange(sel){
+    const id=sel.dataset.id;
+    const field=sel.dataset.field;
+    const value=sel.value;
+    const td=sel.parentElement;
+    const csrfToken=document.querySelector('[name=csrfmiddlewaretoken]')?.value||'{{ csrf_token }}';
+    sel.disabled=true;
+    try{
+        const res=await fetch('/api/dashboard/update-personnel/',{
+            method:'POST',
+            headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken},
+            body:JSON.stringify({id_personnel:id,field:field,value:value||null})
+        });
+        const data=await res.json();
+        if(data.success){
+            td.style.transition='background .3s';
+            td.style.background='#f0fdf4';
+            setTimeout(()=>{td.style.background='';},800);
+            loadPersonnelList();
+        }else{
+            showToast(data.error||'Erreur','error');
+        }
+    }catch(e){
+        showToast('Erreur connexion','error');
+    }
+    sel.disabled=false;
 }
 
 async function savePersonnel(){
