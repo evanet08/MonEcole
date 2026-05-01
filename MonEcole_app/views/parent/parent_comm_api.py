@@ -182,7 +182,13 @@ def api_parent_send_message(request):
         return JsonResponse({'success': False, 'error': 'Non connecté'}, status=401)
 
     try:
-        data = json.loads(request.body)
+        # Support both JSON and FormData (for attachments)
+        content_type = request.content_type or ''
+        if 'application/json' in content_type:
+            data = json.loads(request.body)
+        else:
+            data = request.POST
+
         message_text = (data.get('message') or '').strip()
         if not message_text:
             return JsonResponse({'success': False, 'error': 'Message vide'}, status=400)
@@ -192,6 +198,25 @@ def api_parent_send_message(request):
         scope = data.get('scope', 'teacher')
         target_personnel_id = data.get('target_personnel_id')
         subject = data.get('subject', '')
+
+        # Handle file attachment
+        attachment = request.FILES.get('attachment')
+        attachment_url = ''
+        attachment_name = ''
+        attachment_type = ''
+        if attachment:
+            import os
+            from django.conf import settings
+            upload_dir = os.path.join(settings.MEDIA_ROOT, 'communication')
+            os.makedirs(upload_dir, exist_ok=True)
+            fname = f"comm_{int(time.time())}_{attachment.name}"
+            fpath = os.path.join(upload_dir, fname)
+            with open(fpath, 'wb') as f:
+                for chunk in attachment.chunks():
+                    f.write(chunk)
+            attachment_url = f"{settings.MEDIA_URL}communication/{fname}"
+            attachment_name = attachment.name
+            attachment_type = attachment.content_type or 'application/octet-stream'
 
         if not id_eleve:
             return JsonResponse({'success': False, 'error': 'id_eleve requis'}, status=400)
@@ -237,6 +262,9 @@ def api_parent_send_message(request):
             message=message_text,
             thread_id=thread_id,
             status='sent',
+            attachment_url=attachment_url or None,
+            attachment_name=attachment_name or None,
+            attachment_type=attachment_type or None,
         )
 
         return JsonResponse({

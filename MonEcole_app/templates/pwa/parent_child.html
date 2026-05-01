@@ -87,6 +87,19 @@
 .wa-empty i{font-size:4rem;opacity:.15;color:#128c7e}
 .wa-empty-text{font-weight:600;color:#64748b}
 .wa-empty-sub{font-size:.65rem;color:#94a3b8}
+.wa-sb-actions{display:flex;gap:4px}
+.wa-sb-actions button{background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:.72rem;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.wa-sb-actions button:hover{background:rgba(255,255,255,.3);transform:scale(1.1)}
+.wa-section-label{padding:6px 14px;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;gap:6px;flex-shrink:0;cursor:pointer;user-select:none;transition:background .15s}
+.wa-section-label:hover{filter:brightness(.96)}
+.wa-section-label .wa-chevron{margin-left:auto;font-size:.5rem;transition:transform .2s;opacity:.5}
+.wa-section-label .wa-chevron.open{transform:rotate(90deg)}
+.wa-section-label .wa-count{margin-left:auto;font-size:.48rem;opacity:.5;font-weight:400}
+.wa-accordion-body{overflow:hidden;transition:max-height .3s ease}
+.wa-accordion-body.collapsed{max-height:0!important;overflow:hidden}
+.wa-section-label.direction{color:#ea580c;background:#fff7ed}
+.wa-section-label.teachers{color:#8b5cf6;background:#f5f3ff}
+.wa-contact-time{font-size:.55rem;color:#94a3b8}
 @media(min-width:600px){.wa-sidebar{width:300px;border-right:1px solid #e2e8f0}.wa-sidebar.hidden{display:flex}}
 /* Info grid for read-only */
 .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -158,9 +171,9 @@
     <div id="paymentsList"><div class="loading-sk"></div></div>
 </div>
 
-<!-- Section: Communication -->
-<div class="section-pane" id="sec-comm">
-    <div id="commArea"><div class="loading-sk" style="height:200px"></div></div>
+<!-- Section: Communication (full screen) -->
+<div class="section-pane" id="sec-comm" style="padding:0">
+    <div id="commArea" style="height:calc(100vh - 56px);overflow:hidden"><div class="loading-sk" style="height:200px;margin:16px"></div></div>
 </div>
 {% endblock %}
 

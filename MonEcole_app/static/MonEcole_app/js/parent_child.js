@@ -101,7 +101,7 @@ let adminInstances = {};
 
 async function loadProfile() {
     try {
-        const r = await fetch(`/parent/api/child-profile/?id_eleve=${ID_ELEVE}`);
+        const r = await fetch(`/parent/api/profile/?id_eleve=${ID_ELEVE}`);
         const d = await r.json();
         if (!d.success) return;
         profileData = d.profile;
@@ -232,7 +232,7 @@ async function saveProfile() {
         body.ref_administrative_residence = buildRefAdminString('residence');
     }
     try {
-        const r = await fetch('/parent/api/update-profile/', {
+        const r = await fetch('/parent/api/profile/update/', {
             method: 'POST',
             headers: {'Content-Type':'application/json','X-CSRFToken': getCsrfToken()},
             body: JSON.stringify(body)
@@ -249,7 +249,7 @@ async function uploadPhoto(input) {
     fd.append('id_eleve', ID_ELEVE);
     fd.append('photo', input.files[0]);
     try {
-        const r = await fetch('/parent/api/upload-photo/', {
+        const r = await fetch('/parent/api/profile/photo/', {
             method: 'POST',
             headers: {'X-CSRFToken': getCsrfToken()},
             body: fd
@@ -290,33 +290,67 @@ async function loadComm() {
 
 function renderCommSidebar() {
     const panel = document.getElementById('commArea');
-    let h = `<div class="wa-wrap">
-        <div class="wa-sidebar" id="waParentSidebar">
-            <div class="wa-sb-head"><i class="fas fa-comments"></i> Messages</div>
-            <div class="wa-search"><input type="text" placeholder="Rechercher..." oninput="filterCommContacts(this.value)"></div>
-            <div class="wa-contacts" id="waParentContacts">`;
+    let h = `<div class="wa-wrap" style="height:100%">
+        <div class="wa-sidebar" id="waParentSidebar" style="height:100%">
+            <div class="wa-sb-head"><i class="fas fa-comments"></i> Messages
+                <div class="wa-sb-actions" style="margin-left:auto">
+                    <button onclick="refreshComm()" title="Actualiser"><i class="fas fa-sync-alt"></i></button>
+                </div>
+            </div>
+            <div class="wa-search"><input type="text" placeholder="Rechercher un contact..." oninput="filterCommContacts(this.value)"></div>
+            <div class="wa-contacts" id="waParentContacts" style="flex:1;overflow-y:auto">`;
     if (commContacts.length === 0) {
-        h += '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:.75rem">Aucun contact</div>';
+        h += '<div style="padding:30px;text-align:center;color:#94a3b8;font-size:.75rem"><i class="fas fa-user-slash" style="display:block;font-size:2rem;opacity:.2;margin-bottom:8px"></i>Aucun contact disponible</div>';
     } else {
-        commContacts.forEach(c => {
-            const tid = `p_${ID_ELEVE}_${c.id_personnel}`;
-            const tc = commThreadsCache[tid];
-            const lastMsg = tc ? (tc.messages && tc.messages.length ? tc.messages[0].message.substring(0,40) : tc.subject||'') : c.role||'';
-            const unread = tc ? tc.unread : 0;
-            h += `<div class="wa-contact" onclick="openCommChat(${c.id_personnel})" data-name="${(c.nom||'').toLowerCase()}">
-                <div class="wa-contact-avatar" style="background:${c.color}"><i class="fas fa-${c.icon}"></i></div>
-                <div class="wa-contact-info"><div class="wa-contact-name">${c.nom}</div><div class="wa-contact-sub">${lastMsg}</div></div>
-                <div class="wa-contact-meta">${unread>0?`<div class="wa-unread-badge">${unread}</div>`:''}</div>
-            </div>`;
-        });
+        // Direction section
+        const dirs = commContacts.filter(c => c.type === 'direction');
+        const teachers = commContacts.filter(c => c.type === 'teacher');
+        if (dirs.length) {
+            h += '<div class="wa-section-label direction" onclick="toggleAccordion(this)"><i class="fas fa-user-tie"></i> Direction <span class="wa-count">('+dirs.length+')</span><i class="fas fa-chevron-right wa-chevron open"></i></div>';
+            h += '<div class="wa-accordion-body">';
+            dirs.forEach(c => { h += renderContactItem(c); });
+            h += '</div>';
+        }
+        if (teachers.length) {
+            h += '<div class="wa-section-label teachers" onclick="toggleAccordion(this)"><i class="fas fa-chalkboard-teacher"></i> Enseignants <span class="wa-count">('+teachers.length+')</span><i class="fas fa-chevron-right wa-chevron open"></i></div>';
+            h += '<div class="wa-accordion-body">';
+            teachers.forEach(c => { h += renderContactItem(c); });
+            h += '</div>';
+        }
     }
     h += `</div></div>
-        <div class="wa-chat" id="waParentChat">
+        <div class="wa-chat" id="waParentChat" style="height:100%">
             <div class="wa-chat-bg"></div>
-            <div class="wa-empty"><i class="fas fa-comments"></i><div class="wa-empty-text">Sélectionnez un contact</div><div class="wa-empty-sub">Choisissez un enseignant ou la direction</div></div>
+            <div class="wa-empty"><i class="fas fa-comments"></i><div class="wa-empty-text">Sélectionnez un contact</div><div class="wa-empty-sub">Choisissez un enseignant ou la direction pour démarrer une conversation</div></div>
         </div>
     </div>`;
     panel.innerHTML = h;
+}
+
+function renderContactItem(c) {
+    const tid = `p_${ID_ELEVE}_${c.id_personnel}`;
+    const tc = commThreadsCache[tid];
+    const lastMsg = tc ? (tc.messages && tc.messages.length ? tc.messages[0].message.substring(0,35)+'…' : tc.subject||'') : c.role||'';
+    const unread = tc ? tc.unread : 0;
+    const lastTime = tc && tc.messages && tc.messages.length ? tc.messages[0].time : '';
+    return `<div class="wa-contact" onclick="openCommChat(${c.id_personnel})" data-name="${(c.nom||'').toLowerCase()}" id="contact-${c.id_personnel}">
+        <div class="wa-contact-avatar" style="background:${c.color}"><i class="fas fa-${c.icon}"></i></div>
+        <div class="wa-contact-info"><div class="wa-contact-name">${c.nom}</div><div class="wa-contact-sub">${lastMsg}</div></div>
+        <div class="wa-contact-meta">${lastTime?`<span class="wa-contact-time">${lastTime}</span>`:''}${unread>0?`<div class="wa-unread-badge">${unread}</div>`:''}</div>
+    </div>`;
+}
+
+function toggleAccordion(el) {
+    const body = el.nextElementSibling;
+    const chevron = el.querySelector('.wa-chevron');
+    if (body) body.classList.toggle('collapsed');
+    if (chevron) chevron.classList.toggle('open');
+}
+
+function refreshComm() {
+    sectionsLoaded['comm'] = false;
+    commThreadsCache = {};
+    loadComm();
 }
 
 function filterCommContacts(q) {
@@ -329,31 +363,86 @@ function filterCommContacts(q) {
 async function openCommChat(personnelId) {
     commActiveContact = commContacts.find(c => c.id_personnel === personnelId);
     if (!commActiveContact) return;
+    // Mark active in sidebar
+    document.querySelectorAll('.wa-contact').forEach(el => el.classList.remove('active'));
+    const ce = document.getElementById('contact-'+personnelId);
+    if (ce) ce.classList.add('active');
     const sidebar = document.getElementById('waParentSidebar');
     if (window.innerWidth <= 768 && sidebar) sidebar.classList.add('hidden');
     const panel = document.getElementById('waParentChat');
-    const tid = `p_${ID_ELEVE}_${personnelId}`;
     let h = `<div class="wa-chat-bg"></div>
         <div class="wa-chat-head">
-            <button class="back-btn" onclick="showCommSidebar()"><i class="fas fa-arrow-left"></i></button>
+            <button class="back-btn" style="display:flex" onclick="showCommSidebar()"><i class="fas fa-arrow-left"></i></button>
             <div class="wa-contact-avatar" style="background:${commActiveContact.color};width:36px;height:36px;font-size:.65rem"><i class="fas fa-${commActiveContact.icon}"></i></div>
-            <div style="flex:1"><div>${commActiveContact.nom}</div><div style="font-size:.55rem;opacity:.8">${commActiveContact.role||'Contact'}</div></div>
+            <div style="flex:1"><div style="font-size:.78rem">${commActiveContact.nom}</div><div style="font-size:.55rem;opacity:.8">${commActiveContact.role||'Contact'}</div></div>
+            <div style="display:flex;gap:6px">
+                <button onclick="startCall('audio')" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:.72rem" title="Appel audio"><i class="fas fa-phone"></i></button>
+                <button onclick="startCall('video')" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:.72rem" title="Appel vidéo"><i class="fas fa-video"></i></button>
+            </div>
         </div>
         <div class="wa-messages" id="waParentMessages"><div style="text-align:center;color:#94a3b8;font-size:.65rem;margin:auto"><i class="fas fa-spinner fa-spin"></i> Chargement...</div></div>
         <div class="wa-input-bar">
+            <label style="width:38px;height:38px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:#64748b;font-size:.85rem;border:1px solid #e2e8f0" title="Joindre un fichier">
+                <i class="fas fa-paperclip"></i>
+                <input type="file" id="waFileInput" onchange="attachFile(this)" style="display:none" multiple>
+            </label>
             <input type="text" id="waParentInput" placeholder="Écrivez un message..." onkeydown="if(event.key==='Enter')sendCommMsg()">
             <button onclick="sendCommMsg()"><i class="fas fa-paper-plane"></i></button>
         </div>`;
     panel.innerHTML = h;
     // Load thread messages
+    const tid = `p_${ID_ELEVE}_${personnelId}`;
     const tc = commThreadsCache[tid];
     const area = document.getElementById('waParentMessages');
     if (tc && tc.messages && tc.messages.length) {
         renderCommMessages(tc.messages);
     } else {
-        area.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:.65rem;margin:auto"><i class="fas fa-comments" style="display:block;font-size:2rem;opacity:.15;margin-bottom:4px"></i>Démarrez une conversation</div>';
+        area.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:.65rem;margin:auto"><i class="fas fa-comments" style="display:block;font-size:2rem;opacity:.15;margin-bottom:4px"></i>Démarrez la conversation</div>';
     }
     document.getElementById('waParentInput')?.focus();
+    // Mark read
+    if (tc && tc.unread > 0) {
+        fetch('/parent/api/messages/read/', {
+            method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},
+            body: JSON.stringify({thread_id: tid})
+        }).catch(()=>{});
+    }
+}
+
+function startCall(type) {
+    showToast(`Appel ${type === 'video' ? 'vidéo' : 'audio'} — Fonctionnalité bientôt disponible`, 'info');
+}
+
+async function attachFile(input) {
+    if (!input.files || !input.files.length || !commActiveContact) return;
+    const file = input.files[0];
+    if (file.size > 10 * 1024 * 1024) { showToast('Fichier trop volumineux (max 10MB)', 'error'); return; }
+    const fd = new FormData();
+    fd.append('id_eleve', ID_ELEVE);
+    fd.append('target_personnel_id', commActiveContact.id_personnel);
+    fd.append('scope', 'teacher');
+    fd.append('message', `📎 ${file.name}`);
+    fd.append('attachment', file);
+    try {
+        const r = await fetch('/parent/api/messages/send/', {
+            method: 'POST', headers: {'X-CSRFToken': getCsrfToken()}, body: fd
+        });
+        const d = await r.json();
+        if (d.success) {
+            showToast('Fichier envoyé', 'success');
+            const area = document.getElementById('waParentMessages');
+            const now = new Date();
+            const time = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+            const el = document.createElement('div');
+            el.className = 'wa-msg sent';
+            el.innerHTML = `<div><i class="fas fa-file" style="margin-right:4px"></i> ${file.name}</div><div class="wa-msg-time">${time} <i class="fas fa-check-double" style="color:#34b7f1;font-size:.5rem"></i></div>`;
+            const empt = area.querySelector('div[style*="margin:auto"]');
+            if (empt) empt.remove();
+            area.appendChild(el);
+            area.scrollTop = area.scrollHeight;
+        } else showToast(d.error||'Erreur', 'error');
+    } catch(e) { showToast('Erreur réseau', 'error'); }
+    input.value = '';
 }
 
 function renderCommMessages(msgs) {
