@@ -263,13 +263,12 @@ async function uploadPhoto(input) {
     } catch(e) { showToast('Erreur réseau', 'error'); }
 }
 
-/* ═══ COMMUNICATION (WhatsApp-style) ═══ */
+/* ═══ COMMUNICATION — Full-screen 2-panel swap ═══ */
 let commContacts = [];
 let commActiveContact = null;
 let commThreadsCache = {};
 
 async function loadComm() {
-    const container = document.getElementById('commArea');
     try {
         const cr = await fetch(`/parent/api/messages/contacts/?id_eleve=${ID_ELEVE}`);
         const cd = await cr.json();
@@ -278,221 +277,144 @@ async function loadComm() {
             (cd.contacts.direction||[]).forEach(c => commContacts.push({...c, type:'direction', icon:'user-tie', color:'#ea580c'}));
             (cd.contacts.enseignants||[]).forEach(c => commContacts.push({...c, type:'teacher', icon:'chalkboard-teacher', color:'#16a34a'}));
         }
-        // Load threads
         const mr = await fetch(`/parent/api/messages/?id_eleve=${ID_ELEVE}`);
         const md = await mr.json();
-        if (md.success) {
-            (md.threads||[]).forEach(t => { commThreadsCache[t.thread_id] = t; });
-        }
+        if (md.success) { (md.threads||[]).forEach(t => { commThreadsCache[t.thread_id] = t; }); }
     } catch(e) { console.error(e); }
-    renderCommSidebar();
+    renderContactsScreen();
 }
 
-function renderCommSidebar() {
-    const panel = document.getElementById('commArea');
-    let h = `<div class="wa-wrap" style="height:100%">
-        <div class="wa-sidebar" id="waParentSidebar" style="height:100%">
-            <div class="wa-sb-head"><i class="fas fa-comments"></i> Messages
-                <div class="wa-sb-actions" style="margin-left:auto">
-                    <button onclick="refreshComm()" title="Actualiser"><i class="fas fa-sync-alt"></i></button>
-                </div>
-            </div>
-            <div class="wa-search"><input type="text" placeholder="Rechercher un contact..." oninput="filterCommContacts(this.value)"></div>
-            <div class="wa-contacts" id="waParentContacts" style="flex:1;overflow-y:auto">`;
-    if (commContacts.length === 0) {
-        h += '<div style="padding:30px;text-align:center;color:#94a3b8;font-size:.75rem"><i class="fas fa-user-slash" style="display:block;font-size:2rem;opacity:.2;margin-bottom:8px"></i>Aucun contact disponible</div>';
-    } else {
-        // Direction section
-        const dirs = commContacts.filter(c => c.type === 'direction');
-        const teachers = commContacts.filter(c => c.type === 'teacher');
-        if (dirs.length) {
-            h += '<div class="wa-section-label direction" onclick="toggleAccordion(this)"><i class="fas fa-user-tie"></i> Direction <span class="wa-count">('+dirs.length+')</span><i class="fas fa-chevron-right wa-chevron open"></i></div>';
-            h += '<div class="wa-accordion-body">';
-            dirs.forEach(c => { h += renderContactItem(c); });
-            h += '</div>';
-        }
-        if (teachers.length) {
-            h += '<div class="wa-section-label teachers" onclick="toggleAccordion(this)"><i class="fas fa-chalkboard-teacher"></i> Enseignants <span class="wa-count">('+teachers.length+')</span><i class="fas fa-chevron-right wa-chevron open"></i></div>';
-            h += '<div class="wa-accordion-body">';
-            teachers.forEach(c => { h += renderContactItem(c); });
-            h += '</div>';
-        }
+function renderContactsScreen() {
+    const area = document.getElementById('commArea');
+    const dirs = commContacts.filter(c => c.type==='direction');
+    const teachers = commContacts.filter(c => c.type==='teacher');
+    let h = `<div id="screenContacts" style="display:flex;flex-direction:column;height:100%">
+      <div class="wa-sb-head"><i class="fas fa-comments"></i> Messages
+        <button onclick="refreshComm()" style="margin-left:auto;background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:.72rem"><i class="fas fa-sync-alt"></i></button>
+      </div>
+      <div class="wa-search"><input type="text" placeholder="Rechercher un contact..." oninput="filterC(this.value)"></div>
+      <div id="cList" style="flex:1;overflow-y:auto">`;
+    if (dirs.length) {
+        h += `<div class="wa-section-label direction"><i class="fas fa-user-tie"></i> Direction <span class="wa-count">(${dirs.length})</span></div>`;
+        dirs.forEach(c => { h += contactRow(c); });
     }
-    h += `</div></div>
-        <div class="wa-chat" id="waParentChat" style="height:100%">
-            <div class="wa-chat-bg"></div>
-            <div class="wa-empty"><i class="fas fa-comments"></i><div class="wa-empty-text">Sélectionnez un contact</div><div class="wa-empty-sub">Choisissez un enseignant ou la direction pour démarrer une conversation</div></div>
-        </div>
-    </div>`;
-    panel.innerHTML = h;
-}
-
-function renderContactItem(c) {
-    const tid = `p_${ID_ELEVE}_${c.id_personnel}`;
-    const tc = commThreadsCache[tid];
-    const lastMsg = tc ? (tc.messages && tc.messages.length ? tc.messages[0].message.substring(0,35)+'…' : tc.subject||'') : c.role||'';
-    const unread = tc ? tc.unread : 0;
-    const lastTime = tc && tc.messages && tc.messages.length ? tc.messages[0].time : '';
-    return `<div class="wa-contact" onclick="openCommChat(${c.id_personnel})" data-name="${(c.nom||'').toLowerCase()}" id="contact-${c.id_personnel}">
-        <div class="wa-contact-avatar" style="background:${c.color}"><i class="fas fa-${c.icon}"></i></div>
-        <div class="wa-contact-info"><div class="wa-contact-name">${c.nom}</div><div class="wa-contact-sub">${lastMsg}</div></div>
-        <div class="wa-contact-meta">${lastTime?`<span class="wa-contact-time">${lastTime}</span>`:''}${unread>0?`<div class="wa-unread-badge">${unread}</div>`:''}</div>
-    </div>`;
-}
-
-function toggleAccordion(el) {
-    const body = el.nextElementSibling;
-    const chevron = el.querySelector('.wa-chevron');
-    if (body) body.classList.toggle('collapsed');
-    if (chevron) chevron.classList.toggle('open');
-}
-
-function refreshComm() {
-    sectionsLoaded['comm'] = false;
-    commThreadsCache = {};
-    loadComm();
-}
-
-function filterCommContacts(q) {
-    const f = q.toLowerCase();
-    document.querySelectorAll('#waParentContacts .wa-contact').forEach(el => {
-        el.style.display = !f || (el.dataset.name||'').includes(f) ? '' : 'none';
-    });
-}
-
-async function openCommChat(personnelId) {
-    commActiveContact = commContacts.find(c => c.id_personnel === personnelId);
-    if (!commActiveContact) return;
-    // Mark active in sidebar
-    document.querySelectorAll('.wa-contact').forEach(el => el.classList.remove('active'));
-    const ce = document.getElementById('contact-'+personnelId);
-    if (ce) ce.classList.add('active');
-    const sidebar = document.getElementById('waParentSidebar');
-    if (window.innerWidth <= 768 && sidebar) sidebar.classList.add('hidden');
-    const panel = document.getElementById('waParentChat');
-    let h = `<div class="wa-chat-bg"></div>
-        <div class="wa-chat-head">
-            <button class="back-btn" style="display:flex" onclick="showCommSidebar()"><i class="fas fa-arrow-left"></i></button>
-            <div class="wa-contact-avatar" style="background:${commActiveContact.color};width:36px;height:36px;font-size:.65rem"><i class="fas fa-${commActiveContact.icon}"></i></div>
-            <div style="flex:1"><div style="font-size:.78rem">${commActiveContact.nom}</div><div style="font-size:.55rem;opacity:.8">${commActiveContact.role||'Contact'}</div></div>
-            <div style="display:flex;gap:6px">
-                <button onclick="startCall('audio')" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:.72rem" title="Appel audio"><i class="fas fa-phone"></i></button>
-                <button onclick="startCall('video')" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:.72rem" title="Appel vidéo"><i class="fas fa-video"></i></button>
-            </div>
-        </div>
-        <div class="wa-messages" id="waParentMessages"><div style="text-align:center;color:#94a3b8;font-size:.65rem;margin:auto"><i class="fas fa-spinner fa-spin"></i> Chargement...</div></div>
-        <div class="wa-input-bar">
-            <label style="width:38px;height:38px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:#64748b;font-size:.85rem;border:1px solid #e2e8f0" title="Joindre un fichier">
-                <i class="fas fa-paperclip"></i>
-                <input type="file" id="waFileInput" onchange="attachFile(this)" style="display:none" multiple>
-            </label>
-            <input type="text" id="waParentInput" placeholder="Écrivez un message..." onkeydown="if(event.key==='Enter')sendCommMsg()">
-            <button onclick="sendCommMsg()"><i class="fas fa-paper-plane"></i></button>
-        </div>`;
-    panel.innerHTML = h;
-    // Load thread messages
-    const tid = `p_${ID_ELEVE}_${personnelId}`;
-    const tc = commThreadsCache[tid];
-    const area = document.getElementById('waParentMessages');
-    if (tc && tc.messages && tc.messages.length) {
-        renderCommMessages(tc.messages);
-    } else {
-        area.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:.65rem;margin:auto"><i class="fas fa-comments" style="display:block;font-size:2rem;opacity:.15;margin-bottom:4px"></i>Démarrez la conversation</div>';
+    if (teachers.length) {
+        h += `<div class="wa-section-label teachers"><i class="fas fa-chalkboard-teacher"></i> Enseignants <span class="wa-count">(${teachers.length})</span></div>`;
+        teachers.forEach(c => { h += contactRow(c); });
     }
-    document.getElementById('waParentInput')?.focus();
-    // Mark read
-    if (tc && tc.unread > 0) {
-        fetch('/parent/api/messages/read/', {
-            method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},
-            body: JSON.stringify({thread_id: tid})
-        }).catch(()=>{});
-    }
-}
-
-function startCall(type) {
-    showToast(`Appel ${type === 'video' ? 'vidéo' : 'audio'} — Fonctionnalité bientôt disponible`, 'info');
-}
-
-async function attachFile(input) {
-    if (!input.files || !input.files.length || !commActiveContact) return;
-    const file = input.files[0];
-    if (file.size > 10 * 1024 * 1024) { showToast('Fichier trop volumineux (max 10MB)', 'error'); return; }
-    const fd = new FormData();
-    fd.append('id_eleve', ID_ELEVE);
-    fd.append('target_personnel_id', commActiveContact.id_personnel);
-    fd.append('scope', 'teacher');
-    fd.append('message', `📎 ${file.name}`);
-    fd.append('attachment', file);
-    try {
-        const r = await fetch('/parent/api/messages/send/', {
-            method: 'POST', headers: {'X-CSRFToken': getCsrfToken()}, body: fd
-        });
-        const d = await r.json();
-        if (d.success) {
-            showToast('Fichier envoyé', 'success');
-            const area = document.getElementById('waParentMessages');
-            const now = new Date();
-            const time = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
-            const el = document.createElement('div');
-            el.className = 'wa-msg sent';
-            el.innerHTML = `<div><i class="fas fa-file" style="margin-right:4px"></i> ${file.name}</div><div class="wa-msg-time">${time} <i class="fas fa-check-double" style="color:#34b7f1;font-size:.5rem"></i></div>`;
-            const empt = area.querySelector('div[style*="margin:auto"]');
-            if (empt) empt.remove();
-            area.appendChild(el);
-            area.scrollTop = area.scrollHeight;
-        } else showToast(d.error||'Erreur', 'error');
-    } catch(e) { showToast('Erreur réseau', 'error'); }
-    input.value = '';
-}
-
-function renderCommMessages(msgs) {
-    const area = document.getElementById('waParentMessages');
-    if (!area) return;
-    let h = '';
-    msgs.forEach(m => {
-        const dir = m.is_mine ? 'sent' : 'recv';
-        h += `<div class="wa-msg ${dir}">`;
-        if (!m.is_mine && m.sender_name) h += `<div class="wa-msg-sender">${m.sender_name}</div>`;
-        if (m.subject) h += `<div style="font-size:.58rem;font-weight:700;color:#075e54;margin-bottom:2px">📌 ${m.subject}</div>`;
-        h += `<div>${m.message}</div><div class="wa-msg-time">${m.time||''}</div></div>`;
-    });
+    if (!commContacts.length) h += '<div style="padding:40px;text-align:center;color:#94a3b8;font-size:.8rem"><i class="fas fa-user-slash" style="display:block;font-size:2.5rem;opacity:.15;margin-bottom:12px"></i>Aucun contact</div>';
+    h += `</div></div><div id="screenChat" style="display:none;flex-direction:column;height:100%"></div>`;
     area.innerHTML = h;
-    area.scrollTop = area.scrollHeight;
 }
 
-function showCommSidebar() {
-    const sb = document.getElementById('waParentSidebar');
-    if (sb) sb.classList.remove('hidden');
+function contactRow(c) {
+    const tid = findTid(c.id_personnel);
+    const tc = tid ? commThreadsCache[tid] : null;
+    const sub = tc && tc.messages && tc.messages.length ? tc.messages[0].message.substring(0,40) : c.role||'';
+    const unread = tc ? tc.unread : 0;
+    const time = tc && tc.messages && tc.messages.length ? tc.messages[0].time : '';
+    return `<div class="wa-contact" onclick="openChat(${c.id_personnel})" data-name="${(c.nom||'').toLowerCase()}">
+      <div class="wa-contact-avatar" style="background:${c.color}"><i class="fas fa-${c.icon}"></i></div>
+      <div class="wa-contact-info"><div class="wa-contact-name">${c.nom}</div><div class="wa-contact-sub">${sub}</div></div>
+      <div class="wa-contact-meta">${time?`<span class="wa-contact-time">${time}</span>`:''}${unread>0?`<div class="wa-unread-badge">${unread}</div>`:''}</div>
+    </div>`;
 }
 
-async function sendCommMsg() {
+function findTid(pid) {
+    for (const tid in commThreadsCache) { if (String(tid).includes(`_${pid}`) || String(tid).includes(`-${pid}-`)) return tid; }
+    return null;
+}
+
+function openChat(pid) {
+    commActiveContact = commContacts.find(c => c.id_personnel === pid);
     if (!commActiveContact) return;
-    const inp = document.getElementById('waParentInput');
-    const txt = inp.value.trim();
-    if (!txt) return;
-    inp.value = '';
-    const area = document.getElementById('waParentMessages');
-    // Optimistic UI
-    const empt = area.querySelector('div[style*="margin:auto"]');
-    if (empt) empt.remove();
-    const now = new Date();
-    const time = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
-    const el = document.createElement('div');
-    el.className = 'wa-msg sent';
-    el.innerHTML = `<div>${txt}</div><div class="wa-msg-time">${time} <span style="color:#34b7f1;font-size:.5rem"><i class="fas fa-clock"></i></span></div>`;
-    area.appendChild(el);
-    area.scrollTop = area.scrollHeight;
-    try {
-        const r = await fetch('/parent/api/messages/send/', {
-            method: 'POST',
-            headers: {'Content-Type':'application/json','X-CSRFToken': getCsrfToken()},
-            body: JSON.stringify({id_eleve: ID_ELEVE, message: txt, target_personnel_id: commActiveContact.id_personnel, scope: 'teacher'})
+    document.getElementById('screenContacts').style.display = 'none';
+    const chat = document.getElementById('screenChat');
+    chat.style.display = 'flex';
+    const ca = commActiveContact;
+    chat.innerHTML = `
+      <div class="wa-chat-head">
+        <button onclick="backToContacts()" style="background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;padding:4px;margin-right:4px"><i class="fas fa-arrow-left"></i></button>
+        <div class="wa-contact-avatar" style="background:${ca.color};width:36px;height:36px;font-size:.65rem"><i class="fas fa-${ca.icon}"></i></div>
+        <div style="flex:1"><div style="font-size:.78rem">${ca.nom}</div><div style="font-size:.55rem;opacity:.8">${ca.role||''}</div></div>
+        <button onclick="showToast('Appel vidéo — bientôt disponible','info')" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:.72rem"><i class="fas fa-video"></i></button>
+      </div>
+      <div id="msgArea" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:6px;background:#ece5dd"></div>
+      <div class="wa-input-bar">
+        <label style="width:42px;height:42px;border-radius:50%;background:#1e3a8a;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:#fff;font-size:1.1rem"><i class="fas fa-plus"></i><input type="file" onchange="attachF(this)" style="display:none"></label>
+        <input type="text" id="msgIn" placeholder="Écrivez un message..." onkeydown="if(event.key==='Enter')sendM()">
+        <button onclick="sendM()" style="width:42px;height:42px;border-radius:50%;border:none;background:#1e3a8a;color:#fff;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-paper-plane"></i></button>
+      </div>`;
+    const tid = findTid(pid);
+    const tc = tid ? commThreadsCache[tid] : null;
+    const ma = document.getElementById('msgArea');
+    if (tc && tc.messages && tc.messages.length) {
+        let mh = '';
+        tc.messages.slice().reverse().forEach(m => {
+            mh += `<div class="wa-msg ${m.is_mine?'sent':'recv'}">`;
+            if (!m.is_mine && m.sender_name) mh += `<div class="wa-msg-sender">${m.sender_name}</div>`;
+            if (m.attachment) mh += `<a href="${m.attachment.url}" target="_blank" style="color:#1d4ed8;font-size:.65rem;display:block;margin-bottom:3px"><i class="fas fa-file"></i> ${m.attachment.name||'Fichier'}</a>`;
+            mh += `<div>${m.message}</div><div class="wa-msg-time">${m.time||''}</div></div>`;
         });
+        ma.innerHTML = mh;
+        ma.scrollTop = ma.scrollHeight;
+    } else {
+        ma.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:.7rem;margin:auto"><i class="fas fa-comments" style="display:block;font-size:2.5rem;opacity:.12;margin-bottom:8px;color:#128c7e"></i>Démarrez une conversation</div>';
+    }
+    document.getElementById('msgIn')?.focus();
+    if (tc && tc.unread > 0) fetch('/parent/api/messages/read/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({thread_id:tid})}).catch(()=>{});
+}
+
+function backToContacts() {
+    document.getElementById('screenChat').style.display = 'none';
+    document.getElementById('screenContacts').style.display = 'flex';
+}
+
+function filterC(q) {
+    const f = q.toLowerCase();
+    document.querySelectorAll('#cList .wa-contact').forEach(el => { el.style.display = !f || (el.dataset.name||'').includes(f) ? '' : 'none'; });
+}
+
+function refreshComm() { sectionsLoaded['comm']=false; commThreadsCache={}; loadComm(); }
+
+async function sendM() {
+    if (!commActiveContact) return;
+    const inp = document.getElementById('msgIn');
+    const txt = inp.value.trim(); if (!txt) return; inp.value = '';
+    const area = document.getElementById('msgArea');
+    const em = area.querySelector('div[style*="margin:auto"]'); if (em) em.remove();
+    const t = new Date(), time = t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0');
+    const el = document.createElement('div'); el.className = 'wa-msg sent';
+    el.innerHTML = `<div>${txt}</div><div class="wa-msg-time">${time} <i class="fas fa-clock" style="color:#34b7f1;font-size:.5rem"></i></div>`;
+    area.appendChild(el); area.scrollTop = area.scrollHeight;
+    try {
+        const r = await fetch('/parent/api/messages/send/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({id_eleve:ID_ELEVE,message:txt,target_personnel_id:commActiveContact.id_personnel,scope:'teacher'})});
+        const d = await r.json();
+        if (d.success) el.querySelector('.wa-msg-time').innerHTML = `${time} <i class="fas fa-check-double" style="color:#34b7f1;font-size:.5rem"></i>`;
+        else showToast(d.error||'Erreur','error');
+    } catch(e) { showToast('Erreur réseau','error'); }
+}
+
+async function attachF(input) {
+    if (!input.files||!input.files.length||!commActiveContact) return;
+    const file = input.files[0];
+    if (file.size>10*1024*1024){showToast('Max 10MB','error');return;}
+    const fd = new FormData();
+    fd.append('id_eleve',ID_ELEVE); fd.append('target_personnel_id',commActiveContact.id_personnel);
+    fd.append('scope','teacher'); fd.append('message',`📎 ${file.name}`); fd.append('attachment',file);
+    try {
+        const r = await fetch('/parent/api/messages/send/',{method:'POST',headers:{'X-CSRFToken':getCsrfToken()},body:fd});
         const d = await r.json();
         if (d.success) {
-            const statusEl = el.querySelector('.wa-msg-time span');
-            if (statusEl) statusEl.innerHTML = '<i class="fas fa-check-double"></i>';
-            showToast('Message envoyé', 'success');
-        } else showToast(d.error||'Erreur', 'error');
-    } catch(e) { showToast('Erreur réseau', 'error'); }
+            const area = document.getElementById('msgArea');
+            const em = area.querySelector('div[style*="margin:auto"]'); if(em) em.remove();
+            const t=new Date(),time=t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0');
+            const el = document.createElement('div'); el.className='wa-msg sent';
+            el.innerHTML=`<div><i class="fas fa-file" style="margin-right:4px"></i> ${file.name}</div><div class="wa-msg-time">${time} <i class="fas fa-check-double" style="color:#34b7f1;font-size:.5rem"></i></div>`;
+            area.appendChild(el); area.scrollTop=area.scrollHeight;
+            showToast('Fichier envoyé','success');
+        } else showToast(d.error||'Erreur','error');
+    } catch(e) { showToast('Erreur réseau','error'); }
+    input.value='';
 }
+
