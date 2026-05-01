@@ -594,25 +594,42 @@ def api_parent_child_notes(request):
 
     # Charger les notes
     try:
+        eleve = Eleve.objects.get(id_eleve=id_eleve)
+        etab_id = eleve.id_etablissement
+        id_pays = parent_data.get('id_pays')
+
         with connections['default'].cursor() as cur:
             cur.execute("""
                 SELECT
-                    en.id_note, c.cours, en.note, en.note_repechage,
+                    en.id_note, en.id_cours_id, en.note, en.note_repechage,
                     ent.type as type_note, e.id_session_id,
                     en.date_saisie
                 FROM eleve_note en
-                JOIN cours c ON c.id_cours = en.id_cours_id
-                JOIN eleve_note_type ent ON ent.id_type_note = en.id_type_note_id
+                LEFT JOIN eleve_note_type ent ON ent.id_type_note = en.id_type_note_id
                 JOIN evaluation e ON e.id_evaluation = en.id_evaluation_id
-                WHERE en.id_eleve_id = %s
-                ORDER BY c.cours, en.date_saisie DESC
-            """, [id_eleve])
+                WHERE en.id_eleve_id = %s AND en.id_etablissement = %s
+                ORDER BY en.id_cours_id, en.date_saisie DESC
+            """, [id_eleve, etab_id])
 
             columns = [col[0] for col in cur.description]
             notes = [dict(zip(columns, row)) for row in cur.fetchall()]
 
-        # Convertir les Decimal en float
+        # Résoudre les noms de cours depuis le Hub
+        cours_ids = list(set(n['id_cours_id'] for n in notes if n.get('id_cours_id')))
+        cours_names = {}
+        if cours_ids:
+            try:
+                with connections['countryStructure'].cursor() as cur:
+                    placeholders = ','.join(['%s'] * len(cours_ids))
+                    cur.execute(f"SELECT id_cours, cours FROM cours WHERE id_cours IN ({placeholders}) AND pays_id = %s",
+                                cours_ids + [id_pays])
+                    cours_names = {row[0]: row[1] for row in cur.fetchall()}
+            except Exception:
+                pass
+
+        # Convertir
         for n in notes:
+            n['cours'] = cours_names.get(n.get('id_cours_id'), f"Cours #{n.get('id_cours_id', '?')}")
             if n.get('note') is not None:
                 n['note'] = float(n['note'])
             if n.get('note_repechage') is not None:
@@ -646,17 +663,20 @@ def api_parent_child_payments(request):
         return JsonResponse({'success': False, 'error': 'Accès refusé'}, status=403)
 
     try:
+        eleve = Eleve.objects.get(id_eleve=id_eleve)
+        etab_id = eleve.id_etablissement
+
         with connections['default'].cursor() as cur:
             cur.execute("""
                 SELECT
-                    p.id_paiement, p.montant, p.devise, p.date_paiement,
-                    p.mode_paiement, p.reference_paiement, p.statut,
-                    rv.nom as rubrique
-                FROM paiement p
-                LEFT JOIN rubrique_variable rv ON rv.id_variable = p.id_variable_id
-                WHERE p.id_eleve_id = %s
-                ORDER BY p.date_paiement DESC
-            """, [id_eleve])
+                    p.id_paiement, p.montant, p.date_paie,
+                    p.status, p.is_rejected, p.id_variable_id,
+                    v.variable as rubrique
+                FROM recouvrment_paiement p
+                LEFT JOIN recouvrment_variable v ON v.id_variable = p.id_variable_id
+                WHERE p.id_eleve_id = %s AND p.id_etablissement = %s
+                ORDER BY p.date_paie DESC
+            """, [id_eleve, etab_id])
 
             columns = [col[0] for col in cur.description]
             payments = [dict(zip(columns, row)) for row in cur.fetchall()]
@@ -664,8 +684,15 @@ def api_parent_child_payments(request):
         for p in payments:
             if p.get('montant') is not None:
                 p['montant'] = float(p['montant'])
-            if p.get('date_paiement'):
-                p['date_paiement'] = str(p['date_paiement'])
+            if p.get('date_paie'):
+                p['date_paie'] = str(p['date_paie'])
+            # Déterminer statut lisible
+            if p.get('status'):
+                p['statut'] = 'validé'
+            elif p.get('is_rejected'):
+                p['statut'] = 'rejeté'
+            else:
+                p['statut'] = 'en attente'
 
         return JsonResponse({'success': True, 'payments': payments})
 

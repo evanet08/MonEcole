@@ -70,7 +70,7 @@ def api_parent_messages(request):
 
         # Trouver la classe pour le scope 'class'
         insc = Eleve_inscription.objects.filter(
-            id_eleve=eleve, status=True
+            id_eleve=eleve, status=True, id_etablissement=eleve.id_etablissement
         ).order_by('-id_annee_id').first()
         classe_id = insc.id_classe_id if insc else None
 
@@ -85,15 +85,19 @@ def api_parent_messages(request):
                 params.append(int(id_eleve))
 
             if classe_id:
-                # Résoudre l'EAC id pour la classe
-                cur.execute("""
-                    SELECT eac.id FROM countryStructure.etablissements_annees_classes eac
-                    JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
-                    JOIN countryStructure.etablissements etab ON etab.id = ea.etablissement_id
-                    WHERE etab.id_etablissement = %s AND eac.classe_id = %s
-                    LIMIT 1
-                """, [etab_id, classe_id])
-                eac_row = cur.fetchone()
+                # Résoudre l'EAC id pour la classe (Hub)
+                try:
+                    with connections['countryStructure'].cursor() as cur_hub:
+                        cur_hub.execute("""
+                            SELECT eac.id FROM etablissements_annees_classes eac
+                            JOIN etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+                            JOIN etablissements etab ON etab.id = ea.etablissement_id
+                            WHERE etab.id_etablissement = %s AND eac.classe_id = %s
+                            LIMIT 1
+                        """, [etab_id, classe_id])
+                        eac_row = cur_hub.fetchone()
+                except Exception:
+                    eac_row = None
                 if eac_row:
                     scope_conditions.append("(c.scope = 'class' AND c.target_classe_id = %s)")
                     params.append(eac_row[0])
