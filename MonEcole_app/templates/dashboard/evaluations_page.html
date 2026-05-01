@@ -1224,7 +1224,47 @@ function viewPdf(url, title) {
     window.open(url, '_blank');
 }
 
-// ---- Création Massive (tous les cours × toutes les périodes pour la classe) ----
+// ---- Création Massive (tous les cours × toutes les périodes-leaf pour la classe) ----
+// maxima par éval = maxima_tj ÷ nb périodes dans le même semestre/trimestre (parent)
+
+function _buildPeriodGroups() {
+    const reps = window._repartitionsData || [];
+    const leafReps = reps.filter(r => r.is_leaf !== false);
+    const parentReps = reps.filter(r => r.is_leaf === false);
+
+    // Group children by parent_instance_id
+    const groups = {};  // parent_id → { parent_nom, children[] }
+    const orphans = [];
+
+    leafReps.forEach(r => {
+        const pid = r.parent_instance_id;
+        if (pid) {
+            if (!groups[pid]) groups[pid] = { parent_nom: r.parent_nom || 'Groupe', children: [] };
+            groups[pid].children.push(r);
+        } else {
+            orphans.push(r);
+        }
+    });
+
+    // If all orphans but parent containers exist, distribute evenly
+    if (Object.keys(groups).length === 0 && orphans.length > 0 && parentReps.length > 0) {
+        const sorted = parentReps.slice().sort((a, b) => (a.ordre || 0) - (b.ordre || 0));
+        const per = Math.ceil(orphans.length / sorted.length);
+        sorted.forEach((p, pi) => {
+            const g = { parent_nom: p.nom, children: [] };
+            for (let i = pi * per; i < Math.min((pi + 1) * per, orphans.length); i++) g.children.push(orphans[i]);
+            if (g.children.length) groups[p.id_instance] = g;
+        });
+        orphans.length = 0;
+    }
+
+    // Orphans without any parent → single group
+    if (orphans.length > 0) {
+        groups['_orphan'] = { parent_nom: 'Périodes', children: orphans };
+    }
+
+    return groups;
+}
 
 function openMassEvalModal() {
     const classeId = document.getElementById('eval-classe-select').value;
@@ -1233,19 +1273,22 @@ function openMassEvalModal() {
     const courses = Object.values(_evalCoursCache);
     if (!courses.length) { showToast('Aucun cours chargé pour cette classe.', 'error'); return; }
 
-    const reps = window._repartitionsData || [];
-    if (!reps.length) { showToast('Aucune période configurée.', 'error'); return; }
+    const groups = _buildPeriodGroups();
+    const groupList = Object.values(groups);
+    if (!groupList.length) { showToast('Aucune période configurée.', 'error'); return; }
+
+    // Count total leaf periods
+    const totalLeafs = groupList.reduce((s, g) => s + g.children.length, 0);
 
     document.getElementById('massModalError').classList.add('d-none');
     document.getElementById('massModalSuccess').classList.add('d-none');
 
-    // Class label from select
     const classeSelect = document.getElementById('eval-classe-select');
     const classeLabel = classeSelect.options[classeSelect.selectedIndex]?.textContent || 'Classe';
     document.getElementById('massClasseInfo').textContent = classeLabel;
     document.getElementById('massCoursCount').textContent = courses.length;
-    document.getElementById('massPeriodCount').textContent = reps.length;
-    document.getElementById('massTotalEvals').textContent = courses.length * reps.length;
+    document.getElementById('massPeriodCount').textContent = totalLeafs;
+    document.getElementById('massTotalEvals').textContent = courses.length * totalLeafs;
 
     // Populate type
     const massType = document.getElementById('massType');
@@ -1257,20 +1300,28 @@ function openMassEvalModal() {
         massType.appendChild(opt);
     });
 
-    // Render summary: 1 block per course showing periods as pills
+    // Render summary per course: group periods by parent, show max per parent-group
     const container = document.getElementById('massEvalRows');
-    const nbPeriodes = reps.length;
     let html = '';
     courses.forEach(c => {
         const maximaTj = parseFloat(c.maxima_tj);
-        const maxPerEval = (maximaTj && !isNaN(maximaTj)) ? Math.round((maximaTj / nbPeriodes) * 100) / 100 : null;
-        const maxLabel = maxPerEval !== null ? ((maxPerEval % 1 === 0) ? maxPerEval.toFixed(0) : maxPerEval.toFixed(2)) + ' pts' : '—';
+        let groupHtml = '';
+        groupList.forEach(g => {
+            const nbInGroup = g.children.length;
+            const maxPerEval = (maximaTj && !isNaN(maximaTj) && nbInGroup) ? Math.round((maximaTj / nbInGroup) * 100) / 100 : null;
+            const maxLabel = maxPerEval !== null ? ((maxPerEval % 1 === 0) ? maxPerEval.toFixed(0) : maxPerEval.toFixed(2)) : '—';
+            groupHtml += `<div style="margin-top:4px">
+                <span style="font-size:.62rem;font-weight:700;color:#475569">${g.parent_nom}</span>
+                <span style="font-size:.58rem;color:#7c3aed;font-weight:700;margin-left:4px">(max: ${maxLabel}pts)</span>
+                <div class="mass-per-pills" style="margin-top:2px">${g.children.map(r => `<span class="mass-per-pill">${r.nom || 'Période'}</span>`).join('')}</div>
+            </div>`;
+        });
         html += `<div class="mass-cours-block">
             <div class="mass-cours-header">
                 <div class="mass-cours-name"><i class="fas fa-book-open" style="color:#7c3aed;margin-right:4px;font-size:.7rem"></i>${c.cours} (${c.code_cours})</div>
-                <div class="mass-cours-max">Max/éval: ${maxLabel}</div>
+                <div class="mass-cours-max">TJ: ${maximaTj || '—'}</div>
             </div>
-            <div class="mass-per-pills">${reps.map(r => `<span class="mass-per-pill">${r.nom || 'Période'}</span>`).join('')}</div>
+            ${groupHtml}
         </div>`;
     });
     container.innerHTML = html;
@@ -1293,8 +1344,9 @@ async function saveMassEvals() {
     }
 
     const courses = Object.values(_evalCoursCache);
-    const reps = window._repartitionsData || [];
-    if (!courses.length || !reps.length) {
+    const groups = _buildPeriodGroups();
+    const groupList = Object.values(groups);
+    if (!courses.length || !groupList.length) {
         errEl.textContent = 'Aucun cours ou aucune période.';
         errEl.classList.remove('d-none');
         return;
@@ -1305,41 +1357,44 @@ async function saveMassEvals() {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Création en cours...';
 
-    const nbPeriodes = reps.length;
     const today = new Date().toISOString().split('T')[0];
     let successCount = 0;
     let errorCount = 0;
 
     for (const cours of courses) {
         const maximaTj = parseFloat(cours.maxima_tj);
-        const maxPerEval = (maximaTj && !isNaN(maximaTj)) ? Math.round((maximaTj / nbPeriodes) * 100) / 100 : '';
 
-        for (const rep of reps) {
-            const periodeId = rep.id || rep.id_instance;
-            const pNom = rep.nom || 'Période';
-            const titre = `${cours.cours} — ${pNom}`;
+        for (const group of groupList) {
+            const nbInGroup = group.children.length;
+            const maxPerEval = (maximaTj && !isNaN(maximaTj) && nbInGroup) ? Math.round((maximaTj / nbInGroup) * 100) / 100 : '';
 
-            const formData = new FormData();
-            formData.append('title', titre);
-            formData.append('id_type_eval', typeId);
-            formData.append('date_eval', today);
-            formData.append('ponderer_eval', maxPerEval);
-            formData.append('id_classe_id', classeId);
-            formData.append('id_cours_classe_id', cours.id_cours_classe);
-            formData.append('id_repartition_instance', periodeId);
-            formData.append('contenu_evaluation', '');
+            for (const period of group.children) {
+                const periodeId = period.id || period.id_instance;
+                const pNom = period.nom || 'Période';
+                const titre = `${cours.cours} — ${pNom}`;
 
-            try {
-                const res = await fetch('/api/evaluations/save/', {
-                    method: 'POST',
-                    headers: { 'X-CSRFToken': csrfToken },
-                    body: formData
-                });
-                const data = await res.json();
-                if (data.success) successCount++;
-                else errorCount++;
-            } catch(e) {
-                errorCount++;
+                const formData = new FormData();
+                formData.append('title', titre);
+                formData.append('id_type_eval', typeId);
+                formData.append('date_eval', today);
+                formData.append('ponderer_eval', maxPerEval);
+                formData.append('id_classe_id', classeId);
+                formData.append('id_cours_classe_id', cours.id_cours_classe);
+                formData.append('id_repartition_instance', periodeId);
+                formData.append('contenu_evaluation', '');
+
+                try {
+                    const res = await fetch('/api/evaluations/save/', {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': csrfToken },
+                        body: formData
+                    });
+                    const data = await res.json();
+                    if (data.success) successCount++;
+                    else errorCount++;
+                } catch(e) {
+                    errorCount++;
+                }
             }
         }
     }
