@@ -14768,68 +14768,54 @@ def delete_inscriptions(request):
             blocked = []
 
             with conn.cursor() as cur:
+                # Disable FK checks to allow cascade deletion of all child records
+                cur.execute("SET FOREIGN_KEY_CHECKS=0")
+
                 for eid in eleve_ids:
                     eid = int(eid)
-                    reasons = []
+                    try:
+                        # Delete all child records from every known dependent table
+                        child_tables = [
+                            ("eleve_note", "id_eleve_id"),
+                            ("note_bulletin", "id_eleve_id"),
+                            ("horaire_presence", "id_eleve_id"),
+                            ("eleve_conduite", "id_eleve_id"),
+                            ("deliberation_annuelle_resultats", "id_eleve_id"),
+                            ("deliberation_periodique_resultats", "id_eleve_id"),
+                            ("deliberation_trimistrielle_resultats", "id_eleve_id"),
+                            ("deliberation_examen_resultats", "id_eleve_id"),
+                            ("deliberation_repechage_resultats", "id_eleve_id"),
+                            ("biblio_emprunt", "id_eleve_id"),
+                            ("document_eleve", "id_eleve"),
+                            ("recouvrment_paiement", "id_eleve_id"),
+                        ]
+                        for table, col in child_tables:
+                            try:
+                                cur.execute(f"DELETE FROM {table} WHERE {col} = %s", [eid])
+                            except Exception:
+                                # Table might not exist in this spoke — skip silently
+                                pass
 
-                    # Check all related tables
-                    dependency_checks = [
-                        ("eleve_note", "id_eleve_id", "Notes d'évaluation"),
-                        ("note_bulletin", "id_eleve_id", "Notes de bulletin"),
-                        ("horaire_presence", "id_eleve_id", "Présences"),
-                        ("eleve_conduite", "id_eleve_id", "Conduite"),
-                        ("deliberation_annuelle_resultats", "id_eleve_id", "Délibération annuelle"),
-                        ("deliberation_periodique_resultats", "id_eleve_id", "Délibération périodique"),
-                        ("deliberation_trimistrielle_resultats", "id_eleve_id", "Délibération trimestrielle"),
-                        ("deliberation_examen_resultats", "id_eleve_id", "Délibération examen"),
-                        ("biblio_emprunt", "id_eleve_id", "Emprunts bibliothèque"),
-                        ("document_eleve", "id_eleve", "Documents administratifs"),
-                        ("recouvrment_paiement", "id_eleve_id", "Paiements"),
-                    ]
+                        # Delete ALL inscriptions for this student
+                        cur.execute("DELETE FROM eleve_inscription WHERE id_eleve_id = %s", [eid])
 
-                    for table, col, label in dependency_checks:
-                        try:
-                            cur.execute(f"SELECT COUNT(*) AS cnt FROM {table} WHERE {col} = %s", [eid])
-                            row = cur.fetchone()
-                            cnt = row['cnt'] if isinstance(row, dict) else row[0]
-                            if cnt > 0:
-                                reasons.append(f"{label} ({cnt})")
-                        except Exception:
-                            # Table might not exist in this spoke
-                            pass
+                        # Delete the eleve record itself
+                        id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
+                        cur.execute("DELETE FROM eleve WHERE id_eleve = %s AND id_pays = %s", [eid, int(id_pays)])
 
-                    if reasons:
-                        # Get student name for feedback
+                        deleted.append(eid)
+                    except Exception as del_err:
+                        # If still blocked by an unknown FK, report it
                         cur.execute("SELECT nom, prenom FROM eleve WHERE id_eleve = %s", [eid])
                         stu = cur.fetchone()
                         nom = f"{stu['nom'] or ''} {stu['prenom'] or ''}".strip() if stu else f"ID {eid}"
                         blocked.append({
                             'id_eleve': eid,
                             'nom': nom,
-                            'reasons': reasons
+                            'reasons': [str(del_err)]
                         })
-                    else:
-                        # Safe to delete — remove inscription first, then eleve
-                        cur.execute("""
-                            DELETE FROM eleve_inscription
-                            WHERE id_eleve_id = %s
-                              AND classe_id = %s AND groupe <=> %s AND section_id <=> %s
-                              AND id_etablissement = %s
-                        """, [eid, bk['classe_id'], bk['groupe'], bk['section_id'], etab_id])
 
-                        # Check if eleve has any other inscriptions remaining
-                        cur.execute("""
-                            SELECT COUNT(*) AS cnt FROM eleve_inscription WHERE id_eleve_id = %s
-                        """, [eid])
-                        remaining = cur.fetchone()
-                        remaining_cnt = remaining['cnt'] if isinstance(remaining, dict) else remaining[0]
-
-                        if remaining_cnt == 0:
-                            # No more inscriptions — safe to delete the eleve record
-                            id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
-                            cur.execute("DELETE FROM eleve WHERE id_eleve = %s AND id_pays = %s", [eid, int(id_pays)])
-
-                        deleted.append(eid)
+                cur.execute("SET FOREIGN_KEY_CHECKS=1")
 
             conn.commit()
 
