@@ -693,7 +693,9 @@
                         <select class="form-select form-select-sm" id="massType" style="font-size:.8rem;"><option value="">— Type —</option></select>
                     </div>
                 </div>
-                <div style="font-size:.72rem;font-weight:700;color:#475569;margin-bottom:8px"><i class="fas fa-list-ol me-1" style="color:#7c3aed"></i>Récapitulatif par cours (1 éval/période, max = maxima_tj ÷ nb périodes)</div>
+                <div style="font-size:.72rem;font-weight:700;color:#475569;margin-bottom:6px"><i class="fas fa-check-square me-1" style="color:#7c3aed"></i>Périodes à planifier <span style="font-size:.6rem;font-weight:500;color:#94a3b8;margin-left:4px">(décochez celles à ignorer)</span></div>
+                <div id="massPeriodCheckboxes" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:12px"></div>
+                <div style="font-size:.72rem;font-weight:700;color:#475569;margin-bottom:8px"><i class="fas fa-list-ol me-1" style="color:#7c3aed"></i>Récapitulatif par cours (1 éval/période, max = maxima_tj ÷ nb périodes cochées par groupe)</div>
                 <div id="massEvalRows" style="display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto;padding-right:4px"></div>
                 <div class="alert alert-danger d-none" id="massModalError" style="font-size:.75rem;border-radius:8px;margin-top:8px;"></div>
                 <div class="alert alert-success d-none" id="massModalSuccess" style="font-size:.75rem;border-radius:8px;margin-top:8px;"></div>
@@ -712,6 +714,11 @@
 .mass-cours-max{font-size:.68rem;font-weight:700;color:#7c3aed;background:rgba(124,58,237,.08);padding:2px 8px;border-radius:4px}
 .mass-per-pills{display:flex;flex-wrap:wrap;gap:4px}
 .mass-per-pill{padding:3px 10px;border-radius:5px;background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;font-size:.62rem;font-weight:600}
+.mass-chk-label{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:#fff;border:1px solid #e2e8f0;cursor:pointer;font-size:.7rem;font-weight:600;color:#475569;transition:all .15s;user-select:none}
+.mass-chk-label:hover{border-color:#7c3aed;background:#f5f3ff}
+.mass-chk-label input{accent-color:#7c3aed;margin:0;width:13px;height:13px;cursor:pointer}
+.mass-chk-label.checked{border-color:#7c3aed;background:linear-gradient(135deg,#f5f3ff,#ede9fe);color:#7c3aed}
+.mass-chk-parent{font-size:.6rem;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.3px;margin-right:2px}
 </style>
 
 <!-- Modal: Document PDF Viewer -->
@@ -1300,7 +1307,59 @@ function openMassEvalModal() {
         massType.appendChild(opt);
     });
 
-    // Render summary per course: group periods by parent, show max per parent-group
+    // Render period checkboxes grouped by parent
+    const chkContainer = document.getElementById('massPeriodCheckboxes');
+    let chkHtml = '<label class="mass-chk-label checked" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border-color:#7c3aed;font-weight:700"><input type="checkbox" checked onchange="massToggleAll(this)"> Tout</label>';
+    groupList.forEach(g => {
+        chkHtml += `<span class="mass-chk-parent">${g.parent_nom}:</span>`;
+        g.children.forEach(r => {
+            const pid = r.id || r.id_instance;
+            chkHtml += `<label class="mass-chk-label checked"><input type="checkbox" checked value="${pid}" data-parent="${g.parent_nom}" onchange="massUpdateSelection()"> ${r.nom || 'Période'}</label>`;
+        });
+    });
+    chkContainer.innerHTML = chkHtml;
+
+    // Render course summary
+    _massRenderCoursSummary(courses, groupList);
+
+    document.getElementById('btnSaveMassEvals').disabled = false;
+    new bootstrap.Modal(document.getElementById('massEvalModal')).show();
+}
+
+function massToggleAll(masterCb) {
+    const cbs = document.querySelectorAll('#massPeriodCheckboxes input[type=checkbox][value]');
+    cbs.forEach(cb => { cb.checked = masterCb.checked; cb.parentElement.classList.toggle('checked', masterCb.checked); });
+    masterCb.parentElement.classList.toggle('checked', masterCb.checked);
+    massUpdateSelection();
+}
+
+function massUpdateSelection() {
+    const courses = Object.values(_evalCoursCache);
+    const checked = document.querySelectorAll('#massPeriodCheckboxes input[type=checkbox][value]:checked');
+    const checkedCount = checked.length;
+    document.getElementById('massPeriodCount').textContent = checkedCount;
+    document.getElementById('massTotalEvals').textContent = courses.length * checkedCount;
+
+    // Update master checkbox
+    const allCbs = document.querySelectorAll('#massPeriodCheckboxes input[type=checkbox][value]');
+    const master = document.querySelector('#massPeriodCheckboxes input[type=checkbox]:not([value])');
+    if (master) { master.checked = checkedCount === allCbs.length; master.parentElement.classList.toggle('checked', master.checked); }
+
+    // Rebuild course summary with checked periods only
+    const groups = _buildPeriodGroups();
+    const groupList = Object.values(groups);
+    const checkedIds = new Set(Array.from(checked).map(cb => cb.value));
+
+    // Filter groups to only checked periods
+    const filteredGroups = groupList.map(g => ({
+        parent_nom: g.parent_nom,
+        children: g.children.filter(r => checkedIds.has(String(r.id || r.id_instance)))
+    })).filter(g => g.children.length > 0);
+
+    _massRenderCoursSummary(courses, filteredGroups);
+}
+
+function _massRenderCoursSummary(courses, groupList) {
     const container = document.getElementById('massEvalRows');
     let html = '';
     courses.forEach(c => {
@@ -1324,10 +1383,8 @@ function openMassEvalModal() {
             ${groupHtml}
         </div>`;
     });
+    if (!groupList.length) html = '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:.78rem"><i class="fas fa-info-circle me-1"></i>Aucune période sélectionnée.</div>';
     container.innerHTML = html;
-
-    document.getElementById('btnSaveMassEvals').disabled = false;
-    new bootstrap.Modal(document.getElementById('massEvalModal')).show();
 }
 
 async function saveMassEvals() {
@@ -1346,11 +1403,22 @@ async function saveMassEvals() {
     const courses = Object.values(_evalCoursCache);
     const groups = _buildPeriodGroups();
     const groupList = Object.values(groups);
-    if (!courses.length || !groupList.length) {
-        errEl.textContent = 'Aucun cours ou aucune période.';
+
+    // Get only checked period IDs
+    const checkedCbs = document.querySelectorAll('#massPeriodCheckboxes input[type=checkbox][value]:checked');
+    const checkedIds = new Set(Array.from(checkedCbs).map(cb => cb.value));
+
+    if (!courses.length || !checkedIds.size) {
+        errEl.textContent = 'Aucun cours ou aucune période sélectionnée.';
         errEl.classList.remove('d-none');
         return;
     }
+
+    // Filter groups to only checked periods
+    const filteredGroups = groupList.map(g => ({
+        parent_nom: g.parent_nom,
+        children: g.children.filter(r => checkedIds.has(String(r.id || r.id_instance)))
+    })).filter(g => g.children.length > 0);
 
     errEl.classList.add('d-none');
     successEl.classList.add('d-none');
@@ -1364,7 +1432,7 @@ async function saveMassEvals() {
     for (const cours of courses) {
         const maximaTj = parseFloat(cours.maxima_tj);
 
-        for (const group of groupList) {
+        for (const group of filteredGroups) {
             const nbInGroup = group.children.length;
             const maxPerEval = (maximaTj && !isNaN(maximaTj) && nbInGroup) ? Math.round((maximaTj / nbInGroup) * 100) / 100 : '';
 
