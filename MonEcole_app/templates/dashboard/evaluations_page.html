@@ -669,26 +669,12 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="row g-3">
-                    <div class="col-md-6">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-5">
                         <label class="form-label" style="font-size:.75rem;font-weight:600"><i class="fas fa-book-open" style="color:#0d9488;margin-right:4px"></i>Cours</label>
                         <div id="planCoursInfo" style="font-size:.82rem;font-weight:700;color:#1e293b;padding:6px 12px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">—</div>
                         <input type="hidden" id="planCoursId">
                         <input type="hidden" id="planMaximaTj">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" style="font-size:.75rem;font-weight:600"><i class="fas fa-calendar-week" style="color:#d97706;margin-right:4px"></i>Période *</label>
-                        <select class="form-select form-select-sm" id="planPeriode" onchange="onPlanPeriodeChange()" style="font-size:.8rem;">
-                            <option value="">— Sélectionner —</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" style="font-size:.75rem;font-weight:600"><i class="fas fa-layer-group" style="color:#7c3aed;margin-right:4px"></i>Nombre d'évaluations</label>
-                        <div style="display:flex;gap:6px;margin-top:4px">
-                            <button type="button" class="btn btn-sm plan-count-btn active" data-count="1" onclick="setPlanCount(1)">1</button>
-                            <button type="button" class="btn btn-sm plan-count-btn" data-count="2" onclick="setPlanCount(2)">2</button>
-                            <button type="button" class="btn btn-sm plan-count-btn" data-count="3" onclick="setPlanCount(3)">3</button>
-                        </div>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label" style="font-size:.75rem;font-weight:600"><i class="fas fa-tags" style="color:#6366f1;margin-right:4px"></i>Type</label>
@@ -696,13 +682,14 @@
                             <option value="">— Type —</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label" style="font-size:.75rem;font-weight:600"><i class="fas fa-calculator" style="color:#ea580c;margin-right:4px"></i>Maximum par éval</label>
+                    <div class="col-md-3">
+                        <label class="form-label" style="font-size:.75rem;font-weight:600"><i class="fas fa-calculator" style="color:#ea580c;margin-right:4px"></i>Max / éval</label>
                         <div id="planMaxInfo" style="font-size:1.1rem;font-weight:800;color:#ea580c;padding:4px 12px;background:#fff7ed;border-radius:8px;border:1px solid #fed7aa;text-align:center">—</div>
                     </div>
                 </div>
-                <!-- Dynamic eval rows -->
-                <div id="planEvalRows" style="margin-top:16px"></div>
+                <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#7c3aed;margin-bottom:8px;display:flex;align-items:center;gap:6px"><i class="fas fa-calendar-alt" style="font-size:.6rem"></i> 1 évaluation par période</div>
+                <!-- Auto-generated rows: 1 per period -->
+                <div id="planEvalRows"></div>
                 <div class="alert alert-danger d-none" id="planModalError" style="font-size:.75rem;border-radius:8px;margin-top:8px;"></div>
             </div>
             <div class="modal-footer" style="padding:.6rem 1rem;">
@@ -713,12 +700,9 @@
     </div>
 </div>
 <style>
-.plan-count-btn{width:44px;height:38px;border-radius:10px!important;font-weight:800;font-size:.9rem;border:2px solid #e2e8f0!important;color:#64748b;background:#f8fafc;transition:all .2s}
-.plan-count-btn:hover{border-color:#a78bfa!important;color:#7c3aed}
-.plan-count-btn.active{background:linear-gradient(135deg,#7c3aed,#a78bfa)!important;color:#fff!important;border-color:#7c3aed!important;box-shadow:0 4px 12px rgba(124,58,237,.3)}
 .plan-eval-row{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.plan-eval-row .per-num{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.72rem;flex-shrink:0}
-.plan-eval-row input{flex:1;min-width:120px;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.78rem;outline:none}
+.plan-eval-row .per-badge{padding:3px 10px;border-radius:16px;background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;font-size:.62rem;font-weight:700;white-space:nowrap;flex-shrink:0}
+.plan-eval-row input{flex:1;min-width:100px;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.78rem;outline:none}
 .plan-eval-row input:focus{border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,.1)}
 </style>
 
@@ -1231,8 +1215,7 @@ function viewPdf(url, title) {
     window.open(url, '_blank');
 }
 
-// ---- Planification ----
-let _planCount = 1;
+// ---- Planification (1 éval par période, max = maxima_tj / nb_périodes) ----
 
 function openPlanModal() {
     const coursId = document.getElementById('eval-cours-select').value;
@@ -1245,17 +1228,6 @@ function openPlanModal() {
     document.getElementById('planCoursInfo').textContent = cours.cours + ' (' + cours.code_cours + ')';
     document.getElementById('planModalError').classList.add('d-none');
 
-    // Populate période
-    const planPeriode = document.getElementById('planPeriode');
-    planPeriode.innerHTML = '<option value="">— Sélectionner —</option>';
-    const reps = window._repartitionsData || [];
-    reps.forEach(r => {
-        const opt = document.createElement('option');
-        opt.value = r.id || r.id_instance;
-        opt.textContent = r.nom + (r.debut ? ` (${r.debut} → ${r.fin})` : '');
-        planPeriode.appendChild(opt);
-    });
-
     // Populate type
     const planType = document.getElementById('planType');
     planType.innerHTML = '<option value="">— Type —</option>';
@@ -1266,102 +1238,93 @@ function openPlanModal() {
         planType.appendChild(opt);
     });
 
-    // Reset
-    _planCount = 1;
-    document.querySelectorAll('.plan-count-btn').forEach(b => b.classList.toggle('active', b.dataset.count === '1'));
-    document.getElementById('planMaxInfo').textContent = '—';
-    document.getElementById('planEvalRows').innerHTML = '';
-    renderPlanRows();
-
-    new bootstrap.Modal(document.getElementById('planModal')).show();
-}
-
-function setPlanCount(n) {
-    _planCount = n;
-    document.querySelectorAll('.plan-count-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.count) === n));
-    computePlanMax();
-    renderPlanRows();
-}
-
-function onPlanPeriodeChange() {
-    computePlanMax();
-}
-
-function computePlanMax() {
-    const maximaTj = parseFloat(document.getElementById('planMaximaTj').value);
-    const display = document.getElementById('planMaxInfo');
-    if (!maximaTj || isNaN(maximaTj)) { display.textContent = '—'; return; }
-
-    // Nombre de périodes = count des repartitions
+    // Compute max and render rows (1 per period)
     const reps = window._repartitionsData || [];
     const nbPeriodes = reps.length || 1;
-    // maxima par éval = maxima_tj / nb_periodes / nb_evals
-    const maxPerEval = Math.round((maximaTj / nbPeriodes / _planCount) * 100) / 100;
-    // Afficher comme entier si possible
-    display.textContent = (maxPerEval % 1 === 0) ? maxPerEval.toFixed(0) : maxPerEval.toFixed(2);
-}
+    const maximaTj = parseFloat(cours.maxima_tj);
+    const maxPerEval = (maximaTj && !isNaN(maximaTj)) ? Math.round((maximaTj / nbPeriodes) * 100) / 100 : null;
 
-function renderPlanRows() {
+    // Display max
+    const maxDisplay = document.getElementById('planMaxInfo');
+    if (maxPerEval !== null) {
+        maxDisplay.textContent = (maxPerEval % 1 === 0) ? maxPerEval.toFixed(0) : maxPerEval.toFixed(2);
+    } else {
+        maxDisplay.textContent = '—';
+    }
+
+    // Render 1 row per period
     const container = document.getElementById('planEvalRows');
     const today = new Date().toISOString().split('T')[0];
     const todayDisplay = _toDisplayDate(today);
     let html = '';
-    for (let i = 1; i <= _planCount; i++) {
-        html += `<div class="plan-eval-row">
-            <div class="per-num">${i}</div>
+    reps.forEach((r, i) => {
+        const pId = r.id || r.id_instance;
+        const pNom = r.nom || ('Période ' + (i + 1));
+        html += `<div class="plan-eval-row" data-period-id="${pId}">
+            <div class="per-badge">${pNom}</div>
             <div style="flex:1;min-width:0">
                 <label style="font-size:.6rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.3px">Titre</label>
-                <input type="text" id="planTitle${i}" placeholder="Évaluation ${i}" value="Évaluation ${i}">
+                <input type="text" id="planTitle${i}" placeholder="Évaluation — ${pNom}" value="Évaluation — ${pNom}">
             </div>
             <div style="width:120px;flex-shrink:0">
                 <label style="font-size:.6rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.3px">Date</label>
                 <input type="text" id="planDate${i}" placeholder="jj/mm/aaaa" maxlength="10" value="${todayDisplay}">
             </div>
         </div>`;
+    });
+    if (!reps.length) {
+        html = '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:.78rem"><i class="fas fa-info-circle me-1"></i>Aucune période configurée.</div>';
     }
     container.innerHTML = html;
-    // Setup date formatting
-    for (let i = 1; i <= _planCount; i++) {
-        _setupDateInput(document.getElementById('planDate' + i));
-    }
+
+    // Setup date inputs
+    reps.forEach((r, i) => {
+        const el = document.getElementById('planDate' + i);
+        if (el) _setupDateInput(el);
+    });
+
+    new bootstrap.Modal(document.getElementById('planModal')).show();
 }
 
 async function savePlanEvals() {
     const coursId = document.getElementById('planCoursId').value;
     const classeId = document.getElementById('eval-classe-select').value;
-    const periodeId = document.getElementById('planPeriode').value;
     const typeId = document.getElementById('planType').value;
     const errEl = document.getElementById('planModalError');
 
-    if (!periodeId) {
-        errEl.textContent = 'La période est requise.';
-        errEl.classList.remove('d-none');
-        return;
-    }
     if (!coursId || !classeId) {
         errEl.textContent = 'Classe et cours requis.';
         errEl.classList.remove('d-none');
         return;
     }
 
-    // Calculate max per eval
-    const maximaTj = parseFloat(document.getElementById('planMaximaTj').value);
     const reps = window._repartitionsData || [];
-    const nbPeriodes = reps.length || 1;
-    const maxPerEval = maximaTj ? Math.round((maximaTj / nbPeriodes / _planCount) * 100) / 100 : '';
+    if (!reps.length) {
+        errEl.textContent = 'Aucune période configurée.';
+        errEl.classList.remove('d-none');
+        return;
+    }
+
+    // max per eval = maxima_tj / nb_periodes
+    const maximaTj = parseFloat(document.getElementById('planMaximaTj').value);
+    const nbPeriodes = reps.length;
+    const maxPerEval = (maximaTj && !isNaN(maximaTj)) ? Math.round((maximaTj / nbPeriodes) * 100) / 100 : '';
 
     errEl.classList.add('d-none');
     let successCount = 0;
 
-    for (let i = 1; i <= _planCount; i++) {
-        const titre = document.getElementById('planTitle' + i).value.trim() || ('Évaluation ' + i);
-        const dateVal = _toIsoDate(document.getElementById('planDate' + i).value);
+    for (let i = 0; i < reps.length; i++) {
+        const row = document.querySelector(`.plan-eval-row[data-period-id="${reps[i].id || reps[i].id_instance}"]`);
+        if (!row) continue;
+        const periodeId = reps[i].id || reps[i].id_instance;
+        const titre = document.getElementById('planTitle' + i)?.value.trim() || ('Évaluation — ' + (reps[i].nom || ''));
+        const dateVal = _toIsoDate(document.getElementById('planDate' + i)?.value || '');
 
         const formData = new FormData();
         formData.append('title', titre);
         formData.append('id_type_eval', typeId);
         formData.append('date_eval', dateVal || new Date().toISOString().split('T')[0]);
-        formData.append('ponderer_eval', maxPerEval || '');
+        formData.append('ponderer_eval', maxPerEval);
         formData.append('id_classe_id', classeId);
         formData.append('id_cours_classe_id', coursId);
         formData.append('id_repartition_instance', periodeId);
@@ -1376,11 +1339,11 @@ async function savePlanEvals() {
             const data = await res.json();
             if (data.success) successCount++;
             else {
-                errEl.textContent = data.error || ('Erreur pour évaluation ' + i);
+                errEl.textContent = data.error || ('Erreur pour période ' + (reps[i].nom || i));
                 errEl.classList.remove('d-none');
             }
         } catch(e) {
-            errEl.textContent = 'Erreur de connexion pour évaluation ' + i;
+            errEl.textContent = 'Erreur de connexion.';
             errEl.classList.remove('d-none');
         }
     }
@@ -1391,6 +1354,8 @@ async function savePlanEvals() {
         loadEvaluations();
     }
 }
+
+// ---- Composition ----
 
 async function onCompClasseChange() {
     const classeId = document.getElementById('comp-classe-select').value;
