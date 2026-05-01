@@ -4252,17 +4252,20 @@ def dashboard_add_eleve(request):
             with conn.cursor() as cur:
                 # Get classe_par_annee details (campus, cycle) — direct Hub query
                 # LEFT JOIN campus: campus may not exist yet for this establishment
+                id_pays_val = int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 0)
                 cur.execute("""
                     SELECT eac.id, eac.classe_id, eac.groupe, eac.section_id,
                            ea.annee_id AS id_annee_id,
+                           ea.etablissement_id,
                            c.idCampus AS idCampus_id,
                            cl.cycle_id AS cycle_id
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON eac.etablissement_annee_id = ea.id
                     JOIN countryStructure.classes cl ON cl.id = eac.classe_id
-                    LEFT JOIN db_monecole.campus c ON c.id_etablissement = ea.etablissement_id AND c.is_active = 1
+                    LEFT JOIN db_monecole.campus c ON c.id_etablissement = ea.etablissement_id
+                                                  AND c.id_pays = %s AND c.is_active = 1
                     WHERE eac.id = %s
-                """, [classe_par_annee_id])
+                """, [id_pays_val, classe_par_annee_id])
                 ca = cur.fetchone()
                 if not ca:
                     return JsonResponse({'success': False, 'error': 'Classe introuvable dans la configuration annuelle.'}, status=404)
@@ -4280,7 +4283,7 @@ def dashboard_add_eleve(request):
                         parent_data.get('nomsMere') or None,
                         parent_data.get('telephoneMere') or None,
                         parent_data.get('emailMere') or None,
-                        int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 0),
+                        id_pays_val,
                     ])
                     id_parent = cur.lastrowid
 
@@ -4294,8 +4297,7 @@ def dashboard_add_eleve(request):
                     numero_serie or None, full_nom, prenom, genre, date_naissance, id_etablissement,
                     telephone or None, id_parent or None,
                     ref_administrative_naissance or None, ref_administrative_residence or None,
-                    int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 0),
-                    id_national or None
+                    id_pays_val, id_national or None
                 ])
                 id_eleve = cur.lastrowid
 
@@ -4310,8 +4312,7 @@ def dashboard_add_eleve(request):
                 """, [
                     ca['id_annee_id'], ca['idCampus_id'], ca['classe_id'],
                     ca['groupe'], ca['section_id'], ca['cycle_id'],
-                    id_eleve, id_etablissement,
-                    int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 0)
+                    id_eleve, id_etablissement, id_pays_val
                 ])
                 cur.execute("SET FOREIGN_KEY_CHECKS=1")
 
@@ -4698,10 +4699,11 @@ def dashboard_import_eleves(request):
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON eac.etablissement_annee_id = ea.id
                     JOIN countryStructure.classes cl ON cl.id = eac.classe_id
-                    LEFT JOIN db_monecole.campus c ON c.id_etablissement = ea.etablissement_id AND c.is_active = 1
+                    LEFT JOIN db_monecole.campus c ON c.id_etablissement = ea.etablissement_id
+                                                  AND c.id_pays = %s AND c.is_active = 1
                     WHERE eac.id = %s
                 """,
-                    [classe_id]
+                    [id_pays, classe_id]
                 )
                 ca = cur.fetchone()
                 if not ca:
