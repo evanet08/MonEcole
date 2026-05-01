@@ -88,14 +88,16 @@ def _get_children(id_parent, id_pays=None):
 
             # Résoudre le nom de la classe depuis le Hub (countryStructure)
             classe_id = inscription.id_classe_id  # raw FK value (classe_id column)
+            groupe = inscription.groupe or ''
             if classe_id:
                 try:
                     with connections['countryStructure'].cursor() as cur:
                         cur.execute("SELECT nom FROM classes WHERE id_classe=%s LIMIT 1", [classe_id])
                         row = cur.fetchone()
-                        child['classe'] = row[0] if row else f'Classe {classe_id}'
+                        base_name = row[0] if row else f'Classe {classe_id}'
+                        child['classe'] = f'{base_name} {groupe}'.strip() if base_name else ''
                 except Exception:
-                    child['classe'] = f'Classe {classe_id}'
+                    child['classe'] = f'Classe {classe_id} {groupe}'.strip()
 
             # Résoudre le campus depuis le spoke
             campus_id = inscription.idCampus_id  # raw FK value
@@ -517,14 +519,16 @@ def parent_child_view(request, id_eleve):
     if inscription:
         # Classe → Hub
         classe_id = inscription.id_classe_id
+        groupe = inscription.groupe or ''
         if classe_id:
             try:
                 with connections['countryStructure'].cursor() as cur:
                     cur.execute("SELECT nom FROM classes WHERE id_classe=%s LIMIT 1", [classe_id])
                     row = cur.fetchone()
-                    classe_nom = row[0] if row else f'Classe {classe_id}'
+                    base_name = row[0] if row else f'Classe {classe_id}'
+                    classe_nom = f'{base_name} {groupe}'.strip()
             except Exception:
-                classe_nom = f'Classe {classe_id}'
+                classe_nom = f'Classe {classe_id} {groupe}'.strip()
 
         # Campus → Spoke
         campus_id = inscription.idCampus_id
