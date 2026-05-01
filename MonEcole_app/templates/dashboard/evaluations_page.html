@@ -412,6 +412,10 @@
                     </div>
                 </div>
             </div>
+            <button class="eval-add-btn" onclick="openMassEvalModal()" id="btnMassEval" disabled style="--btn-gradient:linear-gradient(135deg,#7c3aed,#a78bfa)">
+                <i class="fas fa-layer-group"></i>
+                <span>Création massive</span>
+            </button>
             <button class="eval-add-btn" onclick="openEvalModal()" id="btnAddEval" disabled>
                 <i class="fas fa-plus"></i>
                 <span>Nouvelle Évaluation</span>
@@ -656,6 +660,51 @@
     </div>
 </div>
 
+<!-- Modal: Création Massive d'Évaluations -->
+<div class="modal fade" id="massEvalModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);border-radius:16px 16px 0 0;padding:.8rem 1.2rem;">
+                <h6 class="modal-title text-white mb-0"><i class="fas fa-layer-group me-2"></i>Création massive — 1 évaluation par période</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding:1rem 1.2rem;">
+                <input type="hidden" id="massCoursId">
+                <input type="hidden" id="massMaximaTj">
+                <div style="display:flex;gap:12px;align-items:center;padding:10px 14px;background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:10px;margin-bottom:14px;">
+                    <div style="flex:1">
+                        <div style="font-size:.68rem;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px">Cours</div>
+                        <div id="massCoursInfo" style="font-size:.85rem;font-weight:700;color:#1e1b4b">—</div>
+                    </div>
+                    <div style="text-align:center;padding:4px 16px;background:rgba(124,58,237,.1);border-radius:8px">
+                        <div style="font-size:.58rem;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px">Max/éval</div>
+                        <div id="massMaxInfo" style="font-size:1.1rem;font-weight:900;color:#7c3aed">—</div>
+                    </div>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-12">
+                        <label class="form-label" style="font-size:.75rem;font-weight:600">Type d'évaluation</label>
+                        <select class="form-select form-select-sm" id="massType" style="font-size:.8rem;"><option value="">— Type —</option></select>
+                    </div>
+                </div>
+                <div style="font-size:.72rem;font-weight:700;color:#475569;margin-bottom:8px"><i class="fas fa-list-ol me-1" style="color:#7c3aed"></i>Évaluations à créer (1 par période)</div>
+                <div id="massEvalRows" style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto;padding-right:4px"></div>
+                <div class="alert alert-danger d-none" id="massModalError" style="font-size:.75rem;border-radius:8px;margin-top:8px;"></div>
+            </div>
+            <div class="modal-footer" style="padding:.6rem 1rem;">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-sm text-white" style="background:linear-gradient(135deg,#7c3aed,#a78bfa)" onclick="saveMassEvals()"><i class="fas fa-bolt me-1"></i>Créer toutes</button>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+.mass-eval-row{display:flex;gap:8px;align-items:flex-end;padding:8px 10px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0}
+.mass-eval-row .per-badge{min-width:90px;padding:4px 10px;border-radius:6px;background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;font-size:.68rem;font-weight:700;text-align:center;align-self:center}
+.mass-eval-row input{border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:.78rem;width:100%;background:#fff}
+.mass-eval-row input:focus{border-color:#7c3aed;outline:none;box-shadow:0 0 0 2px rgba(124,58,237,.12)}
+</style>
+
 <!-- Modal: Document PDF Viewer -->
 <div class="modal fade" id="pdfViewerModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-xl">
@@ -833,6 +882,7 @@ async function deleteEvalType(id) {
 
 // ---- Evaluation CRUD ----
 let _currentEvals = [];
+let _evalCoursCache = {};  // {id_cours_classe: {nom, code, maxima_tj, ...}}
 
 async function onEvalClasseChange() {
     const classeId = document.getElementById('eval-classe-select').value;
@@ -851,7 +901,9 @@ async function onEvalClasseChange() {
         });
         const data = await res.json();
         if (data.success) {
+            _evalCoursCache = {};
             (data.courses || []).forEach(c => {
+                _evalCoursCache[c.id_cours_classe] = c;
                 const opt = document.createElement('option');
                 opt.value = c.id_cours_classe;
                 opt.textContent = c.cours + ' (' + c.code_cours + ')';
@@ -869,6 +921,7 @@ async function loadEvaluations() {
     const coursId = document.getElementById('eval-cours-select').value;
     const container = document.getElementById('evalGridContainer');
     document.getElementById('btnAddEval').disabled = !coursId;
+    document.getElementById('btnMassEval').disabled = !coursId;
 
     if (!classeId) {
         container.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:.78rem"><i class="fas fa-info-circle me-1"></i>Sélectionnez une classe.</div>';
@@ -1159,6 +1212,142 @@ async function deleteEvaluation(id) {
 function viewPdf(url, title) {
     // Open PDF in new tab to avoid X-Frame-Options issues
     window.open(url, '_blank');
+}
+
+// ---- Création Massive (1 éval par période, max = maxima_tj / nb_périodes) ----
+
+function openMassEvalModal() {
+    const coursId = document.getElementById('eval-cours-select').value;
+    if (!coursId) { showToast('Sélectionnez un cours.', 'error'); return; }
+    const cours = _evalCoursCache[coursId];
+    if (!cours) { showToast('Cours introuvable dans le cache.', 'error'); return; }
+
+    document.getElementById('massCoursId').value = coursId;
+    document.getElementById('massMaximaTj').value = cours.maxima_tj || '';
+    document.getElementById('massCoursInfo').textContent = cours.cours + ' (' + cours.code_cours + ')';
+    document.getElementById('massModalError').classList.add('d-none');
+
+    // Populate type
+    const massType = document.getElementById('massType');
+    massType.innerHTML = '<option value="">— Type —</option>';
+    _evalTypes.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.id_type_eval;
+        opt.textContent = t.nom + ' (' + t.sigle + ')';
+        massType.appendChild(opt);
+    });
+
+    // Compute max and render rows (1 per period)
+    const reps = window._repartitionsData || [];
+    const nbPeriodes = reps.length || 1;
+    const maximaTj = parseFloat(cours.maxima_tj);
+    const maxPerEval = (maximaTj && !isNaN(maximaTj)) ? Math.round((maximaTj / nbPeriodes) * 100) / 100 : null;
+
+    const maxDisplay = document.getElementById('massMaxInfo');
+    if (maxPerEval !== null) {
+        maxDisplay.textContent = (maxPerEval % 1 === 0) ? maxPerEval.toFixed(0) : maxPerEval.toFixed(2);
+    } else {
+        maxDisplay.textContent = '—';
+    }
+
+    // Render 1 row per period
+    const container = document.getElementById('massEvalRows');
+    const today = new Date().toISOString().split('T')[0];
+    const todayDisplay = _toDisplayDate(today);
+    let html = '';
+    reps.forEach((r, i) => {
+        const pId = r.id || r.id_instance;
+        const pNom = r.nom || ('Période ' + (i + 1));
+        html += `<div class="mass-eval-row" data-period-id="${pId}">
+            <div class="per-badge">${pNom}</div>
+            <div style="flex:1;min-width:0">
+                <label style="font-size:.6rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.3px">Titre</label>
+                <input type="text" id="massTitle${i}" placeholder="Évaluation — ${pNom}" value="Évaluation — ${pNom}">
+            </div>
+            <div style="width:120px;flex-shrink:0">
+                <label style="font-size:.6rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.3px">Date</label>
+                <input type="text" id="massDate${i}" placeholder="jj/mm/aaaa" maxlength="10" value="${todayDisplay}">
+            </div>
+        </div>`;
+    });
+    if (!reps.length) {
+        html = '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:.78rem"><i class="fas fa-info-circle me-1"></i>Aucune période configurée.</div>';
+    }
+    container.innerHTML = html;
+
+    // Setup date inputs
+    reps.forEach((r, i) => {
+        const el = document.getElementById('massDate' + i);
+        if (el) _setupDateInput(el);
+    });
+
+    new bootstrap.Modal(document.getElementById('massEvalModal')).show();
+}
+
+async function saveMassEvals() {
+    const coursId = document.getElementById('massCoursId').value;
+    const classeId = document.getElementById('eval-classe-select').value;
+    const typeId = document.getElementById('massType').value;
+    const errEl = document.getElementById('massModalError');
+
+    if (!coursId || !classeId) {
+        errEl.textContent = 'Classe et cours requis.';
+        errEl.classList.remove('d-none');
+        return;
+    }
+
+    const reps = window._repartitionsData || [];
+    if (!reps.length) {
+        errEl.textContent = 'Aucune période configurée.';
+        errEl.classList.remove('d-none');
+        return;
+    }
+
+    const maximaTj = parseFloat(document.getElementById('massMaximaTj').value);
+    const nbPeriodes = reps.length;
+    const maxPerEval = (maximaTj && !isNaN(maximaTj)) ? Math.round((maximaTj / nbPeriodes) * 100) / 100 : '';
+
+    errEl.classList.add('d-none');
+    let successCount = 0;
+
+    for (let i = 0; i < reps.length; i++) {
+        const periodeId = reps[i].id || reps[i].id_instance;
+        const titre = document.getElementById('massTitle' + i)?.value.trim() || ('Évaluation — ' + (reps[i].nom || ''));
+        const dateVal = _toIsoDate(document.getElementById('massDate' + i)?.value || '');
+
+        const formData = new FormData();
+        formData.append('title', titre);
+        formData.append('id_type_eval', typeId);
+        formData.append('date_eval', dateVal || new Date().toISOString().split('T')[0]);
+        formData.append('ponderer_eval', maxPerEval);
+        formData.append('id_classe_id', classeId);
+        formData.append('id_cours_classe_id', coursId);
+        formData.append('id_repartition_instance', periodeId);
+        formData.append('contenu_evaluation', '');
+
+        try {
+            const res = await fetch('/api/evaluations/save/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) successCount++;
+            else {
+                errEl.textContent = data.error || ('Erreur pour période ' + (reps[i].nom || i));
+                errEl.classList.remove('d-none');
+            }
+        } catch(e) {
+            errEl.textContent = 'Erreur de connexion.';
+            errEl.classList.remove('d-none');
+        }
+    }
+
+    if (successCount > 0) {
+        showToast(successCount + ' évaluation(s) créée(s) !', 'success');
+        bootstrap.Modal.getInstance(document.getElementById('massEvalModal'))?.hide();
+        loadEvaluations();
+    }
 }
 
 // ---- Composition ----
