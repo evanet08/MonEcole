@@ -2095,10 +2095,13 @@ def api_communication_threads(request):
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
 
     current_pers = int(pers_id) if pers_id else 0
+    id_pays_val = getattr(request, 'id_pays', None) or request.session.get('id_pays')
 
     threads = Communication.objects.filter(
         id_etablissement=etab_id,
-        id_pays=_safe_int(id_pays),
+        id_pays=_safe_int(id_pays_val),
+    ).filter(
+        Q(sender_personnel_id=current_pers) | Q(target_personnel_id=current_pers)
     ).values('thread_id').annotate(
         last_msg=Max('created_at'),
         msg_count=Count('id_communication'),
@@ -2109,13 +2112,13 @@ def api_communication_threads(request):
     for t in threads:
         last_comm = Communication.objects.filter(
             id_etablissement=etab_id,
-            id_pays=_safe_int(id_pays),
+            id_pays=_safe_int(id_pays_val),
             thread_id=t['thread_id']
         ).order_by('-created_at').first()
 
         first_comm = Communication.objects.filter(
             id_etablissement=etab_id,
-            id_pays=_safe_int(id_pays),
+            id_pays=_safe_int(id_pays_val),
             thread_id=t['thread_id']
         ).order_by('created_at').first()
 
@@ -2146,6 +2149,7 @@ def api_communication_teachers(request):
         return JsonResponse({'success': False, 'error': 'Établissement non trouvé'}, status=400)
 
     current_pers = int(pers_id) if pers_id else 0
+    id_pays_val = getattr(request, 'id_pays', None) or request.session.get('id_pays')
     teachers = []
     try:
         with connections['default'].cursor() as cur:

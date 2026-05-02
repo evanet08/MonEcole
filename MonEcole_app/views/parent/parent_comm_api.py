@@ -112,11 +112,11 @@ def api_parent_messages(request):
                        c.sender_parent_id, c.scope, c.direction,
                        c.subject, c.message, c.thread_id,
                        c.attachment_url, c.attachment_name, c.attachment_type,
-                       c.is_read, c.created_at
+                       c.is_read, c.created_at, c.target_personnel_id
                 FROM communication c
                 WHERE c.id_etablissement = %s AND ({where})
                 ORDER BY c.created_at DESC
-                LIMIT 100
+                LIMIT 200
             """, params)
 
             columns = [col[0] for col in cur.description]
@@ -128,9 +128,14 @@ def api_parent_messages(request):
             tid = m['thread_id'] or f"msg-{m['id_communication']}"
             is_mine = (m['sender_parent_id'] == parent_data['id_parent'])
 
+            # Track personnel involved in this thread
+            pers_in_msg = m.get('sender_personnel_id') or m.get('target_personnel_id')
+
             msg_data = {
                 'id': m['id_communication'],
                 'sender_name': m['sender_name'] or ('Moi' if is_mine else 'École'),
+                'sender_personnel_id': m.get('sender_personnel_id'),
+                'target_personnel_id': m.get('target_personnel_id'),
                 'is_mine': is_mine,
                 'scope': m['scope'],
                 'subject': m['subject'] or '',
@@ -158,9 +163,12 @@ def api_parent_messages(request):
                     'last_date': msg_data['date'],
                     'unread': 0,
                     'messages': [],
+                    'personnel_ids': [],
                 }
 
             threads[tid]['messages'].append(msg_data)
+            if pers_in_msg and pers_in_msg not in threads[tid]['personnel_ids']:
+                threads[tid]['personnel_ids'].append(pers_in_msg)
             if not m['is_read'] and not is_mine:
                 threads[tid]['unread'] += 1
 

@@ -416,7 +416,24 @@ function contactRow(c) {
 }
 
 function findTid(pid) {
-    for (const tid in commThreadsCache) { if (String(tid).includes(`_${pid}`) || String(tid).includes(`-${pid}-`)) return tid; }
+    // First: match by personnel_ids in thread data (authoritative)
+    for (const tid in commThreadsCache) {
+        const t = commThreadsCache[tid];
+        if (t.personnel_ids && t.personnel_ids.includes(pid)) return tid;
+    }
+    // Fallback: match by message sender/target in thread messages
+    for (const tid in commThreadsCache) {
+        const t = commThreadsCache[tid];
+        if (t.messages) {
+            for (const m of t.messages) {
+                if (m.sender_personnel_id === pid || m.target_personnel_id === pid) return tid;
+            }
+        }
+    }
+    // Last fallback: string pattern matching
+    for (const tid in commThreadsCache) {
+        if (String(tid).includes(`_${pid}`) || String(tid).includes(`-${pid}-`) || String(tid).includes(`t${pid}`)) return tid;
+    }
     return null;
 }
 
