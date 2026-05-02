@@ -6,6 +6,9 @@ function showSection(name) {
     document.querySelectorAll('.section-pane').forEach(p => p.style.display = 'none');
     const el = document.getElementById('sec-' + name);
     if (el) el.style.display = 'block';
+    // Immersive mode for communication
+    if (name === 'comm') { document.body.classList.add('comm-active'); }
+    else { document.body.classList.remove('comm-active'); }
     // Close FAB
     const menu = document.getElementById('fabMenu');
     if (menu && menu.classList.contains('open')) toggleFab();
@@ -270,9 +273,47 @@ let commThreadsCache = {};
 let _pollTimer = null;
 let _totalUnread = 0;
 
-/* Notification sound via Web Audio API */
+/* Notification sound — two-tone WhatsApp-style chime */
 function _playNotifSound(){
-    try{const a=new(window.AudioContext||window.webkitAudioContext)();const o=a.createOscillator();const g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=880;o.type='sine';g.gain.value=0.3;o.start();g.gain.exponentialRampToValueAtTime(0.01,a.currentTime+0.3);o.stop(a.currentTime+0.3);}catch(e){}
+    try{
+        const a=new(window.AudioContext||window.webkitAudioContext)();
+        const g=a.createGain();g.connect(a.destination);g.gain.value=0.4;
+        // First tone
+        const o1=a.createOscillator();o1.connect(g);o1.frequency.value=783.99;o1.type='sine';
+        o1.start(a.currentTime);o1.stop(a.currentTime+0.12);
+        // Second tone (higher)
+        const o2=a.createOscillator();o2.connect(g);o2.frequency.value=1046.5;o2.type='sine';
+        o2.start(a.currentTime+0.15);o2.stop(a.currentTime+0.3);
+        g.gain.exponentialRampToValueAtTime(0.01,a.currentTime+0.35);
+    }catch(e){}
+}
+
+/* System notification — persists in phone notification bar */
+function _showSystemNotif(title, body){
+    if(!('Notification' in window))return;
+    if(Notification.permission==='granted'){
+        try{
+            const reg=navigator.serviceWorker?.ready;
+            if(reg){
+                reg.then(r=>r.showNotification(title,{
+                    body:body,icon:'/static/MonEcole_app/icons/icon-512.png',
+                    badge:'/static/MonEcole_app/icons/icon-512.png',
+                    tag:'monecole-msg-'+Date.now(),renotify:true,
+                    requireInteraction:true,vibrate:[200,100,200,100,200],
+                    data:{url:window.location.href}
+                }));
+            }else{new Notification(title,{body:body,icon:'/static/MonEcole_app/icons/icon-512.png',requireInteraction:true});}
+        }catch(e){new Notification(title,{body:body,icon:'/static/MonEcole_app/icons/icon-512.png'});}
+    }else if(Notification.permission!=='denied'){
+        Notification.requestPermission();
+    }
+}
+
+/* Request notification permission proactively */
+function _requestNotifPermission(){
+    if('Notification' in window && Notification.permission==='default'){
+        Notification.requestPermission();
+    }
 }
 
 function _updateUnreadBadge(){
@@ -306,9 +347,10 @@ async function loadComm() {
     } catch(e) { console.error(e); }
     renderContactsScreen();
     _updateUnreadBadge();
-    // Start polling
+    _requestNotifPermission();
+    // Start polling every 6 seconds
     if(_pollTimer)clearInterval(_pollTimer);
-    _pollTimer=setInterval(_pollNewMessages,8000);
+    _pollTimer=setInterval(_pollNewMessages,6000);
 }
 
 async function _pollNewMessages(){
@@ -324,7 +366,7 @@ async function _pollNewMessages(){
             if(t.unread>oldCount)hadNew=true;
         });
         _updateUnreadBadge();
-        if(hadNew&&_totalUnread>oldUnread){_playNotifSound();showToast('💬 Nouveau message reçu','info');}
+        if(hadNew&&_totalUnread>oldUnread){_playNotifSound();showToast('💬 Nouveau message reçu','info');_showSystemNotif('MonEcole',`${_totalUnread} nouveau${_totalUnread>1?'x':''} message${_totalUnread>1?'s':''}`);}
         // Refresh contacts if visible
         const sc=document.getElementById('screenContacts');
         if(sc&&sc.style.display!=='none')renderContactsScreen();
@@ -385,34 +427,82 @@ function openChat(pid) {
     const chat = document.getElementById('screenChat');
     chat.style.display = 'flex';
     const ca = commActiveContact;
+    const roleLabel = ca.role || (ca.type==='direction' ? 'Direction' : 'Enseignant');
     chat.innerHTML = `
       <div class="wa-chat-bg"></div>
       <div class="wa-chat-head">
         <button onclick="backToContacts()" style="background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;padding:4px;margin-right:4px"><i class="fas fa-arrow-left"></i></button>
-        <div class="wa-contact-avatar" style="background:${ca.color};width:36px;height:36px;font-size:.65rem"><i class="fas fa-${ca.icon}"></i></div>
-        <div style="flex:1"><div style="font-size:.78rem">${ca.nom}</div><div style="font-size:.55rem;opacity:.8">${ca.role||ca.type==='direction'?'Direction':'Enseignant'}</div></div>
+        <div class="wa-contact-avatar" style="background:${ca.color};width:38px;height:38px;font-size:.7rem"><i class="fas fa-${ca.icon}"></i></div>
+        <div style="flex:1;min-width:0"><div style="font-size:.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ca.nom}</div><div style="font-size:.55rem;opacity:.8;font-weight:400">${roleLabel}</div></div>
       </div>
-      <div id="msgArea" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:6px;background:#ece5dd;position:relative;z-index:1"></div>
+      <div id="msgArea" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:6px;background:#ece5dd;position:relative;z-index:1;scrollbar-width:thin">
+        <div style="text-align:center;color:#94a3b8;font-size:.65rem;margin:auto"><i class="fas fa-spinner fa-spin" style="display:block;margin-bottom:4px"></i>Chargement...</div>
+      </div>
+      <div id="pendingAttachBar" class="wa-pending-attach" style="display:none">
+        <i class="fas fa-paperclip" style="color:#128c7e"></i>
+        <span id="pendingFileName" style="flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+        <span id="pendingFileSize" style="color:#94a3b8;font-size:.58rem"></span>
+        <span class="remove" onclick="clearPendingFile()">×</span>
+      </div>
       <div class="wa-input-bar">
-        <label style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#128c7e,#25d366);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:#fff;font-size:.9rem;box-shadow:0 2px 8px rgba(18,140,126,.3)"><i class="fas fa-paperclip"></i><input type="file" onchange="attachF(this)" style="display:none" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"></label>
+        <label style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#128c7e,#25d366);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:#fff;font-size:.9rem;box-shadow:0 2px 8px rgba(18,140,126,.3)"><i class="fas fa-paperclip"></i><input type="file" id="chatFileInput" onchange="onChatFileSelected(this)" style="display:none" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"></label>
         <input type="text" id="msgIn" placeholder="Écrivez un message..." onkeydown="if(event.key==='Enter')sendM()">
         <button onclick="sendM()"><i class="fas fa-paper-plane"></i></button>
       </div>`;
+    // Fetch messages from API for fresh data
     const tid = findTid(pid);
-    const tc = tid ? commThreadsCache[tid] : null;
-    const ma = document.getElementById('msgArea');
-    if (tc && tc.messages && tc.messages.length) {
-        _renderMsgs(tc.messages, ma);
-    } else {
-        ma.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:.7rem;margin:auto"><i class="fas fa-comments" style="display:block;font-size:2.5rem;opacity:.12;margin-bottom:8px;color:#128c7e"></i>Démarrez une conversation</div>';
-    }
+    _loadChatMessages(tid, pid);
     document.getElementById('msgIn')?.focus();
     // Mark as read
+    const tc = tid ? commThreadsCache[tid] : null;
     if (tc && tc.unread > 0) {
         tc.unread = 0;
         _updateUnreadBadge();
         fetch('/parent/api/messages/read/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({thread_id:tid})}).catch(()=>{});
     }
+}
+
+async function _loadChatMessages(tid, pid) {
+    const ma = document.getElementById('msgArea'); if(!ma) return;
+    const tc = tid ? commThreadsCache[tid] : null;
+    // Show cached first
+    if (tc && tc.messages && tc.messages.length) _renderMsgs(tc.messages, ma);
+    // Then fetch fresh from API
+    try {
+        const r = await fetch(`/parent/api/messages/?id_eleve=${ID_ELEVE}`);
+        const d = await r.json();
+        if (d.success) {
+            (d.threads||[]).forEach(t => { commThreadsCache[t.thread_id] = t; });
+            const freshTid = findTid(pid);
+            const freshTc = freshTid ? commThreadsCache[freshTid] : null;
+            if (freshTc && freshTc.messages) _renderMsgs(freshTc.messages, ma);
+            else if (!tc || !tc.messages || !tc.messages.length) {
+                ma.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:.7rem;margin:auto"><i class="fas fa-comments" style="display:block;font-size:2.5rem;opacity:.12;margin-bottom:8px;color:#128c7e"></i>Démarrez une conversation</div>';
+            }
+        }
+    } catch(e) {
+        if (!tc || !tc.messages || !tc.messages.length) {
+            ma.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:.7rem;margin:auto"><i class="fas fa-comments" style="display:block;font-size:2.5rem;opacity:.12;margin-bottom:8px;color:#128c7e"></i>Démarrez une conversation</div>';
+        }
+    }
+}
+
+/* Pending file management */
+let _pendingFile = null;
+function onChatFileSelected(input) {
+    if (!input.files||!input.files[0]) return;
+    const f = input.files[0];
+    if (f.size > 10*1024*1024) { showToast('Fichier trop volumineux (max 10MB)','error'); input.value=''; return; }
+    _pendingFile = f;
+    document.getElementById('pendingAttachBar').style.display = 'flex';
+    document.getElementById('pendingFileName').textContent = f.name;
+    const kb = Math.round(f.size/1024);
+    document.getElementById('pendingFileSize').textContent = kb>1024 ? `${(kb/1024).toFixed(1)} MB` : `${kb} KB`;
+}
+function clearPendingFile() {
+    _pendingFile = null;
+    document.getElementById('pendingAttachBar').style.display = 'none';
+    const fi = document.getElementById('chatFileInput'); if(fi) fi.value = '';
 }
 
 function _renderMsgs(msgs, area) {
@@ -436,10 +526,13 @@ function _renderMsgs(msgs, area) {
         if (m.subject) h += `<div style="font-size:.58rem;font-weight:700;color:#075e54;margin-bottom:2px">📌 ${m.subject}</div>`;
         if (m.attachment) {
             const att = m.attachment;
-            if (att.type && att.type.startsWith('image')) {
-                h += `<div style="margin:4px 0"><a href="${att.url}" target="_blank"><img src="${att.url}" style="max-width:200px;max-height:160px;border-radius:8px;cursor:pointer" loading="lazy"></a></div>`;
+            const ext = (att.name||'').split('.').pop().toLowerCase();
+            if (['jpg','jpeg','png','gif','webp'].includes(ext) || (att.type||'').startsWith('image')) {
+                h += `<div style="margin:4px 0"><a href="${att.url}" target="_blank"><img src="${att.url}" style="max-width:220px;max-height:180px;border-radius:10px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.1)" loading="lazy"></a></div>`;
             } else {
-                h += `<a href="${att.url}" target="_blank" style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:rgba(0,0,0,.04);border-radius:8px;margin:3px 0;text-decoration:none;font-size:.65rem;color:#0f172a"><i class="fas fa-file" style="color:#64748b"></i>${att.name||'Fichier'}<i class="fas fa-download" style="color:#94a3b8;margin-left:auto;font-size:.55rem"></i></a>`;
+                const iconCls = ext==='pdf'?'pdf':['doc','docx','odt'].includes(ext)?'doc':'other';
+                const icon = ext==='pdf'?'fa-file-pdf':['doc','docx','odt'].includes(ext)?'fa-file-word':['xls','xlsx'].includes(ext)?'fa-file-excel':'fa-file';
+                h += `<a href="${att.url}" target="_blank" class="wa-attach-card"><div class="wa-attach-icon ${iconCls}"><i class="fas ${icon}"></i></div><div style="flex:1;min-width:0"><div style="font-size:.7rem;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${att.name||'Fichier'}</div><div style="font-size:.5rem;color:#94a3b8">Cliquez pour ouvrir</div></div><i class="fas fa-download" style="color:#94a3b8;font-size:.65rem"></i></a>`;
             }
         }
         if (m.message && m.message !== '📎 Pièce jointe') h += `<div>${m.message}</div>`;
@@ -467,42 +560,39 @@ function refreshComm() { sectionsLoaded['comm']=false; commThreadsCache={}; load
 async function sendM() {
     if (!commActiveContact) return;
     const inp = document.getElementById('msgIn');
-    const txt = inp.value.trim(); if (!txt) return; inp.value = '';
+    const txt = inp.value.trim();
+    const hasFile = !!_pendingFile;
+    if (!txt && !hasFile) return;
+    inp.value = '';
     const area = document.getElementById('msgArea');
     const em = area.querySelector('div[style*="margin:auto"]'); if (em) em.remove();
     const t = new Date(), time = t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0');
+    // Optimistic UI
     const el = document.createElement('div'); el.className = 'wa-msg sent';
-    el.innerHTML = `<div>${txt}</div><div class="wa-msg-time">${time} <span class="msg-status"><i class="fas fa-clock"></i></span></div>`;
+    let optH = '';
+    if (hasFile) optH += `<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:rgba(0,0,0,.04);border-radius:6px;margin-bottom:3px;font-size:.65rem"><i class="fas fa-paperclip" style="color:#128c7e"></i> ${_pendingFile.name}</div>`;
+    if (txt) optH += `<div>${txt}</div>`;
+    optH += `<div class="wa-msg-time">${time} <span class="msg-status"><i class="fas fa-clock"></i></span></div>`;
+    el.innerHTML = optH;
     area.appendChild(el); area.scrollTop = area.scrollHeight;
     try {
-        const r = await fetch('/parent/api/messages/send/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({id_eleve:ID_ELEVE,message:txt,target_personnel_id:commActiveContact.id_personnel,scope:'teacher'})});
-        const d = await r.json();
-        if (d.success) { const s=el.querySelector('.msg-status');if(s)s.innerHTML='<i class="fas fa-check-double"></i>'; }
-        else showToast(d.error||'Erreur','error');
-    } catch(e) { showToast('Erreur réseau','error'); }
-}
-
-async function attachF(input) {
-    if (!input.files||!input.files.length||!commActiveContact) return;
-    const file = input.files[0];
-    if (file.size>10*1024*1024){showToast('Max 10MB','error');return;}
-    const fd = new FormData();
-    fd.append('id_eleve',ID_ELEVE); fd.append('target_personnel_id',commActiveContact.id_personnel);
-    fd.append('scope','teacher'); fd.append('message',`📎 ${file.name}`); fd.append('attachment',file);
-    try {
-        const r = await fetch('/parent/api/messages/send/',{method:'POST',headers:{'X-CSRFToken':getCsrfToken()},body:fd});
+        let r;
+        if (hasFile) {
+            const fd = new FormData();
+            fd.append('id_eleve', ID_ELEVE);
+            fd.append('target_personnel_id', commActiveContact.id_personnel);
+            fd.append('scope', 'teacher');
+            fd.append('message', txt || `📎 ${_pendingFile.name}`);
+            fd.append('attachment', _pendingFile);
+            r = await fetch('/parent/api/messages/send/',{method:'POST',headers:{'X-CSRFToken':getCsrfToken()},body:fd});
+            clearPendingFile();
+        } else {
+            r = await fetch('/parent/api/messages/send/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({id_eleve:ID_ELEVE,message:txt,target_personnel_id:commActiveContact.id_personnel,scope:'teacher'})});
+        }
         const d = await r.json();
         if (d.success) {
-            const area = document.getElementById('msgArea');
-            const em = area.querySelector('div[style*="margin:auto"]'); if(em) em.remove();
-            const t=new Date(),time=t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0');
-            const el = document.createElement('div'); el.className='wa-msg sent';
-            el.innerHTML=`<div style="display:flex;align-items:center;gap:6px;font-size:.65rem"><i class="fas fa-paperclip" style="color:#128c7e"></i> ${file.name}</div><div class="wa-msg-time">${time} <span class="msg-status"><i class="fas fa-check-double"></i></span></div>`;
-            area.appendChild(el); area.scrollTop=area.scrollHeight;
-            showToast('Fichier envoyé','success');
+            const s = el.querySelector('.msg-status'); if(s) s.innerHTML = '<i class="fas fa-check-double"></i>';
+            if (hasFile) showToast('Message + fichier envoyés','success');
         } else showToast(d.error||'Erreur','error');
     } catch(e) { showToast('Erreur réseau','error'); }
-    input.value='';
 }
-
-

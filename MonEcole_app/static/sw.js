@@ -81,3 +81,71 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(event.request))
   );
 });
+
+// ═══ PUSH NOTIFICATIONS — System-level (phone notification bar) ═══
+self.addEventListener('push', (event) => {
+  let data = { title: 'MonEcole', body: 'Nouveau message', icon: '/static/MonEcole_app/icons/icon-512.png' };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch (e) {
+    if (event.data) data.body = event.data.text();
+  }
+  const options = {
+    body: data.body || 'Nouveau message reçu',
+    icon: data.icon || '/static/MonEcole_app/icons/icon-512.png',
+    badge: '/static/MonEcole_app/icons/icon-512.png',
+    tag: data.tag || 'monecole-msg-' + Date.now(),
+    renotify: true,
+    requireInteraction: true, // Stays until user taps — WhatsApp behavior
+    vibrate: [200, 100, 200, 100, 200],
+    data: { url: data.url || '/parent/', thread_id: data.thread_id || '' },
+    actions: [
+      { action: 'open', title: 'Ouvrir' },
+      { action: 'dismiss', title: 'Ignorer' }
+    ]
+  };
+  event.waitUntil(self.registration.showNotification(data.title || 'MonEcole', options));
+});
+
+// Handle notification click — open app at the right page
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  if (event.action === 'dismiss') return;
+  const url = event.notification.data?.url || '/parent/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes('/parent/') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      return clients.openWindow(url);
+    })
+  );
+});
+
+// Periodic background sync — check for new messages (where supported)
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'check-messages') {
+    event.waitUntil(checkNewMessages());
+  }
+});
+
+async function checkNewMessages() {
+  // Lightweight check — browser will call this periodically
+  try {
+    const r = await fetch('/parent/api/messages/unread-count/');
+    const d = await r.json();
+    if (d.success && d.count > 0) {
+      self.registration.showNotification('MonEcole', {
+        body: `${d.count} nouveau${d.count > 1 ? 'x' : ''} message${d.count > 1 ? 's' : ''}`,
+        icon: '/static/MonEcole_app/icons/icon-512.png',
+        badge: '/static/MonEcole_app/icons/icon-512.png',
+        tag: 'monecole-unread',
+        requireInteraction: true,
+        vibrate: [200, 100, 200],
+        data: { url: '/parent/' }
+      });
+    }
+  } catch (e) { /* offline or error — skip */ }
+}
