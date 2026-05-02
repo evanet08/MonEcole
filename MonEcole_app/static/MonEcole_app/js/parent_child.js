@@ -263,10 +263,33 @@ async function uploadPhoto(input) {
     } catch(e) { showToast('Erreur réseau', 'error'); }
 }
 
-/* ═══ COMMUNICATION — Full-screen 2-panel swap ═══ */
+/* ═══ COMMUNICATION — SEBC WhatsApp-style + Notifications ═══ */
 let commContacts = [];
 let commActiveContact = null;
 let commThreadsCache = {};
+let _pollTimer = null;
+let _totalUnread = 0;
+
+/* Notification sound via Web Audio API */
+function _playNotifSound(){
+    try{const a=new(window.AudioContext||window.webkitAudioContext)();const o=a.createOscillator();const g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=880;o.type='sine';g.gain.value=0.3;o.start();g.gain.exponentialRampToValueAtTime(0.01,a.currentTime+0.3);o.stop(a.currentTime+0.3);}catch(e){}
+}
+
+function _updateUnreadBadge(){
+    _totalUnread=0;
+    for(const tid in commThreadsCache){_totalUnread+=(commThreadsCache[tid].unread||0);}
+    // Update FAB badge
+    let b=document.getElementById('fabNotifBadge');
+    const fab=document.querySelector('.fab-btn.messages');
+    if(_totalUnread>0){
+        if(!b&&fab){b=document.createElement('span');b.id='fabNotifBadge';b.className='fab-notif-badge';fab.style.position='relative';fab.appendChild(b);}
+        if(b)b.textContent=_totalUnread>9?'9+':_totalUnread;
+        document.title=`(${_totalUnread}) MonEcole — Messages`;
+    }else{
+        if(b)b.remove();
+        document.title='MonEcole — Espace Parents';
+    }
+}
 
 async function loadComm() {
     try {
@@ -282,6 +305,36 @@ async function loadComm() {
         if (md.success) { (md.threads||[]).forEach(t => { commThreadsCache[t.thread_id] = t; }); }
     } catch(e) { console.error(e); }
     renderContactsScreen();
+    _updateUnreadBadge();
+    // Start polling
+    if(_pollTimer)clearInterval(_pollTimer);
+    _pollTimer=setInterval(_pollNewMessages,8000);
+}
+
+async function _pollNewMessages(){
+    try{
+        const r=await fetch(`/parent/api/messages/?id_eleve=${ID_ELEVE}`);
+        const d=await r.json();
+        if(!d.success)return;
+        let hadNew=false;const oldUnread=_totalUnread;
+        (d.threads||[]).forEach(t=>{
+            const old=commThreadsCache[t.thread_id];
+            const oldCount=old?old.unread:0;
+            commThreadsCache[t.thread_id]=t;
+            if(t.unread>oldCount)hadNew=true;
+        });
+        _updateUnreadBadge();
+        if(hadNew&&_totalUnread>oldUnread){_playNotifSound();showToast('💬 Nouveau message reçu','info');}
+        // Refresh contacts if visible
+        const sc=document.getElementById('screenContacts');
+        if(sc&&sc.style.display!=='none')renderContactsScreen();
+        // Refresh chat if open
+        if(commActiveContact){
+            const tid=findTid(commActiveContact.id_personnel);
+            const tc=tid?commThreadsCache[tid]:null;
+            if(tc&&tc.messages){const ma=document.getElementById('msgArea');if(ma)_renderMsgs(tc.messages,ma);}
+        }
+    }catch(e){}
 }
 
 function renderContactsScreen() {
@@ -289,7 +342,7 @@ function renderContactsScreen() {
     const dirs = commContacts.filter(c => c.type==='direction');
     const teachers = commContacts.filter(c => c.type==='teacher');
     let h = `<div id="screenContacts" style="display:flex;flex-direction:column;height:100%">
-      <div class="wa-sb-head"><i class="fas fa-comments"></i> Messages
+      <div class="wa-sb-head"><i class="fas fa-comments"></i> Messages${_totalUnread>0?` <span style="margin-left:6px;background:#25d366;padding:1px 7px;border-radius:10px;font-size:.6rem">${_totalUnread}</span>`:''}
         <button onclick="refreshComm()" style="margin-left:auto;background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:.72rem"><i class="fas fa-sync-alt"></i></button>
       </div>
       <div class="wa-search"><input type="text" placeholder="Rechercher un contact..." oninput="filterC(this.value)"></div>
@@ -303,7 +356,7 @@ function renderContactsScreen() {
         teachers.forEach(c => { h += contactRow(c); });
     }
     if (!commContacts.length) h += '<div style="padding:40px;text-align:center;color:#94a3b8;font-size:.8rem"><i class="fas fa-user-slash" style="display:block;font-size:2.5rem;opacity:.15;margin-bottom:12px"></i>Aucun contact</div>';
-    h += `</div></div><div id="screenChat" style="display:none;flex-direction:column;height:100%"></div>`;
+    h += `</div></div><div id="screenChat" style="display:none;flex-direction:column;height:100%;position:relative"></div>`;
     area.innerHTML = h;
 }
 
@@ -333,41 +386,75 @@ function openChat(pid) {
     chat.style.display = 'flex';
     const ca = commActiveContact;
     chat.innerHTML = `
+      <div class="wa-chat-bg"></div>
       <div class="wa-chat-head">
         <button onclick="backToContacts()" style="background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;padding:4px;margin-right:4px"><i class="fas fa-arrow-left"></i></button>
         <div class="wa-contact-avatar" style="background:${ca.color};width:36px;height:36px;font-size:.65rem"><i class="fas fa-${ca.icon}"></i></div>
-        <div style="flex:1"><div style="font-size:.78rem">${ca.nom}</div><div style="font-size:.55rem;opacity:.8">${ca.role||''}</div></div>
-        <button onclick="showToast('Appel vidéo — bientôt disponible','info')" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:.72rem"><i class="fas fa-video"></i></button>
+        <div style="flex:1"><div style="font-size:.78rem">${ca.nom}</div><div style="font-size:.55rem;opacity:.8">${ca.role||ca.type==='direction'?'Direction':'Enseignant'}</div></div>
       </div>
-      <div id="msgArea" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:6px;background:#ece5dd"></div>
+      <div id="msgArea" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:6px;background:#ece5dd;position:relative;z-index:1"></div>
       <div class="wa-input-bar">
-        <label style="width:42px;height:42px;border-radius:50%;background:#1e3a8a;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:#fff;font-size:1.1rem"><i class="fas fa-plus"></i><input type="file" onchange="attachF(this)" style="display:none"></label>
+        <label style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#128c7e,#25d366);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:#fff;font-size:.9rem;box-shadow:0 2px 8px rgba(18,140,126,.3)"><i class="fas fa-paperclip"></i><input type="file" onchange="attachF(this)" style="display:none" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"></label>
         <input type="text" id="msgIn" placeholder="Écrivez un message..." onkeydown="if(event.key==='Enter')sendM()">
-        <button onclick="sendM()" style="width:42px;height:42px;border-radius:50%;border:none;background:#1e3a8a;color:#fff;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-paper-plane"></i></button>
+        <button onclick="sendM()"><i class="fas fa-paper-plane"></i></button>
       </div>`;
     const tid = findTid(pid);
     const tc = tid ? commThreadsCache[tid] : null;
     const ma = document.getElementById('msgArea');
     if (tc && tc.messages && tc.messages.length) {
-        let mh = '';
-        tc.messages.slice().reverse().forEach(m => {
-            mh += `<div class="wa-msg ${m.is_mine?'sent':'recv'}">`;
-            if (!m.is_mine && m.sender_name) mh += `<div class="wa-msg-sender">${m.sender_name}</div>`;
-            if (m.attachment) mh += `<a href="${m.attachment.url}" target="_blank" style="color:#1d4ed8;font-size:.65rem;display:block;margin-bottom:3px"><i class="fas fa-file"></i> ${m.attachment.name||'Fichier'}</a>`;
-            mh += `<div>${m.message}</div><div class="wa-msg-time">${m.time||''}</div></div>`;
-        });
-        ma.innerHTML = mh;
-        ma.scrollTop = ma.scrollHeight;
+        _renderMsgs(tc.messages, ma);
     } else {
         ma.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:.7rem;margin:auto"><i class="fas fa-comments" style="display:block;font-size:2.5rem;opacity:.12;margin-bottom:8px;color:#128c7e"></i>Démarrez une conversation</div>';
     }
     document.getElementById('msgIn')?.focus();
-    if (tc && tc.unread > 0) fetch('/parent/api/messages/read/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({thread_id:tid})}).catch(()=>{});
+    // Mark as read
+    if (tc && tc.unread > 0) {
+        tc.unread = 0;
+        _updateUnreadBadge();
+        fetch('/parent/api/messages/read/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({thread_id:tid})}).catch(()=>{});
+    }
+}
+
+function _renderMsgs(msgs, area) {
+    if (!msgs || !msgs.length) { area.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:.7rem;margin:auto"><i class="fas fa-comments" style="display:block;font-size:2.5rem;opacity:.12;margin-bottom:8px;color:#128c7e"></i>Démarrez une conversation</div>'; return; }
+    let h = '', lastDate = '';
+    const sorted = msgs.slice().reverse();
+    sorted.forEach(m => {
+        const msgDate = m.created_at ? m.created_at.split(' ')[0] : '';
+        if (msgDate && msgDate !== lastDate) {
+            const d = new Date(msgDate); const today = new Date(); const yest = new Date(today); yest.setDate(today.getDate()-1);
+            let label = d.toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+            if (d.toDateString()===today.toDateString()) label="Aujourd'hui";
+            else if (d.toDateString()===yest.toDateString()) label="Hier";
+            h += `<div class="wa-date-sep"><span>${label}</span></div>`;
+            lastDate = msgDate;
+        }
+        const dir = m.is_mine ? 'sent' : 'recv';
+        const statusIcon = m.is_mine ? '<span class="msg-status"><i class="fas fa-check-double"></i></span>' : '';
+        h += `<div class="wa-msg ${dir}">`;
+        if (!m.is_mine && m.sender_name) h += `<div class="wa-msg-sender">${m.sender_name}</div>`;
+        if (m.subject) h += `<div style="font-size:.58rem;font-weight:700;color:#075e54;margin-bottom:2px">📌 ${m.subject}</div>`;
+        if (m.attachment) {
+            const att = m.attachment;
+            if (att.type && att.type.startsWith('image')) {
+                h += `<div style="margin:4px 0"><a href="${att.url}" target="_blank"><img src="${att.url}" style="max-width:200px;max-height:160px;border-radius:8px;cursor:pointer" loading="lazy"></a></div>`;
+            } else {
+                h += `<a href="${att.url}" target="_blank" style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:rgba(0,0,0,.04);border-radius:8px;margin:3px 0;text-decoration:none;font-size:.65rem;color:#0f172a"><i class="fas fa-file" style="color:#64748b"></i>${att.name||'Fichier'}<i class="fas fa-download" style="color:#94a3b8;margin-left:auto;font-size:.55rem"></i></a>`;
+            }
+        }
+        if (m.message && m.message !== '📎 Pièce jointe') h += `<div>${m.message}</div>`;
+        else if (!m.attachment) h += `<div>${m.message}</div>`;
+        h += `<div class="wa-msg-time">${m.time||''} ${statusIcon}</div></div>`;
+    });
+    area.innerHTML = h;
+    area.scrollTop = area.scrollHeight;
 }
 
 function backToContacts() {
+    commActiveContact = null;
     document.getElementById('screenChat').style.display = 'none';
     document.getElementById('screenContacts').style.display = 'flex';
+    renderContactsScreen();
 }
 
 function filterC(q) {
@@ -385,12 +472,12 @@ async function sendM() {
     const em = area.querySelector('div[style*="margin:auto"]'); if (em) em.remove();
     const t = new Date(), time = t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0');
     const el = document.createElement('div'); el.className = 'wa-msg sent';
-    el.innerHTML = `<div>${txt}</div><div class="wa-msg-time">${time} <i class="fas fa-clock" style="color:#34b7f1;font-size:.5rem"></i></div>`;
+    el.innerHTML = `<div>${txt}</div><div class="wa-msg-time">${time} <span class="msg-status"><i class="fas fa-clock"></i></span></div>`;
     area.appendChild(el); area.scrollTop = area.scrollHeight;
     try {
         const r = await fetch('/parent/api/messages/send/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({id_eleve:ID_ELEVE,message:txt,target_personnel_id:commActiveContact.id_personnel,scope:'teacher'})});
         const d = await r.json();
-        if (d.success) el.querySelector('.wa-msg-time').innerHTML = `${time} <i class="fas fa-check-double" style="color:#34b7f1;font-size:.5rem"></i>`;
+        if (d.success) { const s=el.querySelector('.msg-status');if(s)s.innerHTML='<i class="fas fa-check-double"></i>'; }
         else showToast(d.error||'Erreur','error');
     } catch(e) { showToast('Erreur réseau','error'); }
 }
@@ -410,11 +497,12 @@ async function attachF(input) {
             const em = area.querySelector('div[style*="margin:auto"]'); if(em) em.remove();
             const t=new Date(),time=t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0');
             const el = document.createElement('div'); el.className='wa-msg sent';
-            el.innerHTML=`<div><i class="fas fa-file" style="margin-right:4px"></i> ${file.name}</div><div class="wa-msg-time">${time} <i class="fas fa-check-double" style="color:#34b7f1;font-size:.5rem"></i></div>`;
+            el.innerHTML=`<div style="display:flex;align-items:center;gap:6px;font-size:.65rem"><i class="fas fa-paperclip" style="color:#128c7e"></i> ${file.name}</div><div class="wa-msg-time">${time} <span class="msg-status"><i class="fas fa-check-double"></i></span></div>`;
             area.appendChild(el); area.scrollTop=area.scrollHeight;
             showToast('Fichier envoyé','success');
         } else showToast(d.error||'Erreur','error');
     } catch(e) { showToast('Erreur réseau','error'); }
     input.value='';
 }
+
 

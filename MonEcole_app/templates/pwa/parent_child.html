@@ -49,31 +49,44 @@
 .pf-checkbox input{width:16px;height:16px;accent-color:#6366f1}
 .pf-save-btn{width:100%;padding:12px;border:none;border-radius:12px;background:linear-gradient(135deg,#1e3a8a,#6366f1);color:#fff;font-size:.85rem;font-weight:700;cursor:pointer;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s}
 .pf-save-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(30,58,138,.3)}
-.wa-sb-head{padding:14px 16px;background:linear-gradient(135deg,#075e54,#128c7e);color:#fff;font-size:.82rem;font-weight:700;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.wa-sb-head{padding:14px 16px;background:linear-gradient(135deg,#075e54,#128c7e);color:#fff;font-size:.82rem;font-weight:700;display:flex;align-items:center;gap:8px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.wa-sb-head i{font-size:1rem;opacity:.9}
 .wa-search{padding:8px 10px;border-bottom:1px solid #f1f5f9;background:#f8fafc;flex-shrink:0}
-.wa-search input{width:100%;padding:8px 14px;border:1px solid #e2e8f0;border-radius:22px;font-size:.72rem;outline:none;background:#fff}
-.wa-search input:focus{border-color:#128c7e}
-.wa-contact{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;border-bottom:1px solid #f8fafc;transition:background .15s;background:#fff}
+.wa-search input{width:100%;padding:8px 14px;border:1px solid #e2e8f0;border-radius:22px;font-size:.72rem;outline:none;background:#fff;transition:border .2s}
+.wa-search input:focus{border-color:#128c7e;box-shadow:0 0 0 3px rgba(18,140,126,.1)}
+.wa-contact{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;border-bottom:1px solid #f8fafc;transition:all .15s;background:#fff;position:relative}
 .wa-contact:hover{background:#f0fdf4}
-.wa-contact-avatar{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;color:#fff;flex-shrink:0}
+.wa-contact.active{background:#dcfce7;border-left:3px solid #128c7e}
+.wa-contact-avatar{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;color:#fff;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.12);position:relative}
 .wa-contact-info{flex:1;min-width:0}
 .wa-contact-name{font-size:.75rem;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wa-contact-sub{font-size:.6rem;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wa-contact-sub{font-size:.6rem;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
 .wa-contact-meta{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0}
 .wa-contact-time{font-size:.55rem;color:#94a3b8}
-.wa-unread-badge{background:#25d366;color:#fff;font-size:.5rem;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.wa-unread-badge{background:#25d366;color:#fff;font-size:.5rem;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;animation:badgePop .3s cubic-bezier(.4,0,.2,1)}
+@keyframes badgePop{from{transform:scale(0)}to{transform:scale(1)}}
 .wa-section-label{padding:6px 14px;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;gap:6px}
 .wa-section-label .wa-count{margin-left:auto;font-size:.48rem;opacity:.5}
 .wa-section-label.direction{color:#ea580c;background:#fff7ed}
 .wa-section-label.teachers{color:#8b5cf6;background:#f5f3ff}
-.wa-chat-head{padding:12px 16px;background:linear-gradient(135deg,#075e54,#128c7e);color:#fff;display:flex;align-items:center;gap:10px;font-size:.8rem;font-weight:700;flex-shrink:0}
-.wa-msg{max-width:82%;padding:8px 12px;border-radius:10px;font-size:.73rem;line-height:1.5;animation:msgSlide .25s ease-out;word-wrap:break-word}
-.wa-msg.sent{align-self:flex-end;background:#dcf8c6;border-bottom-right-radius:3px}
-.wa-msg.recv{align-self:flex-start;background:#fff;border-bottom-left-radius:3px}
+.wa-chat-head{padding:12px 16px;background:linear-gradient(135deg,#075e54,#128c7e);color:#fff;display:flex;align-items:center;gap:10px;font-size:.8rem;font-weight:700;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.1);z-index:1}
+.wa-chat-bg{position:absolute;inset:0;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Ccircle cx='20' cy='20' r='6' fill='%23128c7e'/%3E%3Ccircle cx='60' cy='60' r='4' fill='%23128c7e'/%3E%3Crect x='50' y='10' width='10' height='10' rx='2' fill='%23128c7e'/%3E%3C/svg%3E");pointer-events:none}
+.wa-msg{max-width:82%;padding:8px 12px;border-radius:10px;font-size:.73rem;line-height:1.5;animation:msgSlide .25s ease-out;word-wrap:break-word;position:relative}
+.wa-msg.sent{align-self:flex-end;background:#dcf8c6;border-bottom-right-radius:3px;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.wa-msg.recv{align-self:flex-start;background:#fff;border-bottom-left-radius:3px;box-shadow:0 1px 2px rgba(0,0,0,.06)}
 .wa-msg .wa-msg-sender{font-size:.58rem;font-weight:700;color:#128c7e;margin-bottom:2px}
-.wa-msg-time{font-size:.5rem;color:#94a3b8;text-align:right;margin-top:3px}
+.wa-msg-time{font-size:.5rem;color:#94a3b8;text-align:right;margin-top:3px;display:flex;align-items:center;justify-content:flex-end;gap:3px}
+.wa-msg-time .msg-status{color:#34b7f1;font-size:.5rem}
 @keyframes msgSlide{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.wa-input-bar{display:flex;gap:8px;padding:10px 14px;background:#f0f2f5;border-top:1px solid #e2e8f0;flex-shrink:0}
+.wa-date-sep{text-align:center;margin:8px 0;font-size:.55rem;color:#64748b}
+.wa-date-sep span{background:rgba(225,219,211,.9);padding:4px 14px;border-radius:8px;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.wa-input-bar{display:flex;gap:8px;padding:10px 14px;background:#f0f2f5;border-top:1px solid #e2e8f0;flex-shrink:0;z-index:1}
+.wa-input-bar input[type="text"]{flex:1;padding:10px 16px;border:none;border-radius:22px;font-size:.75rem;outline:none;background:#fff;box-shadow:inset 0 1px 3px rgba(0,0,0,.04)}
+.wa-input-bar input[type="text"]:focus{box-shadow:inset 0 1px 3px rgba(0,0,0,.04),0 0 0 2px rgba(18,140,126,.15)}
+.wa-input-bar button{width:42px;height:42px;border-radius:50%;border:none;background:linear-gradient(135deg,#128c7e,#25d366);color:#fff;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;box-shadow:0 2px 8px rgba(18,140,126,.3)}
+.wa-input-bar button:hover{transform:scale(1.08);box-shadow:0 4px 16px rgba(18,140,126,.4)}
+/* Notification Badge on FAB */
+.fab-notif-badge{position:absolute;top:-2px;right:-2px;background:#ef4444;color:#fff;font-size:.5rem;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;border:2px solid #fff;animation:badgePop .3s cubic-bezier(.4,0,.2,1)}
 .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .info-item{background:#fff;border-radius:14px;padding:14px;border:1px solid #e8ecf5}
 .info-item.full{grid-column:1/-1}
