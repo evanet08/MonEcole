@@ -34,7 +34,7 @@ def _verify_parent_child(request, id_eleve):
 @csrf_exempt
 @require_http_methods(["GET"])
 def api_parent_evaluations(request):
-    """Évaluations planifiées pour la classe de l'enfant."""
+    """Évaluations planifiées pour la classe de l'enfant, avec note de l'élève et documents."""
     id_eleve = request.GET.get('id_eleve')
     if not id_eleve:
         return JsonResponse({'success': False, 'error': 'id_eleve requis'}, status=400)
@@ -46,10 +46,10 @@ def api_parent_evaluations(request):
     try:
         eleve = Eleve.objects.get(id_eleve=id_eleve)
         etab_id = eleve.id_etablissement
-        id_pays = parent_data.get('id_pays')
+        id_pays = parent_data.get('id_pays') or eleve.id_pays
 
         with connections['default'].cursor() as cur:
-            # Trouver l'inscription active
+            # Trouver l'inscription active — filtre strict id_pays + id_etablissement
             cur.execute("""
                 SELECT ei.classe_id, ei.groupe, ei.section_id, ei.id_annee_id,
                        ei.id_etablissement, ei.idCampus_id
@@ -64,27 +64,33 @@ def api_parent_evaluations(request):
 
             classe_id, groupe, section_id, annee_id, etab_id, campus_id = insc
 
-            # Évaluations de cette classe
+            # Évaluations de cette classe — avec documents et note élève
             cur.execute("""
                 SELECT e.id_evaluation, e.title, e.date_eval, e.ponderer_eval,
+                       e.document_url, e.contenu_evaluation,
                        cpc.id_cours_id,
+                       ent.type as type_note,
                        (SELECT en.note FROM eleve_note en
                         WHERE en.id_evaluation_id = e.id_evaluation AND en.id_eleve_id = %s
-                        LIMIT 1) as note_eleve
+                        LIMIT 1) as note_eleve,
+                       (SELECT en.note_repechage FROM eleve_note en
+                        WHERE en.id_evaluation_id = e.id_evaluation AND en.id_eleve_id = %s
+                        LIMIT 1) as note_repechage
                 FROM evaluation e
                 JOIN cours_par_classe cpc ON cpc.id_cours_classe = e.id_cours_classe_id
+                LEFT JOIN eleve_note_type ent ON ent.id_type_note = e.id_type_note_id
                 WHERE e.classe_id = %s AND e.id_annee_id = %s
-                  AND e.id_etablissement = %s
+                  AND e.id_etablissement = %s AND e.id_pays = %s
                 ORDER BY e.date_eval DESC
-            """, [id_eleve, classe_id, annee_id, etab_id])
+            """, [id_eleve, id_eleve, classe_id, annee_id, etab_id, id_pays])
 
             columns = [col[0] for col in cur.description]
             evals_raw = [dict(zip(columns, row)) for row in cur.fetchall()]
 
-        # Résoudre les noms de cours depuis le Hub
+        # Résoudre les noms de cours depuis le Hub — filtre strict pays
         cours_ids = list(set(e['id_cours_id'] for e in evals_raw if e.get('id_cours_id')))
         cours_names = {}
-        if cours_ids:
+        if cours_ids and id_pays:
             try:
                 with connections['countryStructure'].cursor() as cur:
                     placeholders = ','.join(['%s'] * len(cours_ids))
@@ -96,13 +102,27 @@ def api_parent_evaluations(request):
 
         evaluations = []
         for ev in evals_raw:
+            # Résoudre l'URL du document attaché
+            doc_url = ev.get('document_url') or ''
+            if not doc_url and ev.get('contenu_evaluation'):
+                # FileField → le chemin est stocké dans la DB
+                ce = ev['contenu_evaluation']
+                if ce and str(ce).strip():
+                    doc_url = f"/media/{ce}" if not str(ce).startswith('/') else ce
+
+            note_val = float(ev['note_eleve']) if ev['note_eleve'] is not None else None
+            note_repechage = float(ev['note_repechage']) if ev.get('note_repechage') is not None else None
+
             evaluations.append({
                 'id_evaluation': ev['id_evaluation'],
                 'title': ev['title'],
                 'date_eval': str(ev['date_eval']) if ev['date_eval'] else '',
                 'ponderation': ev['ponderer_eval'] or 0,
                 'cours': cours_names.get(ev['id_cours_id'], f"Cours #{ev['id_cours_id']}"),
-                'note_eleve': float(ev['note_eleve']) if ev['note_eleve'] is not None else None,
+                'type_note': ev.get('type_note') or '',
+                'note_eleve': note_val,
+                'note_repechage': note_repechage,
+                'document_url': doc_url,
             })
 
         return JsonResponse({'success': True, 'evaluations': evaluations})

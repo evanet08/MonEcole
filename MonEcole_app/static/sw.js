@@ -3,7 +3,7 @@
  * Stratégie : Network-first pour API, Cache-first pour assets statiques.
  */
 
-const CACHE_NAME = 'monecole-v2';
+const CACHE_NAME = 'monecole-v3';
 const STATIC_ASSETS = [
   '/static/manifest.json',
   '/static/MonEcole_app/icons/icon-512.png',

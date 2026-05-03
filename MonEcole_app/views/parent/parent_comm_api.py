@@ -67,16 +67,22 @@ def api_parent_messages(request):
     try:
         eleve = Eleve.objects.get(id_eleve=id_eleve)
         etab_id = eleve.id_etablissement
+        id_pays = parent_data.get('id_pays') or eleve.id_pays
 
-        # Trouver la classe pour le scope 'class'
+        # Trouver la classe pour le scope 'class' — filtre strict
         insc = Eleve_inscription.objects.filter(
-            id_eleve=eleve, status=True, id_etablissement=eleve.id_etablissement
-        ).order_by('-id_annee_id').first()
+            id_eleve=eleve, status=True, id_etablissement=etab_id
+        )
+        if id_pays:
+            insc = insc.filter(id_pays=id_pays)
+        insc = insc.order_by('-id_annee_id').first()
         classe_id = insc.id_classe_id if insc else None
 
         with connections['default'].cursor() as cur:
             # Messages adressés à cet enfant (individual) ou à sa classe ou à tout l'établissement
             # + messages envoyés par ce parent (pour voir le thread complet)
+            # Filtre strict : id_etablissement + id_pays
+            id_pays_filter = f" AND c.id_pays = {int(id_pays)}" if id_pays else ""
             params = [etab_id]
             scope_conditions = ["c.scope = 'etab'"]
 
@@ -114,7 +120,7 @@ def api_parent_messages(request):
                        c.attachment_url, c.attachment_name, c.attachment_type,
                        c.is_read, c.created_at, c.target_personnel_id
                 FROM communication c
-                WHERE c.id_etablissement = %s AND ({where})
+                WHERE c.id_etablissement = %s{id_pays_filter} AND ({where})
                 ORDER BY c.created_at DESC
                 LIMIT 200
             """, params)
@@ -239,6 +245,20 @@ def api_parent_send_message(request):
         eleve = Eleve.objects.get(id_eleve=id_eleve)
         etab_id = eleve.id_etablissement
 
+        # Résoudre id_pays — OBLIGATOIRE, jamais null
+        id_pays = parent_data.get('id_pays') or eleve.id_pays
+        if not id_pays:
+            # Fallback : résoudre depuis l'établissement dans le Hub
+            try:
+                from MonEcole_app.models.country_structure import Etablissement as Etab
+                etab_obj = Etab.objects.filter(id_etablissement=etab_id).first()
+                if etab_obj:
+                    id_pays = etab_obj.pays_id
+            except Exception:
+                pass
+        if not id_pays:
+            return JsonResponse({'success': False, 'error': 'Pays non résolu'}, status=400)
+
         # Résoudre l'année active
         annee_id = None
         try:
@@ -259,10 +279,10 @@ def api_parent_send_message(request):
         comm = Communication.objects.create(
             id_etablissement=etab_id,
             id_annee=annee_id,
-            id_pays=parent_data.get('id_pays'),
+            id_pays=id_pays,
             sender_parent_id=parent_data['id_parent'],
             sender_name=parent_data.get('parent_name', 'Parent'),
-            scope=scope,
+            scope='individual',  # Toujours individual pour parent→enseignant
             direction='in',  # Entrant côté école
             target_eleve_id=int(id_eleve),
             target_personnel_id=int(target_personnel_id) if target_personnel_id else None,
@@ -275,6 +295,71 @@ def api_parent_send_message(request):
             attachment_type=attachment_type or None,
         )
 
+        # ── Envoyer email à l'enseignant via Brevo ──
+        email_sent = False
+        if target_personnel_id:
+            try:
+                with connections['default'].cursor() as cur:
+                    cur.execute("""
+                        SELECT p.email, p.nom, p.prenom
+                        FROM personnel p
+                        WHERE p.id_personnel = %s AND p.id_etablissement = %s
+                          AND p.id_pays = %s AND p.en_fonction = 1
+                        LIMIT 1
+                    """, [int(target_personnel_id), etab_id, id_pays])
+                    pers_row = cur.fetchone()
+
+                if pers_row and pers_row[0]:
+                    teacher_email = pers_row[0]
+                    teacher_name = f"{pers_row[1] or ''} {pers_row[2] or ''}".strip()
+                    parent_name = parent_data.get('parent_name', 'Un parent')
+                    eleve_name = f"{eleve.nom or ''} {eleve.prenom or ''}".strip()
+
+                    from MonEcole_app.email_service import send_brevo_email
+                    # Résoudre le nom de l'école
+                    school_name = 'MonEcole'
+                    try:
+                        from MonEcole_app.models.country_structure import Etablissement as Etab
+                        etab_obj = Etab.objects.filter(id_etablissement=etab_id).first()
+                        if etab_obj:
+                            school_name = etab_obj.nom or school_name
+                    except Exception:
+                        pass
+
+                    email_html = f"""
+                    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
+                        <div style="background:linear-gradient(135deg,#1e3a8a,#6366f1);padding:20px;border-radius:12px 12px 0 0;text-align:center">
+                            <h2 style="color:#fff;margin:0">📩 Nouveau message parent</h2>
+                            <p style="color:rgba(255,255,255,.8);font-size:14px;margin:4px 0 0">{school_name}</p>
+                        </div>
+                        <div style="background:#fff;padding:20px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px">
+                            <p style="color:#64748b;font-size:14px;margin:0 0 12px">
+                                <strong>{parent_name}</strong> (parent de <strong>{eleve_name}</strong>) vous a envoyé un message :
+                            </p>
+                            <div style="background:#f8fafc;padding:16px;border-radius:8px;border-left:4px solid #6366f1;margin:12px 0;font-size:15px;color:#1e293b">
+                                {message_text}
+                            </div>
+                            <p style="color:#94a3b8;font-size:12px;margin:16px 0 0">
+                                Connectez-vous à <strong>{school_name}</strong> pour répondre à ce message.
+                            </p>
+                        </div>
+                    </div>
+                    """
+                    result = send_brevo_email(
+                        to_emails=[{'email': teacher_email, 'name': teacher_name}],
+                        subject=f"Message de {parent_name} (parent de {eleve_name})",
+                        html_content=email_html,
+                        text_content=f"Message de {parent_name} (parent de {eleve_name}): {message_text}",
+                        from_name=school_name,
+                        fail_silently=True,
+                    )
+                    if result.get('sent', 0) > 0:
+                        email_sent = True
+                        comm.status = 'delivered'
+                        comm.save(update_fields=['status'])
+            except Exception as mail_err:
+                logger.warning(f"[ParentMsg] Email send to teacher failed: {mail_err}")
+
         return JsonResponse({
             'success': True,
             'message': {
@@ -286,6 +371,7 @@ def api_parent_send_message(request):
                 'created_at': comm.created_at.strftime('%Y-%m-%d %H:%M') if comm.created_at else '',
             },
             'thread_id': thread_id,
+            'email_sent': email_sent,
         })
 
     except Exception as e:

@@ -31,15 +31,35 @@ async function loadNotes() {
         const d = await r.json();
         const c = document.getElementById('notesList');
         if (!d.success || !d.evaluations || !d.evaluations.length) {
-            c.innerHTML = '<div class="empty-msg"><i class="fas fa-clipboard-list"></i>Aucune note disponible</div>';
+            c.innerHTML = '<div class="empty-msg"><i class="fas fa-clipboard-list"></i>Aucune évaluation disponible</div>';
             return;
         }
-        let h = '';
+        // Group by cours
+        const byCours = {};
         d.evaluations.forEach(n => {
-            const v = n.note_eleve !== null ? parseFloat(n.note_eleve) : null;
-            const cls = v === null ? 'na' : v >= 14 ? 'good' : v >= 10 ? 'avg' : 'poor';
-            h += `<div class="data-row"><div class="data-main"><div class="data-title">${n.cours||'—'}</div><div class="data-sub">${n.title||''} · ${n.date_eval||''}</div></div><div class="data-badge ${cls}">${v !== null ? v.toFixed(1) : '—'}/${n.ponderation||20}</div></div>`;
+            const k = n.cours || '—';
+            if (!byCours[k]) byCours[k] = [];
+            byCours[k].push(n);
         });
+        let h = '';
+        for (const [cours, evals] of Object.entries(byCours)) {
+            h += `<div style="margin-bottom:16px">`;
+            h += `<div style="font-size:.68rem;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:.5px;margin:0 0 6px 4px;display:flex;align-items:center;gap:6px"><i class="fas fa-book" style="font-size:.6rem"></i>${cours}</div>`;
+            evals.forEach(n => {
+                const v = n.note_eleve !== null ? parseFloat(n.note_eleve) : null;
+                const pond = n.ponderation || 20;
+                const pct = v !== null ? (v / pond * 100) : 0;
+                const cls = v === null ? 'na' : pct >= 70 ? 'good' : pct >= 50 ? 'avg' : 'poor';
+                const typeLabel = n.type_note ? `<span style="font-size:.5rem;background:#eff6ff;color:#3b82f6;padding:1px 6px;border-radius:4px;font-weight:600;margin-left:4px">${n.type_note}</span>` : '';
+                const repLabel = n.note_repechage !== null && n.note_repechage !== undefined ? `<span style="font-size:.5rem;color:#d97706;margin-left:4px">(Rp: ${parseFloat(n.note_repechage).toFixed(1)})</span>` : '';
+                const docBtn = n.document_url ? `<a href="${n.document_url}" target="_blank" style="display:inline-flex;align-items:center;gap:3px;font-size:.55rem;color:#6366f1;text-decoration:none;margin-top:2px"><i class="fas fa-file-alt"></i>Document</a>` : '';
+                h += `<div class="data-row" style="flex-wrap:wrap">`;
+                h += `<div class="data-main"><div class="data-title">${n.title || '—'}${typeLabel}</div><div class="data-sub">${n.date_eval || ''} ${docBtn}</div></div>`;
+                h += `<div class="data-badge ${cls}">${v !== null ? v.toFixed(1) : '—'}/${pond}${repLabel}</div>`;
+                h += `</div>`;
+            });
+            h += `</div>`;
+        }
         c.innerHTML = h;
     } catch(e) { document.getElementById('notesList').innerHTML = '<div class="empty-msg">Erreur de chargement</div>'; }
 }
@@ -581,6 +601,16 @@ function _renderMsgs(msgs, area) {
         const statusIcon = m.is_mine ? '<span class="msg-status"><i class="fas fa-check-double"></i></span>' : '';
         h += `<div class="wa-msg ${dir}">`;
         if (!m.is_mine && m.sender_name) h += `<div class="wa-msg-sender">${m.sender_name}</div>`;
+        // Scope badge — individual vs class vs etab
+        if (!m.is_mine && m.scope) {
+            const scopeMap = {
+                'individual': {icon:'fa-user',label:'Personnel',bg:'#dcfce7',color:'#059669'},
+                'class': {icon:'fa-users',label:'Classe',bg:'#dbeafe',color:'#2563eb'},
+                'etab': {icon:'fa-school',label:'Établissement',bg:'#fef3c7',color:'#d97706'},
+            };
+            const s = scopeMap[m.scope];
+            if (s) h += `<div style="display:inline-flex;align-items:center;gap:3px;font-size:.48rem;background:${s.bg};color:${s.color};padding:1px 6px;border-radius:4px;font-weight:600;margin-bottom:3px"><i class="fas ${s.icon}" style="font-size:.4rem"></i>${s.label}</div>`;
+        }
         if (m.subject) h += `<div style="font-size:.58rem;font-weight:700;color:#075e54;margin-bottom:2px">📌 ${m.subject}</div>`;
         if (m.attachment) {
             const att = m.attachment;
@@ -650,7 +680,11 @@ async function sendM() {
         const d = await r.json();
         if (d.success) {
             const s = el.querySelector('.msg-status'); if(s) s.innerHTML = '<i class="fas fa-check-double"></i>';
-            if (hasFile) showToast('Message + fichier envoyés','success');
+            if (d.email_sent) {
+                showToast('✉️ Message envoyé et email livré à l\'enseignant','success');
+            } else {
+                showToast('Message envoyé','success');
+            }
         } else showToast(d.error||'Erreur','error');
     } catch(e) { showToast('Erreur réseau','error'); }
 }
