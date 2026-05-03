@@ -875,26 +875,29 @@ def api_parent_update_profile(request):
         except Eleve.DoesNotExist:
             return JsonResponse({'success': False, 'error': 'Accès refusé'}, status=403)
 
-        # Champs modifiables par le parent
-        editable_fields = {
-            'telephone': 'telephone',
-            'email': 'email',
-            'nationalite': 'nationalite',
-            'etat_civil': 'etat_civil',
-            'ref_administrative_naissance': 'ref_administrative_naissance',
-            'ref_administrative_residence': 'ref_administrative_residence',
-        }
+        # Champs modifiables par le parent — use raw SQL to avoid
+        # PhoneNumberField validation issues with plain strings
+        editable_fields = [
+            'telephone', 'email', 'nationalite', 'etat_civil',
+            'ref_administrative_naissance', 'ref_administrative_residence',
+        ]
 
-        updated = []
-        for json_key, model_field in editable_fields.items():
-            if json_key in data:
-                setattr(eleve, model_field, data[json_key] or None)
-                updated.append(model_field)
+        updates = {}
+        for field in editable_fields:
+            if field in data:
+                val = data[field]
+                updates[field] = val if val else None
 
-        if updated:
-            eleve.save(update_fields=updated)
+        if updates:
+            set_clauses = ', '.join([f"{k} = %s" for k in updates.keys()])
+            params = list(updates.values()) + [id_eleve]
+            with connections['default'].cursor() as cur:
+                cur.execute(
+                    f"UPDATE eleve SET {set_clauses} WHERE id_eleve = %s",
+                    params
+                )
 
-        return JsonResponse({'success': True, 'updated': updated})
+        return JsonResponse({'success': True, 'updated': list(updates.keys())})
 
     except Exception as e:
         logger.exception("api_parent_update_profile error")

@@ -289,30 +289,43 @@ function _playNotifSound(){
 }
 
 /* System notification — persists in phone notification bar */
-function _showSystemNotif(title, body){
+async function _showSystemNotif(title, body){
     if(!('Notification' in window))return;
     if(Notification.permission==='granted'){
         try{
-            const reg=navigator.serviceWorker?.ready;
-            if(reg){
-                reg.then(r=>r.showNotification(title,{
-                    body:body,icon:'/static/MonEcole_app/icons/icon-512.png',
-                    badge:'/static/MonEcole_app/icons/icon-512.png',
-                    tag:'monecole-msg-'+Date.now(),renotify:true,
-                    requireInteraction:true,vibrate:[200,100,200,100,200],
-                    data:{url:window.location.href}
-                }));
-            }else{new Notification(title,{body:body,icon:'/static/MonEcole_app/icons/icon-512.png',requireInteraction:true});}
-        }catch(e){new Notification(title,{body:body,icon:'/static/MonEcole_app/icons/icon-512.png'});}
+            if('serviceWorker' in navigator){
+                const reg=await navigator.serviceWorker.ready;
+                if(reg){
+                    await reg.showNotification(title,{
+                        body:body,
+                        icon:'/static/MonEcole_app/icons/icon-512.png',
+                        badge:'/static/MonEcole_app/icons/icon-512.png',
+                        tag:'monecole-msg',
+                        renotify:true,
+                        requireInteraction:true,
+                        vibrate:[200,100,200,100,200],
+                        data:{url:window.location.href}
+                    });
+                    return;
+                }
+            }
+            // Fallback: basic Notification API
+            new Notification(title,{body:body,icon:'/static/MonEcole_app/icons/icon-512.png',requireInteraction:true});
+        }catch(e){
+            try{new Notification(title,{body:body,icon:'/static/MonEcole_app/icons/icon-512.png'});}catch(e2){}
+        }
     }else if(Notification.permission!=='denied'){
-        Notification.requestPermission();
+        const perm=await Notification.requestPermission();
+        if(perm==='granted'){
+            try{new Notification(title,{body:body,icon:'/static/MonEcole_app/icons/icon-512.png',requireInteraction:true});}catch(e){}
+        }
     }
 }
 
-/* Request notification permission proactively */
-function _requestNotifPermission(){
+/* Request notification permission proactively (must be user-gesture triggered on mobile) */
+async function _requestNotifPermission(){
     if('Notification' in window && Notification.permission==='default'){
-        Notification.requestPermission();
+        try{ await Notification.requestPermission(); }catch(e){}
     }
 }
 
@@ -372,8 +385,18 @@ async function _pollNewMessages(){
         if(sc&&sc.style.display!=='none')renderContactsScreen();
         // Refresh chat if open
         if(commActiveContact){
-            const tid=findTid(commActiveContact.id_personnel);
-            const tc=tid?commThreadsCache[tid]:null;
+            const npid=Number(commActiveContact.id_personnel);
+            let tid=findTid(npid);
+            let tc=tid?commThreadsCache[tid]:null;
+            // Broader scan if findTid fails
+            if(!tc){
+                for(const ttid in commThreadsCache){
+                    const tt=commThreadsCache[ttid];
+                    if(tt.messages && tt.messages.some(m=>Number(m.sender_personnel_id)===npid||Number(m.target_personnel_id)===npid)){
+                        tc=tt;tid=ttid;break;
+                    }
+                }
+            }
             if(tc&&tc.messages){const ma=document.getElementById('msgArea');if(ma)_renderMsgs(tc.messages,ma);}
         }
     }catch(e){}
@@ -416,23 +439,20 @@ function contactRow(c) {
 }
 
 function findTid(pid) {
+    const npid = Number(pid);
     // First: match by personnel_ids in thread data (authoritative)
     for (const tid in commThreadsCache) {
         const t = commThreadsCache[tid];
-        if (t.personnel_ids && t.personnel_ids.includes(pid)) return tid;
+        if (t.personnel_ids && t.personnel_ids.map(Number).includes(npid)) return tid;
     }
     // Fallback: match by message sender/target in thread messages
     for (const tid in commThreadsCache) {
         const t = commThreadsCache[tid];
         if (t.messages) {
             for (const m of t.messages) {
-                if (m.sender_personnel_id === pid || m.target_personnel_id === pid) return tid;
+                if (Number(m.sender_personnel_id) === npid || Number(m.target_personnel_id) === npid) return tid;
             }
         }
-    }
-    // Last fallback: string pattern matching
-    for (const tid in commThreadsCache) {
-        if (String(tid).includes(`_${pid}`) || String(tid).includes(`-${pid}-`) || String(tid).includes(`t${pid}`)) return tid;
     }
     return null;
 }
@@ -490,10 +510,31 @@ async function _loadChatMessages(tid, pid) {
         const d = await r.json();
         if (d.success) {
             (d.threads||[]).forEach(t => { commThreadsCache[t.thread_id] = t; });
-            const freshTid = findTid(pid);
+            // Re-find tid after cache refresh (critical for first-load)
+            const freshTid = tid || findTid(pid);
             const freshTc = freshTid ? commThreadsCache[freshTid] : null;
-            if (freshTc && freshTc.messages) _renderMsgs(freshTc.messages, ma);
-            else if (!tc || !tc.messages || !tc.messages.length) {
+            if (freshTc && freshTc.messages && freshTc.messages.length) {
+                _renderMsgs(freshTc.messages, ma);
+                // Mark as read if we just loaded
+                if (freshTc.unread > 0) {
+                    freshTc.unread = 0;
+                    _updateUnreadBadge();
+                    fetch('/parent/api/messages/read/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({thread_id:freshTid})}).catch(()=>{});
+                }
+            } else if (!tc || !tc.messages || !tc.messages.length) {
+                // Also scan ALL threads to find any containing messages from/to this personnel
+                const npid = Number(pid);
+                for (const ttid in commThreadsCache) {
+                    const tt = commThreadsCache[ttid];
+                    if (tt.messages) {
+                        const hasMatch = tt.messages.some(m => 
+                            Number(m.sender_personnel_id) === npid || Number(m.target_personnel_id) === npid);
+                        if (hasMatch) {
+                            _renderMsgs(tt.messages, ma);
+                            return;
+                        }
+                    }
+                }
                 ma.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:.7rem;margin:auto"><i class="fas fa-comments" style="display:block;font-size:2.5rem;opacity:.12;margin-bottom:8px;color:#128c7e"></i>Démarrez une conversation</div>';
             }
         }
