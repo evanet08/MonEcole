@@ -1,0 +1,341 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\geometry{top=2.5cm,bottom=2.5cm,left=2.5cm,right=2.5cm}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,arrows.meta,positioning,calc,shadows.blur,fit,backgrounds}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{fontawesome5}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=indigo,urlcolor=indigo,pdfauthor={MonEcole},pdftitle={Manuel --- Application Mobile Parents (PWA)}}
+\usepackage{fancyhdr}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{caption}
+
+% ====== COULEURS ======
+\definecolor{indigo}{HTML}{4338CA}
+\definecolor{violet}{HTML}{7C3AED}
+\definecolor{amber}{HTML}{D97706}
+\definecolor{emerald}{HTML}{059669}
+\definecolor{rose}{HTML}{E11D48}
+\definecolor{slate}{HTML}{334155}
+\definecolor{slatelight}{HTML}{94A3B8}
+\definecolor{teal}{HTML}{0D9488}
+\definecolor{sky}{HTML}{0EA5E9}
+\definecolor{coverbg}{HTML}{1E1B4B}
+\definecolor{coveraccent}{HTML}{6366F1}
+\definecolor{lightbg}{HTML}{F8FAFC}
+\definecolor{warningbg}{HTML}{FEF3C7}
+\definecolor{successbg}{HTML}{ECFDF5}
+\definecolor{infobg}{HTML}{EFF6FF}
+\definecolor{dangerbg}{HTML}{FEF2F2}
+\definecolor{purplebg}{HTML}{FAF5FF}
+\definecolor{tealbg}{HTML}{F0FDFA}
+\definecolor{whatsapp}{HTML}{128C7E}
+
+% ====== TCOLORBOX ======
+\newtcolorbox{astuce}[1][]{enhanced,colback=successbg,colframe=emerald,fonttitle=\bfseries\small,title={\faLightbulb\hspace{6pt}Astuce},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+\newtcolorbox{attention}[1][]{enhanced,colback=warningbg,colframe=amber,fonttitle=\bfseries\small,title={\faExclamationTriangle\hspace{6pt}Attention},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+\newtcolorbox{info}[1][]{enhanced,colback=infobg,colframe=indigo,fonttitle=\bfseries\small,title={\faInfoCircle\hspace{6pt}Information},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+\newtcolorbox{danger}[1][]{enhanced,colback=dangerbg,colframe=rose,fonttitle=\bfseries\small,title={\faTimesCircle\hspace{6pt}Important},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+\newtcolorbox{etape}[1][]{enhanced,colback=white,colframe=indigo!60,fonttitle=\bfseries\small,left=10pt,right=10pt,top=8pt,bottom=8pt,arc=6pt,boxrule=1.5pt,breakable,shadow={2pt}{-2pt}{0pt}{black!12},#1}
+\newtcolorbox{prerequis}[1][]{enhanced,colback=purplebg,colframe=violet,fonttitle=\bfseries\small,title={\faClipboard\hspace{6pt}Pr\'erequis},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+\newtcolorbox{resultat}[1][]{enhanced,colback=tealbg,colframe=teal,fonttitle=\bfseries\small,title={\faCheck\hspace{6pt}R\'esultat attendu},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+
+% ====== HEADERS ======
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{\small\color{slatelight}\leftmark}
+\fancyhead[R]{\small\color{indigo}\textbf{MonEcole}}
+\fancyfoot[C]{\small\color{slatelight}\thepage}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0.3pt}
+
+% ====== COMMANDES ======
+\newcommand{\bouton}[1]{{\colorbox{emerald}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+\newcommand{\onglet}[1]{{\colorbox{indigo}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+\newcommand{\champ}[1]{\texttt{\color{violet}#1}}
+\newcommand{\btnviolet}[1]{{\colorbox{violet}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+\newcommand{\btnamber}[1]{{\colorbox{amber}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+\newcommand{\btnrose}[1]{{\colorbox{rose}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+\newcommand{\fab}[1]{{\colorbox{indigo}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+
+\begin{document}
+
+% ===================================================================
+%                         PAGE DE COUVERTURE
+% ===================================================================
+\begin{titlepage}
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[coverbg] (current page.south west) rectangle (current page.north east);
+  \fill[coveraccent,opacity=0.12] (current page.north east) ++(-4,1) circle (8cm);
+  \fill[violet,opacity=0.08] (current page.south west) ++(3,-2) circle (10cm);
+  \fill[coveraccent,opacity=0.06] (current page.center) ++(6,-4) circle (5cm);
+  \fill[amber,opacity=0.05] (current page.north west) ++(2,-8) circle (4cm);
+  \draw[coveraccent,line width=2pt,opacity=0.4] ([yshift=-6cm]current page.north west) ++(2.5,0) -- ++(16,0);
+  \node[fill=coveraccent,rounded corners=14pt,minimum size=2cm,inner sep=0pt] at ([yshift=-3.5cm]current page.north) {\color{white}\fontsize{28pt}{28pt}\selectfont\faMobileAlt};
+  \node[anchor=north,text width=14cm,align=center] at ([yshift=-6.5cm]current page.north) {
+    \color{white}\fontsize{32pt}{36pt}\selectfont\textbf{Manuel d'Utilisation}\\[12pt]
+    \fontsize{18pt}{22pt}\selectfont\color{coveraccent!70!white}Application Mobile \textbf{Parents (PWA)}
+  };
+  \node[anchor=north,text width=14cm,align=center] at ([yshift=-10cm]current page.north) {
+    \color{white!60}\fontsize{11pt}{15pt}\selectfont
+    Guide complet pour l'application mobile des parents~:\\
+    installation, connexion, suivi scolaire, notes,\\
+    paiements et messagerie avec les enseignants.
+  };
+  \draw[coveraccent,line width=1.5pt] ([yshift=-12.5cm]current page.north) ++(-3,0) -- ++(6,0);
+  \node[anchor=north,text width=14cm,align=center] at ([yshift=-13.5cm]current page.north) {
+    \color{white!50}\small
+    \faBuilding\hspace{4pt}Plateforme MonEcole --- Progressive Web App\\[6pt]
+    \faCalendar\hspace{4pt}Mai 2026 --- Version 1.0\\[6pt]
+    \faBook\hspace{4pt}Documentation Utilisateur --- 7 Sections
+  };
+  \node[anchor=south,text width=14cm,align=center] at ([yshift=1.5cm]current page.south) {
+    \color{white!30}\footnotesize \faCopyright\hspace{3pt} Nexora Tech --- Tous droits r\'eserv\'es
+  };
+\end{tikzpicture}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ===================================================================
+\chapter{Pr\'esentation de l'Application}
+% ===================================================================
+
+\section{Qu'est-ce que l'application MonEcole Parents~?}
+
+L'application \textbf{MonEcole Parents} est une \textbf{Progressive Web App (PWA)} qui permet aux parents de suivre la scolarit\'e de leurs enfants directement depuis leur t\'el\'ephone, tablette ou ordinateur. Elle fonctionne comme une application native mais sans n\'ecessiter de t\'el\'echargement depuis un Store.
+
+\begin{info}
+Une \textbf{PWA} (Progressive Web App) est une application web qui s'installe sur votre appareil comme une application classique. Elle fonctionne en plein \'ecran, peut fonctionner partiellement hors connexion, et se met \`a jour automatiquement.
+\end{info}
+
+\section{Fonctionnalit\'es principales}
+
+L'application offre \textbf{6 fonctions cl\'es}~:
+
+\begin{center}
+\begin{tikzpicture}[
+  card/.style={draw=#1!40, fill=#1!5, rounded corners=8pt, minimum width=4.8cm, minimum height=1.6cm, align=center, font=\scriptsize\bfseries, text=slate, drop shadow={shadow xshift=0.5pt, shadow yshift=-0.5pt, opacity=0.1}},
+]
+  \node[card=indigo] (c1) at (0,0) {\faIdCard\ \textbf{Informations}\\[2pt]\tiny Fiche d'identit\'e de l'enfant};
+  \node[card=sky, right=6pt of c1] (c2) {\faUserEdit\ \textbf{Profil}\\[2pt]\tiny Modifier photo et donn\'ees};
+  \node[card=teal, right=6pt of c2] (c3) {\faTachometerAlt\ \textbf{Tableau de bord}\\[2pt]\tiny Pr\'esence, conduite, \'evolution};
+
+  \node[card=violet, below=10pt of c1] (c4) {\faChartBar\ \textbf{Notes}\\[2pt]\tiny \'Evaluations et r\'esultats};
+  \node[card=amber, below=10pt of c2] (c5) {\faCreditCard\ \textbf{Paiements}\\[2pt]\tiny Soldes et historique};
+  \node[card=rose, below=10pt of c3] (c6) {\faCommentDots\ \textbf{Messages}\\[2pt]\tiny Communication enseignants};
+\end{tikzpicture}
+\end{center}
+
+\section{Acc\`es \`a l'application}
+
+L'application est accessible via un navigateur web \`a l'adresse~:
+
+\begin{center}
+\begin{tikzpicture}
+  \fill[indigo!8, rounded corners=8pt] (0,0) rectangle (10,1.2);
+  \draw[indigo!30, rounded corners=8pt, line width=1pt] (0,0) rectangle (10,1.2);
+  \node[font=\normalsize\bfseries\ttfamily\color{indigo}] at (5,0.6) {https://monecole.pro/parent/};
+\end{tikzpicture}
+\end{center}
+
+\newpage
+% ===================================================================
+\chapter{Installer l'Application sur votre Appareil}
+% ===================================================================
+
+L'application MonEcole Parents peut \^etre install\'ee sur votre \'ecran d'accueil comme une application native. La proc\'edure varie selon votre appareil.
+
+\section{Sur Android (Google Chrome)}
+
+\begin{etape}[title=Proc\'edure : Installation sur Android]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=12pt]
+  \item \textbf{Ouvrez Google Chrome} et acc\'edez \`a \texttt{https://monecole.pro/parent/}.
+
+  \item \textbf{Attendez la banni\`ere d'installation} --- Au bout de quelques secondes, Chrome affiche en bas de l'\'ecran une banni\`ere \textit{\guillemotleft~Ajouter MonEcole \`a l'\'ecran d'accueil~\guillemotright}. Si elle appara\^it, \textbf{appuyez sur Installer}.
+
+  \item \textbf{Si la banni\`ere n'appara\^it pas}~:
+  \begin{itemize}
+    \item Appuyez sur les \textbf{trois points verticaux} (\faEllipsisV) en haut \`a droite de Chrome.
+    \item S\'electionnez \textbf{\guillemotleft~Ajouter \`a l'\'ecran d'accueil~\guillemotright} (ou \textit{\guillemotleft~Installer l'application~\guillemotright}).
+    \item Confirmez en appuyant sur \textbf{Installer}.
+  \end{itemize}
+
+  \item \textbf{L'ic\^one MonEcole} appara\^it sur votre \'ecran d'accueil. Vous pouvez d\'esormais lancer l'application en appuyant dessus, comme n'importe quelle autre application.
+\end{enumerate}
+\end{etape}
+
+\section{Sur iPhone / iPad (Safari)}
+
+\begin{danger}
+Sur iOS, l'installation PWA fonctionne \textbf{uniquement avec Safari}. Chrome, Firefox ou d'autres navigateurs sur iOS ne supportent pas l'installation sur l'\'ecran d'accueil.
+\end{danger}
+
+\begin{etape}[title=Proc\'edure : Installation sur iOS]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=12pt]
+  \item \textbf{Ouvrez Safari} (le navigateur par d\'efaut d'Apple) et acc\'edez \`a \texttt{https://monecole.pro/parent/}.
+
+  \item \textbf{Appuyez sur le bouton Partager} --- C'est l'ic\^one carr\'e avec une fl\`eche vers le haut (\faShareSquare) situ\'ee en bas de l'\'ecran (iPhone) ou en haut \`a droite (iPad).
+
+  \item \textbf{Faites d\'efiler} le menu qui appara\^it vers le bas et appuyez sur \textbf{\guillemotleft~Sur l'\'ecran d'accueil~\guillemotright} (ic\^one \faPlusSquare).
+
+  \item \textbf{Confirmez le nom} --- Le nom \textit{MonEcole} est pr\'e-rempli. Appuyez sur \textbf{Ajouter} en haut \`a droite.
+
+  \item \textbf{L'ic\^one MonEcole} appara\^it sur votre \'ecran d'accueil. L'application s'ouvrira en plein \'ecran, sans barre d'adresse Safari.
+\end{enumerate}
+\end{etape}
+
+\begin{astuce}
+Apr\`es l'installation sur iOS, l'application s'ouvre en \textbf{mode plein \'ecran} (standalone) avec la barre d'\'etat bleue fonc\'ee de MonEcole. C'est visuellement identique \`a une application native.
+\end{astuce}
+
+\section{Sur Ordinateur (Windows, macOS, Linux)}
+
+\begin{etape}[title=Proc\'edure : Installation sur ordinateur]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=12pt]
+  \item \textbf{Ouvrez Google Chrome} (ou Microsoft Edge) et acc\'edez \`a \texttt{https://monecole.pro/parent/}.
+
+  \item \textbf{Rep\'erez l'ic\^one d'installation} --- Dans la barre d'adresse, \`a droite de l'URL, une petite ic\^one (\faDesktop\ ou \faPlusCircle) appara\^it. Cliquez dessus.
+
+  \item \textbf{Confirmez} en cliquant sur \textbf{Installer} dans la bo\^ite de dialogue.
+
+  \item \textbf{L'application s'ouvre} dans une fen\^etre d\'edi\'ee, sans barre d'adresse. Un raccourci est cr\'e\'e~:
+  \begin{itemize}
+    \item \textbf{Windows}~: dans le menu D\'emarrer et sur le Bureau.
+    \item \textbf{macOS}~: dans le Launchpad.
+    \item \textbf{Linux}~: dans le lanceur d'applications.
+  \end{itemize}
+\end{enumerate}
+\end{etape}
+
+\begin{info}
+Sur \textbf{tous les appareils}, l'application se met \`a jour automatiquement. Vous n'avez rien \`a t\'el\'echarger manuellement --- il suffit de la rouvrir pour b\'en\'eficier des derni\`eres am\'eliorations.
+\end{info}
+
+\newpage
+% ===================================================================
+\chapter{Connexion et Authentification}
+% ===================================================================
+
+\section{Se connecter pour la premi\`ere fois}
+
+L'authentification utilise un syst\`eme de \textbf{code OTP} (One-Time Password) envoy\'e par SMS. Aucun mot de passe \`a retenir.
+
+\begin{prerequis}
+\begin{itemize}
+  \item Votre \textbf{num\'ero de t\'el\'ephone} doit avoir \'et\'e enregistr\'e par l'\'ecole dans le syst\`eme MonEcole (au moment de l'inscription de votre enfant).
+  \item Votre t\'el\'ephone doit pouvoir \textbf{recevoir des SMS}.
+\end{itemize}
+\end{prerequis}
+
+\begin{etape}[title=Proc\'edure : Se connecter]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=12pt]
+  \item \textbf{Ouvrez l'application} ou acc\'edez \`a \texttt{https://monecole.pro/parent/}.
+
+  \item \textbf{S\'electionnez votre pays} dans le menu d\'eroulant \champ{Pays} (ex.~: Burundi, RDC, Rwanda...). Un drapeau et le pr\'efixe t\'el\'ephonique (+257, +243...) s'affichent automatiquement.
+
+  \item \textbf{S\'electionnez votre \'etablissement} dans le menu d\'eroulant \champ{\'Etablissement}. La liste ne montre que les \'ecoles du pays s\'electionn\'e.
+
+  \item \textbf{Saisissez votre num\'ero de t\'el\'ephone} dans le champ \champ{T\'el\'ephone}. Entrez le num\'ero sans le pr\'efixe pays (ex.~: 79123456).
+
+  \item \textbf{Cliquez sur} \bouton{Envoyer le code}. Un SMS contenant un code \`a 6 chiffres est envoy\'e \`a votre t\'el\'ephone.
+
+  \item \textbf{Saisissez le code OTP} re\c{c}u dans le champ qui appara\^it. Le code est valide pendant \textbf{5 minutes}.
+
+  \item \textbf{Cliquez sur} \bouton{V\'erifier}. Si le code est correct, vous \^etes redirig\'e vers la page d'accueil.
+\end{enumerate}
+\end{etape}
+
+\begin{attention}
+Si vous ne recevez pas le SMS, v\'erifiez que votre num\'ero est correctement enregistr\'e aupr\`es de l'\'ecole. Vous pouvez aussi cliquer sur \textbf{Renvoyer le code} apr\`es 60 secondes.
+\end{attention}
+
+\section{Se d\'econnecter}
+
+Pour vous d\'econnecter, appuyez sur le \textbf{bouton flottant} (\faTh) puis s\'electionnez \textbf{D\'econnexion} (\faSignOutAlt\ gris).
+
+\newpage
+% ===================================================================
+\chapter{Page d'Accueil --- Mes Enfants}
+% ===================================================================
+
+\section{Pr\'esentation de l'accueil}
+
+Apr\`es connexion, la page d'accueil affiche~:
+
+\begin{enumerate}[leftmargin=1.2cm]
+  \item \textbf{Un message de bienvenue} personnalis\'e avec votre nom.
+  \item \textbf{Deux compteurs}~: nombre d'enfants et nombre d'\'etablissements.
+  \item \textbf{La liste de vos enfants} sous forme de cartes cliquables. Chaque carte affiche~:
+  \begin{itemize}
+    \item L'\textbf{avatar} (photo ou initiales avec couleur bleu/rose selon le genre).
+    \item Le \textbf{nom et pr\'enom} de l'enfant.
+    \item La \textbf{classe} actuelle (ex.~: \textit{3\`eme Ann\'ee Secondaire}).
+    \item Le nom de l'\textbf{\'etablissement}.
+    \item Le \textbf{pays} (si multi-pays).
+  \end{itemize}
+\end{enumerate}
+
+\begin{info}
+Si vos enfants sont inscrits dans \textbf{diff\'erents \'etablissements} ou m\^eme \textbf{diff\'erents pays}, ils apparaissent tous sur cette m\^eme page. L'architecture multi-tenant de MonEcole g\`ere cette situation automatiquement.
+\end{info}
+
+\begin{etape}[title=Proc\'edure : Acc\'eder au dossier d'un enfant]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=8pt]
+  \item \textbf{Rep\'erez la carte} de l'enfant dans la liste.
+  \item \textbf{Appuyez sur la carte}. Vous \^etes redirig\'e vers la page de suivi de cet enfant.
+  \item \textbf{Pour revenir \`a la liste}, appuyez sur la fl\`eche retour (\faArrowLeft) en haut \`a gauche.
+\end{enumerate}
+\end{etape}
+
+\newpage
+% ===================================================================
+\chapter{Le Menu Flottant (FAB)}
+% ===================================================================
+
+\section{Fonctionnement}
+
+La navigation dans la fiche de chaque enfant se fait via un \textbf{bouton flottant} (FAB --- Floating Action Button) situ\'e en bas \`a droite de l'\'ecran. C'est un bouton rond indigo avec l'ic\^one \faTh.
+
+\begin{etape}[title=Proc\'edure : Naviguer avec le menu flottant]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{Appuyez sur le bouton} rond \fab{\faTh} en bas \`a droite. Un voile semi-transparent appara\^it et le menu s'ouvre vers le haut.
+
+  \item \textbf{Choisissez la section} en appuyant sur le bouton color\'e correspondant. Le menu se referme automatiquement et la section s'affiche.
+
+  \item \textbf{Pour fermer sans naviguer}, appuyez sur le voile ou sur le bouton FAB (devenu rouge avec un \faTimes).
+\end{enumerate}
+\end{etape}
+
+\section{Les 7 options du menu}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{p{1cm}lllX}
+\toprule
+\textbf{Ic\^one} & \textbf{Label} & \textbf{Couleur} & \textbf{Section} & \textbf{Description} \\
+\midrule
+\faHome & Accueil & Vert & Page d'accueil & Retour \`a la liste des enfants \\
+\faIdCard & Infos & Vert & Informations & Fiche d'identit\'e de l'enfant \\
+\faUserEdit & Profil & Bleu & Profil & Modifier les donn\'ees et la photo \\
+\faTachometerAlt & Tableau & Teal & Dashboard & Pr\'esence, conduite, \'evolution \\
+\faChartBar & Notes & Violet & Notes & \'Evaluations et r\'esultats scolaires \\
+\faCreditCard & Paiements & Ambre & Paiements & Soldes et historique des paiements \\
+\faCommentDots & Messages & Rose & Messagerie & Communication avec les enseignants \\
+\faSignOutAlt & D\'econnexion & Gris & --- & Fermer la session \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\input{manuel_pwa_parents_suite}
+
+\end{document}

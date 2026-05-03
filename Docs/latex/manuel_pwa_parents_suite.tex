@@ -1,0 +1,301 @@
+% manuel_pwa_parents_suite.tex --- inclus par manuel_pwa_parents.tex
+
+\newpage
+% ===================================================================
+\chapter{Section Informations}
+% ===================================================================
+
+\section{Contenu de la fiche}
+
+La section \textbf{Informations} (\faIdCard) affiche les donn\'ees administratives de l'enfant sous forme de grille de cartes~:
+
+\begin{center}
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Champ} & \textbf{Description} \\
+\midrule
+Nom & Nom de famille de l'\'el\`eve \\
+Pr\'enom & Pr\'enom de l'\'el\`eve \\
+Genre & Masculin ou F\'eminin \\
+Date de naissance & Format jour/mois/ann\'ee \\
+Matricule & Num\'ero matricule si attribu\'e par l'\'ecole \\
+Code & Code \'el\`eve interne \\
+Classe & Classe actuelle (pleine largeur) \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{info}
+Cette section est en \textbf{lecture seule}. Pour modifier les informations, utilisez la section \textbf{Profil} (bouton \faUserEdit\ dans le menu flottant).
+\end{info}
+
+\newpage
+% ===================================================================
+\chapter{Section Profil --- Modifier les Donn\'ees}
+% ===================================================================
+
+\section{Modifier le profil de l'enfant}
+
+\begin{etape}[title=Proc\'edure : Modifier le profil]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=12pt]
+  \item \textbf{Ouvrez le menu flottant} et appuyez sur \textbf{Profil} (\faUserEdit\ bleu).
+
+  \item \textbf{La photo de profil} appara\^it en haut. Appuyez sur \textbf{Changer la photo} pour s\'electionner une image depuis votre galerie ou cam\'era.
+
+  \item \textbf{Modifiez les champs} souhait\'es~:
+  \begin{itemize}
+    \item \champ{Nom}, \champ{Pr\'enom}, \champ{Post-nom} --- texte libre.
+    \item \champ{Genre} --- menu d\'eroulant (Masculin / F\'eminin).
+    \item \champ{Date de naissance} --- s\'electeur de date.
+    \item \champ{Lieu de naissance} --- texte libre.
+    \item \champ{Adresse} --- adresse du domicile.
+  \end{itemize}
+
+  \item \textbf{Appuyez sur} \bouton{Enregistrer les modifications} (bouton indigo en bas de page).
+
+  \item \textbf{Un toast vert} confirme la sauvegarde~: \textit{\guillemotleft~Profil mis \`a jour avec succ\`es~\guillemotright}.
+\end{enumerate}
+\end{etape}
+
+\begin{attention}
+Certains champs (comme le \textbf{Matricule} et le \textbf{Code \'el\`eve}) sont g\'er\'es par l'\'ecole et ne sont pas modifiables par le parent. Ils apparaissent gris\'es.
+\end{attention}
+
+\newpage
+% ===================================================================
+\chapter{Section Tableau de Bord}
+% ===================================================================
+
+\section{Vue d'ensemble}
+
+Le \textbf{Tableau de bord} (\faTachometerAlt) offre une vue synth\'etique de la vie scolaire de l'enfant avec trois panneaux~:
+
+\subsection{Panneau Pr\'esence}
+
+Trois indicateurs en haut~:
+
+\begin{center}
+\begin{tabularx}{\textwidth}{llX}
+\toprule
+\textbf{Indicateur} & \textbf{Couleur} & \textbf{Description} \\
+\midrule
+Taux & Neutre & Pourcentage de pr\'esence (ex.~: 94\%) \\
+Pr\'esences & Neutre & Nombre de jours pr\'esent \\
+Absences & Rouge & Nombre de jours absent \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+En dessous, la \textbf{liste des absences} d\'etaille chaque jour d'absence avec la date et le motif (justifi\'e ou non).
+
+\subsection{Panneau Conduite}
+
+Affiche les observations de conduite signal\'ees par les enseignants (retards, comportement, remarques positives).
+
+\subsection{Panneau \'Evolution}
+
+Pr\'esente l'\'evolution des r\'esultats scolaires de l'enfant au fil des p\'eriodes.
+
+\newpage
+% ===================================================================
+\chapter{Section Notes et \'Evaluations}
+% ===================================================================
+
+\section{Consulter les notes}
+
+La section \textbf{Notes} (\faChartBar) affiche toutes les \'evaluations de l'enfant et ses r\'esultats. Les donn\'ees sont organis\'ees par \textbf{cours}.
+
+\begin{etape}[title=Proc\'edure : Consulter les notes]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{Ouvrez le menu flottant} et appuyez sur \textbf{Notes} (\faChartBar\ violet).
+
+  \item \textbf{La liste des cours} s'affiche. Pour chaque cours, vous voyez~:
+  \begin{itemize}
+    \item Le \textbf{nom du cours} et l'\textbf{enseignant} responsable.
+    \item La liste des \textbf{\'evaluations} avec pour chacune~:
+    \begin{itemize}
+      \item Le \textbf{titre} de l'\'evaluation (ex.~: \textit{Interrogation Chapitre 3}).
+      \item Le \textbf{type} (IE, DS, TP, EX...).
+      \item La \textbf{note obtenue} / maximum (ex.~: 15/20).
+      \item Un \textbf{badge color\'e} indiquant la performance~:
+      \begin{itemize}
+        \item \textcolor{emerald}{\textbf{Vert}} --- bonne note ($\geq$ 70\%).
+        \item \textcolor{amber}{\textbf{Orange}} --- note moyenne ($\geq$ 50\%).
+        \item \textcolor{rose}{\textbf{Rouge}} --- note insuffisante ($<$ 50\%).
+      \end{itemize}
+    \end{itemize}
+  \end{itemize}
+
+  \item \textbf{Les pi\`eces jointes} --- Si l'\'evaluation a un document attach\'e (sujet PDF), un bouton permet de le t\'el\'echarger directement.
+\end{enumerate}
+\end{etape}
+
+\begin{info}
+Les notes affich\'ees sont uniquement les notes \textbf{valid\'ees} par l'\'ecole. Si une note n'appara\^it pas encore, c'est que l'enseignant ne l'a pas encore publi\'ee.
+\end{info}
+
+\begin{astuce}
+Les \'evaluations sont distingu\'ees par un \textbf{badge de port\'ee}~:
+\begin{itemize}
+  \item \textcolor{violet}{\textbf{Personnalis\'e}} --- \'evaluation concernant uniquement votre enfant (ou note individuelle).
+  \item \textcolor{sky}{\textbf{Collectif}} --- \'evaluation commune \`a toute la classe.
+\end{itemize}
+\end{astuce}
+
+\newpage
+% ===================================================================
+\chapter{Section Paiements}
+% ===================================================================
+
+\section{Consulter la situation financi\`ere}
+
+La section \textbf{Paiements} (\faCreditCard) affiche deux panneaux~:
+
+\subsection{Panneau Soldes}
+
+Pour chaque variable de paiement (frais scolaires, uniforme, transport...), une carte affiche~:
+\begin{itemize}
+  \item Le \textbf{nom de la variable} et sa \textbf{cat\'egorie}.
+  \item Une \textbf{barre de progression} color\'ee indiquant le pourcentage pay\'e.
+  \item Le \textbf{montant pay\'e} et le \textbf{reste \`a payer}.
+  \item La \textbf{r\'eduction} \'eventuelle (en pourcentage).
+\end{itemize}
+
+\subsection{Panneau Historique}
+
+Liste chronologique de tous les paiements effectu\'es avec~:
+\begin{itemize}
+  \item La \textbf{date} du paiement.
+  \item Le \textbf{montant} en Fbu.
+  \item La \textbf{variable} concern\'ee.
+  \item Le \textbf{statut}~: \textcolor{emerald}{Valid\'e}, \textcolor{amber}{En attente}, ou \textcolor{rose}{Rejet\'e}.
+\end{itemize}
+
+\begin{etape}[title=Proc\'edure : V\'erifier les paiements]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=8pt]
+  \item \textbf{Ouvrez le menu flottant} et appuyez sur \textbf{Paiements} (\faCreditCard\ ambre).
+  \item \textbf{Consultez les soldes} en haut --- chaque carte montre la progression du paiement.
+  \item \textbf{D\'efilez vers le bas} pour voir l'\textbf{historique} des transactions pass\'ees.
+\end{enumerate}
+\end{etape}
+
+\newpage
+% ===================================================================
+\chapter{Section Messagerie}
+% ===================================================================
+
+\section{Pr\'esentation de la messagerie}
+
+La section \textbf{Messages} (\faCommentDots) offre une messagerie interne style \textbf{WhatsApp} permettant la communication bidirectionnelle entre le parent et les enseignants / la direction de l'\'ecole.
+
+\begin{info}
+Lorsque vous ouvrez la messagerie, l'interface passe en \textbf{mode immersif}~: le profil de l'enfant dispara\^it et la messagerie occupe tout l'\'ecran, exactement comme WhatsApp.
+\end{info}
+
+\section{Interface de la messagerie}
+
+L'interface se compose de~:
+
+\begin{enumerate}[leftmargin=1.2cm]
+  \item \textbf{Barre verte} en haut --- titre \textit{\guillemotleft~Messages~\guillemotright} avec le nom de l'enfant.
+  \item \textbf{Barre de recherche} --- pour filtrer les contacts par nom.
+  \item \textbf{Liste des contacts} organis\'ee en deux groupes~:
+  \begin{itemize}
+    \item \textcolor{amber}{\textbf{Direction}} --- personnel administratif (directeur, pr\'efet d'\'etudes).
+    \item \textcolor{violet}{\textbf{Enseignants}} --- enseignants de la classe de l'enfant, avec le nom du cours entre parenth\`eses.
+  \end{itemize}
+  \item \textbf{Zone de conversation} --- bulles de messages avec horodatage.
+  \item \textbf{Barre de saisie} en bas --- champ texte + bouton d'envoi vert.
+\end{enumerate}
+
+\section{Pour lire et r\'epondre aux messages}
+
+\begin{etape}[title=Proc\'edure : Lire et r\'epondre]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=12pt]
+  \item \textbf{Ouvrez le menu flottant} et appuyez sur \textbf{Messages} (\faCommentDots\ rose).
+
+  \item \textbf{S\'electionnez un contact} dans la liste \`a gauche. Les contacts avec des messages non lus affichent un \textbf{badge vert} avec le nombre de messages.
+
+  \item \textbf{La conversation s'ouvre} avec les messages pr\'ec\'edents. Les messages envoy\'es par vous sont align\'es \`a \textbf{droite} (fond vert clair). Les messages re\c{c}us sont \`a \textbf{gauche} (fond blanc).
+
+  \item \textbf{Pour r\'epondre}, tapez votre message dans le champ en bas et appuyez sur le \textbf{bouton vert} (\faPaperPlane).
+
+  \item \textbf{Le message appara\^it} imm\'ediatement dans la conversation. L'enseignant re\c{c}oit \'egalement une \textbf{notification par e-mail} pour \^etre averti.
+\end{enumerate}
+\end{etape}
+
+\section{Types de messages}
+
+Les messages sont distingu\'es par leur \textbf{port\'ee}~:
+
+\begin{center}
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Type} & \textbf{Description} \\
+\midrule
+\textcolor{violet}{\textbf{Personnalis\'e}} & Message adress\'e sp\'ecifiquement au parent concernant son enfant. \\
+\textcolor{sky}{\textbf{Collectif}} & Message envoy\'e par l'enseignant \`a tous les parents de la classe. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{astuce}
+Les messages \textbf{collectifs} sont identifiables par un badge bleu \textit{\guillemotleft~Classe enti\`ere~\guillemotright}. Les messages \textbf{personnalis\'es} portent le badge violet \textit{\guillemotleft~Personnalis\'e~\guillemotright}.
+\end{astuce}
+
+\begin{attention}
+Lorsque vous r\'epondez, votre message est \textbf{toujours individuel} (personnalis\'e). Seul l'enseignant concern\'e le voit, m\^eme si le message initial \'etait collectif.
+\end{attention}
+
+\newpage
+% ===================================================================
+\chapter{R\'ef\'erence Rapide}
+% ===================================================================
+
+\section{Raccourcis de navigation}
+
+\begin{tabularx}{\textwidth}{llX}
+\toprule
+\textbf{Geste} & \textbf{\'El\'ement} & \textbf{Action} \\
+\midrule
+Appui sur FAB (\faTh) & Bouton flottant & Ouvre/ferme le menu de navigation \\
+Appui sur carte enfant & Page d'accueil & Ouvre la fiche de l'enfant \\
+\faArrowLeft\ en haut & Header & Retourne \`a la page pr\'ec\'edente \\
+\faSignOutAlt\ en haut & Header & D\'econnexion \\
+\bottomrule
+\end{tabularx}
+
+\section{R\'esolution de probl\`emes courants}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Probl\`eme} & \textbf{Solution} \\
+\midrule
+Je ne re\c{c}ois pas le code OTP & V\'erifiez votre num\'ero aupr\`es de l'\'ecole. Attendez 60s et cliquez \textit{Renvoyer}. \\
+Aucun enfant n'appara\^it & Votre num\'ero n'est pas associ\'e \`a un \'el\`eve. Contactez l'administration. \\
+Les notes sont vides & L'enseignant n'a pas encore publi\'e les r\'esultats. \\
+L'appli ne s'installe pas (iOS) & Utilisez \textbf{Safari} uniquement. Chrome sur iOS ne supporte pas les PWA. \\
+Messages envoy\'es disparaissent & Videz le cache du navigateur ou red\'emarrez l'application. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{Glossaire}
+
+\begin{description}[leftmargin=1.5cm, style=nextline, font=\bfseries\color{indigo}]
+  \item[FAB] Floating Action Button --- le bouton rond flottant en bas \`a droite servant de menu de navigation.
+  \item[OTP] One-Time Password --- code \`a usage unique envoy\'e par SMS pour l'authentification.
+  \item[PWA] Progressive Web App --- application web installable sur l'\'ecran d'accueil sans passer par un Store.
+  \item[Service Worker] Programme en arri\`ere-plan qui g\`ere le cache et les mises \`a jour automatiques de l'application.
+  \item[Toast] Notification temporaire affich\'ee en haut de l'\'ecran pour confirmer une action.
+\end{description}
+
+\vspace{2cm}
+\begin{center}
+\begin{tikzpicture}
+  \fill[coverbg, rounded corners=12pt] (0,0) rectangle (14,2.5);
+  \node[text=white, font=\large\bfseries] at (7,1.5) {\faCheck\hspace{8pt}Fin du Manuel --- Application Parents (PWA)};
+  \node[text=white!50, font=\small] at (7,0.7) {Plateforme MonEcole --- Nexora Tech --- Mai 2026 --- v1.0};
+\end{tikzpicture}
+\end{center}
