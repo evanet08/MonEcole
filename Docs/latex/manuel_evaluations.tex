@@ -94,16 +94,16 @@
   };
   \node[anchor=north,text width=14cm,align=center] at ([yshift=-10cm]current page.north) {
     \color{white!60}\fontsize{11pt}{15pt}\selectfont
-    Guide complet et détaillé pour la gestion des types d'évaluations,\\
-    la planification, la saisie des notes, le calcul des moyennes pondérées,\\
-    les délibérations et la génération des bulletins scolaires.
+    Guide complet et d\'etaill\'e pour la gestion des types d'\'evaluations,\\
+    la planification (unitaire et massive), la saisie des notes,\\
+    le calcul des moyennes pond\'er\'ees, les d\'elib\'erations et les bulletins.
   };
   \draw[coveraccent,line width=1.5pt] ([yshift=-12.5cm]current page.north) ++(-3,0) -- ++(6,0);
   \node[anchor=north,text width=14cm,align=center] at ([yshift=-13.5cm]current page.north) {
     \color{white!50}\small
     \faBuilding\hspace{4pt}Plateforme MonEcole — Architecture Hub-and-Spoke\\[6pt]
-    \faCalendar\hspace{4pt}Avril 2026 — Version 1.0\\[6pt]
-    \faBook\hspace{4pt}Documentation Utilisateur — 4 Onglets Détaillés
+    \faCalendar\hspace{4pt}Mai 2026 --- Version 1.1\\[6pt]
+    \faBook\hspace{4pt}Documentation Utilisateur --- 4 Onglets D\'etaill\'es
   };
   \node[anchor=south,text width=14cm,align=center] at ([yshift=1.5cm]current page.south) {
     \color{white!30}\footnotesize \faCopyright\hspace{3pt} Nexora Tech — Tous droits réservés
@@ -450,25 +450,51 @@ L'interface se compose de~:
 \end{etape}
 
 \begin{resultat}
-L'évaluation apparaît dans l'accordéon du cours concerné, sous la période sélectionnée. Elle est désormais disponible pour la saisie de notes (onglet 3).
+L'\'evaluation appara\^it dans l'accord\'eon du cours concern\'e, sous la p\'eriode s\'electionn\'ee. Elle est d\'esormais disponible pour la saisie de notes (onglet 3).
 \end{resultat}
 
-\section{Pour modifier une évaluation existante}
+\section{Cr\'eation massive d'\'evaluations (nouveau)}
 
-\begin{etape}[title=Procédure : Modifier une évaluation]
+La fonctionnalit\'e \textbf{Cr\'eation massive} permet de g\'en\'erer automatiquement \textbf{une \'evaluation par p\'eriode} pour \textbf{tous les cours} d'une classe en un seul clic. Le maximum de chaque \'evaluation est calcul\'e automatiquement~: $\text{max} = \frac{\text{maxima\_tj}}{\text{nombre de p\'eriodes}}$.
+
+\begin{etape}[title=Proc\'edure : Cr\'eation massive d'\'evaluations]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=12pt]
+  \item \textbf{S\'electionnez une classe} dans le menu d\'eroulant \champ{Classe}. Le bouton \btnamber{Cr\'eation massive} appara\^it.
+
+  \item \textbf{Cliquez sur} \btnamber{Cr\'eation massive}. Une fen\^etre modale s'ouvre avec la liste de toutes les p\'eriodes disponibles, chacune avec une case \`a cocher.
+
+  \item \textbf{S\'electionnez les p\'eriodes} souhait\'ees en cochant les cases correspondantes. Vous pouvez les cocher/d\'ecocher individuellement. Le compteur dynamique en bas indique le nombre total d'\'evaluations qui seront cr\'e\'ees~: $N_{cours} \times N_{p\acute{e}riodes}$.
+
+  \item \textbf{Le maximum est auto-calcul\'e}~: pour chaque cours, le syst\`eme r\'ecup\`ere le \textbf{maxima\_tj} depuis la configuration et le divise par le nombre de p\'eriodes dans le m\^eme semestre/trimestre parent.
+
+  \item \textbf{Cliquez sur} \bouton{Cr\'eer}. Un toast vert confirme la cr\'eation avec le nombre d'\'evaluations g\'en\'er\'ees.
+\end{enumerate}
+\end{etape}
+
+\begin{astuce}
+La cr\'eation massive est id\'eale en d\'ebut d'ann\'ee scolaire pour initialiser rapidement toutes les \'evaluations. Vous pourrez ensuite personnaliser les titres et dates dans l'accord\'eon.
+\end{astuce}
+
+\begin{attention}
+Les \'evaluations cr\'e\'ees massivement ont un titre g\'en\'erique (\textit{\guillemotleft~\'Evaluation --- [P\'eriode]~\guillemotright}). Vous pouvez les renommer individuellement ensuite via le bouton \textcolor{indigo}{\faPen} dans chaque ligne.
+\end{attention}
+
+\section{Pour modifier une \'evaluation existante}
+
+\begin{etape}[title=Proc\'edure : Modifier une \'evaluation]
 \begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=8pt]
-  \item Dépliez l'accordéon du cours, puis celui de la période.
-  \item Repérez l'évaluation dans la liste tabulaire.
+  \item D\'epliez l'accord\'eon du cours, puis celui de la p\'eriode.
+  \item Rep\'erez l'\'evaluation dans la liste tabulaire.
   \item Cliquez sur \textcolor{indigo}{\faPen} dans la colonne \textbf{Actions}.
-  \item La modale s'ouvre pré-remplie. Modifiez les champs nécessaires.
+  \item La modale s'ouvre pr\'e-remplie. Modifiez les champs n\'ecessaires.
   \item Cliquez sur \bouton{Enregistrer}.
 \end{enumerate}
 \end{etape}
 
-\section{Pour supprimer une évaluation}
+\section{Pour supprimer une \'evaluation}
 
 \begin{attention}
-La suppression d'une évaluation supprime aussi \textbf{toutes les notes} qui y sont rattachées. Procédez avec précaution.
+La suppression d'une \'evaluation supprime aussi \textbf{toutes les notes} qui y sont rattach\'ees. Proc\'edez avec pr\'ecaution.
 \end{attention}
 
 Cliquez sur \textcolor{rose}{\faTrash} dans la colonne Actions et confirmez.

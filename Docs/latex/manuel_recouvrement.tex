@@ -1,0 +1,323 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\geometry{top=2.5cm,bottom=2.5cm,left=2.5cm,right=2.5cm}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,arrows.meta,positioning,calc,shadows.blur,fit,backgrounds}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{fontawesome5}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=indigo,urlcolor=indigo,pdfauthor={MonEcole},pdftitle={Manuel — Module Recouvrement}}
+\usepackage{fancyhdr}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{caption}
+
+% ====== COULEURS ======
+\definecolor{indigo}{HTML}{4338CA}
+\definecolor{violet}{HTML}{7C3AED}
+\definecolor{amber}{HTML}{D97706}
+\definecolor{emerald}{HTML}{059669}
+\definecolor{rose}{HTML}{E11D48}
+\definecolor{slate}{HTML}{334155}
+\definecolor{slatelight}{HTML}{94A3B8}
+\definecolor{teal}{HTML}{0D9488}
+\definecolor{sky}{HTML}{0EA5E9}
+\definecolor{coverbg}{HTML}{1E1B4B}
+\definecolor{coveraccent}{HTML}{059669}
+\definecolor{lightbg}{HTML}{F8FAFC}
+\definecolor{warningbg}{HTML}{FEF3C7}
+\definecolor{successbg}{HTML}{ECFDF5}
+\definecolor{infobg}{HTML}{EFF6FF}
+\definecolor{dangerbg}{HTML}{FEF2F2}
+\definecolor{purplebg}{HTML}{FAF5FF}
+\definecolor{tealbg}{HTML}{F0FDFA}
+
+% ====== TCOLORBOX ======
+\newtcolorbox{astuce}[1][]{enhanced,colback=successbg,colframe=emerald,fonttitle=\bfseries\small,title={\faLightbulb\hspace{6pt}Astuce},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+\newtcolorbox{attention}[1][]{enhanced,colback=warningbg,colframe=amber,fonttitle=\bfseries\small,title={\faExclamationTriangle\hspace{6pt}Attention},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+\newtcolorbox{info}[1][]{enhanced,colback=infobg,colframe=indigo,fonttitle=\bfseries\small,title={\faInfoCircle\hspace{6pt}Information},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+\newtcolorbox{danger}[1][]{enhanced,colback=dangerbg,colframe=rose,fonttitle=\bfseries\small,title={\faTimesCircle\hspace{6pt}Important},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+\newtcolorbox{etape}[1][]{enhanced,colback=white,colframe=indigo!60,fonttitle=\bfseries\small,left=10pt,right=10pt,top=8pt,bottom=8pt,arc=6pt,boxrule=1.5pt,breakable,shadow={2pt}{-2pt}{0pt}{black!12},#1}
+\newtcolorbox{prerequis}[1][]{enhanced,colback=purplebg,colframe=violet,fonttitle=\bfseries\small,title={\faClipboard\hspace{6pt}Pr\'erequis},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+\newtcolorbox{resultat}[1][]{enhanced,colback=tealbg,colframe=teal,fonttitle=\bfseries\small,title={\faCheck\hspace{6pt}R\'esultat attendu},left=8pt,right=8pt,top=6pt,bottom=6pt,arc=4pt,boxrule=1pt,breakable,#1}
+
+% ====== HEADERS ======
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{\small\color{slatelight}\leftmark}
+\fancyhead[R]{\small\color{emerald}\textbf{MonEcole}}
+\fancyfoot[C]{\small\color{slatelight}\thepage}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0.3pt}
+
+% ====== COMMANDES ======
+\newcommand{\bouton}[1]{{\colorbox{emerald}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+\newcommand{\onglet}[1]{{\colorbox{indigo}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+\newcommand{\champ}[1]{\texttt{\color{violet}#1}}
+\newcommand{\btnviolet}[1]{{\colorbox{violet}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+\newcommand{\btnamber}[1]{{\colorbox{amber}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+\newcommand{\btnrose}[1]{{\colorbox{rose}{\small\sffamily\bfseries\color{white}\,#1\,}}}
+
+\begin{document}
+
+% ===================================================================
+%                         PAGE DE COUVERTURE
+% ===================================================================
+\begin{titlepage}
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[coverbg] (current page.south west) rectangle (current page.north east);
+  \fill[coveraccent,opacity=0.12] (current page.north east) ++(-4,1) circle (8cm);
+  \fill[teal,opacity=0.08] (current page.south west) ++(3,-2) circle (10cm);
+  \fill[coveraccent,opacity=0.06] (current page.center) ++(6,-4) circle (5cm);
+  \fill[amber,opacity=0.05] (current page.north west) ++(2,-8) circle (4cm);
+  \draw[coveraccent,line width=2pt,opacity=0.4] ([yshift=-6cm]current page.north west) ++(2.5,0) -- ++(16,0);
+  \node[fill=coveraccent,rounded corners=14pt,minimum size=2cm,inner sep=0pt] at ([yshift=-3.5cm]current page.north) {\color{white}\fontsize{28pt}{28pt}\selectfont\faMoneyBillWave};
+  \node[anchor=north,text width=14cm,align=center] at ([yshift=-6.5cm]current page.north) {
+    \color{white}\fontsize{32pt}{36pt}\selectfont\textbf{Manuel d'Utilisation}\\[12pt]
+    \fontsize{18pt}{22pt}\selectfont\color{coveraccent!70!white}Module \textbf{Recouvrement}
+  };
+  \node[anchor=north,text width=14cm,align=center] at ([yshift=-10cm]current page.north) {
+    \color{white!60}\fontsize{11pt}{15pt}\selectfont
+    Guide complet pour la gestion financi\`ere scolaire~:\\
+    configuration des variables de paiement, suivi des paiements,\\
+    p\'enalit\'es de retard, dates butoires et op\'erations de caisse.
+  };
+  \draw[coveraccent,line width=1.5pt] ([yshift=-12.5cm]current page.north) ++(-3,0) -- ++(6,0);
+  \node[anchor=north,text width=14cm,align=center] at ([yshift=-13.5cm]current page.north) {
+    \color{white!50}\small
+    \faBuilding\hspace{4pt}Plateforme MonEcole --- Architecture Hub-and-Spoke\\[6pt]
+    \faCalendar\hspace{4pt}Mai 2026 --- Version 1.0\\[6pt]
+    \faBook\hspace{4pt}Documentation Utilisateur --- 4 Sections D\'etaill\'ees
+  };
+  \node[anchor=south,text width=14cm,align=center] at ([yshift=1.5cm]current page.south) {
+    \color{white!30}\footnotesize \faCopyright\hspace{3pt} Nexora Tech --- Tous droits r\'eserv\'es
+  };
+\end{tikzpicture}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ===================================================================
+\chapter{Introduction au Module Recouvrement}
+% ===================================================================
+
+\section{Pr\'esentation g\'en\'erale}
+
+Le module \textbf{Recouvrement} est le centre de gestion financi\`ere de la plateforme \textbf{MonEcole}. Il couvre l'ensemble du cycle de vie des paiements scolaires~: de la d\'efinition des frais jusqu'\`a la g\'en\'eration des re\c{c}us, en passant par le suivi en temps r\'eel, les r\'eductions, les p\'enalit\'es de retard et la gestion des op\'erations de caisse.
+
+Ce module est accessible depuis la barre de navigation lat\'erale (sidebar) en cliquant sur \textbf{Recouvrement}. Il se divise en \textbf{4 sections} principales~:
+
+\begin{center}
+\begin{tikzpicture}[
+  sect/.style={rounded corners=10pt, minimum height=1.1cm, minimum width=3.5cm, font=\small\bfseries, inner sep=8pt, text=white, drop shadow={shadow xshift=1pt, shadow yshift=-1pt, opacity=0.2}},
+  desc/.style={text width=3.3cm, align=center, font=\tiny\color{slate}}
+]
+  \node[sect, fill=violet] (s1) at (0,0) {\faChartPie\ Dashboard};
+  \node[sect, fill=emerald, right=6pt of s1] (s2) {\faMoneyBillWave\ Paiements};
+  \node[sect, fill=amber, right=6pt of s2] (s3) {\faCogs\ Configuration};
+  \node[sect, fill=rose, right=6pt of s3] (s4) {\faCashRegister\ Caisse};
+
+  \node[desc, below=8pt of s1] {Vue d'ensemble financi\`ere avec graphiques et statistiques};
+  \node[desc, below=8pt of s2] {Enregistrement et suivi des paiements par \'el\`eve};
+  \node[desc, below=8pt of s3] {Cat\'egories, variables, prix, p\'enalit\'es, dates butoires, banques};
+  \node[desc, below=8pt of s4] {Entr\'ees et sorties de caisse hors paiements scolaires};
+\end{tikzpicture}
+\end{center}
+
+\section{Flux de travail recommand\'e}
+
+Pour un \'etablissement nouvellement configur\'e, voici l'ordre logique des op\'erations~:
+
+\begin{center}
+\begin{tikzpicture}[
+  step/.style={draw=slate!40, fill=white, rounded corners=8pt, minimum width=2.2cm, minimum height=1.5cm, align=center, font=\scriptsize\bfseries, text=slate, drop shadow={shadow xshift=1pt, shadow yshift=-1pt, opacity=0.12}},
+  arrow/.style={-{Stealth[length=6pt,width=5pt]}, thick, color=slatelight}
+]
+  \node[step] (s1) at (0,0) {\faUniversity\\[2pt]Cr\'eer les\\banques};
+  \node[step, right=0.4cm of s1] (s2) {\faFolder\\[2pt]Cr\'eer les\\cat\'egories};
+  \node[step, right=0.4cm of s2] (s3) {\faTags\\[2pt]D\'efinir les\\variables};
+  \node[step, right=0.4cm of s3] (s4) {\faMoneyCheckAlt\\[2pt]Fixer les\\prix};
+  \node[step, right=0.4cm of s4] (s5) {\faMoneyBillWave\\[2pt]Enregistrer\\paiements};
+  \node[step, right=0.4cm of s5] (s6) {\faChartPie\\[2pt]Suivre via\\dashboard};
+
+  \draw[arrow] (s1) -- (s2);
+  \draw[arrow] (s2) -- (s3);
+  \draw[arrow] (s3) -- (s4);
+  \draw[arrow] (s4) -- (s5);
+  \draw[arrow] (s5) -- (s6);
+\end{tikzpicture}
+\end{center}
+
+\begin{danger}
+Il est \textbf{imp\'eratif} de suivre cet ordre. Vous ne pouvez pas enregistrer de paiements si aucun prix n'a \'et\'e d\'efini, et vous ne pouvez pas d\'efinir de prix sans avoir cr\'e\'e les variables et les banques/comptes.
+\end{danger}
+
+\section{Concepts cl\'es}
+
+\begin{description}[leftmargin=1.5cm, style=nextline, font=\bfseries\color{indigo}]
+  \item[Cat\'egorie de variable] Regroupement logique des frais (ex.\ : Minerval, Fournitures, Activit\'es).
+  \item[Variable] Type de frais sp\'ecifique (ex.\ : Frais scolaire T1, Uniforme, Transport).
+  \item[Prix] Montant \`a payer pour une variable dans une classe donn\'ee et une ann\'ee donn\'ee.
+  \item[R\'eduction] Pourcentage de remise accord\'e \`a un \'el\`eve sp\'ecifique sur une variable.
+  \item[Date butoire] Date limite de paiement pour une variable dans une classe.
+  \item[D\'erogation] Prolongation individuelle de la date butoire pour un \'el\`eve.
+  \item[P\'enalit\'e] Montant forfaitaire ou pourcentage appliqu\'e en cas de retard de paiement.
+  \item[Banque / Compte] Institution et num\'ero de compte bancaire pour les encaissements.
+  \item[Op\'eration de caisse] Entr\'ee ou sortie financi\`ere hors paiements scolaires.
+\end{description}
+
+\newpage
+% ===================================================================
+\chapter{Section 1 --- Dashboard Financier}
+% ===================================================================
+
+\section{Objectif de cette section}
+
+Le \textbf{Dashboard} offre une vue d'ensemble de la situation financi\`ere de l'\'etablissement. Il affiche des indicateurs cl\'es et des graphiques permettant de suivre la progression des recouvrements.
+
+\section{Les indicateurs cl\'es}
+
+Six cartes statistiques sont affich\'ees en haut de la page~:
+
+\begin{center}
+\begin{tabularx}{\textwidth}{llX}
+\toprule
+\textbf{Indicateur} & \textbf{Couleur} & \textbf{Description} \\
+\midrule
+Total Pay\'e & Vert \'emeraude & Somme de tous les paiements valid\'es \\
+Total Attendu & Ambre & Somme des prix configur\'es $\times$ nombre d'\'el\`eves inscrits \\
+Reste \`a Payer & Rose & Diff\'erence entre le total attendu et le total pay\'e \\
+Transactions & Violet & Nombre total de paiements enregistr\'es \\
+En Dette & Bleu & Nombre d'\'el\`eves ayant un solde impay\'e \\
+Rejet\'es & Teal & Nombre de paiements rejet\'es par l'administration \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{etape}[title=Proc\'edure : Consulter le dashboard]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{Acc\'edez au Recouvrement} en cliquant sur \textbf{Recouvrement} dans la barre lat\'erale.
+  \item \textbf{Cliquez sur Dashboard} (ic\^one \faChartPie) si ce n'est pas la section active.
+  \item \textbf{S\'electionnez l'ann\'ee} dans le menu d\'eroulant \champ{Ann\'ee} en haut \`a droite du graphique. Les donn\'ees se rechargent automatiquement.
+  \item \textbf{Consultez la barre de progression} qui indique le pourcentage de recouvrement global.
+  \item \textbf{Consultez le r\'esum\'e} dans le panneau lat\'eral droit (transactions, \'el\`eves en dette, rejet\'es).
+\end{enumerate}
+\end{etape}
+
+\begin{astuce}
+Les cartes statistiques sont cliquables. Cliquez sur une carte pour voir les d\'etails correspondants dans le tableau en dessous du graphique.
+\end{astuce}
+
+\newpage
+% ===================================================================
+\chapter{Section 2 --- Gestion des Paiements}
+% ===================================================================
+
+\section{Objectif de cette section}
+
+La section \textbf{Paiements} est le c\oe ur op\'erationnel du module. Elle permet d'enregistrer les paiements des \'el\`eves, de les valider, de les rejeter et de g\'en\'erer des fiches de paiement en PDF.
+
+\section{Comprendre l'interface}
+
+L'interface se compose de~:
+
+\begin{enumerate}[leftmargin=1.2cm]
+  \item \textbf{Barre de s\'electeurs} --- Trois menus d\'eroulants en cascade~:
+  \begin{itemize}
+    \item \champ{Ann\'ee} --- S\'electionnez l'ann\'ee scolaire.
+    \item \champ{Classe} --- Se charge apr\`es s\'election de l'ann\'ee.
+    \item \champ{\'El\`eve} --- Se charge apr\`es s\'election de la classe.
+  \end{itemize}
+  \item \textbf{Bouton} \bouton{Payer} --- Appara\^it apr\`es s\'election d'un \'el\`eve.
+  \item \textbf{Cartes de situation} --- Variables avec barre de progression (pay\'e / reste).
+  \item \textbf{Onglets de paiements} --- En attente, Valid\'es, Rejet\'es.
+\end{enumerate}
+
+\section{Pour enregistrer un nouveau paiement}
+
+\begin{prerequis}
+\begin{itemize}
+  \item Les \textbf{variables} et \textbf{prix} doivent \^etre configur\'es (section Configuration).
+  \item Des \textbf{banques et comptes} doivent exister.
+  \item L'\textbf{\'el\`eve} doit \^etre inscrit dans la classe pour l'ann\'ee s\'electionn\'ee.
+\end{itemize}
+\end{prerequis}
+
+\begin{etape}[title=Proc\'edure d\'etaill\'ee : Enregistrer un paiement]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=12pt]
+  \item \textbf{S\'electionnez l'ann\'ee} dans le menu \champ{Ann\'ee}.
+  \item \textbf{S\'electionnez la classe} dans le menu \champ{Classe}. La liste des \'el\`eves se charge.
+  \item \textbf{S\'electionnez l'\'el\`eve} dans le menu \champ{\'El\`eve}. Les cartes de situation (variables avec reste \`a payer) s'affichent et le bouton \bouton{Payer} appara\^it.
+  \item \textbf{Cliquez sur} \bouton{Payer}. Le formulaire de paiement s'affiche.
+  \item \textbf{S\'electionnez la variable} dans le menu \champ{Variable}. Seules les variables avec un reste \`a payer sont list\'ees, avec le montant restant affich\'e.
+  \item \textbf{Saisissez le montant} dans le champ \champ{Montant}. Le syst\`eme v\'erifie que le montant ne d\'epasse pas le reste \`a payer.
+  \item \textbf{S\'electionnez la date} de paiement dans \champ{Date paiement}. Les dates futures sont refus\'ees.
+  \item \textbf{S\'electionnez le compte} bancaire dans \champ{Compte}.
+  \item \textbf{Joignez le bordereau} (optionnel) --- Cliquez sur \champ{Bordereau} pour joindre une photo ou PDF du re\c{c}u.
+  \item \textbf{Cliquez sur} \bouton{Enregistrer}. Un toast vert confirme la r\'eussite.
+\end{enumerate}
+\end{etape}
+
+\begin{resultat}
+Le paiement appara\^it dans l'onglet \textbf{En attente}. Les cartes de situation de l'\'el\`eve se mettent \`a jour automatiquement avec le nouveau montant pay\'e et le reste \`a payer recalcul\'e.
+\end{resultat}
+
+\begin{attention}
+Un paiement enregistr\'e a le statut \textit{En attente} par d\'efaut. Il doit \^etre \textbf{valid\'e} par un administrateur pour \^etre pris en compte dans les statistiques et les fiches officielles.
+\end{attention}
+
+\section{Pour valider ou rejeter un paiement}
+
+\begin{etape}[title=Proc\'edure : Valider / Rejeter]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{Acc\'edez \`a l'onglet} \onglet{En attente} dans la section Paiements.
+  \item \textbf{Rep\'erez le paiement} dans le tableau (nom \'el\`eve, variable, montant, date).
+  \item \textbf{Pour valider}~: cliquez sur \textcolor{emerald}{\faCheck} (bouton vert). Le paiement passe dans l'onglet Valid\'es.
+  \item \textbf{Pour rejeter}~: cliquez sur \textcolor{rose}{\faTimes} (bouton rouge). Le paiement passe dans l'onglet Rejet\'es.
+\end{enumerate}
+\end{etape}
+
+\section{Pour g\'en\'erer une fiche de paiement PDF}
+
+\begin{etape}[title=Proc\'edure : Exporter les fiches PDF]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{S\'electionnez la classe} dans les s\'electeurs.
+  \item \textbf{Pour la fiche classe}~: cliquez sur \btnrose{Fiche Classe} (bouton PDF rouge). Un PDF r\'ecapitulatif de tous les paiements de la classe s'ouvre dans un nouvel onglet.
+  \item \textbf{Pour la fiche \'el\`eve}~: s\'electionnez l'\'el\`eve puis cliquez sur \btnviolet{Fiche \'El\`eve}. Un PDF individuel s'ouvre.
+  \item \textbf{Pour une facture}~: dans l'onglet Valid\'es, cliquez sur \textcolor{rose}{\faFilePdf} \`a c\^ot\'e d'un paiement pour g\'en\'erer la facture unitaire.
+\end{enumerate}
+\end{etape}
+
+\newpage
+% ===================================================================
+\chapter{Section 3 --- Configuration Financi\`ere}
+% ===================================================================
+
+\section{Objectif de cette section}
+
+La section \textbf{Configuration} permet de param\'etrer l'ensemble des \'el\'ements financiers de l'\'etablissement. Elle est organis\'ee en \textbf{6 onglets}~:
+
+\begin{center}
+\begin{tikzpicture}[
+  btn/.style={rounded corners=4pt, minimum height=0.6cm, font=\tiny\bfseries, inner sep=4pt, text=white, fill=#1}
+]
+  \node[btn=indigo] (b1) at (0,0) {\faFolder\ Cat\'egories};
+  \node[btn=violet, right=3pt of b1] (b2) {\faTags\ Variables};
+  \node[btn=teal, right=3pt of b2] (b3) {\faMoneyCheckAlt\ Prix};
+  \node[btn=amber, right=3pt of b3] (b4) {\faExclamationTriangle\ P\'enalit\'es};
+  \node[btn=rose, right=3pt of b4] (b5) {\faCalendarTimes\ Dates Butoires};
+  \node[btn=slate, right=3pt of b5] (b6) {\faUniversity\ Banques};
+\end{tikzpicture}
+\end{center}
+
+\input{manuel_recouvrement_suite}
+
+\end{document}

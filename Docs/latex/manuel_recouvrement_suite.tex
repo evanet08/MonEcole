@@ -1,0 +1,290 @@
+% manuel_recouvrement_suite.tex — inclus par manuel_recouvrement.tex
+
+% -------- Onglet Cat\'egories --------
+\section{Onglet 1 --- Cat\'egories de Variables}
+
+Les cat\'egories permettent de regrouper les frais par famille logique. Exemples~: \textit{Minerval}, \textit{Fournitures}, \textit{Activit\'es parascolaires}.
+
+\begin{etape}[title=Proc\'edure : Cr\'eer une cat\'egorie]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{Cliquez sur l'onglet} \onglet{Cat\'egories} dans la barre de configuration.
+  \item \textbf{Remplissez le champ} \champ{Nom} dans le formulaire en haut (ex.\ : \textit{Minerval}).
+  \item \textbf{Cliquez sur} \bouton{Ajouter}. La cat\'egorie appara\^it dans le tableau ci-dessous.
+\end{enumerate}
+\end{etape}
+
+\begin{resultat}
+La cat\'egorie est imm\'ediatement disponible dans le menu d\'eroulant \champ{Cat\'egorie} lors de la cr\'eation de variables (onglet suivant).
+\end{resultat}
+
+% -------- Onglet Variables --------
+\section{Onglet 2 --- Variables de Paiement}
+
+Les variables repr\'esentent les \'el\'ements concrets \`a payer. Chaque variable est rattach\'ee \`a une cat\'egorie.
+
+\begin{etape}[title=Proc\'edure : Cr\'eer une variable]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{Cliquez sur l'onglet} \onglet{Variables}.
+  \item \textbf{S\'electionnez la cat\'egorie} dans le menu \champ{Cat\'egorie}.
+  \item \textbf{Saisissez le nom} dans \champ{Nom variable} (ex.\ : \textit{Frais scolaire T1}).
+  \item \textbf{Cliquez sur} \bouton{Ajouter}. La variable appara\^it dans le tableau.
+\end{enumerate}
+\end{etape}
+
+\begin{info}
+Chaque variable dispose d'un bouton \textbf{Obligatoire} (Oui/Non) qui permet de marquer les frais obligatoires. Cliquez sur le bouton vert/orange dans la colonne \textbf{Obligatoire} pour basculer l'\'etat.
+\end{info}
+
+% -------- Onglet Prix --------
+\section{Onglet 3 --- Prix par Variable et Classe}
+
+C'est ici que vous d\'efinissez le montant exact que chaque classe doit payer pour chaque variable. C'est le c\oe ur de la configuration financi\`ere.
+
+\begin{etape}[title=Proc\'edure d\'etaill\'ee : D\'efinir les prix]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=12pt]
+  \item \textbf{S\'electionnez l'ann\'ee} dans le menu \champ{Ann\'ee}.
+  \item \textbf{S\'electionnez la classe} dans le menu \champ{Classe}. Le tableau des variables se charge.
+  \item \textbf{Pour chaque variable}, saisissez le prix dans le champ num\'erique de la colonne \champ{Prix (Fbu)}.
+  \item \textbf{Cliquez sur} \bouton{Enregistrer} sur la ligne correspondante.
+  \item Le badge passe de \textcolor{amber}{\textit{Non d\'efini}} \`a \textcolor{emerald}{\textit{D\'efini}}.
+\end{enumerate}
+\end{etape}
+
+\begin{center}
+\begin{tikzpicture}
+  \fill[white, rounded corners=6pt, drop shadow={shadow xshift=1pt, shadow yshift=-1pt, opacity=0.1}] (0,0) rectangle (13,3.2);
+  \draw[indigo!20, rounded corners=6pt, line width=1pt] (0,0) rectangle (13,3.2);
+  % Header
+  \fill[slate!8, rounded corners=4pt] (0.2,2.4) rectangle (12.8,2.9);
+  \node[font=\tiny\bfseries\color{slate}] at (1,2.65) {N\textdegree};
+  \node[font=\tiny\bfseries\color{slate}] at (3.5,2.65) {Variable};
+  \node[font=\tiny\bfseries\color{slate}] at (6.5,2.65) {Cat\'egorie};
+  \node[font=\tiny\bfseries\color{slate}] at (9.5,2.65) {Prix (Fbu)};
+  \node[font=\tiny\bfseries\color{slate}] at (11.8,2.65) {Action};
+  % Row 1
+  \node[font=\tiny\color{slate}] at (1,2) {1};
+  \node[font=\tiny\bfseries\color{slate}] at (3.5,2) {Frais scolaire T1};
+  \node[fill=emerald!12, rounded corners=2pt, inner sep=2pt, font=\tiny\color{emerald}] at (6,2) {\faCheck\ D\'efini};
+  \node[font=\tiny\color{slate}] at (7.2,2) {Minerval};
+  \node[draw=slate!20, rounded corners=3pt, minimum width=1.5cm, font=\tiny\color{slate}, inner sep=2pt] at (9.5,2) {150 000};
+  \node[fill=emerald!80, rounded corners=3pt, inner sep=2pt, font=\tiny\bfseries\color{white}] at (11.8,2) {\faSave\ Enregistrer};
+  % Row 2
+  \node[font=\tiny\color{slate}] at (1,1.3) {2};
+  \node[font=\tiny\bfseries\color{slate}] at (3.5,1.3) {Uniforme};
+  \node[fill=amber!12, rounded corners=2pt, inner sep=2pt, font=\tiny\color{amber}] at (6,1.3) {\faExclamationCircle\ Non d\'efini};
+  \node[font=\tiny\color{slate}] at (7.2,1.3) {Fournitures};
+  \node[draw=slate!20, rounded corners=3pt, minimum width=1.5cm, font=\tiny\color{slatelight}, inner sep=2pt] at (9.5,1.3) {0};
+  \node[fill=emerald!80, rounded corners=3pt, inner sep=2pt, font=\tiny\bfseries\color{white}] at (11.8,1.3) {\faSave\ Enregistrer};
+  % Summary
+  \node[font=\tiny\color{slate}, anchor=west] at (0.4,0.5) {\textcolor{emerald}{\faCheckCircle}\ \textbf{1} prix d\'efini \quad \textcolor{amber}{\faExclamationCircle}\ \textbf{1} en attente};
+\end{tikzpicture}
+\captionof{figure}{Exemple du tableau de configuration des prix}
+\end{center}
+
+\begin{attention}
+Les prix sont sp\'ecifiques \`a chaque couple \textbf{ann\'ee + classe}. Si vous changez d'ann\'ee ou de classe, vous devez red\'efinir les prix. Cela permet une flexibilit\'e maximale (prix diff\'erents selon les niveaux).
+\end{attention}
+
+% -------- Onglet P\'enalit\'es --------
+\section{Onglet 4 --- R\`egles de P\'enalit\'e}
+
+Les p\'enalit\'es permettent de configurer des frais suppl\'ementaires automatiques en cas de retard de paiement. Deux types sont disponibles~:
+
+\begin{center}
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Type} & \textbf{Description} \\
+\midrule
+Forfait & Un montant fixe ajout\'e au solde de l'\'el\`eve (ex.\ : 5\,000 Fbu de p\'enalit\'e). \\
+Pourcentage & Un pourcentage du montant restant d\^u (ex.\ : 10\% du reste \`a payer). \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{etape}[title=Proc\'edure : Cr\'eer une r\`egle de p\'enalit\'e]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{Cliquez sur l'onglet} \onglet{P\'enalit\'es}.
+  \item \textbf{S\'electionnez l'ann\'ee} dans \champ{Ann\'ee}.
+  \item \textbf{S\'electionnez la variable} concern\'ee dans \champ{Variable} (ou laissez sur \textit{Toutes} pour une p\'enalit\'e globale).
+  \item \textbf{Choisissez le type}~: \textit{Forfait} ou \textit{Pourcentage (\%)}.
+  \item \textbf{Saisissez la valeur} (montant en Fbu pour un forfait, pourcentage pour un \%).
+  \item \textbf{Saisissez le plafond} (optionnel) --- montant maximal que la p\'enalit\'e ne peut pas d\'epasser.
+  \item \textbf{Cliquez sur} \bouton{Ajouter}. La r\`egle appara\^it dans le tableau ci-dessous.
+\end{enumerate}
+\end{etape}
+
+% -------- Onglet Dates Butoires --------
+\section{Onglet 5 --- Dates Butoires}
+
+Les dates butoires d\'efinissent les dates limites de paiement par variable et par classe.
+
+\begin{etape}[title=Proc\'edure : D\'efinir une date butoire]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{Cliquez sur l'onglet} \onglet{Dates Butoires}.
+  \item \textbf{S\'electionnez l'ann\'ee} et la \textbf{classe}.
+  \item \textbf{S\'electionnez la variable} concern\'ee.
+  \item \textbf{Saisissez la date limite} dans \champ{Date limite}.
+  \item \textbf{Cliquez sur} \bouton{Enregistrer}.
+\end{enumerate}
+\end{etape}
+
+\begin{info}
+Les dates d\'epass\'ees apparaissent en \textcolor{rose}{\textbf{rouge}} dans le tableau, et les dates futures en \textcolor{emerald}{\textbf{vert}}. Cela permet de rep\'erer rapidement les \'ech\'eances d\'epass\'ees.
+\end{info}
+
+% -------- Onglet Banques --------
+\section{Onglet 6 --- Banques et Comptes}
+
+Cet onglet est divis\'e en deux panneaux c\^ote \`a c\^ote~:
+
+\begin{enumerate}[leftmargin=1.2cm]
+  \item \textbf{Panneau gauche} --- \textbf{Banques}~: institutions bancaires (ex.\ : BANCOBU, KCB).
+  \item \textbf{Panneau droit} --- \textbf{Comptes bancaires}~: num\'eros de compte li\'es \`a une banque.
+\end{enumerate}
+
+\begin{etape}[title=Proc\'edure : Ajouter une banque et un compte]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{Cliquez sur l'onglet} \onglet{Banques \& Comptes}.
+  \item \textbf{Dans le panneau Banques}~: saisissez le \champ{Nom} et le \champ{Sigle}, puis cliquez sur \bouton{+}.
+  \item \textbf{Dans le panneau Comptes}~: s\'electionnez la \champ{Banque} dans le menu d\'eroulant, saisissez le \champ{N\textdegree\ compte}, puis cliquez sur \bouton{+}.
+\end{enumerate}
+\end{etape}
+
+\begin{resultat}
+Les comptes bancaires sont imm\'ediatement disponibles dans le menu d\'eroulant \champ{Compte} du formulaire de paiement (section Paiements).
+\end{resultat}
+
+\newpage
+% ===================================================================
+\chapter{Section 4 --- Entr\'ees et Sorties de Caisse}
+% ===================================================================
+
+\section{Objectif de cette section}
+
+La section \textbf{Caisse} permet de suivre les flux financiers \textbf{hors paiements scolaires}~: achats de fournitures, salaires, dons re\c{c}us, frais d'entretien, etc. Elle est compl\`etement ind\'ependante du cycle de paiement des \'el\`eves.
+
+\section{Les indicateurs de caisse}
+
+Quatre cartes statistiques en haut~:
+
+\begin{center}
+\begin{tabularx}{\textwidth}{llX}
+\toprule
+\textbf{Indicateur} & \textbf{Couleur} & \textbf{Description} \\
+\midrule
+Total Op\'erations & Violet & Nombre total d'op\'erations enregistr\'ees \\
+Total Entr\'ees & Vert & Somme de toutes les entr\'ees (recettes) \\
+Total Sorties & Rose & Somme de toutes les sorties (d\'epenses) \\
+Solde & Bleu & Diff\'erence Entr\'ees $-$ Sorties \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{Pour cr\'eer une cat\'egorie d'op\'eration}
+
+\begin{etape}[title=Proc\'edure : Cr\'eer une cat\'egorie d'op\'eration]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=10pt]
+  \item \textbf{Cliquez sur l'onglet} \onglet{Cat\'egories d'op\'erations} dans la section Caisse.
+  \item \textbf{S\'electionnez le type}~: \textit{Entr\'ee} ou \textit{Sortie}.
+  \item \textbf{Saisissez le nom} (ex.\ : \textit{Fournitures bureau}).
+  \item \textbf{Ajoutez une description} (optionnel).
+  \item \textbf{Cliquez sur} \bouton{Ajouter}.
+\end{enumerate}
+\end{etape}
+
+\section{Pour enregistrer une op\'eration}
+
+\begin{etape}[title=Proc\'edure d\'etaill\'ee : Enregistrer une op\'eration de caisse]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=12pt]
+  \item \textbf{Acc\'edez \`a l'onglet} \onglet{Journal des op\'erations}.
+  \item \textbf{Cliquez sur} \bouton{Nouvelle op\'eration}. Le formulaire s'affiche.
+  \item \textbf{S\'electionnez le type}~: \textit{Entr\'ee} ou \textit{Sortie}. Les cat\'egories correspondantes se chargent.
+  \item \textbf{S\'electionnez la cat\'egorie} d'op\'eration.
+  \item \textbf{Saisissez le montant} (positif obligatoirement).
+  \item \textbf{Saisissez la date} de l'op\'eration.
+  \item \textbf{S\'electionnez le mode} de paiement~: Esp\`eces, Ch\`eque, Virement, Autre.
+  \item \textbf{Compl\'etez} les champs optionnels~: Source/B\'en\'eficiaire, R\'ef\'erence, Description.
+  \item \textbf{Cliquez sur} \bouton{Enregistrer}.
+\end{enumerate}
+\end{etape}
+
+\section{Pour exporter le journal}
+
+\begin{etape}[title=Proc\'edure : Exporter les op\'erations]
+\begin{enumerate}[leftmargin=1.5cm,label=\textbf{\arabic*.},itemsep=8pt]
+  \item \textbf{Filtrez} les op\'erations par ann\'ee, cat\'egorie ou type si souhait\'e.
+  \item \textbf{Pour un PDF}~: cliquez sur \btnrose{PDF} en haut \`a droite du journal.
+  \item \textbf{Pour un Excel}~: cliquez sur \bouton{Excel} en haut \`a droite. Le fichier se t\'el\'echarge directement.
+\end{enumerate}
+\end{etape}
+
+\newpage
+% ===================================================================
+\chapter{R\'ef\'erence rapide}
+% ===================================================================
+
+\section{Navigation entre les sections}
+
+\begin{tabularx}{\textwidth}{llX}
+\toprule
+\textbf{Ic\^one Sidebar} & \textbf{Section} & \textbf{Description} \\
+\midrule
+\faChartPie\ (violet) & Dashboard & Tableau de bord financier avec indicateurs et graphiques \\
+\faMoneyBillWave\ (vert) & Paiements & Enregistrement, validation et suivi des paiements \\
+\faCogs\ (ambre) & Configuration & Cat\'egories, variables, prix, p\'enalit\'es, banques \\
+\faCashRegister\ (rouge) & Caisse & Entr\'ees et sorties financi\`eres hors scolaire \\
+\bottomrule
+\end{tabularx}
+
+\section{Endpoints API du module Recouvrement}
+
+{\small
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Endpoint} & \textbf{Description} \\
+\midrule
+\texttt{/api/recouvrement/dashboard-data/} & GET --- Statistiques g\'en\'erales du dashboard \\
+\texttt{/api/recouvrement/classes/} & GET --- Classes actives pour une ann\'ee \\
+\texttt{/api/recouvrement/eleves/} & GET --- \'El\`eves inscrits dans une classe \\
+\texttt{/api/recouvrement/variables-restant/} & GET --- Variables avec reste \`a payer d'un \'el\`eve \\
+\texttt{/api/recouvrement/save-paiement/} & POST --- Enregistrer un paiement \\
+\texttt{/api/recouvrement/paiements-submitted/} & GET --- Paiements en attente \\
+\texttt{/api/recouvrement/paiements-validated/} & GET --- Paiements valid\'es et rejet\'es \\
+\texttt{/api/recouvrement/save-categorie-variable/} & POST --- Cr\'eer une cat\'egorie \\
+\texttt{/api/recouvrement/save-variable/} & POST --- Cr\'eer une variable \\
+\texttt{/api/recouvrement/save-variable-prix/} & POST --- D\'efinir un prix \\
+\texttt{/api/recouvrement/save-penalite/} & POST --- Cr\'eer une r\`egle de p\'enalit\'e \\
+\texttt{/api/recouvrement/save-date-butoire/} & POST --- D\'efinir une date butoire \\
+\texttt{/api/recouvrement/save-banque/} & POST --- Cr\'eer une banque \\
+\texttt{/api/recouvrement/save-compte/} & POST --- Cr\'eer un compte bancaire \\
+\texttt{/api/recouvrement/operations/} & GET --- Journal des op\'erations de caisse \\
+\texttt{/api/recouvrement/save-operation/} & POST --- Enregistrer une op\'eration \\
+\texttt{/api/recouvrement/invoice/<id>/} & GET --- G\'en\'erer une facture PDF \\
+\bottomrule
+\end{tabularx}
+}
+
+\section{Glossaire}
+
+\begin{description}[leftmargin=1.5cm, style=nextline, font=\bfseries\color{indigo}]
+  \item[Bordereau] Pi\`ece justificative (photo ou PDF) jointe \`a un paiement.
+  \item[Cat\'egorie] Regroupement logique de variables de paiement.
+  \item[Date butoire] Date limite de paiement pour une variable donn\'ee.
+  \item[D\'erogation] Prolongation individuelle d'une date butoire pour un \'el\`eve.
+  \item[Fiche classe] Document PDF r\'ecapitulatif des paiements de toute une classe.
+  \item[Fiche \'el\`eve] Document PDF individuel d\'etaillant les paiements d'un \'el\`eve.
+  \item[Op\'eration de caisse] Mouvement financier (entr\'ee ou sortie) hors scolaire.
+  \item[P\'enalit\'e] Frais suppl\'ementaire appliqu\'e en cas de retard de paiement.
+  \item[R\'eduction] Remise accord\'ee \`a un \'el\`eve (en pourcentage du prix total).
+  \item[Reste \`a payer] Montant total d\^u moins les paiements valid\'es.
+  \item[Variable] \'El\'ement de facturation sp\'ecifique (frais scolaire, uniforme, etc.).
+\end{description}
+
+\vspace{2cm}
+\begin{center}
+\begin{tikzpicture}
+  \fill[coverbg, rounded corners=12pt] (0,0) rectangle (14,2.5);
+  \node[text=white, font=\large\bfseries] at (7,1.5) {\faCheck\hspace{8pt}Fin du Manuel --- Module Recouvrement};
+  \node[text=white!50, font=\small] at (7,0.7) {Plateforme MonEcole --- Nexora Tech --- Mai 2026 --- v1.0};
+\end{tikzpicture}
+\end{center}
