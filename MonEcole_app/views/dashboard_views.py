@@ -2097,12 +2097,26 @@ def api_communication_threads(request):
     current_pers = int(pers_id) if pers_id else 0
     id_pays_val = getattr(request, 'id_pays', None) or request.session.get('id_pays')
 
-    threads = Communication.objects.filter(
-        id_etablissement=etab_id,
-        id_pays=_safe_int(id_pays_val),
-    ).filter(
+    # Résoudre id_pays depuis le personnel si non disponible en session
+    if not id_pays_val:
+        try:
+            with connections['default'].cursor() as cur:
+                cur.execute("SELECT id_pays FROM personnel WHERE id_personnel = %s LIMIT 1", [current_pers])
+                row = cur.fetchone()
+                if row and row[0]:
+                    id_pays_val = row[0]
+        except Exception:
+            pass
+
+    # Base filter — toujours par établissement + personnel impliqué
+    base_filter = Q(id_etablissement=etab_id) & (
         Q(sender_personnel_id=current_pers) | Q(target_personnel_id=current_pers)
-    ).values('thread_id').annotate(
+    )
+    # Ajouter filtre pays si disponible
+    if id_pays_val:
+        base_filter &= Q(id_pays=_safe_int(id_pays_val))
+
+    threads = Communication.objects.filter(base_filter).values('thread_id').annotate(
         last_msg=Max('created_at'),
         msg_count=Count('id_communication'),
         unread=Count('id_communication', filter=Q(is_read=False) & ~Q(sender_personnel_id=current_pers))
@@ -2110,17 +2124,12 @@ def api_communication_threads(request):
 
     thread_list = []
     for t in threads:
-        last_comm = Communication.objects.filter(
-            id_etablissement=etab_id,
-            id_pays=_safe_int(id_pays_val),
-            thread_id=t['thread_id']
-        ).order_by('-created_at').first()
+        detail_filter = Q(id_etablissement=etab_id, thread_id=t['thread_id'])
+        if id_pays_val:
+            detail_filter &= Q(id_pays=_safe_int(id_pays_val))
 
-        first_comm = Communication.objects.filter(
-            id_etablissement=etab_id,
-            id_pays=_safe_int(id_pays_val),
-            thread_id=t['thread_id']
-        ).order_by('created_at').first()
+        last_comm = Communication.objects.filter(detail_filter).order_by('-created_at').first()
+        first_comm = Communication.objects.filter(detail_filter).order_by('created_at').first()
 
         thread_list.append({
             'thread_id': t['thread_id'],
@@ -2132,6 +2141,8 @@ def api_communication_threads(request):
             'subject': first_comm.subject if first_comm else '',
             'msg_count': t['msg_count'],
             'unread': t['unread'],
+            'sender_parent_id': first_comm.sender_parent_id if first_comm else None,
+            'target_eleve_id': first_comm.target_eleve_id if first_comm else None,
         })
 
     return JsonResponse({'success': True, 'threads': thread_list})

@@ -602,14 +602,16 @@ function _renderMsgs(msgs, area) {
         h += `<div class="wa-msg ${dir}">`;
         if (!m.is_mine && m.sender_name) h += `<div class="wa-msg-sender">${m.sender_name}</div>`;
         // Scope badge — individual vs class vs etab
-        if (!m.is_mine && m.scope) {
+        if (!m.is_mine) {
+            const scopeVal = (m.scope || '').toLowerCase();
             const scopeMap = {
                 'individual': {icon:'fa-user',label:'Personnel',bg:'#dcfce7',color:'#059669'},
-                'class': {icon:'fa-users',label:'Classe',bg:'#dbeafe',color:'#2563eb'},
+                'teacher': {icon:'fa-user',label:'Personnel',bg:'#dcfce7',color:'#059669'},
+                'class': {icon:'fa-users',label:'Classe entière',bg:'#dbeafe',color:'#2563eb'},
                 'etab': {icon:'fa-school',label:'Établissement',bg:'#fef3c7',color:'#d97706'},
             };
-            const s = scopeMap[m.scope];
-            if (s) h += `<div style="display:inline-flex;align-items:center;gap:3px;font-size:.48rem;background:${s.bg};color:${s.color};padding:1px 6px;border-radius:4px;font-weight:600;margin-bottom:3px"><i class="fas ${s.icon}" style="font-size:.4rem"></i>${s.label}</div>`;
+            const s = scopeMap[scopeVal] || scopeMap['individual'];
+            h += `<div style="display:inline-flex;align-items:center;gap:3px;font-size:.48rem;background:${s.bg};color:${s.color};padding:1px 6px;border-radius:4px;font-weight:600;margin-bottom:3px"><i class="fas ${s.icon}" style="font-size:.4rem"></i>${s.label}</div>`;
         }
         if (m.subject) h += `<div style="font-size:.58rem;font-weight:700;color:#075e54;margin-bottom:2px">📌 ${m.subject}</div>`;
         if (m.attachment) {
@@ -655,6 +657,7 @@ async function sendM() {
     const area = document.getElementById('msgArea');
     const em = area.querySelector('div[style*="margin:auto"]'); if (em) em.remove();
     const t = new Date(), time = t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0');
+    const dateStr = t.getFullYear()+'-'+(t.getMonth()+1).toString().padStart(2,'0')+'-'+t.getDate().toString().padStart(2,'0');
     // Optimistic UI
     const el = document.createElement('div'); el.className = 'wa-msg sent';
     let optH = '';
@@ -669,22 +672,52 @@ async function sendM() {
             const fd = new FormData();
             fd.append('id_eleve', ID_ELEVE);
             fd.append('target_personnel_id', commActiveContact.id_personnel);
-            fd.append('scope', 'teacher');
+            fd.append('scope', 'individual');
             fd.append('message', txt || `📎 ${_pendingFile.name}`);
             fd.append('attachment', _pendingFile);
             r = await fetch('/parent/api/messages/send/',{method:'POST',headers:{'X-CSRFToken':getCsrfToken()},body:fd});
             clearPendingFile();
         } else {
-            r = await fetch('/parent/api/messages/send/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({id_eleve:ID_ELEVE,message:txt,target_personnel_id:commActiveContact.id_personnel,scope:'teacher'})});
+            r = await fetch('/parent/api/messages/send/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},body:JSON.stringify({id_eleve:ID_ELEVE,message:txt,target_personnel_id:commActiveContact.id_personnel,scope:'individual'})});
         }
         const d = await r.json();
         if (d.success) {
             const s = el.querySelector('.msg-status'); if(s) s.innerHTML = '<i class="fas fa-check-double"></i>';
+            // Inject the sent message into the thread cache so polling doesn't erase it
+            const sentMsg = d.message || {};
+            sentMsg.scope = 'individual';
+            sentMsg.target_personnel_id = commActiveContact.id_personnel;
+            const tid = d.thread_id;
+            if (tid) {
+                if (!commThreadsCache[tid]) {
+                    commThreadsCache[tid] = {
+                        thread_id: tid,
+                        scope: 'individual',
+                        messages: [],
+                        personnel_ids: [Number(commActiveContact.id_personnel)],
+                        unread: 0,
+                    };
+                }
+                commThreadsCache[tid].messages.unshift(sentMsg);
+            }
             if (d.email_sent) {
                 showToast('✉️ Message envoyé et email livré à l\'enseignant','success');
             } else {
                 showToast('Message envoyé','success');
             }
+            // Refresh from server after short delay to sync
+            setTimeout(async ()=>{
+                try{
+                    const fr=await fetch(`/parent/api/messages/?id_eleve=${ID_ELEVE}`);
+                    const fd2=await fr.json();
+                    if(fd2.success){
+                        (fd2.threads||[]).forEach(tt=>{commThreadsCache[tt.thread_id]=tt;});
+                        const freshTid=findTid(Number(commActiveContact.id_personnel));
+                        const freshTc=freshTid?commThreadsCache[freshTid]:null;
+                        if(freshTc&&freshTc.messages){const ma2=document.getElementById('msgArea');if(ma2)_renderMsgs(freshTc.messages,ma2);}
+                    }
+                }catch(e2){}
+            }, 1500);
         } else showToast(d.error||'Erreur','error');
     } catch(e) { showToast('Erreur réseau','error'); }
 }
