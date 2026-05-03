@@ -132,7 +132,11 @@ def api_parent_messages(request):
         threads = {}
         for m in msgs_raw:
             tid = m['thread_id'] or f"msg-{m['id_communication']}"
-            is_mine = (m['sender_parent_id'] == parent_data['id_parent'])
+            # Type-safe comparison: session id_parent is str, SQL returns int
+            try:
+                is_mine = (int(m['sender_parent_id']) == int(parent_data['id_parent']))
+            except (TypeError, ValueError):
+                is_mine = False
 
             # Track personnel involved in this thread
             pers_in_msg = m.get('sender_personnel_id') or m.get('target_personnel_id')
@@ -366,6 +370,7 @@ def api_parent_send_message(request):
                 'id': comm.id_communication,
                 'sender_name': comm.sender_name,
                 'is_mine': True,
+                'scope': 'individual',
                 'message': comm.message,
                 'time': comm.created_at.strftime('%H:%M') if comm.created_at else '',
                 'created_at': comm.created_at.strftime('%Y-%m-%d %H:%M') if comm.created_at else '',

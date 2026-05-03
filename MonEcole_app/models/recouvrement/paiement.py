@@ -64,11 +64,12 @@ class Paiement(models.Model):
 class PenaliteConfig(models.Model):
     id_penalite_regle = models.AutoField(primary_key=True)
     id_annee = models.ForeignKey("Annee", on_delete=models.PROTECT, null=False, db_constraint=False)
-    idCampus = models.ForeignKey("Campus", on_delete=models.PROTECT, null=True, blank=True)
+    idCampus = models.ForeignKey("Campus", on_delete=models.PROTECT, null=True, blank=True,
+                                 db_column='id_campus_id')
     id_cycle = models.ForeignKey("MonEcole_app.Cycle", on_delete=models.PROTECT, null=True, blank=True,
-                                 db_column='id_cycle_id', db_constraint=False)
+                                 db_column='id_cycle_actif_id', db_constraint=False)
     id_classe = models.ForeignKey('MonEcole_app.Classe', on_delete=models.PROTECT, null=True, blank=True,
-                                  db_column='id_classe_id', db_constraint=False)
+                                  db_column='id_classe_active_id', db_constraint=False)
     groupe = models.CharField(max_length=5, null=True, blank=True)
     section = models.ForeignKey('MonEcole_app.Section', on_delete=models.SET_NULL,
                                 null=True, blank=True, db_column='section_id',
@@ -86,6 +87,7 @@ class PenaliteConfig(models.Model):
 
     class Meta:
         db_table = "recouvrement_penalite"
+        managed = False
 
     def __str__(self):
         cible = self.id_variable.variable if self.id_variable else "Toutes variables"
