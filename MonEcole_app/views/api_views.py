@@ -11531,9 +11531,41 @@ def mass_import_template(request):
                 cours_nom = cours_row['cours_nom'] or 'Cours'
                 cours_code = cours_row['code_cours'] or ''
 
-                # 4. Count sibling periods for maxima calculation
-                nombre_periodes = len(selected_periods) if selected_periods else 1
-                period_max = round(maxima_tj / nombre_periodes, 2) if nombre_periodes > 0 else maxima_tj
+                # 4. Determine nb_periodes_per_trimester from hierarchy (NOT total periods)
+                # Lookup: repartition_hierarchies → nombre_enfants for the parent type
+                from django.db import connections as _conns
+                nb_periodes_par_trim = 2  # sensible default
+                try:
+                    hub_cur = _conns['countryStructure'].cursor()
+                    try:
+                        hub_cur.execute("""
+                            SELECT rh.nombre_enfants
+                            FROM repartition_hierarchies rh
+                            WHERE rh.is_active = 1
+                            LIMIT 1
+                        """)
+                        h_row = hub_cur.fetchone()
+                        if h_row:
+                            nb_periodes_par_trim = int(h_row[0]) if h_row[0] else 2
+                    finally:
+                        hub_cur.close()
+                except Exception:
+                    nb_periodes_par_trim = 2
+
+                period_max = round(maxima_tj / nb_periodes_par_trim, 2) if nb_periodes_par_trim > 0 else maxima_tj
+
+                # 4b. ORPHAN CLEANUP: delete evaluations for this cours+class that have NO notes
+                cur.execute("""
+                    DELETE ev FROM evaluation ev
+                    LEFT JOIN eleve_note en ON en.id_evaluation_id = ev.id_evaluation
+                    WHERE ev.id_cours_classe_id = %s
+                      AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
+                      AND ev.id_etablissement = %s
+                      AND en.id_note IS NULL
+                """, [cours_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id])
+                orphans_deleted = cur.rowcount
+                if orphans_deleted > 0:
+                    conn.commit()
 
                 # 5. Fetch existing notes for pre-fill (periods → eleve_note, exams → note_bulletin)
                 existing_notes = {}  # key: "{eleve_id}_{rep_id}_{type}" → note value

@@ -1865,43 +1865,65 @@ function _miRenderCheckboxes() {
     const leafReps = reps.filter(r => r.is_leaf !== false);
     const parentReps = reps.filter(r => r.is_leaf === false);
 
-    // Period checkboxes (leaf periods)
-    const periodContainer = document.getElementById('miPeriodCheckboxes');
-    let periodHtml = '<label class="mass-chk-label checked" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border-color:#7c3aed;font-weight:700"><input type="checkbox" checked onchange="miToggleAllPeriods(this)"> Tout</label>';
-    leafReps.forEach(r => {
-        const pid = r.id || r.id_instance;
-        periodHtml += `<label class="mass-chk-label checked"><input type="checkbox" checked value="${pid}" data-nom="${r.nom || 'Période'}" onchange="miUpdateSelection()"> ${r.nom || 'Période'}</label>`;
-    });
-    periodContainer.innerHTML = periodHtml;
-
-    // Exam checkboxes (parent repartitions = trimestres/semestres)
-    const examContainer = document.getElementById('miExamCheckboxes');
-
-    // Group parents correctly
+    // Build parent groups: { parent_instance_id: { nom, id, children: [leaf...] } }
     const groups = {};
+    const orphanLeafs = [];
     leafReps.forEach(r => {
         const pid = r.parent_instance_id;
-        if (pid && !groups[pid]) groups[pid] = { parent_nom: r.parent_nom || 'Groupe', parent_id: pid };
+        if (pid) {
+            if (!groups[pid]) groups[pid] = { parent_nom: r.parent_nom || 'Groupe', parent_id: pid, children: [] };
+            groups[pid].children.push(r);
+        } else {
+            orphanLeafs.push(r);
+        }
     });
-
     // Fallback: if no parent_instance_id, use parentReps directly
     if (Object.keys(groups).length === 0 && parentReps.length > 0) {
-        parentReps.forEach(p => { groups[p.id_instance] = { parent_nom: p.nom, parent_id: p.id_instance }; });
+        parentReps.forEach(p => { groups[p.id_instance || p.id] = { parent_nom: p.nom, parent_id: p.id_instance || p.id, children: [] }; });
+        // Distribute orphan leafs across parents by order
+        orphanLeafs.forEach((r, i) => {
+            const gKeys = Object.keys(groups);
+            const nbPerParent = Math.ceil(orphanLeafs.length / gKeys.length);
+            const gi = Math.floor(i / nbPerParent);
+            if (gi < gKeys.length) groups[gKeys[gi]].children.push(r);
+        });
     }
 
+    // Store nb_enfants_per_parent for maxima calculation
     const groupList = Object.values(groups);
-    if (groupList.length) {
-        let examHtml = '';
-        groupList.forEach(g => {
-            examHtml += `<label class="mass-chk-label"><input type="checkbox" value="${g.parent_id}" data-nom="${g.parent_nom}" data-type="exam" onchange="miUpdateSelection()"> 📝 ${g.parent_nom}</label>`;
+    _miNbPeriodsPerTrimester = groupList.length > 0 ? groupList[0].children.length : leafReps.length;
+
+    // Render CHRONOLOGICAL: P1, P2, ✏️Examen T1, P3, P4, ✏️Examen T2, ...
+    const periodContainer = document.getElementById('miPeriodCheckboxes');
+    let html = '<label class="mass-chk-label checked" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border-color:#7c3aed;font-weight:700"><input type="checkbox" checked onchange="miToggleAll(this)"> Tout</label>';
+
+    groupList.forEach(g => {
+        // Children periods
+        g.children.forEach(r => {
+            const pid = r.id || r.id_instance;
+            html += `<label class="mass-chk-label checked"><input type="checkbox" checked value="${pid}" data-nom="${r.nom || 'Période'}" data-type="period" data-parent="${g.parent_id}" onchange="miUpdateSelection()"> ${r.nom || 'Période'}</label>`;
         });
-        examContainer.innerHTML = examHtml;
-    } else {
-        examContainer.innerHTML = '<span style="font-size:.68rem;color:#94a3b8">Aucun examen configuré</span>';
+        // Exam column for this parent
+        html += `<label class="mass-chk-label" style="border-color:#dc2626"><input type="checkbox" value="${g.parent_id}" data-nom="${g.parent_nom}" data-type="exam" onchange="miUpdateSelection()"> 📝 ${g.parent_nom}</label>`;
+    });
+
+    // Orphan leafs (no parent) — just list them
+    if (groupList.length === 0) {
+        orphanLeafs.forEach(r => {
+            const pid = r.id || r.id_instance;
+            html += `<label class="mass-chk-label checked"><input type="checkbox" checked value="${pid}" data-nom="${r.nom || 'Période'}" data-type="period" onchange="miUpdateSelection()"> ${r.nom || 'Période'}</label>`;
+        });
     }
+
+    periodContainer.innerHTML = html;
+
+    // Hide separate exam container — everything is unified now
+    document.getElementById('miExamCheckboxes').parentElement.style.display = 'none';
 }
 
-function miToggleAllPeriods(masterCb) {
+let _miNbPeriodsPerTrimester = 2;  // default, updated by _miRenderCheckboxes
+
+function miToggleAll(masterCb) {
     const cbs = document.querySelectorAll('#miPeriodCheckboxes input[type=checkbox][value]');
     cbs.forEach(cb => { cb.checked = masterCb.checked; cb.parentElement.classList.toggle('checked', masterCb.checked); });
     masterCb.parentElement.classList.toggle('checked', masterCb.checked);
@@ -1927,15 +1949,15 @@ function miUpdateSelection() {
 
 function _miGetSelectedPeriods() {
     const selected = [];
-    document.querySelectorAll('#miPeriodCheckboxes input[type=checkbox][value]:checked').forEach(cb => {
-        selected.push({ id: cb.value, nom: cb.dataset.nom || 'Période' });
+    document.querySelectorAll('#miPeriodCheckboxes input[type=checkbox][value][data-type="period"]:checked').forEach(cb => {
+        selected.push({ id: cb.value, nom: cb.dataset.nom || 'Période', parent_id: cb.dataset.parent || null });
     });
     return selected;
 }
 
 function _miGetSelectedExams() {
     const selected = [];
-    document.querySelectorAll('#miExamCheckboxes input[type=checkbox][value]:checked').forEach(cb => {
+    document.querySelectorAll('#miPeriodCheckboxes input[type=checkbox][value][data-type="exam"]:checked').forEach(cb => {
         selected.push({ id: cb.value, nom: cb.dataset.nom || 'Examen' });
     });
     return selected;
@@ -1955,10 +1977,11 @@ function _miUpdateSummary() {
         document.getElementById('miSummary').style.display = '';
         document.getElementById('miColCount').textContent = totalCols;
 
-        // Calculate period max
+        // Calculate period max — maxima_tj / periods_per_trimester (not total periods)
         if (periods.length > 0 && _miSelectedCours) {
             const maxTj = parseFloat(_miSelectedCours.maxima_tj) || 0;
-            const maxPerPeriod = maxTj > 0 ? Math.round((maxTj / periods.length) * 100) / 100 : '—';
+            const nbPerTrim = _miNbPeriodsPerTrimester || 2;
+            const maxPerPeriod = maxTj > 0 ? Math.round((maxTj / nbPerTrim) * 100) / 100 : '—';
             document.getElementById('miPeriodMaxVal').textContent = maxPerPeriod;
             document.getElementById('miMaxPerPeriod').style.display = '';
         } else {
