@@ -10923,9 +10923,31 @@ def calculate_notes_bulletin(request):
 
                     if en.source_type == 'EVALUATIONS':
                         # Calculate from evaluation notes assigned to this repartition
+                        # Determine correct maxima based on note type:
+                        #   TJ → maxima_tj (divided by number of sibling periods)
+                        #   EX → maxima_exam
                         for cours_id in cours_ids:
-                            # Use the course's own maxima_exam, fallback to default
-                            cours_maxima = cours_maximas.get(cours_id) or default_max
+                            if en.note_type.sigle == 'TJ':
+                                # TJ: use maxima_tj divided by number of sibling periods
+                                c_maxima_tj = cours_maximas_tj.get(cours_id)
+                                if c_maxima_tj:
+                                    # Count sibling period configs (same type)
+                                    cur.execute("""
+                                        SELECT COUNT(*) AS nb_periodes
+                                        FROM countryStructure.repartition_configs_etab_annee rc
+                                        JOIN countryStructure.repartition_instances r ON r.id = rc.repartition_id
+                                        WHERE rc.etablissement_annee_id = %s AND r.type_id = %s AND rc.is_open = 1
+                                    """, [config.etablissement_annee_id, rep_type_id])
+                                    nb_row = cur.fetchone()
+                                    nb_periodes = int(nb_row['nb_periodes']) if nb_row and nb_row['nb_periodes'] and nb_row['nb_periodes'] > 0 else 1
+                                    cours_maxima = round(float(c_maxima_tj) / nb_periodes, 2)
+                                else:
+                                    cours_maxima = default_max
+                            elif en.note_type.sigle == 'EX':
+                                # EX: use maxima_exam
+                                cours_maxima = cours_maximas.get(cours_id) or default_max
+                            else:
+                                cours_maxima = default_max
 
                             # Get evaluations assigned to this repartition for this cours
                             cur.execute("""
