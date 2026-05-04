@@ -11636,23 +11636,50 @@ def mass_import_template(request):
         finally:
             conn.close()
 
-        # 6. If preview mode, return JSON for the grid instead of Excel
+        # 6. Build chrono_order for column ordering (P1, P2, T1, P3, P4, T2...)
+        chrono_order_json = request.GET.get('chrono_order', '[]')
+        import json as _json2
+        try:
+            chrono_order = _json2.loads(chrono_order_json)
+        except Exception:
+            chrono_order = []
+
+        # Helper: build a maxima lookup
+        period_id_set = set(str(p.get('id')) for p in selected_periods)
+        exam_id_set = set(str(e.get('id')) for e in selected_exams)
+
+        def _build_ordered_columns():
+            """Build columns in chronological order if chrono_order is provided, else fallback to periods-then-exams."""
+            cols = []
+            if chrono_order:
+                for c in chrono_order:
+                    c_id = str(c.get('id', ''))
+                    c_type = c.get('type', 'period')
+                    c_nom = c.get('nom', 'Période')
+                    if c_type == 'exam':
+                        cols.append({'rep_id': c_id, 'nom': c_nom, 'type': 'exam', 'maxima': maxima_exam, 'is_exam': True})
+                    else:
+                        cols.append({'rep_id': c_id, 'nom': c_nom, 'type': 'period', 'maxima': period_max, 'is_exam': False})
+            else:
+                # Fallback: periods first, then exams
+                for p in selected_periods:
+                    cols.append({'rep_id': p.get('id'), 'nom': p.get('nom', 'Période'), 'type': 'period', 'maxima': period_max, 'is_exam': False})
+                for ex in selected_exams:
+                    cols.append({'rep_id': ex.get('id'), 'nom': ex.get('nom', 'Examen'), 'type': 'exam', 'maxima': maxima_exam, 'is_exam': True})
+            return cols
+
+        ordered_columns = _build_ordered_columns()
+
+        # 6b. If preview mode, return JSON for the grid instead of Excel
         is_preview = request.GET.get('preview') == '1'
         if is_preview:
             columns = []
-            for p in selected_periods:
+            for c in ordered_columns:
                 columns.append({
-                    'rep_id': p.get('id'),
-                    'nom': p.get('nom', 'Période'),
-                    'type': 'period',
-                    'maxima': period_max
-                })
-            for ex in selected_exams:
-                columns.append({
-                    'rep_id': ex.get('id'),
-                    'nom': ex.get('nom', 'Examen'),
-                    'type': 'exam',
-                    'maxima': maxima_exam
+                    'rep_id': c['rep_id'],
+                    'nom': c['nom'],
+                    'type': c['type'],
+                    'maxima': c['maxima']
                 })
             return JsonResponse({
                 'success': True,
@@ -11663,7 +11690,7 @@ def mass_import_template(request):
                 }
             })
 
-        # 5. Generate Excel
+        # 7. Generate Excel
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = 'Notes'
@@ -11684,28 +11711,22 @@ def mass_import_template(request):
             bottom=Side(style='thin', color='CBD5E1')
         )
 
-        # Header row 1: column names
+        # Header row 1: column names (using chronological order)
         headers = ['ID_ELEVE', 'NOM', 'PRENOM']
         col_types = ['id', 'nom', 'prenom']
         col_maxima = [None, None, None]
         col_rep_ids = [None, None, None]
         col_is_exam = [False, False, False]
 
-        for p in selected_periods:
-            p_nom = p.get('nom', 'Période')
-            headers.append(f'Note {p_nom}')
-            col_types.append('period')
-            col_maxima.append(period_max)
-            col_rep_ids.append(p.get('id'))
-            col_is_exam.append(False)
-
-        for ex in selected_exams:
-            ex_nom = ex.get('nom', 'Examen')
-            headers.append(f'Examen {ex_nom}')
-            col_types.append('exam')
-            col_maxima.append(maxima_exam)
-            col_rep_ids.append(ex.get('id'))
-            col_is_exam.append(True)
+        for c in ordered_columns:
+            if c['is_exam']:
+                headers.append(f'Examen {c["nom"]}')
+            else:
+                headers.append(f'Note {c["nom"]}')
+            col_types.append(c['type'])
+            col_maxima.append(c['maxima'])
+            col_rep_ids.append(c['rep_id'])
+            col_is_exam.append(c['is_exam'])
 
         # Write header
         for ci, h in enumerate(headers, 1):
