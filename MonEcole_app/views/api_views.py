@@ -11993,20 +11993,20 @@ def mass_import_notes(request):
 
                     eval_map[col_idx] = eval_id
 
-                    # Auto-create evaluation_repartition entry if col_type is 'period'
-                    if col_type == 'period':
-                        config = _get_or_create_repartition_config(int(rep_id), etab_id, pays_id=etab.pays_id)
-                        if config:
+                    # Auto-create evaluation_repartition entry for ALL column types
+                    # This link is REQUIRED for sync_all_notes_bulletin to find evaluations
+                    config = _get_or_create_repartition_config(int(rep_id), etab_id, pays_id=etab.pays_id)
+                    if config:
+                        cur.execute("""
+                            SELECT id FROM evaluation_repartition
+                            WHERE id_evaluation = %s AND id_repartition_config = %s
+                            LIMIT 1
+                        """, [eval_id, config.id])
+                        if not cur.fetchone():
                             cur.execute("""
-                                SELECT id FROM evaluation_repartition
-                                WHERE id_evaluation = %s AND id_repartition_config = %s
-                                LIMIT 1
+                                INSERT INTO evaluation_repartition (id_evaluation, id_repartition_config)
+                                VALUES (%s, %s)
                             """, [eval_id, config.id])
-                            if not cur.fetchone():
-                                cur.execute("""
-                                    INSERT INTO evaluation_repartition (id_evaluation, id_repartition_config)
-                                    VALUES (%s, %s)
-                                """, [eval_id, config.id])
 
                 # ============================================
                 # STEP 2: INSERT NOTES INTO eleve_note
