@@ -6,6 +6,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from unidecode import unidecode
 import logging
+from datetime import datetime
 
 from MonEcole_app.models.country_structure import (
     Pays, PAYS_AFRIQUE_EST,
