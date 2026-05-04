@@ -11452,6 +11452,644 @@ def sync_all_notes_bulletin(request):
 
 
 # ============================================================
+# IMPORTATION MASSIVE — MODÈLE + IMPORT
+# ============================================================
+
+@require_http_methods(["GET"])
+def mass_import_template(request):
+    """
+    Génère un modèle Excel pour l'importation massive des notes.
+    Params: classe_id (EAC id), cours_id (id_cours_annee), periods (JSON array of selected repartition ids)
+    Colonnes: ID_ELEVE | NOM | PRENOM | [Note P1] | [Note P2] | [Examen T1] | ...
+    Ligne 2 (maxima): maxima_tj/nb_periodes pour les périodes, maxima_exam pour les examens.
+    """
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, Protection, PatternFill, Alignment, Border, Side
+        from io import BytesIO
+
+        classe_id = request.GET.get('classe_id')
+        cours_id = request.GET.get('cours_id')
+        periods_json = request.GET.get('periods', '[]')
+        exams_json = request.GET.get('exams', '[]')
+
+        if not classe_id or not cours_id:
+            return JsonResponse({'success': False, 'error': 'classe_id et cours_id requis.'}, status=400)
+
+        import json as _json
+        selected_periods = _json.loads(periods_json)  # [{id, nom}]
+        selected_exams = _json.loads(exams_json)  # [{id, nom}]
+
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        etab_id = etab.id_etablissement
+
+        conn = _get_spoke_connection()
+        try:
+            with conn.cursor() as cur:
+                # 1. Get business keys from EAC
+                cur.execute("""
+                    SELECT ea.annee_id AS id_annee, ea.id AS etab_annee_id,
+                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
+                    FROM countryStructure.etablissements_annees_classes eac
+                    JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+                    WHERE eac.id = %s LIMIT 1
+                """, [classe_id])
+                ctx = cur.fetchone()
+                if not ctx:
+                    return JsonResponse({'success': False, 'error': 'Classe non trouvée.'}, status=404)
+
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                campus_row = cur.fetchone()
+                campus_id = campus_row['idCampus'] if campus_row else None
+
+                # 2. Get enrolled students
+                cur.execute("""
+                    SELECT DISTINCT e.id_eleve, e.nom, e.prenom
+                    FROM eleve_inscription ei
+                    JOIN eleve e ON e.id_eleve = ei.id_eleve_id
+                    WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
+                      AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.status = 1
+                    ORDER BY e.nom, e.prenom
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
+                eleves = cur.fetchall()
+
+                # 3. Get cours maxima
+                cur.execute("""
+                    SELECT cann.maxima_tj, cann.maxima_exam, ca.cours AS cours_nom, ca.code_cours
+                    FROM countryStructure.cours_annee cann
+                    JOIN countryStructure.cours ca ON ca.id = cann.cours_id
+                    WHERE cann.id_cours_annee = %s LIMIT 1
+                """, [cours_id])
+                cours_row = cur.fetchone()
+                if not cours_row:
+                    return JsonResponse({'success': False, 'error': 'Cours non trouvé.'}, status=404)
+
+                maxima_tj = float(cours_row['maxima_tj']) if cours_row['maxima_tj'] else 20
+                maxima_exam = float(cours_row['maxima_exam']) if cours_row['maxima_exam'] else 20
+                cours_nom = cours_row['cours_nom'] or 'Cours'
+                cours_code = cours_row['code_cours'] or ''
+
+                # 4. Count sibling periods for maxima calculation
+                nombre_periodes = len(selected_periods) if selected_periods else 1
+                period_max = round(maxima_tj / nombre_periodes, 2) if nombre_periodes > 0 else maxima_tj
+
+                # 5. Fetch existing notes for pre-fill (periods → eleve_note, exams → note_bulletin)
+                existing_notes = {}  # key: "{eleve_id}_{rep_id}_{type}" → note value
+
+                # Period notes: via evaluation → eleve_note
+                for p in selected_periods:
+                    rep_id = p.get('id')
+                    if not rep_id:
+                        continue
+                    # Find evaluations for this cours + repartition + class
+                    cur.execute("""
+                        SELECT ev.id_evaluation
+                        FROM evaluation ev
+                        WHERE ev.id_cours_classe_id = %s AND ev.id_repartition_instance = %s
+                          AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
+                          AND ev.id_etablissement = %s
+                    """, [cours_id, rep_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id])
+                    eval_rows = cur.fetchall()
+                    if eval_rows:
+                        eval_ids = [e['id_evaluation'] for e in eval_rows]
+                        ph = ','.join(['%s'] * len(eval_ids))
+                        for el in eleves:
+                            cur.execute(f"""
+                                SELECT COALESCE(SUM(en.note), 0) AS total,
+                                       COUNT(en.id_note) AS cnt
+                                FROM eleve_note en
+                                WHERE en.id_eleve_id = %s AND en.id_evaluation_id IN ({ph})
+                            """, [el['id_eleve']] + eval_ids)
+                            row = cur.fetchone()
+                            if row and row['cnt'] and row['cnt'] > 0:
+                                existing_notes[f"{el['id_eleve']}_{rep_id}_period"] = float(row['total'])
+
+                # Exam notes: via note_bulletin (SAISIE_DIRECTE with EX type)
+                for ex in selected_exams:
+                    rep_id = ex.get('id')
+                    if not rep_id:
+                        continue
+                    config = _get_or_create_repartition_config(int(rep_id), etab_id, pays_id=etab.pays_id)
+                    if config:
+                        # Find EX note_type_id
+                        from django.db import connections
+                        conn_hub = connections['countryStructure'].cursor()
+                        try:
+                            conn_hub.execute("""
+                                SELECT nt.id_type_note
+                                FROM repartition_type_notes rtn
+                                JOIN note_types nt ON nt.id = rtn.note_type_id
+                                WHERE rtn.repartition_type_id = %s AND nt.sigle = 'EX'
+                                  AND rtn.is_active = 1 LIMIT 1
+                            """, [config.repartition.type_id])
+                            ex_row = conn_hub.fetchone()
+                            ex_nt_id = ex_row[0] if ex_row else None
+                        finally:
+                            conn_hub.close()
+
+                        if ex_nt_id:
+                            for el in eleves:
+                                cur.execute("""
+                                    SELECT nb.note FROM note_bulletin nb
+                                    WHERE nb.id_eleve_id = %s AND nb.id_cours_annee = %s
+                                      AND nb.id_repartition_config = %s AND nb.id_note_type = %s
+                                      AND nb.id_etablissement = %s
+                                """, [el['id_eleve'], cours_id, config.id, ex_nt_id, etab_id])
+                                nb_row = cur.fetchone()
+                                if nb_row and nb_row['note'] is not None:
+                                    existing_notes[f"{el['id_eleve']}_{rep_id}_exam"] = float(nb_row['note'])
+
+        finally:
+            conn.close()
+
+        # 6. If preview mode, return JSON for the grid instead of Excel
+        is_preview = request.GET.get('preview') == '1'
+        if is_preview:
+            columns = []
+            for p in selected_periods:
+                columns.append({
+                    'rep_id': p.get('id'),
+                    'nom': p.get('nom', 'Période'),
+                    'type': 'period',
+                    'maxima': period_max
+                })
+            for ex in selected_exams:
+                columns.append({
+                    'rep_id': ex.get('id'),
+                    'nom': ex.get('nom', 'Examen'),
+                    'type': 'exam',
+                    'maxima': maxima_exam
+                })
+            return JsonResponse({
+                'success': True,
+                'preview_data': {
+                    'eleves': [{'id': e['id_eleve'], 'nom': e['nom'], 'prenom': e['prenom']} for e in eleves],
+                    'columns': columns,
+                    'notes': existing_notes,
+                }
+            })
+
+        # 5. Generate Excel
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'Notes'
+
+        # Styles
+        header_font = Font(bold=True, color='FFFFFF', size=10)
+        header_fill = PatternFill(start_color='4338CA', end_color='4338CA', fill_type='solid')
+        maxima_fill = PatternFill(start_color='FEF3C7', end_color='FEF3C7', fill_type='solid')
+        maxima_font = Font(bold=True, color='92400E', size=9)
+        locked_fill = PatternFill(start_color='F1F5F9', end_color='F1F5F9', fill_type='solid')
+        period_fill = PatternFill(start_color='7C3AED', end_color='7C3AED', fill_type='solid')
+        exam_fill = PatternFill(start_color='DC2626', end_color='DC2626', fill_type='solid')
+        center_align = Alignment(horizontal='center', vertical='center')
+        thin_border = Border(
+            left=Side(style='thin', color='CBD5E1'),
+            right=Side(style='thin', color='CBD5E1'),
+            top=Side(style='thin', color='CBD5E1'),
+            bottom=Side(style='thin', color='CBD5E1')
+        )
+
+        # Header row 1: column names
+        headers = ['ID_ELEVE', 'NOM', 'PRENOM']
+        col_types = ['id', 'nom', 'prenom']
+        col_maxima = [None, None, None]
+        col_rep_ids = [None, None, None]
+        col_is_exam = [False, False, False]
+
+        for p in selected_periods:
+            p_nom = p.get('nom', 'Période')
+            headers.append(f'Note {p_nom}')
+            col_types.append('period')
+            col_maxima.append(period_max)
+            col_rep_ids.append(p.get('id'))
+            col_is_exam.append(False)
+
+        for ex in selected_exams:
+            ex_nom = ex.get('nom', 'Examen')
+            headers.append(f'Examen {ex_nom}')
+            col_types.append('exam')
+            col_maxima.append(maxima_exam)
+            col_rep_ids.append(ex.get('id'))
+            col_is_exam.append(True)
+
+        # Write header
+        for ci, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=ci, value=h)
+            cell.font = header_font
+            if ci <= 3:
+                cell.fill = header_fill
+            elif col_is_exam[ci - 1]:
+                cell.fill = exam_fill
+            else:
+                cell.fill = period_fill
+            cell.alignment = center_align
+            cell.border = thin_border
+
+        # Row 2: Maxima row
+        ws.cell(row=2, column=1, value='MAXIMA').font = maxima_font
+        ws.cell(row=2, column=1).fill = maxima_fill
+        ws.cell(row=2, column=1).border = thin_border
+        ws.cell(row=2, column=2, value='').fill = maxima_fill
+        ws.cell(row=2, column=2).border = thin_border
+        ws.cell(row=2, column=3, value='').fill = maxima_fill
+        ws.cell(row=2, column=3).border = thin_border
+        for ci in range(3, len(headers)):
+            max_val = col_maxima[ci]
+            cell = ws.cell(row=2, column=ci + 1, value=max_val)
+            cell.font = maxima_font
+            cell.fill = maxima_fill
+            cell.alignment = center_align
+            cell.border = thin_border
+
+        # Row 3: Hidden metadata — repartition IDs (for import parsing)
+        ws.cell(row=3, column=1, value='__REP_IDS__').font = Font(color='F1F5F9', size=1)
+        ws.cell(row=3, column=2, value='').font = Font(color='F1F5F9', size=1)
+        ws.cell(row=3, column=3, value='').font = Font(color='F1F5F9', size=1)
+        for ci in range(3, len(headers)):
+            cell = ws.cell(row=3, column=ci + 1, value=str(col_rep_ids[ci]))
+            cell.font = Font(color='F1F5F9', size=1)
+
+        # Row 4: Hidden metadata — col types (period/exam)
+        ws.cell(row=4, column=1, value='__COL_TYPES__').font = Font(color='F1F5F9', size=1)
+        ws.cell(row=4, column=2, value='').font = Font(color='F1F5F9', size=1)
+        ws.cell(row=4, column=3, value='').font = Font(color='F1F5F9', size=1)
+        for ci in range(3, len(headers)):
+            cell = ws.cell(row=4, column=ci + 1, value=col_types[ci])
+            cell.font = Font(color='F1F5F9', size=1)
+
+        # Hide metadata rows
+        ws.row_dimensions[3].hidden = True
+        ws.row_dimensions[4].hidden = True
+
+        # Data rows — pre-fill with existing notes
+        for ri, el in enumerate(eleves, 5):
+            ws.cell(row=ri, column=1, value=el['id_eleve']).font = Font(color='64748B', size=9)
+            ws.cell(row=ri, column=1).fill = locked_fill
+            ws.cell(row=ri, column=1).border = thin_border
+            ws.cell(row=ri, column=1).protection = Protection(locked=True)
+            ws.cell(row=ri, column=2, value=el['nom']).font = Font(bold=True, size=10)
+            ws.cell(row=ri, column=2).fill = locked_fill
+            ws.cell(row=ri, column=2).border = thin_border
+            ws.cell(row=ri, column=2).protection = Protection(locked=True)
+            ws.cell(row=ri, column=3, value=el['prenom']).font = Font(size=10)
+            ws.cell(row=ri, column=3).fill = locked_fill
+            ws.cell(row=ri, column=3).border = thin_border
+            ws.cell(row=ri, column=3).protection = Protection(locked=True)
+            for ci in range(3, len(headers)):
+                rep_id = col_rep_ids[ci]
+                col_type = 'exam' if col_is_exam[ci] else 'period'
+                note_key = f"{el['id_eleve']}_{rep_id}_{col_type}"
+                prefill_val = existing_notes.get(note_key, '')
+                cell = ws.cell(row=ri, column=ci + 1, value=prefill_val if prefill_val != '' else '')
+                cell.border = thin_border
+                cell.alignment = center_align
+                if prefill_val != '':
+                    cell.font = Font(bold=True, color='059669' if col_type == 'period' else 'DC2626', size=10)
+
+        # Column widths
+        ws.column_dimensions['A'].width = 10
+        ws.column_dimensions['B'].width = 20
+        ws.column_dimensions['C'].width = 18
+        for ci in range(3, len(headers)):
+            col_letter = openpyxl.utils.get_column_letter(ci + 1)
+            ws.column_dimensions[col_letter].width = 14
+
+        # Add metadata as named range in a hidden sheet
+        ws_meta = wb.create_sheet('__meta__')
+        ws_meta.cell(row=1, column=1, value=cours_id)
+        ws_meta.cell(row=1, column=2, value=classe_id)
+        ws_meta.cell(row=1, column=3, value=cours_nom)
+        ws_meta.cell(row=1, column=4, value=cours_code)
+        ws_meta.sheet_state = 'hidden'
+
+        buf = BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+
+        from django.http import HttpResponse
+        safe_name = f"Import_{cours_code or cours_nom}".replace(' ', '_')[:40]
+        response = HttpResponse(buf.read(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename="{safe_name}.xlsx"'
+        return response
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def mass_import_notes(request):
+    """
+    Importation massive des notes : 1 seule opération qui exécute 3 étapes.
+    1) Crée les évaluations (1 par période/examen sélectionné pour le cours)
+    2) Insère les notes dans eleve_note (comme Notes Par Évaluation)
+    3) Lance sync_all_notes_bulletin (comme Notes Pondérées)
+
+    Payload: multipart form avec fichier Excel + classe_id + cours_id
+    """
+    try:
+        import openpyxl
+        from io import BytesIO
+
+        user_id = request.session.get('user_id')
+        if not user_id:
+            return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
+
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+        etab_id = etab.id_etablissement
+
+        classe_id = request.POST.get('classe_id', '').strip()
+        cours_id = request.POST.get('cours_id', '').strip()
+        excel_file = request.FILES.get('file')
+
+        if not classe_id or not cours_id or not excel_file:
+            return JsonResponse({'success': False, 'error': 'classe_id, cours_id et fichier requis.'}, status=400)
+
+        # Parse Excel
+        wb = openpyxl.load_workbook(BytesIO(excel_file.read()), data_only=True)
+        ws = wb['Notes']
+
+        # Read metadata from hidden sheet
+        ws_meta = wb['__meta__']
+        meta_cours_id = str(ws_meta.cell(row=1, column=1).value or '')
+        meta_classe_id = str(ws_meta.cell(row=1, column=2).value or '')
+
+        if meta_cours_id != str(cours_id) or meta_classe_id != str(classe_id):
+            return JsonResponse({'success': False, 'error': 'Le fichier ne correspond pas à la classe/cours sélectionné.'}, status=400)
+
+        # Read column metadata (row 3: rep IDs, row 4: col types)
+        max_col = ws.max_column
+        rep_ids = []
+        col_types = []
+        for ci in range(4, max_col + 1):
+            rep_id = ws.cell(row=3, column=ci).value
+            col_type = ws.cell(row=4, column=ci).value
+            rep_ids.append(str(rep_id).strip() if rep_id else None)
+            col_types.append(str(col_type).strip() if col_type else 'period')
+
+        # Read maxima (row 2)
+        maximas = []
+        for ci in range(4, max_col + 1):
+            val = ws.cell(row=2, column=ci).value
+            maximas.append(float(val) if val is not None else 20)
+
+        # Read student notes (row 5+)
+        students_data = []
+        for ri in range(5, ws.max_row + 1):
+            eleve_id = ws.cell(row=ri, column=1).value
+            if not eleve_id:
+                continue
+            notes = []
+            for ci in range(4, max_col + 1):
+                val = ws.cell(row=ri, column=ci).value
+                notes.append(float(val) if val is not None and str(val).strip() != '' else None)
+            students_data.append({
+                'eleve_id': int(eleve_id),
+                'notes': notes,
+            })
+
+        if not students_data:
+            return JsonResponse({'success': False, 'error': 'Aucune donnée élève trouvée.'}, status=400)
+
+        # ============================================
+        # STEP 1: CREATE EVALUATIONS
+        # ============================================
+        conn = _get_spoke_connection()
+        try:
+            with conn.cursor() as cur:
+                # Get business keys
+                bk = _resolve_eac_keys(cur, classe_id)
+
+                cur.execute("""
+                    SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1
+                """, [etab_id])
+                campus_row = cur.fetchone()
+                campus_id = campus_row['idCampus'] if campus_row else None
+
+                # Get annee_id from EAC
+                cur.execute("""
+                    SELECT ea.annee_id
+                    FROM countryStructure.etablissements_annees_classes eac
+                    JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+                    WHERE eac.id = %s LIMIT 1
+                """, [classe_id])
+                annee_row = cur.fetchone()
+                annee_id = annee_row['annee_id'] if annee_row else None
+
+                # Get cours name for eval titles
+                cur.execute("""
+                    SELECT ca.cours AS cours_nom
+                    FROM countryStructure.cours_annee cann
+                    JOIN countryStructure.cours ca ON ca.id = cann.cours_id
+                    WHERE cann.id_cours_annee = %s LIMIT 1
+                """, [cours_id])
+                cours_name_row = cur.fetchone()
+                cours_nom = cours_name_row['cours_nom'] if cours_name_row else 'Cours'
+
+                today = datetime.now().strftime('%Y-%m-%d')
+
+                evals_created = 0
+                notes_saved = 0
+                eval_map = {}  # col_index → evaluation_id
+
+                for col_idx, (rep_id, col_type, maxima) in enumerate(zip(rep_ids, col_types, maximas)):
+                    if not rep_id or rep_id == 'None':
+                        continue
+
+                    # Read header to get column name
+                    header_name = ws.cell(row=1, column=col_idx + 4).value or f'Col {col_idx + 1}'
+
+                    # Create evaluation title
+                    titre = f"{cours_nom} — {header_name}"
+
+                    # Check if evaluation already exists for this cours+repartition
+                    cur.execute("""
+                        SELECT id_evaluation FROM evaluation
+                        WHERE id_cours_classe_id = %s AND id_repartition_instance = %s
+                          AND classe_id = %s AND groupe <=> %s AND section_id <=> %s
+                          AND id_etablissement = %s
+                        LIMIT 1
+                    """, [cours_id, rep_id, bk['classe_id'], bk['groupe'], bk['section_id'], etab_id])
+                    existing_eval = cur.fetchone()
+
+                    if existing_eval:
+                        eval_id = existing_eval['id_evaluation']
+                    else:
+                        # INSERT new evaluation
+                        cur.execute("""
+                            INSERT INTO evaluation (title, id_type_eval, ponderer_eval, date_eval,
+                                contenu_evaluation, id_annee_id, idCampus_id, id_classe_id, classe_id,
+                                groupe, section_id, id_cours_classe_id, id_repartition_instance,
+                                id_etablissement, id_pays, date_creation)
+                            VALUES (%s, NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                        """, [titre, int(maxima), today,
+                              f'Importation massive — {header_name}',
+                              annee_id, campus_id,
+                              int(classe_id),
+                              bk['classe_id'], bk['groupe'], bk['section_id'],
+                              int(cours_id), rep_id, etab_id, etab.pays_id])
+                        eval_id = cur.lastrowid
+                        evals_created += 1
+
+                    eval_map[col_idx] = eval_id
+
+                    # Auto-create evaluation_repartition entry if col_type is 'period'
+                    if col_type == 'period':
+                        config = _get_or_create_repartition_config(int(rep_id), etab_id, pays_id=etab.pays_id)
+                        if config:
+                            cur.execute("""
+                                SELECT id FROM evaluation_repartition
+                                WHERE id_evaluation = %s AND id_repartition_config = %s
+                                LIMIT 1
+                            """, [eval_id, config.id])
+                            if not cur.fetchone():
+                                cur.execute("""
+                                    INSERT INTO evaluation_repartition (id_evaluation, id_repartition_config)
+                                    VALUES (%s, %s)
+                                """, [eval_id, config.id])
+
+                # ============================================
+                # STEP 2: INSERT NOTES INTO eleve_note
+                # ============================================
+                for student in students_data:
+                    eleve_id = student['eleve_id']
+                    for col_idx, note_val in enumerate(student['notes']):
+                        if note_val is None:
+                            continue
+                        if col_idx not in eval_map:
+                            continue
+
+                        eval_id = eval_map[col_idx]
+                        col_type = col_types[col_idx]
+
+                        if col_type == 'period':
+                            # Insert/update in eleve_note (TJ notes)
+                            cur.execute("""
+                                SELECT id_note FROM eleve_note
+                                WHERE id_eleve_id = %s AND id_evaluation_id = %s
+                                LIMIT 1
+                            """, [eleve_id, eval_id])
+                            existing_note = cur.fetchone()
+
+                            if existing_note:
+                                cur.execute("UPDATE eleve_note SET note = %s WHERE id_note = %s",
+                                            [note_val, existing_note['id_note']])
+                            else:
+                                # Get eval context
+                                cur.execute("""
+                                    SELECT id_annee_id, idCampus_id, classe_id, groupe, section_id,
+                                           id_cours_classe_id, id_classe_id, id_cycle_id,
+                                           id_repartition_instance, id_session_id
+                                    FROM evaluation WHERE id_evaluation = %s
+                                """, [eval_id])
+                                ev_ctx = cur.fetchone()
+                                if ev_ctx:
+                                    cur.execute("""
+                                        INSERT INTO eleve_note
+                                            (id_eleve_id, id_evaluation_id, note, id_annee_id, idCampus_id,
+                                             id_classe_id, classe_id, groupe, section_id,
+                                             id_cycle_id, id_repartition_instance,
+                                             id_cours_id, id_type_note_id, id_session_id,
+                                             id_etablissement, id_pays, date_saisie)
+                                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                                    """, [eleve_id, eval_id, note_val,
+                                          ev_ctx['id_annee_id'], ev_ctx['idCampus_id'],
+                                          ev_ctx['id_classe_id'] or 0, ev_ctx['classe_id'],
+                                          ev_ctx['groupe'], ev_ctx['section_id'],
+                                          ev_ctx['id_cycle_id'] or 0,
+                                          ev_ctx['id_repartition_instance'] or 0,
+                                          ev_ctx['id_cours_classe_id'], 1,
+                                          ev_ctx['id_session_id'] or 0,
+                                          etab_id, etab.pays_id])
+                            notes_saved += 1
+
+                        elif col_type == 'exam':
+                            # Insert/update exam note directly in note_bulletin (SAISIE_DIRECTE)
+                            rep_id_val = rep_ids[col_idx]
+                            config = _get_or_create_repartition_config(int(rep_id_val), etab_id, pays_id=etab.pays_id)
+                            if config:
+                                # Find EX note_type_id
+                                from django.db import connections
+                                conn_hub = connections['countryStructure'].cursor()
+                                try:
+                                    conn_hub.execute("""
+                                        SELECT nt.id_type_note
+                                        FROM repartition_type_notes rtn
+                                        JOIN note_types nt ON nt.id = rtn.note_type_id
+                                        WHERE rtn.repartition_type_id = %s AND nt.sigle = 'EX'
+                                          AND rtn.is_active = 1 LIMIT 1
+                                    """, [config.repartition.type_id])
+                                    ex_row = conn_hub.fetchone()
+                                    ex_nt_id = ex_row[0] if ex_row else 2
+                                finally:
+                                    conn_hub.close()
+
+                                maxima_val = maximas[col_idx]
+                                cur.execute("""
+                                    INSERT INTO note_bulletin
+                                        (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
+                                         note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                                    VALUES (%s, %s, %s, %s, %s, %s, 'SAISIE_DIRECTE', NOW(), %s, %s)
+                                    ON DUPLICATE KEY UPDATE
+                                        note = VALUES(note), maxima = VALUES(maxima),
+                                        source_type = 'SAISIE_DIRECTE',
+                                        date_calcul = NOW(), updated_at = NOW()
+                                """, [eleve_id, int(cours_id), config.id, ex_nt_id,
+                                      note_val, maxima_val, etab_id, etab.pays_id])
+                                notes_saved += 1
+
+            conn.commit()
+        finally:
+            conn.close()
+
+        # ============================================
+        # STEP 3: SYNC ALL NOTES → note_bulletin (PONDERATION)
+        # Reuse sync_all_notes_bulletin logic by crafting an internal request
+        # ============================================
+        try:
+            from django.test import RequestFactory
+            factory = RequestFactory()
+            sync_request = factory.post(
+                '/api/notes/bulletin/sync-all/',
+                data=json.dumps({'classe_id': classe_id}),
+                content_type='application/json'
+            )
+            # Copy session from original request
+            sync_request.session = request.session
+            sync_request.META['HTTP_HOST'] = request.META.get('HTTP_HOST', 'localhost')
+            # Copy cookies for tenant resolution
+            for key in request.COOKIES:
+                sync_request.COOKIES[key] = request.COOKIES[key]
+
+            sync_result = sync_all_notes_bulletin(sync_request)
+            sync_data = json.loads(sync_result.content)
+            notes_synced = sync_data.get('calculated', 0) if sync_data.get('success') else 0
+        except Exception as sync_err:
+            import traceback
+            traceback.print_exc()
+            notes_synced = 0
+
+        return JsonResponse({
+            'success': True,
+            'evals_created': evals_created,
+            'notes_saved': notes_saved,
+            'notes_synced': notes_synced,
+            'message': f'{evals_created} évaluation(s) créée(s), {notes_saved} note(s) importée(s), {notes_synced} note(s) pondérées synchronisées.'
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ============================================================
 # EXAM NOTES — SAISIE DIRECTE PAR RÉPARTITION PRINCIPALE
 # ============================================================
 

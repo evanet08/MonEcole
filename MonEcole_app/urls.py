@@ -177,6 +177,10 @@ urlpatterns = [
     path('api/notes/exam/template/', api_views.download_exam_template, name='download_exam_template'),
     path('api/notes/exam/import/', api_views.import_exam_notes_excel, name='import_exam_notes_excel'),
 
+    # Importation Massive
+    path('api/evaluations/mass-import/template/', api_views.mass_import_template, name='mass_import_template'),
+    path('api/evaluations/mass-import/process/', api_views.mass_import_notes, name='mass_import_notes'),
+
     # Délibérations
     path('api/evaluations/sessions/', api_views.get_evaluations_sessions, name='get_evaluations_sessions'),
     path('api/evaluations/repartitions/', api_views.get_evaluations_repartitions, name='get_evaluations_repartitions'),
