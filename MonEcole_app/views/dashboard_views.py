@@ -237,12 +237,39 @@ def _get_dashboard_context(request):
             allowed_type_ids = set(type_max_count.keys())
 
             # Charger les hiérarchies pour déterminer les types enfants et leur nombre
+            # CYCLE-AWARE: chaque cycle peut avoir sa propre hiérarchie
+            # Ex: Maternel → Trimestres SANS Périodes, Primaire → Trimestres AVEC Périodes
+            all_hierarchies = list(
+                RepartitionHierarchie.objects.filter(
+                    is_active=True, id_pays=pays.id_pays
+                ).select_related('type_parent', 'type_enfant', 'cycle')
+            )
+
+            # Build cycle→hierarchy lookup for resolution
+            # Priority: cycle-specific (cycle_id != NULL) > global (cycle_id = NULL)
             hierarchies_for_types = {}  # parent_type_id → {child_type_id, nb_enfants}
-            for h in RepartitionHierarchie.objects.filter(is_active=True, id_pays=pays.id_pays).select_related('type_parent', 'type_enfant'):
-                hierarchies_for_types[h.type_parent_id] = {
-                    'child_type_id': h.type_enfant_id,
-                    'nb_enfants': h.nombre_enfants,
-                }
+
+            for cc in etab_cycle_configs:
+                root_type_id = cc.type_racine_id
+                cycle_pk = cc.cycle_id  # Django surrogate FK to cycles.id
+
+                # Find hierarchy for this root type: cycle-specific first, then global
+                cycle_hier = None
+                global_hier = None
+                for h in all_hierarchies:
+                    if h.type_parent_id == root_type_id:
+                        if h.cycle_id == cycle_pk:
+                            cycle_hier = h
+                            break
+                        elif h.cycle_id is None:
+                            global_hier = h
+
+                hier = cycle_hier or global_hier
+                if hier and root_type_id not in hierarchies_for_types:
+                    hierarchies_for_types[root_type_id] = {
+                        'child_type_id': hier.type_enfant_id,
+                        'nb_enfants': hier.nombre_enfants,
+                    }
 
             # Calculer le nombre max d'instances enfants par type
             child_type_max_count = {}  # child_type_id → max nombre d'instances enfants
@@ -826,31 +853,48 @@ def espace_enseignant_view(request):
                     """, [etab_id, annee_id])
                     active_cycle_ids = [r['cycle_id'] for r in hcur.fetchall()]
 
-                    # 2. Configs cycle → type racine + max count
+                    # 2. Configs cycle → type racine + max count (per cycle)
                     type_limits = {}  # type_id → max instances
+                    cycle_root_types = {}  # cycle_id → type_racine_id
                     if active_cycle_ids:
                         fmt = ','.join(['%s'] * len(active_cycle_ids))
                         hcur.execute(f"""
-                            SELECT type_racine_id, MAX(nombre_au_niveau_racine) as max_nb
+                            SELECT cycle_id, type_racine_id, nombre_au_niveau_racine
                             FROM repartition_configs_cycle
                             WHERE cycle_id IN ({fmt}) AND is_active = 1
-                            GROUP BY type_racine_id
                         """, active_cycle_ids)
                         for r in hcur.fetchall():
-                            type_limits[r['type_racine_id']] = r['max_nb']
+                            tid = r['type_racine_id']
+                            nb = r['nombre_au_niveau_racine']
+                            if tid not in type_limits or nb > type_limits[tid]:
+                                type_limits[tid] = nb
+                            cycle_root_types.setdefault(r['cycle_id'], []).append(tid)
 
-                    # 3. Hiérarchies → types enfants + limites
+                    # 3. Hiérarchies → types enfants + limites (CYCLE-AWARE)
                     hcur.execute("""
-                        SELECT type_parent_id, type_enfant_id, nombre_enfants
+                        SELECT type_parent_id, type_enfant_id, nombre_enfants, cycle_id
                         FROM repartition_hierarchies WHERE is_active = 1
                     """)
-                    for h in hcur.fetchall():
-                        parent_tid = h['type_parent_id']
-                        if parent_tid in type_limits:
-                            child_tid = h['type_enfant_id']
-                            total = type_limits[parent_tid] * h['nombre_enfants']
-                            if child_tid not in type_limits or total > type_limits[child_tid]:
-                                type_limits[child_tid] = total
+                    all_hier = hcur.fetchall()
+
+                    for cycle_id, root_types in cycle_root_types.items():
+                        for parent_tid in root_types:
+                            # Priority: cycle-specific > global
+                            cycle_h = None
+                            global_h = None
+                            for h in all_hier:
+                                if h['type_parent_id'] == parent_tid:
+                                    if h['cycle_id'] == cycle_id:
+                                        cycle_h = h
+                                        break
+                                    elif h['cycle_id'] is None:
+                                        global_h = h
+                            hier = cycle_h or global_h
+                            if hier:
+                                child_tid = hier['type_enfant_id']
+                                total = type_limits.get(parent_tid, 0) * hier['nombre_enfants']
+                                if child_tid not in type_limits or total > type_limits[child_tid]:
+                                    type_limits[child_tid] = total
 
                     # 4. Charger les instances filtrées
                     if type_limits:

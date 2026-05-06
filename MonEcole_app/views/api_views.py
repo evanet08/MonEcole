@@ -3919,12 +3919,34 @@ def save_etablissement_config(request):
                     id_pays=etab_pays.id_pays
                 ).select_related('type_racine')
                 
-                # 3. Find all hierarchies (parent→child type relationships)
-                hierarchies = {}
-                for h in RepartitionHierarchie.objects.filter(is_active=True, id_pays=etab_pays.id_pays).select_related('type_parent', 'type_enfant'):
-                    if h.type_parent_id not in hierarchies:
-                        hierarchies[h.type_parent_id] = []
-                    hierarchies[h.type_parent_id].append(h)
+                # 3. Find all hierarchies (CYCLE-AWARE: cycle-specific > global fallback)
+                all_hier_qs = list(
+                    RepartitionHierarchie.objects.filter(
+                        is_active=True, id_pays=etab_pays.id_pays
+                    ).select_related('type_parent', 'type_enfant', 'cycle')
+                )
+                hierarchies = {}  # parent_type_id → [hierarchy objects]
+                # Build per root type: resolve which hierarchies apply based on active cycles
+                for cc in cycle_configs:
+                    root_tid = cc.type_racine_id
+                    cycle_pk = cc.cycle_id
+                    # Find cycle-specific hierarchy first, then global
+                    cycle_h = None
+                    global_h = None
+                    for h in all_hier_qs:
+                        if h.type_parent_id == root_tid:
+                            if h.cycle_id == cycle_pk:
+                                cycle_h = h
+                                break
+                            elif h.cycle_id is None:
+                                global_h = h
+                    resolved = cycle_h or global_h
+                    if resolved:
+                        if root_tid not in hierarchies:
+                            hierarchies[root_tid] = []
+                        # Avoid duplicate entries
+                        if not any(e.pk == resolved.pk for e in hierarchies[root_tid]):
+                            hierarchies[root_tid].append(resolved)
                 
                 # Track which RepartitionInstance IDs are already linked for this etab_annee
                 existing_instance_ids = set(
@@ -7655,17 +7677,37 @@ def toggle_calendar_synch(request):
                 ).select_related('classe').values_list('classe__cycle_id', flat=True).distinct()
             )
             if active_cycle_ids:
-                allowed_type_ids = set(
+                cycle_configs = list(
                     RepartitionConfigCycle.objects.filter(
                         cycle_id__in=active_cycle_ids,
                         is_active=True,
                         id_pays=etab.pays_id
-                    ).values_list('type_racine_id', flat=True)
+                    ).select_related('type_racine')
                 )
-                # Toujours inclure le type Période
-                periode_type = RepartitionType.objects.filter(code='P', id_pays=etab.pays_id).values_list('pk', flat=True).first()
-                if periode_type:
-                    allowed_type_ids.add(periode_type)
+                allowed_type_ids = set(cc.type_racine_id for cc in cycle_configs)
+
+                # CYCLE-AWARE: determine child types per cycle using hierarchy
+                all_hierarchies = list(
+                    RepartitionHierarchie.objects.filter(
+                        is_active=True, id_pays=etab.pays_id
+                    ).select_related('type_parent', 'type_enfant', 'cycle')
+                )
+                for cc in cycle_configs:
+                    root_type_id = cc.type_racine_id
+                    cycle_pk = cc.cycle_id
+                    # Find cycle-specific hierarchy first, then global fallback
+                    cycle_hier = None
+                    global_hier = None
+                    for h in all_hierarchies:
+                        if h.type_parent_id == root_type_id:
+                            if h.cycle_id == cycle_pk:
+                                cycle_hier = h
+                                break
+                            elif h.cycle_id is None:
+                                global_hier = h
+                    hier = cycle_hier or global_hier
+                    if hier:
+                        allowed_type_ids.add(hier.type_enfant_id)
 
         if not is_synched:
             # Auto-provision: copier les RepartitionInstance nationales dans RepartitionConfigEtabAnnee
@@ -8386,10 +8428,31 @@ def auto_generate_instances(request):
             if tid not in type_max or cc.nombre_au_niveau_racine > type_max[tid]:
                 type_max[tid] = cc.nombre_au_niveau_racine
         
-        # Get hierarchies (parent_type → list of children)
+        # Get hierarchies (CYCLE-AWARE: cycle-specific > global fallback)
+        all_hier_qs = list(
+            RepartitionHierarchie.objects.filter(
+                is_active=True, id_pays=pays.id_pays
+            ).select_related('type_parent', 'type_enfant', 'cycle')
+        )
         hierarchies = {}
-        for h in RepartitionHierarchie.objects.filter(is_active=True, id_pays=pays.id_pays).select_related('type_parent', 'type_enfant'):
-            hierarchies.setdefault(h.type_parent_id, []).append(h)
+        for cc in configs:
+            root_tid = cc.type_racine_id
+            cycle_pk = cc.cycle_id
+            cycle_h = None
+            global_h = None
+            for h in all_hier_qs:
+                if h.type_parent_id == root_tid:
+                    if h.cycle_id == cycle_pk:
+                        cycle_h = h
+                        break
+                    elif h.cycle_id is None:
+                        global_h = h
+            resolved = cycle_h or global_h
+            if resolved:
+                if root_tid not in hierarchies:
+                    hierarchies[root_tid] = []
+                if not any(e.pk == resolved.pk for e in hierarchies[root_tid]):
+                    hierarchies[root_tid].append(resolved)
         
         created_root = 0
         created_child = 0
@@ -8586,8 +8649,29 @@ def provision_repartitions_for_etab(request):
         ).select_related('type_racine')
         
         hierarchies = {}
-        for h in RepartitionHierarchie.objects.filter(is_active=True, id_pays=etab.pays_id).select_related('type_parent', 'type_enfant'):
-            hierarchies.setdefault(h.type_parent_id, []).append(h)
+        all_hier_qs = list(
+            RepartitionHierarchie.objects.filter(
+                is_active=True, id_pays=etab.pays_id
+            ).select_related('type_parent', 'type_enfant', 'cycle')
+        )
+        for cc in cycle_configs:
+            root_tid = cc.type_racine_id
+            cycle_pk = cc.cycle_id
+            cycle_h = None
+            global_h = None
+            for h in all_hier_qs:
+                if h.type_parent_id == root_tid:
+                    if h.cycle_id == cycle_pk:
+                        cycle_h = h
+                        break
+                    elif h.cycle_id is None:
+                        global_h = h
+            resolved = cycle_h or global_h
+            if resolved:
+                if root_tid not in hierarchies:
+                    hierarchies[root_tid] = []
+                if not any(e.pk == resolved.pk for e in hierarchies[root_tid]):
+                    hierarchies[root_tid].append(resolved)
         
         existing_instance_ids = set(
             RepartitionConfigEtabAnnee.objects.filter(

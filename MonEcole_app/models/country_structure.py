@@ -565,6 +565,9 @@ class RepartitionHierarchie(models.Model):
                                      related_name='enfants_hierarchie')
     type_enfant = models.ForeignKey(RepartitionType, on_delete=models.CASCADE,
                                      related_name='parents_hierarchie')
+    cycle = models.ForeignKey(Cycle, on_delete=models.CASCADE,
+                              db_column='cycle_id', null=True, blank=True,
+                              related_name='hierarchies')
     nombre_enfants = models.PositiveIntegerField(default=1)
     is_active = models.BooleanField(default=True)
     id_pays = models.IntegerField(null=True, blank=True)
