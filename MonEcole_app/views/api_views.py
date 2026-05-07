@@ -6602,8 +6602,24 @@ def dashboard_attribution_cours(request):
                         for r in cur.fetchall():
                             attributions_map[r['id_cours_id']] = r
 
-                    courses = []
+                    # Deduplicate cours_annee by cours_id (take MAX of maxima to get non-null values)
+                    cours_dedup = {}  # cours_id → best ca entry
                     for ca in cours_annee_list:
+                        cid = ca.cours_id
+                        if cid not in cours_dedup:
+                            cours_dedup[cid] = ca
+                        else:
+                            prev = cours_dedup[cid]
+                            # Keep the one with the most complete maxima data
+                            if ca.maxima_tj and not prev.maxima_tj:
+                                cours_dedup[cid] = ca
+                            elif ca.maxima_exam and not prev.maxima_exam:
+                                # Merge maxima_exam into the existing entry
+                                if not prev.maxima_exam:
+                                    prev.maxima_exam = ca.maxima_exam
+
+                    courses = []
+                    for ca in cours_dedup.values():
                         attr = attributions_map.get(ca.id_cours_annee, {})
                         pers_name = ''
                         if attr.get('pers_nom'):
