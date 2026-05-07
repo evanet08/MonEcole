@@ -11374,14 +11374,14 @@ def sync_all_notes_bulletin(request):
                 cycle_row = cur.fetchone()
                 class_cycle_id = cycle_row['cycle_id'] if cycle_row else None
 
-                # Resolve root type for this cycle via repartition_config_cycles
+                # Resolve root type for this cycle via repartition_configs_cycle
                 root_type_id = None
                 child_type_id = None
                 conn_hub_hier = connections['countryStructure'].cursor()
                 try:
                     if class_cycle_id:
                         conn_hub_hier.execute("""
-                            SELECT type_racine_id FROM repartition_config_cycles
+                            SELECT type_racine_id FROM repartition_configs_cycle
                             WHERE cycle_id = %s AND is_active = 1 AND id_pays = %s LIMIT 1
                         """, [class_cycle_id, etab.pays_id])
                         rt_row = conn_hub_hier.fetchone()
