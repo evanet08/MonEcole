@@ -300,102 +300,69 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     except EtablissementAnneeClasse.DoesNotExist:
         return elements
 
-    # ── Charger les notes depuis note_bulletin (CAS 2: TJ sur trimestres) ──
-    notes_par_cours = {}  # {cours_annee_id: {config_id: note_val}}
-    trim_config_ids = []  # ordered: [T1_config, T2_config, T3_config]
+    # ── Charger notes via _get_bulletin_context (même pattern que Primaire) ──
+    notes_par_cours = {}  # {cours_id: {config_id: note_val}}
+    trim_config_ids = []
     try:
         from django.db import connections
         from MonEcole_app.models.campus import Campus
+        from MonEcole_app.views.rdc_structure.structure_primaire import _get_bulletin_context
+
         campus_obj = Campus.objects.filter(idCampus=campus_id).first()
         etab_id_val = campus_obj.id_etablissement if campus_obj else None
-        # Resolve pays_id from the establishment
+
+        # Resolve pays_id
         pays_id_val = None
         if etab_id_val:
             from MonEcole_app.models.country_structure import Etablissement
             _etab_obj = Etablissement.objects.filter(id_etablissement=etab_id_val).first()
             pays_id_val = _etab_obj.pays_id if _etab_obj else None
 
+        # 1. Get trimester configs
         if etab_id_val and id_eleve and pays_id_val:
             with connections['countryStructure'].cursor() as hub_cur:
-                # Resolve root type for this cycle via repartition_configs_cycle
                 hub_cur.execute("""
-                    SELECT type_racine_id FROM repartition_configs_cycle
-                    WHERE cycle_id = %s AND is_active = 1 AND id_pays = %s LIMIT 1
-                """, [cycle_id, pays_id_val])
-                _rt = hub_cur.fetchone()
-                root_type_id = _rt[0] if _rt else None
+                    SELECT rc.id AS config_id, ri.code
+                    FROM repartition_configs_etab_annee rc
+                    JOIN repartition_instances ri ON ri.id = rc.repartition_id
+                    JOIN repartition_types rt ON rt.id = ri.type_id
+                    WHERE rc.etablissement_annee_id = %s
+                      AND rt.code = 'T'
+                      AND ri.pays_id = %s
+                      AND rc.is_open = 1
+                    ORDER BY ri.ordre
+                """, [eac.etablissement_annee_id, pays_id_val])
+                trim_config_ids = [r[0] for r in hub_cur.fetchall()]
 
-                if root_type_id:
-                    # Get trimester configs: filtered by EA + root_type + pays + is_open
-                    hub_cur.execute("""
-                        SELECT rc.id AS config_id, ri.code
-                        FROM repartition_configs_etab_annee rc
-                        JOIN repartition_instances ri ON ri.id = rc.repartition_id
-                        WHERE rc.etablissement_annee_id = %s
-                          AND ri.type_id = %s
-                          AND ri.pays_id = %s
-                          AND rc.is_open = 1
-                        ORDER BY ri.ordre
-                    """, [eac.etablissement_annee_id, root_type_id, pays_id_val])
-                    trim_config_ids = [r[0] for r in hub_cur.fetchall()]
-                else:
-                    # Fallback: cycle sans repartition_configs_cycle (ex: Maternel)
-                    # Resolve via repartition_types.code='T' (trimestre type)
-                    hub_cur.execute("""
-                        SELECT rc.id AS config_id, ri.code
-                        FROM repartition_configs_etab_annee rc
-                        JOIN repartition_instances ri ON ri.id = rc.repartition_id
-                        JOIN repartition_types rt ON rt.id = ri.type_id
-                        WHERE rc.etablissement_annee_id = %s
-                          AND rt.code = 'T'
-                          AND ri.pays_id = %s
-                          AND rc.is_open = 1
-                        ORDER BY ri.ordre
-                    """, [eac.etablissement_annee_id, pays_id_val])
-                    trim_config_ids = [r[0] for r in hub_cur.fetchall()]
+        # 2. Build mappings via _get_bulletin_context (handles duplicates properly)
+        cours_annee_to_cours, config_to_rep, rep_to_code = _get_bulletin_context(eac)
 
-            if trim_config_ids:
-                from MonEcole_app.models.evaluations.note import NoteBulletin
-                # TJ notes (type=1) filtered by eleve + etablissement + pays
-                qs = NoteBulletin.objects.filter(
-                    id_eleve_id=id_eleve,
-                    id_etablissement=etab_id_val,
-                    id_pays=pays_id_val,
-                    id_note_type=1,  # TJ
-                    id_repartition_config__in=trim_config_ids,
+        # 3. Load notes from note_bulletin
+        if trim_config_ids and etab_id_val and id_eleve:
+            from MonEcole_app.models.evaluations.note import NoteBulletin
+            qs = NoteBulletin.objects.filter(
+                id_eleve_id=id_eleve,
+                id_etablissement=etab_id_val,
+                id_note_type=1,  # TJ
+                id_repartition_config__in=trim_config_ids,
+                id_cours_annee__in=cours_annee_to_cours.keys(),
+            )
+            if pays_id_val:
+                qs = qs.filter(id_pays=pays_id_val)
+
+            for nb in qs:
+                # Map ca_id → cours_id (via _get_bulletin_context mapping)
+                cours_id = cours_annee_to_cours.get(nb.id_cours_annee)
+                if not cours_id:
+                    continue
+                cfg_id = nb.id_repartition_config
+                notes_par_cours.setdefault(cours_id, {})[cfg_id] = (
+                    round(float(nb.note), 1) if nb.note is not None else None
                 )
-                for nb in qs:
-                    ca_id = nb.id_cours_annee
-                    cfg_id = nb.id_repartition_config
-                    notes_par_cours.setdefault(ca_id, {})[cfg_id] = (
-                        round(float(nb.note), 1) if nb.note is not None else None
-                    )
 
-        # Build cours_annee mapping: cours_pk → cours_annee_id
-        # When duplicates exist, prefer the ca_id that has notes in note_bulletin
-        cours_annee_to_pk = {}
-        with connections['countryStructure'].cursor() as hub_cur:
-            hub_cur.execute("""
-                SELECT ca.id_cours_annee, ca.cours_id
-                FROM cours_annee ca
-                WHERE ca.cours_id IN (
-                    SELECT id FROM cours WHERE classe_id = %s
-                )
-                ORDER BY ca.id_cours_annee ASC
-            """, [hub_classe_id])
-            all_ca_rows = hub_cur.fetchall()
-            # First pass: set all (last wins = wrong for duplicates)
-            for row in all_ca_rows:
-                cours_annee_to_pk[row[1]] = row[0]
-            # Second pass: override with ca_id that has actual notes
-            ca_ids_with_notes = set(notes_par_cours.keys())
-            for row in all_ca_rows:
-                if row[0] in ca_ids_with_notes:
-                    cours_annee_to_pk[row[1]] = row[0]  # prefer the one with notes
     except Exception as _e:
         import logging
         logging.getLogger(__name__).warning(f"[BULLETIN MATERNELLE] Note loading error: {_e}")
-
 
     # CRITICAL: use pk (surrogate) not id_cours (business key)
     cours_pks = list(Cours.objects.filter(classe_id=hub_classe_id).values_list('pk', flat=True))
@@ -458,10 +425,9 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
 
         # Lignes des cours avec notes dynamiques
         for cpc in groupes[domaine]:
-            # Résoudre cours_annee_id pour ce cours
-            cours_pk = cpc.id_cours.pk  # surrogate key
-            ca_id = cours_annee_to_pk.get(cours_pk)
-            cours_notes = notes_par_cours.get(ca_id, {}) if ca_id else {}
+            # Use cours_id (Hub PK) to look up notes — matches _get_bulletin_context mapping
+            cours_pk = cpc.id_cours.pk  # surrogate key = Hub cours.id
+            cours_notes = notes_par_cours.get(cours_pk, {})
 
             # Notes pour chaque trimestre (colonnes 2, 3, 4)
             note_cells = []
