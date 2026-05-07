@@ -12046,9 +12046,12 @@ def mass_import_template(request):
                 """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
                 eleves = cur.fetchall()
 
-                # 3. Get cours maxima
+                # 3. Get cours maxima (COALESCE resolves duplicates)
                 cur.execute("""
-                    SELECT cann.maxima_tj, cann.maxima_exam, ca.cours AS cours_nom, ca.code_cours
+                    SELECT
+                        COALESCE(cann.maxima_tj, (SELECT MAX(s.maxima_tj) FROM countryStructure.cours_annee s WHERE s.cours_id = cann.cours_id)) AS maxima_tj,
+                        COALESCE(cann.maxima_exam, (SELECT MAX(s.maxima_exam) FROM countryStructure.cours_annee s WHERE s.cours_id = cann.cours_id)) AS maxima_exam,
+                        ca.cours AS cours_nom, ca.code_cours
                     FROM countryStructure.cours_annee cann
                     JOIN countryStructure.cours ca ON ca.id = cann.cours_id
                     WHERE cann.id_cours_annee = %s LIMIT 1
@@ -12057,8 +12060,8 @@ def mass_import_template(request):
                 if not cours_row:
                     return JsonResponse({'success': False, 'error': 'Cours non trouvé.'}, status=404)
 
-                maxima_tj = float(cours_row['maxima_tj']) if cours_row['maxima_tj'] else 20
                 maxima_exam = float(cours_row['maxima_exam']) if cours_row['maxima_exam'] else 20
+                maxima_tj = float(cours_row['maxima_tj']) if cours_row['maxima_tj'] else maxima_exam
                 cours_nom = cours_row['cours_nom'] or 'Cours'
                 cours_code = cours_row['code_cours'] or ''
 
