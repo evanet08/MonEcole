@@ -325,8 +325,8 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
                 _rt = hub_cur.fetchone()
                 root_type_id = _rt[0] if _rt else None
 
-                # Get trimester configs: filtered by EA + root_type + pays + is_open
                 if root_type_id:
+                    # Get trimester configs: filtered by EA + root_type + pays + is_open
                     hub_cur.execute("""
                         SELECT rc.id AS config_id, ri.code
                         FROM repartition_configs_etab_annee rc
@@ -337,6 +337,21 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
                           AND rc.is_open = 1
                         ORDER BY ri.ordre
                     """, [eac.etablissement_annee_id, root_type_id, pays_id_val])
+                    trim_config_ids = [r[0] for r in hub_cur.fetchall()]
+                else:
+                    # Fallback: cycle sans repartition_configs_cycle (ex: Maternel)
+                    # Resolve via repartition_types.code='T' (trimestre type)
+                    hub_cur.execute("""
+                        SELECT rc.id AS config_id, ri.code
+                        FROM repartition_configs_etab_annee rc
+                        JOIN repartition_instances ri ON ri.id = rc.repartition_id
+                        JOIN repartition_types rt ON rt.id = ri.type_id
+                        WHERE rc.etablissement_annee_id = %s
+                          AND rt.code = 'T'
+                          AND ri.pays_id = %s
+                          AND rc.is_open = 1
+                        ORDER BY ri.ordre
+                    """, [eac.etablissement_annee_id, pays_id_val])
                     trim_config_ids = [r[0] for r in hub_cur.fetchall()]
 
             if trim_config_ids:
