@@ -9433,6 +9433,28 @@ def _get_or_create_repartition_config(repartition_id, etab_id, pays_id=None):
     ).select_related('repartition', 'repartition__type').first()
 
 
+def _resolve_instance_to_config(instance_pk, etab_annee_id):
+    """
+    Resolve a repartition instance PK (from frontend) to the correct
+    repartition_configs_etab_annee.id (config_id) using the EAC's
+    etablissement_annee_id. This is the reliable resolution path that
+    avoids surrogate vs business key mismatches.
+    Returns config_id (int) or None.
+    """
+    from django.db import connections
+    try:
+        with connections['countryStructure'].cursor() as cur:
+            cur.execute("""
+                SELECT rc.id FROM repartition_configs_etab_annee rc
+                WHERE rc.etablissement_annee_id = %s AND rc.repartition_id = %s
+                LIMIT 1
+            """, [etab_annee_id, instance_pk])
+            row = cur.fetchone()
+            return row[0] if row else None
+    except Exception:
+        return None
+
+
 # ============================================================
 # NOTES — API SAISIE & IMPORT
 # ============================================================
@@ -11350,8 +11372,12 @@ def sync_all_notes_bulletin(request):
                     return JsonResponse({'success': False, 'error': 'Aucun élève inscrit.'}, status=404)
 
                 # 3. Get all cours_annee for this class
+                #    COALESCE resolves duplicates: if this entry has NULL, use MAX from siblings
                 cur.execute("""
-                    SELECT cann.id_cours_annee, cann.maxima_exam, cann.maxima_tj, cann.maxima_periode
+                    SELECT cann.id_cours_annee, cann.cours_id,
+                           COALESCE(cann.maxima_exam, (SELECT MAX(s.maxima_exam) FROM countryStructure.cours_annee s WHERE s.cours_id = cann.cours_id)) AS maxima_exam,
+                           COALESCE(cann.maxima_tj, (SELECT MAX(s.maxima_tj) FROM countryStructure.cours_annee s WHERE s.cours_id = cann.cours_id)) AS maxima_tj,
+                           COALESCE(cann.maxima_periode, (SELECT MAX(s.maxima_periode) FROM countryStructure.cours_annee s WHERE s.cours_id = cann.cours_id)) AS maxima_periode
                     FROM countryStructure.cours_annee cann
                     JOIN countryStructure.cours ca ON ca.id = cann.cours_id
                     WHERE ca.classe_id = %s
@@ -15314,34 +15340,45 @@ def execute_deliberation(request):
             except Exception:
                 _class_cycle_id = None
 
+        # ─── Resolved config_id for save (will be set per delib_type) ───
+        _resolved_config_id = None
+
         if delib_type == 'periode' and repartition_id:
-            # Period deliberation: sum TJ for this single period config
-            # repartition_id is an instance PK — resolve to config_id
-            _cfg = _get_or_create_repartition_config(int(repartition_id), etab.id_etablissement, pays_id=etab.pays_id)
-            if _cfg:
-                config_ids = [_cfg.id]
+            # Period: resolve instance PK → config_id via EAC
+            _resolved_config_id = _resolve_instance_to_config(int(repartition_id), etab_annee_id)
+            if _resolved_config_id:
+                config_ids = [_resolved_config_id]
             else:
                 config_ids = []
             note_types = [tj_nt_id]
 
         elif delib_type == 'trimestre' and repartition_id:
-            # Trimester/Semester deliberation
-            # repartition_id is an instance PK — resolve to config_id
-            _parent_cfg = _get_or_create_repartition_config(int(repartition_id), etab.id_etablissement, pays_id=etab.pays_id)
-            if not _parent_cfg:
+            # Trimester: resolve instance PK → config_id via EAC
+            parent_config_id = _resolve_instance_to_config(int(repartition_id), etab_annee_id)
+            if not parent_config_id:
                 return JsonResponse({'success': False, 'error': 'Config répartition non trouvée.'}, status=404)
-            parent_config_id = _parent_cfg.id
-            parent_type_id = _parent_cfg.repartition.type_id
+            _resolved_config_id = parent_config_id
 
             with connections['countryStructure'].cursor() as hub_cur:
-                # Get child type (CYCLE-AWARE: cycle-specific > global)
+                # Get parent type_id
                 hub_cur.execute("""
-                    SELECT type_enfant_id FROM repartition_hierarchies
-                    WHERE type_parent_id = %s AND is_active = 1 AND id_pays = %s
-                    ORDER BY CASE WHEN cycle_id = %s THEN 0 WHEN cycle_id IS NULL THEN 1 ELSE 2 END
-                    LIMIT 1
-                """, [parent_type_id, etab.pays_id, _class_cycle_id])
-                child_type_row = hub_cur.fetchone()
+                    SELECT r.type_id FROM repartition_configs_etab_annee rc
+                    JOIN repartition_instances r ON r.id = rc.repartition_id
+                    WHERE rc.id = %s
+                """, [parent_config_id])
+                _pt_row = hub_cur.fetchone()
+                parent_type_id = _pt_row[0] if _pt_row else None
+
+                # Get child type (CYCLE-AWARE: cycle-specific > global)
+                child_type_row = None
+                if parent_type_id:
+                    hub_cur.execute("""
+                        SELECT type_enfant_id FROM repartition_hierarchies
+                        WHERE type_parent_id = %s AND is_active = 1 AND id_pays = %s
+                        ORDER BY CASE WHEN cycle_id = %s THEN 0 WHEN cycle_id IS NULL THEN 1 ELSE 2 END
+                        LIMIT 1
+                    """, [parent_type_id, etab.pays_id, _class_cycle_id])
+                    child_type_row = hub_cur.fetchone()
 
                 if child_type_row:
                     child_type_id = child_type_row[0]
@@ -15354,7 +15391,6 @@ def execute_deliberation(request):
                     """, [etab_annee_id, child_type_id])
                     all_child_ids = [r[0] for r in hub_cur.fetchall()]
 
-                    # Get all parent configs to determine which children belong to this parent
                     hub_cur.execute("""
                         SELECT rc.id FROM repartition_configs_etab_annee rc
                         JOIN repartition_instances r ON r.id = rc.repartition_id
@@ -15375,12 +15411,10 @@ def execute_deliberation(request):
                     else:
                         my_child_ids = all_child_ids
 
-                    # Config IDs = child periods (TJ) + parent (EX)
                     config_ids = my_child_ids + [parent_config_id]
                     note_types = [tj_nt_id, ex_nt_id]
                 else:
-                    # CAS 2: Cycle SANS périodes (Maternel) — trimestre IS the base unit
-                    # Notes are stored as TJ directly on the trimester config
+                    # CAS 2: Cycle SANS périodes (Maternel)
                     config_ids = [parent_config_id]
                     note_types = [tj_nt_id, ex_nt_id]
 
@@ -15389,29 +15423,27 @@ def execute_deliberation(request):
                 note_types = [tj_nt_id, ex_nt_id]
 
         elif delib_type == 'examen' and repartition_id:
-            # Exam deliberation: EX on parent config
-            _cfg = _get_or_create_repartition_config(int(repartition_id), etab.id_etablissement, pays_id=etab.pays_id)
-            if _cfg:
-                config_ids = [_cfg.id]
+            _resolved_config_id = _resolve_instance_to_config(int(repartition_id), etab_annee_id)
+            if _resolved_config_id:
+                config_ids = [_resolved_config_id]
             else:
                 config_ids = []
             note_types = [ex_nt_id]
 
         elif delib_type == 'annee':
-            # Annual deliberation: get ALL configs, sum all TJ + EX
             with connections['countryStructure'].cursor() as hub_cur:
                 hub_cur.execute("""
                     SELECT rc.id FROM repartition_configs_etab_annee rc
                     WHERE rc.etablissement_annee_id = %s
                 """, [etab_annee_id])
                 config_ids = [r[0] for r in hub_cur.fetchall()]
-            note_types = [tj_nt_id, ex_nt_id]  # All TJ + EX
+            note_types = [tj_nt_id, ex_nt_id]
 
         else:
             return JsonResponse({'success': False, 'error': f'Type de délibération non supporté: {delib_type}'}, status=400)
 
         import sys
-        print(f"[DELIB DEBUG] type={delib_type}, config_ids={config_ids}, note_types={note_types}", file=sys.stderr)
+        print(f"[DELIB DEBUG] type={delib_type}, config_ids={config_ids}, note_types={note_types}, resolved_config_id={_resolved_config_id}", file=sys.stderr)
 
         # Calculate percentages for each student from note_bulletin
         # note_bulletin is already scoped by id_etablissement, no need for cours_annee filter
@@ -15517,7 +15549,8 @@ def execute_deliberation(request):
                                 pourcentage=VALUES(pourcentage), place=VALUES(place)
                         """, [r['id_eleve'], campus_id, annee.pk, cycle_id,
                               eac.classe_id, eac.groupe, eac.section_id,
-                              int(repartition_id), int(repartition_id),
+                              _resolved_config_id or int(repartition_id),
+                              _resolved_config_id or int(repartition_id),
                               r['pourcentage'], r['place'], etab.id_etablissement, etab.pays_id])
                     saved_count += 1
                 except Exception as save_err:
@@ -15538,7 +15571,7 @@ def execute_deliberation(request):
                                 pourcentage=VALUES(pourcentage), place=VALUES(place)
                         """, [r['id_eleve'], campus_id, annee.pk, cycle_id,
                               eac.classe_id, eac.groupe, eac.section_id,
-                              int(repartition_id),
+                              _resolved_config_id or int(repartition_id),
                               r['pourcentage'], r['place'], etab.id_etablissement, etab.pays_id])
                     saved_count += 1
                 except Exception as save_err:
