@@ -338,7 +338,8 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
                         round(float(nb.note), 1) if nb.note is not None else None
                     )
 
-        # Build cours_annee mapping: cours_annee_id → cours_pk
+        # Build cours_annee mapping: cours_pk → cours_annee_id
+        # When duplicates exist, prefer the ca_id that has notes in note_bulletin
         cours_annee_to_pk = {}
         with connections['countryStructure'].cursor() as hub_cur:
             hub_cur.execute("""
@@ -347,9 +348,17 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
                 WHERE ca.cours_id IN (
                     SELECT id FROM cours WHERE classe_id = %s
                 )
+                ORDER BY ca.id_cours_annee ASC
             """, [hub_classe_id])
-            for row in hub_cur.fetchall():
-                cours_annee_to_pk[row[1]] = row[0]  # cours_pk → cours_annee_id
+            all_ca_rows = hub_cur.fetchall()
+            # First pass: set all (last wins = wrong for duplicates)
+            for row in all_ca_rows:
+                cours_annee_to_pk[row[1]] = row[0]
+            # Second pass: override with ca_id that has actual notes
+            ca_ids_with_notes = set(notes_par_cours.keys())
+            for row in all_ca_rows:
+                if row[0] in ca_ids_with_notes:
+                    cours_annee_to_pk[row[1]] = row[0]  # prefer the one with notes
     except Exception as _e:
         import logging
         logging.getLogger(__name__).warning(f"[BULLETIN MATERNELLE] Note loading error: {_e}")
