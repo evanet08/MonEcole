@@ -587,13 +587,6 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     current_row += 1
 
     # ── TRIMESTRES | INSTITUTEUR (TRICE) | PARENT ──
-    margin = 5 * mm
-    usable_width = A4[0] - 2 * margin
-    col_widths = [15*mm, 50*mm, 22*mm, 22*mm, 22*mm, 25*mm, 22*mm, 22*mm]
-    total_w = sum(col_widths)
-    if total_w > usable_width:
-        ratio = usable_width / total_w
-        col_widths = [w * ratio for w in col_widths]
 
     table_data.append([
         Paragraph("<b>TRIMESTRES</b>", bold_center),
@@ -673,14 +666,6 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         ('SPAN', (0, row_legende), (0, row_legende + 2)),
         ('VALIGN', (0, row_legende), (0, row_legende + 2), 'MIDDLE'),
         ('GRID', (0, row_legende), (6, row_legende + 2), 0.5, colors.black),
-        # Color backgrounds for legende
-        ('BACKGROUND', (2, row_legende + 2), (2, row_legende + 2), colors.yellow),
-        ('BACKGROUND', (3, row_legende + 2), (3, row_legende + 2), colors.HexColor('#4169E1')),
-        ('BACKGROUND', (4, row_legende + 2), (4, row_legende + 2), colors.green),
-        ('BACKGROUND', (5, row_legende + 2), (5, row_legende + 2), colors.black),
-        ('TEXTCOLOR', (5, row_legende + 2), (5, row_legende + 2), colors.white),
-        ('BACKGROUND', (6, row_legende + 2), (6, row_legende + 2), colors.red),
-        ('TEXTCOLOR', (6, row_legende + 2), (6, row_legende + 2), colors.white),
     ])
 
     # ── Observations + Note importante ──
@@ -703,11 +688,13 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         [None]*8,
     ])
 
-    # ── STYLES GLOBAUX ──
+    # ── STYLES GLOBAUX (noir/blanc/gris uniquement) ──
     ts_commands.extend([
         ('GRID', (0, 0), (-1, row_after_trim - 1), 0.5, colors.black),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E8E8E8')),
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),
-        ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+        ('ALIGN', (2, 0), (-1, -1), 'CENTER'),
+        ('ALIGN', (1, 0), (1, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('LEFTPADDING', (0, 0), (-1, -1), 3),
@@ -736,12 +723,21 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         ideal_rh=5.5,
         min_rh=3.0,
     )
+    # Column widths: num | name | T1 | T2 | T3 | Total | Qual | Coul
+    margin = 5 * mm
+    usable_width = A4[0] - 2 * margin
+    col_widths = [12*mm, 53*mm, 22*mm, 22*mm, 22*mm, 22*mm, 22*mm, 22*mm]
+    total_w = sum(col_widths)
+    if total_w > usable_width:
+        ratio = usable_width / total_w
+        col_widths = [w * ratio for w in col_widths]
+
     main_table = Table(
         table_data,
         colWidths=col_widths,
         rowHeights=_rh,
-        splitByRow=1,               # permet le fractionnement si trop long
-        repeatRows=1                # répète l'entête sur page 2 si besoin
+        splitByRow=1,
+        repeatRows=1
     )
     main_table.setStyle(TableStyle(ts_commands))
 
