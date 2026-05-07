@@ -1348,9 +1348,7 @@ def calculer_pourcentages(table_data, style_center):
     """
     Calcule les pourcentages sur la ligne POURCENTAGE.
     Formule : pourcentage = PTS.OBT / MAX * 100
-    - Pour les trimestres (cols 7, 14, 21) : PTS.OBT_trim / MAX_TRIM
-    - Pour l'annuel (col 23) : PTS.OBT_annuel / MAX_annuel  
-    - Pour les périodes et exams : somme notes / somme maxima depuis les Sous Total
+    Utilise la ligne MAXIMA GENEREAUX qui contient déjà les totaux corrects.
     """
     import logging
     _logger = logging.getLogger(__name__)
@@ -1380,7 +1378,6 @@ def calculer_pourcentages(table_data, style_center):
                 return 0.0
             try:
                 text = str(cell.text).strip() if hasattr(cell, 'text') else str(cell).strip()
-                # Nettoyer les tags HTML
                 import re
                 text = re.sub(r'<[^>]+>', '', text).strip()
                 if text in ("", "-"):
@@ -1391,82 +1388,65 @@ def calculer_pourcentages(table_data, style_center):
         return 0.0
 
     def format_pct(val):
-        """Formater le pourcentage sans zéros inutiles"""
         if val <= 0:
             return "0%"
-        rounded = round(val, 2)
+        rounded = round(val, 1)
         if rounded == int(rounded):
             return f"{int(rounded)}%"
-        return f"{rounded:.2f}".rstrip('0').rstrip('.') + "%"
+        return f"{rounded:.1f}%"
 
     pourcentage_row = table_data[ligne_pourcentage_idx]
     while len(pourcentage_row) < 24:
         pourcentage_row.append(None)
 
-    # --- Collecter les totaux depuis les lignes Sous Total ---
-    # Pour chaque colonne, sommer les valeurs des lignes Sous Total
-    sous_total_sums = [0.0] * 24
-    for idx, row in enumerate(table_data):
-        if len(row) > 0 and isinstance(row[0], Paragraph):
-            text = row[0].text or ""
-            if "Sous Total" in text:
-                for col in range(1, 24):
-                    if col < len(row):
-                        sous_total_sums[col] += get_val(idx, col)
+    # Read MAXIMA GENEREAUX row for both numerators and denominators
+    mg_row = table_data[max_gen_idx]
 
-    # Maxima depuis la ligne MAXIMA GENEREAUX
-    max_vals = {}
-    for col in range(1, 24):
-        max_vals[col] = get_val(max_gen_idx, col)
+    # Primaire layout (24 cols):
+    # T1: cols 1(MaxPer) 2(P1) 3(P2) 4(MaxExam) 5(Exam) 6(MaxTrim) 7(PTS.OBT.Trim)
+    # T2: cols 8(MaxPer) 9(P3) 10(P4) 11(MaxExam) 12(Exam) 13(MaxTrim) 14(PTS.OBT.Trim)
+    # T3: cols 15(MaxPer) 16(P5) 17(P6) 18(MaxExam) 19(Exam) 20(MaxTrim) 21(PTS.OBT.Trim)
+    # Total: 22(MaxAnnuel) 23(PTS.OBT.Annuel)
 
-    _logger.warning(f"[POURCENTAGE] sous_total_sums[2]={sous_total_sums[2]}, [3]={sous_total_sums[3]}, [5]={sous_total_sums[5]}")
-    _logger.warning(f"[POURCENTAGE] max_vals[1]={max_vals[1]}, [4]={max_vals[4]}, [6]={max_vals[6]}")
-    _logger.warning(f"[POURCENTAGE] sous_total_sums[7]={sous_total_sums[7]}, max_vals[6]={max_vals[6]}")
-
-    # --- Pourcentages par période (cols 2,3,9,10,16,17) ---
-    # Période : somme_sous_totaux[col] / maxima_genereaux[col_max_per] * 100
-    # col_max_per pour T1=1, T2=8, T3=15
-    period_map = {
-        2: 1, 3: 1,      # T1 periods → max in col 1
-        9: 8, 10: 8,     # T2 periods → max in col 8
-        16: 15, 17: 15,  # T3 periods → max in col 15
-    }
-    for col, max_col in period_map.items():
-        max_per = max_vals.get(max_col, 0)
-        # max_per = somme des pondérations par période (déjà = maxima_tj / 2)
-        if max_per > 0:
-            pct = sous_total_sums[col] / max_per * 100
-            pourcentage_row[col] = Paragraph(format_pct(pct), style_center)
+    # Pourcentages par période : PTS.OBT période / MaxPer * 100
+    period_pairs = [(2, 1), (3, 1), (9, 8), (10, 8), (16, 15), (17, 15)]
+    for pts_col, max_col in period_pairs:
+        pts = get_val(max_gen_idx, pts_col)
+        mx = get_val(max_gen_idx, max_col)
+        if mx > 0:
+            pourcentage_row[pts_col] = Paragraph(format_pct(pts / mx * 100), style_center)
         else:
-            pourcentage_row[col] = Paragraph("-", style_center)
+            pourcentage_row[pts_col] = Paragraph("-", style_center)
 
-    # --- Pourcentages examen (cols 5, 12, 19) ---
-    exam_map = {5: 4, 12: 11, 19: 18}
-    for col, max_col in exam_map.items():
-        max_exam = max_vals.get(max_col, 0)
-        if max_exam > 0:
-            pct = sous_total_sums[col] / max_exam * 100
-            pourcentage_row[col] = Paragraph(format_pct(pct), style_center)
+    # Pourcentages examen : PTS.OBT exam / MaxExam * 100
+    exam_pairs = [(5, 4), (12, 11), (19, 18)]
+    for pts_col, max_col in exam_pairs:
+        pts = get_val(max_gen_idx, pts_col)
+        mx = get_val(max_gen_idx, max_col)
+        if mx > 0:
+            pourcentage_row[pts_col] = Paragraph(format_pct(pts / mx * 100), style_center)
         else:
-            pourcentage_row[col] = Paragraph("-", style_center)
+            pourcentage_row[pts_col] = Paragraph("-", style_center)
 
-    # --- Pourcentages trimestre (cols 7, 14, 21) ---
-    trim_map = {7: 6, 14: 13, 21: 20}
-    for col, max_col in trim_map.items():
-        max_trim = max_vals.get(max_col, 0)
-        if max_trim > 0:
-            pct = sous_total_sums[col] / max_trim * 100
-            pourcentage_row[col] = Paragraph(format_pct(pct), style_center)
+    # Pourcentages trimestre : PTS.OBT trim / MaxTrim * 100
+    trim_pairs = [(7, 6), (14, 13), (21, 20)]
+    for pts_col, max_col in trim_pairs:
+        pts = get_val(max_gen_idx, pts_col)
+        mx = get_val(max_gen_idx, max_col)
+        if mx > 0:
+            pourcentage_row[pts_col] = Paragraph(format_pct(pts / mx * 100), style_center)
         else:
-            pourcentage_row[col] = Paragraph("-", style_center)
+            pourcentage_row[pts_col] = Paragraph("-", style_center)
 
-    # --- Pourcentage annuel (col 23) ---
-    max_annuel = max_vals.get(22, 0)
-    if max_annuel > 0:
-        pct = sous_total_sums[23] / max_annuel * 100
-        pourcentage_row[23] = Paragraph(format_pct(pct), style_center)
+    # Pourcentage annuel : PTS.OBT annuel / MaxAnnuel * 100
+    pts_annuel = get_val(max_gen_idx, 23)
+    mx_annuel = get_val(max_gen_idx, 22)
+    if mx_annuel > 0:
+        pourcentage_row[23] = Paragraph(format_pct(pts_annuel / mx_annuel * 100), style_center)
     else:
         pourcentage_row[23] = Paragraph("-", style_center)
+
+    _logger.warning(f"[POURCENTAGE] Using MAXIMA GENEREAUX row for calc")
 
 
 def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe):

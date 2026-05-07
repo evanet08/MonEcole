@@ -483,7 +483,12 @@ def generer_bulletin_pdf(request):
                             logo_path = institution.logo_ecole.path
                         except Exception:
                             _lp = str(institution.logo_ecole)
-                            logo_path = _os.path.join(_media_root, _lp.lstrip('/')) if _lp else None
+                            if _lp:
+                                # Strip /media/ prefix since MEDIA_ROOT already includes it
+                                _lp_clean = _lp.lstrip('/')
+                                if _lp_clean.startswith('media/'):
+                                    _lp_clean = _lp_clean[6:]  # remove 'media/'
+                                logo_path = _os.path.join(_media_root, _lp_clean)
                     if institution:
                         try:
                             _em = institution.logo_ministere
