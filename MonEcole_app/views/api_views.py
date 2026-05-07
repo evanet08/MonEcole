@@ -11374,13 +11374,14 @@ def calculate_notes_bulletin(request):
                             _cyc_row = conn_hub2.fetchone()
                             _class_cycle_id = _cyc_row[0] if _cyc_row else None
 
-                            # Cycle-aware hierarchy: cycle-specific > global fallback
+                            # Cycle-aware hierarchy: ONLY cycle-specific or global (NULL)
                             conn_hub2.execute("""
                                 SELECT type_enfant_id FROM repartition_hierarchies
                                 WHERE type_parent_id = %s AND is_active = 1 AND id_pays = %s
-                                ORDER BY CASE WHEN cycle_id = %s THEN 0 WHEN cycle_id IS NULL THEN 1 ELSE 2 END
+                                  AND (cycle_id = %s OR cycle_id IS NULL)
+                                ORDER BY CASE WHEN cycle_id = %s THEN 0 ELSE 1 END
                                 LIMIT 1
-                            """, [rep_type_id, etab.pays_id, _class_cycle_id])
+                            """, [rep_type_id, etab.pays_id, _class_cycle_id, _class_cycle_id])
                             hier_row = conn_hub2.fetchone()
                         finally:
                             conn_hub2.close()
@@ -11598,14 +11599,16 @@ def sync_all_notes_bulletin(request):
                             root_type_id = rt_row[0]
 
                         # Resolve child type via hierarchy (cycle-specific > global fallback)
+                        # ONLY accept: exact cycle match OR global (NULL). Reject other cycles.
                         if root_type_id:
                             conn_hub_hier.execute("""
                                 SELECT type_enfant_id, nombre_enfants, cycle_id
                                 FROM repartition_hierarchies
                                 WHERE type_parent_id = %s AND is_active = 1 AND id_pays = %s
-                                ORDER BY CASE WHEN cycle_id = %s THEN 0 WHEN cycle_id IS NULL THEN 1 ELSE 2 END
+                                  AND (cycle_id = %s OR cycle_id IS NULL)
+                                ORDER BY CASE WHEN cycle_id = %s THEN 0 ELSE 1 END
                                 LIMIT 1
-                            """, [root_type_id, etab.pays_id, class_cycle_id])
+                            """, [root_type_id, etab.pays_id, class_cycle_id, class_cycle_id])
                             ch_row = conn_hub_hier.fetchone()
                             if ch_row:
                                 child_type_id = ch_row[0]
@@ -12092,14 +12095,15 @@ def mass_import_template(request):
                             if _rt:
                                 _mi_root_type = _rt[0]
 
-                        # Cycle-aware hierarchy: cycle-specific > global
+                        # Cycle-aware hierarchy: ONLY cycle-specific or global (NULL)
                         if _mi_root_type:
                             hub_cur.execute("""
                                 SELECT nombre_enfants, cycle_id FROM repartition_hierarchies
                                 WHERE type_parent_id = %s AND is_active = 1 AND id_pays = %s
-                                ORDER BY CASE WHEN cycle_id = %s THEN 0 WHEN cycle_id IS NULL THEN 1 ELSE 2 END
+                                  AND (cycle_id = %s OR cycle_id IS NULL)
+                                ORDER BY CASE WHEN cycle_id = %s THEN 0 ELSE 1 END
                                 LIMIT 1
-                            """, [_mi_root_type, etab.pays_id, _mi_cycle_id])
+                            """, [_mi_root_type, etab.pays_id, _mi_cycle_id, _mi_cycle_id])
                             h_row = hub_cur.fetchone()
                             if h_row and h_row[0]:
                                 nb_periodes_par_trim = int(h_row[0])
@@ -12731,9 +12735,10 @@ def mass_import_notes(request):
                             hub_cur.execute("""
                                 SELECT type_enfant_id FROM repartition_hierarchies
                                 WHERE type_parent_id = %s AND is_active = 1 AND id_pays = %s
-                                ORDER BY CASE WHEN cycle_id = %s THEN 0 WHEN cycle_id IS NULL THEN 1 ELSE 2 END
+                                  AND (cycle_id = %s OR cycle_id IS NULL)
+                                ORDER BY CASE WHEN cycle_id = %s THEN 0 ELSE 1 END
                                 LIMIT 1
-                            """, [_mi3_root_type, pays_id, _mi3_cycle_id])
+                            """, [_mi3_root_type, pays_id, _mi3_cycle_id, _mi3_cycle_id])
                             _ch3 = hub_cur.fetchone()
                             if _ch3:
                                 _mi3_child_type = _ch3[0]
@@ -15641,9 +15646,10 @@ def execute_deliberation(request):
                     hub_cur.execute("""
                         SELECT type_enfant_id FROM repartition_hierarchies
                         WHERE type_parent_id = %s AND is_active = 1 AND id_pays = %s
-                        ORDER BY CASE WHEN cycle_id = %s THEN 0 WHEN cycle_id IS NULL THEN 1 ELSE 2 END
+                          AND (cycle_id = %s OR cycle_id IS NULL)
+                        ORDER BY CASE WHEN cycle_id = %s THEN 0 ELSE 1 END
                         LIMIT 1
-                    """, [parent_type_id, etab.pays_id, _class_cycle_id])
+                    """, [parent_type_id, etab.pays_id, _class_cycle_id, _class_cycle_id])
                     child_type_row = hub_cur.fetchone()
 
                 if child_type_row:
