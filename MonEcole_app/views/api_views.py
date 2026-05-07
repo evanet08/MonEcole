@@ -12061,7 +12061,7 @@ def mass_import_template(request):
                     return JsonResponse({'success': False, 'error': 'Cours non trouvé.'}, status=404)
 
                 maxima_exam = float(cours_row['maxima_exam']) if cours_row['maxima_exam'] else 20
-                maxima_tj = float(cours_row['maxima_tj']) if cours_row['maxima_tj'] else maxima_exam
+                maxima_tj = float(cours_row['maxima_tj']) if cours_row['maxima_tj'] else 0
                 cours_nom = cours_row['cours_nom'] or 'Cours'
                 cours_code = cours_row['code_cours'] or ''
 
@@ -12112,10 +12112,10 @@ def mass_import_template(request):
 
                 # CAS 1 (no periods): trimestres use maxima_exam directly
                 # CAS 2 (with periods): periods use maxima_tj / nb_periodes
-                if nb_periodes_par_trim > 0:
+                if nb_periodes_par_trim > 0 and maxima_tj > 0:
                     period_max = round(maxima_tj / nb_periodes_par_trim, 2)
                 else:
-                    period_max = maxima_exam  # Cycle sans périodes: trimestres = exam max
+                    period_max = maxima_exam  # Pas de TJ ou pas de périodes: exam max entier
 
                 # 4b. ORPHAN CLEANUP: delete evaluations for this cours+class that have NO notes
                 cur.execute("""
