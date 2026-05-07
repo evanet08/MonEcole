@@ -308,26 +308,44 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         from MonEcole_app.models.campus import Campus
         campus_obj = Campus.objects.filter(idCampus=campus_id).first()
         etab_id_val = campus_obj.id_etablissement if campus_obj else None
+        # Resolve pays_id from the establishment
+        pays_id_val = None
+        if etab_id_val:
+            from MonEcole_app.models.country_structure import Etablissement
+            _etab_obj = Etablissement.objects.filter(id_etablissement=etab_id_val).first()
+            pays_id_val = _etab_obj.pays_id if _etab_obj else None
 
-        if etab_id_val and id_eleve:
+        if etab_id_val and id_eleve and pays_id_val:
             with connections['countryStructure'].cursor() as hub_cur:
-                # Get trimester configs ordered
+                # Resolve root type for this cycle via repartition_configs_cycle
                 hub_cur.execute("""
-                    SELECT rc.id AS config_id, ri.code
-                    FROM repartition_configs_etab_annee rc
-                    JOIN repartition_instances ri ON ri.id = rc.repartition_id
-                    JOIN repartition_types rt ON rt.id = ri.type_id
-                    WHERE rc.etablissement_annee_id = %s AND rt.code = 'T'
-                    ORDER BY ri.ordre
-                """, [eac.etablissement_annee_id])
-                trim_config_ids = [r[0] for r in hub_cur.fetchall()]
+                    SELECT type_racine_id FROM repartition_configs_cycle
+                    WHERE cycle_id = %s AND is_active = 1 AND id_pays = %s LIMIT 1
+                """, [cycle_id, pays_id_val])
+                _rt = hub_cur.fetchone()
+                root_type_id = _rt[0] if _rt else None
+
+                # Get trimester configs: filtered by EA + root_type + pays + is_open
+                if root_type_id:
+                    hub_cur.execute("""
+                        SELECT rc.id AS config_id, ri.code
+                        FROM repartition_configs_etab_annee rc
+                        JOIN repartition_instances ri ON ri.id = rc.repartition_id
+                        WHERE rc.etablissement_annee_id = %s
+                          AND ri.type_id = %s
+                          AND ri.pays_id = %s
+                          AND rc.is_open = 1
+                        ORDER BY ri.ordre
+                    """, [eac.etablissement_annee_id, root_type_id, pays_id_val])
+                    trim_config_ids = [r[0] for r in hub_cur.fetchall()]
 
             if trim_config_ids:
                 from MonEcole_app.models.evaluations.note import NoteBulletin
-                # TJ notes (type=1) for these trimester configs
+                # TJ notes (type=1) filtered by eleve + etablissement + pays
                 qs = NoteBulletin.objects.filter(
                     id_eleve_id=id_eleve,
                     id_etablissement=etab_id_val,
+                    id_pays=pays_id_val,
                     id_note_type=1,  # TJ
                     id_repartition_config__in=trim_config_ids,
                 )
@@ -362,6 +380,7 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     except Exception as _e:
         import logging
         logging.getLogger(__name__).warning(f"[BULLETIN MATERNELLE] Note loading error: {_e}")
+
 
     # CRITICAL: use pk (surrogate) not id_cours (business key)
     cours_pks = list(Cours.objects.filter(classe_id=hub_classe_id).values_list('pk', flat=True))
