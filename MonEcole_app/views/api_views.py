@@ -11752,15 +11752,37 @@ def mass_import_template(request):
                 try:
                     hub_cur = _conns['countryStructure'].cursor()
                     try:
+                        # Resolve cycle for this class
                         hub_cur.execute("""
-                            SELECT rh.nombre_enfants
-                            FROM repartition_hierarchies rh
-                            WHERE rh.is_active = 1
-                            LIMIT 1
-                        """)
-                        h_row = hub_cur.fetchone()
-                        if h_row:
-                            nb_periodes_par_trim = int(h_row[0]) if h_row[0] else 2
+                            SELECT c.cycle_id FROM classes c
+                            JOIN etablissements_annees_classes eac ON eac.classe_id = c.id
+                            WHERE eac.id = %s LIMIT 1
+                        """, [classe_id])
+                        _cyc_row = hub_cur.fetchone()
+                        _mi_cycle_id = _cyc_row[0] if _cyc_row else None
+
+                        # Get root type for this cycle
+                        _mi_root_type = None
+                        if _mi_cycle_id:
+                            hub_cur.execute("""
+                                SELECT type_racine_id FROM repartition_config_cycles
+                                WHERE cycle_id = %s AND is_active = 1 AND id_pays = %s LIMIT 1
+                            """, [_mi_cycle_id, etab.pays_id])
+                            _rt = hub_cur.fetchone()
+                            if _rt:
+                                _mi_root_type = _rt[0]
+
+                        # Cycle-aware hierarchy: cycle-specific > global
+                        if _mi_root_type:
+                            hub_cur.execute("""
+                                SELECT nombre_enfants, cycle_id FROM repartition_hierarchies
+                                WHERE type_parent_id = %s AND is_active = 1 AND id_pays = %s
+                                ORDER BY CASE WHEN cycle_id = %s THEN 0 WHEN cycle_id IS NULL THEN 1 ELSE 2 END
+                                LIMIT 1
+                            """, [_mi_root_type, etab.pays_id, _mi_cycle_id])
+                            h_row = hub_cur.fetchone()
+                            if h_row:
+                                nb_periodes_par_trim = int(h_row[0]) if h_row[0] else 2
                     finally:
                         hub_cur.close()
                 except Exception:
@@ -12188,18 +12210,28 @@ def mass_import_notes(request):
                     if existing_eval:
                         eval_id = existing_eval['id_evaluation']
                     else:
+                        # Resolve cycle_id for this class
+                        _mi_eval_cycle = None
+                        if bk:
+                            cur.execute("""
+                                SELECT c.cycle_id FROM countryStructure.classes c WHERE c.id = %s LIMIT 1
+                            """, [bk['classe_id']])
+                            _cyc = cur.fetchone()
+                            _mi_eval_cycle = _cyc['cycle_id'] if _cyc else None
+
                         # INSERT new evaluation
                         cur.execute("""
                             INSERT INTO evaluation (title, id_type_eval, ponderer_eval, date_eval,
                                 contenu_evaluation, id_annee_id, idCampus_id, id_classe_id, classe_id,
-                                groupe, section_id, id_cours_classe_id, id_repartition_instance,
+                                groupe, section_id, id_cycle_id, id_cours_classe_id, id_repartition_instance,
                                 id_etablissement, id_pays, date_creation)
-                            VALUES (%s, NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                            VALUES (%s, NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                         """, [titre, int(maxima), today,
                               f'Importation massive — {header_name}',
                               annee_id, campus_id,
                               int(classe_id),
                               bk['classe_id'], bk['groupe'], bk['section_id'],
+                              _mi_eval_cycle,
                               int(cours_id), rep_id, etab_id, etab.pays_id])
                         eval_id = cur.lastrowid
                         evals_created += 1
@@ -12271,7 +12303,8 @@ def mass_import_notes(request):
                                           ev_ctx['groupe'], ev_ctx['section_id'],
                                           ev_ctx['id_cycle_id'] or 0,
                                           ev_ctx['id_repartition_instance'] or 0,
-                                          ev_ctx['id_cours_classe_id'], 1,
+                                          ev_ctx['id_cours_classe_id'],
+                                          1,  # TJ default - resolved dynamically by save_notes
                                           ev_ctx['id_session_id'] or 0,
                                           etab_id, etab.pays_id])
                             notes_saved += 1
@@ -12317,9 +12350,7 @@ def mass_import_notes(request):
 
         # ============================================
         # STEP 3: SYNC period notes → note_bulletin (INLINE)
-        # Uses type_id to distinguish periods (type 1) from trimesters (type 2)
-        # since has_parent is always 0 in this schema.
-        # Maps periods to trimesters by positional order.
+        # Dynamically resolves parent/child types via cycle-aware hierarchy.
         # ============================================
         notes_synced = 0
         pays_id = etab.pays_id
@@ -12348,8 +12379,41 @@ def mass_import_notes(request):
                 c_maxima_tj = float(cm['maxima_tj']) if cm and cm['maxima_tj'] else 20
                 c_maxima_exam = float(cm['maxima_exam']) if cm and cm['maxima_exam'] else 20
 
+                # Resolve cycle → root type → child type DYNAMICALLY
+                _mi3_root_type = None
+                _mi3_child_type = None
+                hub_cur = _conns['countryStructure'].cursor()
+                try:
+                    hub_cur.execute("""
+                        SELECT c.cycle_id FROM classes c
+                        JOIN etablissements_annees_classes eac ON eac.classe_id = c.id
+                        WHERE eac.id = %s LIMIT 1
+                    """, [classe_id])
+                    _cyc3 = hub_cur.fetchone()
+                    _mi3_cycle_id = _cyc3[0] if _cyc3 else None
+
+                    if _mi3_cycle_id:
+                        hub_cur.execute("""
+                            SELECT type_racine_id FROM repartition_config_cycles
+                            WHERE cycle_id = %s AND is_active = 1 AND id_pays = %s LIMIT 1
+                        """, [_mi3_cycle_id, pays_id])
+                        _rt3 = hub_cur.fetchone()
+                        if _rt3:
+                            _mi3_root_type = _rt3[0]
+                        if _mi3_root_type:
+                            hub_cur.execute("""
+                                SELECT type_enfant_id FROM repartition_hierarchies
+                                WHERE type_parent_id = %s AND is_active = 1 AND id_pays = %s
+                                ORDER BY CASE WHEN cycle_id = %s THEN 0 WHEN cycle_id IS NULL THEN 1 ELSE 2 END
+                                LIMIT 1
+                            """, [_mi3_root_type, pays_id, _mi3_cycle_id])
+                            _ch3 = hub_cur.fetchone()
+                            if _ch3:
+                                _mi3_child_type = _ch3[0]
+                finally:
+                    hub_cur.close()
+
                 # Get all repartition configs for this etab_annee
-                # Filter by pays_id on the repartition_instances for multi-tenant safety
                 cur.execute("""
                     SELECT rc.id AS config_id, rc.repartition_id, rc.parent_id, rc.has_parent,
                            r.type_id, r.nom, r.ordre, r.pays_id
@@ -12361,9 +12425,16 @@ def mass_import_notes(request):
                 """, [etab_annee_id, pays_id])
                 all_configs = cur.fetchall()
 
-                # Split by TYPE_ID: type 1 = periods (children), type 2 = trimesters (parents)
-                period_configs = sorted([c for c in all_configs if c['type_id'] == 1], key=lambda x: x['ordre'])
-                trimester_configs = sorted([c for c in all_configs if c['type_id'] == 2], key=lambda x: x['ordre'])
+                # Split DYNAMICALLY by resolved types
+                if _mi3_child_type and _mi3_root_type:
+                    period_configs = sorted([c for c in all_configs if c['type_id'] == _mi3_child_type], key=lambda x: x['ordre'])
+                    trimester_configs = sorted([c for c in all_configs if c['type_id'] == _mi3_root_type], key=lambda x: x['ordre'])
+                elif _mi3_root_type:
+                    period_configs = []
+                    trimester_configs = sorted([c for c in all_configs if c['type_id'] == _mi3_root_type], key=lambda x: x['ordre'])
+                else:
+                    period_configs = []
+                    trimester_configs = sorted(all_configs, key=lambda x: x['ordre'])
 
                 # Get note_types (TJ, EX, TOTAL) per repartition type
                 type_ids = set(c['type_id'] for c in all_configs)
@@ -12384,18 +12455,17 @@ def mass_import_notes(request):
                     hub_cur.close()
 
                 # Determine periods per trimester and period_max
-                nb_trimesters = max(len(trimester_configs), 1)
-                nb_periods_per_trim = len(period_configs) // nb_trimesters if nb_trimesters > 0 else len(period_configs)
-                if nb_periods_per_trim < 1:
-                    nb_periods_per_trim = 1
-                period_max = round(c_maxima_tj / nb_periods_per_trim, 2)
+                nb_parents = max(len(trimester_configs), 1)
+                nb_children_per_parent = len(period_configs) // nb_parents if nb_parents > 0 else len(period_configs)
+                if nb_children_per_parent < 1:
+                    nb_children_per_parent = max(1, len(period_configs))
+                period_max = round(c_maxima_tj / nb_children_per_parent, 2) if nb_children_per_parent > 0 else c_maxima_tj
 
-                # Map periods to trimesters by positional order
-                # E.g., with 6 periods and 3 trimesters: P1,P2→T1 ; P3,P4→T2 ; P5,P6→T3
+                # Map children to parents by positional order
                 trimester_children = {}
                 for t_idx, t_cfg in enumerate(trimester_configs):
-                    start = t_idx * nb_periods_per_trim
-                    end = start + nb_periods_per_trim
+                    start = t_idx * nb_children_per_parent
+                    end = start + nb_children_per_parent
                     trimester_children[t_cfg['config_id']] = [
                         p['config_id'] for p in period_configs[start:end]
                     ]
@@ -12404,10 +12474,16 @@ def mass_import_notes(request):
                 student_ids = [s['eleve_id'] for s in students_data]
 
                 # ---- PHASE A: Period notes → note_bulletin (TJ) ----
-                period_nts = note_types_by_rep_type.get(1, [])  # type 1 note_types
+                _child_type_for_nts = _mi3_child_type or (period_configs[0]['type_id'] if period_configs else None)
+                period_nts = note_types_by_rep_type.get(_child_type_for_nts, []) if _child_type_for_nts else []
                 period_tj_nt = next((n for n in period_nts if n['sigle'] == 'TJ'), None)
                 if not period_tj_nt:
-                    # Fallback: use id_type_note = 1
+                    # Fallback: search all types for TJ
+                    for _nts in note_types_by_rep_type.values():
+                        period_tj_nt = next((n for n in _nts if n['sigle'] == 'TJ'), None)
+                        if period_tj_nt:
+                            break
+                if not period_tj_nt:
                     period_tj_nt = {'id_type_note': 1, 'ponderation_max': 20, 'sigle': 'TJ'}
 
                 period_tj_nt_id = period_tj_nt['id_type_note']
@@ -12472,7 +12548,8 @@ def mass_import_notes(request):
                             notes_synced += 1
 
                 # ---- PHASE B: Trimester HERITAGE TJ + TOTAL ----
-                trimester_nts = note_types_by_rep_type.get(2, [])  # type 2 note_types
+                _root_type_for_nts = _mi3_root_type or (trimester_configs[0]['type_id'] if trimester_configs else None)
+                trimester_nts = note_types_by_rep_type.get(_root_type_for_nts, []) if _root_type_for_nts else []
                 trim_tj_nt = next((n for n in trimester_nts if n['sigle'] == 'TJ'), None)
                 trim_ex_nt = next((n for n in trimester_nts if n['sigle'] == 'EX'), None)
                 trim_tot_nt = next((n for n in trimester_nts if n['sigle'] in ('TOTAL', 'TOT')), None)
