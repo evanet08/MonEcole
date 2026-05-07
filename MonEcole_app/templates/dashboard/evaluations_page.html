@@ -1885,22 +1885,26 @@ function _miRenderCheckboxes() {
     }
 
     // ─── CAS 1: Cycle WITHOUT periods (e.g., Maternel) ───
-    // Only show parent repartitions as exam/evaluation checkboxes, no periods at all
+    // Trimesters act as direct evaluation targets (like periods in CAS 2)
+    // data-type="period" → backend creates evaluation + eleve_note → sync to note_bulletin
     if (!cycleHasChildren) {
-        // All reps are "root" level — show them as direct evaluation entries
-        const rootReps = reps.length > 0 ? reps : [];
+        // Only root reps (trimesters) — no children (periods)
+        const rootReps = reps.filter(r => r.is_leaf === false);
+        // If API didn't mark is_leaf, use all reps
+        const displayReps = rootReps.length > 0 ? rootReps : reps;
         _miNbPeriodsPerTrimester = 0;  // No periods
 
-        if (rootReps.length === 0) {
+        if (displayReps.length === 0) {
             periodContainer.innerHTML = '<div style="color:#94a3b8;padding:12px;font-style:italic">Aucune répartition configurée pour ce cycle.</div>';
             document.getElementById('miExamCheckboxes').parentElement.style.display = 'none';
             return;
         }
 
         let html = '<label class="mass-chk-label checked" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border-color:#7c3aed;font-weight:700"><input type="checkbox" checked onchange="miToggleAll(this)"> Tout</label>';
-        rootReps.forEach(r => {
+        displayReps.forEach(r => {
             const rid = r.id || r.id_instance;
-            html += `<label class="mass-chk-label checked" style="border-color:#dc2626"><input type="checkbox" checked value="${rid}" data-nom="${r.nom || 'Évaluation'}" data-type="exam" onchange="miUpdateSelection()"> 📝 ${r.nom || 'Évaluation'}</label>`;
+            // data-type="period" so backend treats these as normal evaluations (not exam SAISIE_DIRECTE)
+            html += `<label class="mass-chk-label checked"><input type="checkbox" checked value="${rid}" data-nom="${r.nom || 'Trimestre'}" data-type="period" onchange="miUpdateSelection()"> ${r.nom || 'Trimestre'}</label>`;
         });
         periodContainer.innerHTML = html;
         document.getElementById('miExamCheckboxes').parentElement.style.display = 'none';

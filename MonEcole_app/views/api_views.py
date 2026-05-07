@@ -15020,6 +15020,8 @@ def get_evaluations_repartitions(request):
         allowed_type_ids = set()
         root_count = 0  # nombre de racines (ex: 3 trimestres, 2 semestres)
         child_count_per_root = 0  # nombre d'enfants par racine (ex: 2 périodes/trimestre)
+        cycle_config = None  # initialized here for safe access later
+        resolved_hier = None  # initialized here for safe access later
 
         if cycle_id:
             # Config cycle → type racine (ex: Cycle "Ecole de Base" → Semestre, nombre=2)
@@ -15072,8 +15074,8 @@ def get_evaluations_repartitions(request):
                 count_by_type[type_id] = 0
 
             # Calculer la limite pour ce type
-            if cycle_id and allowed_type_ids:
-                is_root_type = (type_id == cycle_config.type_racine_id) if cycle_config else False
+            if cycle_id and allowed_type_ids and cycle_config:
+                is_root_type = (type_id == cycle_config.type_racine_id)
                 max_count = root_count if is_root_type else (root_count * child_count_per_root)
                 if count_by_type[type_id] >= max_count:
                     continue
@@ -15081,7 +15083,7 @@ def get_evaluations_repartitions(request):
             count_by_type[type_id] = count_by_type.get(type_id, 0) + 1
 
             # Determine if this is a leaf (child/period) or parent (trimester/semester)
-            is_root = (cycle_config and type_id == cycle_config.type_racine_id) if cycle_id and 'cycle_config' in dir() else False
+            is_root = (cycle_config and type_id == cycle_config.type_racine_id) if cycle_id else False
             is_leaf = not is_root  # Children are leaves, root items are not
 
             repartitions.append({
@@ -15102,9 +15104,8 @@ def get_evaluations_repartitions(request):
         repartitions.sort(key=lambda r: (r['type_code'], r['ordre']))
 
         # Resolve parent info for leaf items
-        # Root type items are parents; child type items need parent_instance_id
-        root_type_id_val = cycle_config.type_racine_id if cycle_id and 'cycle_config' in dir() and cycle_config else None
-        child_type_id_val = resolved_hier.type_enfant_id if 'resolved_hier' in dir() and resolved_hier else None
+        root_type_id_val = cycle_config.type_racine_id if cycle_config else None
+        child_type_id_val = resolved_hier.type_enfant_id if resolved_hier else None
         has_children = child_count_per_root > 0 and child_type_id_val is not None
 
         if has_children:
