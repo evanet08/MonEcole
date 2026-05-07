@@ -1818,11 +1818,8 @@ async function onMiClasseChange() {
         const repData = await repRes.json();
         if (repData.success && repData.repartitions) {
             window._miRepartitionsData = repData.repartitions;
-            // Determine if cycle has children (periods)
-            const hasLeafs = repData.repartitions.some(r => r.is_leaf !== false);
-            const hasParents = repData.repartitions.some(r => r.is_leaf === false);
-            // If there are only parents (no leafs), or all items are the same type → no children
-            window._miCycleHasChildren = hasLeafs && hasParents;
+            // Use the API's has_children flag directly (cycle has periods or not)
+            window._miCycleHasChildren = !!repData.has_children;
         }
 
         // 2. Load courses

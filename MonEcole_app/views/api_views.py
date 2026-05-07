@@ -15080,21 +15080,53 @@ def get_evaluations_repartitions(request):
 
             count_by_type[type_id] = count_by_type.get(type_id, 0) + 1
 
+            # Determine if this is a leaf (child/period) or parent (trimester/semester)
+            is_root = (cycle_config and type_id == cycle_config.type_racine_id) if cycle_id and 'cycle_config' in dir() else False
+            is_leaf = not is_root  # Children are leaves, root items are not
+
             repartitions.append({
                 'id': cfg.id,
                 'repartition_id': rep.id_instance,
+                'id_instance': rep.id_instance,
                 'nom': rep.nom,
                 'code': rep.code,
                 'type_code': rep.type.code if rep.type else '',
                 'type_nom': rep.type.nom if rep.type else '',
+                'type_id': type_id,
                 'is_open': cfg.is_open,
+                'is_leaf': is_leaf,
                 'ordre': rep.ordre,
             })
 
         # Trier par type puis par ordre
         repartitions.sort(key=lambda r: (r['type_code'], r['ordre']))
 
-        return JsonResponse({'success': True, 'repartitions': repartitions})
+        # Resolve parent info for leaf items
+        # Root type items are parents; child type items need parent_instance_id
+        root_type_id_val = cycle_config.type_racine_id if cycle_id and 'cycle_config' in dir() and cycle_config else None
+        child_type_id_val = resolved_hier.type_enfant_id if 'resolved_hier' in dir() and resolved_hier else None
+        has_children = child_count_per_root > 0 and child_type_id_val is not None
+
+        if has_children:
+            # Build parent groups: split root reps and child reps
+            root_reps = [r for r in repartitions if r.get('type_id') == root_type_id_val]
+            child_reps = [r for r in repartitions if r.get('type_id') == child_type_id_val]
+            root_reps.sort(key=lambda x: x['ordre'])
+            child_reps.sort(key=lambda x: x['ordre'])
+
+            # Map children to parents by position
+            nb_per_parent = child_count_per_root if child_count_per_root > 0 else (len(child_reps) // max(len(root_reps), 1))
+            for c_idx, child in enumerate(child_reps):
+                parent_idx = c_idx // nb_per_parent if nb_per_parent > 0 else 0
+                if parent_idx < len(root_reps):
+                    child['parent_instance_id'] = root_reps[parent_idx]['id_instance']
+                    child['parent_nom'] = root_reps[parent_idx]['nom']
+
+        return JsonResponse({
+            'success': True,
+            'repartitions': repartitions,
+            'has_children': has_children,
+        })
     except Exception as e:
         import traceback
         traceback.print_exc()
