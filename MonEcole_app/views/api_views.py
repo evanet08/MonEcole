@@ -9455,6 +9455,162 @@ def _resolve_instance_to_config(instance_pk, etab_annee_id):
         return None
 
 
+def _sync_notes_to_bulletin_inline(cur, eval_eleve_pairs, etab_id, pays_id):
+    """
+    Targeted sync: after saving to eleve_note, recalculate TJ in note_bulletin
+    for the affected (config, cours, eleve) combinations.
+    eval_eleve_pairs: list of (evaluation_id, eleve_id) tuples.
+    Returns count of note_bulletin rows upserted.
+    """
+    if not eval_eleve_pairs:
+        return 0
+    from django.db import connections
+
+    u_eval_ids = list(set(p[0] for p in eval_eleve_pairs))
+    u_eleve_ids = list(set(p[1] for p in eval_eleve_pairs))
+
+    # 1. Resolve evaluation → (config_id, cours_annee_id) via spoke
+    ph_ev = ','.join(['%s'] * len(u_eval_ids))
+    cur.execute(f"""
+        SELECT ev.id_evaluation, ev.id_cours_classe_id AS ca_id, ev.ponderer_eval,
+               er.id_repartition_config AS cfg_id
+        FROM evaluation ev
+        JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
+        WHERE ev.id_evaluation IN ({ph_ev}) AND ev.id_etablissement = %s
+    """, u_eval_ids + [etab_id])
+    ev_rows = cur.fetchall()
+    if not ev_rows:
+        return 0
+
+    cc_pairs = set()
+    ev_to_cc = {}
+    for r in ev_rows:
+        if r['cfg_id'] and r['ca_id']:
+            pair = (r['cfg_id'], r['ca_id'])
+            cc_pairs.add(pair)
+            ev_to_cc[r['id_evaluation']] = pair
+
+    if not cc_pairs:
+        return 0
+
+    cfg_ids = list(set(p[0] for p in cc_pairs))
+    ca_ids = list(set(p[1] for p in cc_pairs))
+
+    # 2. Hub lookups: config→type, TJ note_type, maxima, period count
+    with connections['countryStructure'].cursor() as hc:
+        ph_c = ','.join(['%s'] * len(cfg_ids))
+        hc.execute(f"""
+            SELECT rc.id, r.type_id, rc.etablissement_annee_id
+            FROM repartition_configs_etab_annee rc
+            JOIN repartition_instances r ON r.id = rc.repartition_id
+            WHERE rc.id IN ({ph_c})
+        """, cfg_ids)
+        hub_rows = hc.fetchall()
+        cfg_type = {r[0]: r[1] for r in hub_rows}
+        ea_id = hub_rows[0][2] if hub_rows else None
+
+        type_ids = list(set(cfg_type.values()))
+        type_tj = {}
+        nb_per = {}
+        for tid in type_ids:
+            hc.execute("""
+                SELECT nt.id_type_note, rtn.ponderation_max
+                FROM repartition_type_notes rtn
+                JOIN note_types nt ON nt.id = rtn.note_type_id
+                WHERE rtn.repartition_type_id = %s AND rtn.is_active = 1 AND nt.sigle = 'TJ'
+                LIMIT 1
+            """, [tid])
+            row = hc.fetchone()
+            if row:
+                type_tj[tid] = (row[0], row[1])
+            if ea_id:
+                hc.execute("""
+                    SELECT COUNT(*) FROM repartition_configs_etab_annee rc
+                    JOIN repartition_instances r ON r.id = rc.repartition_id
+                    WHERE rc.etablissement_annee_id = %s AND r.type_id = %s AND rc.is_open = 1
+                """, [ea_id, tid])
+                cnt = hc.fetchone()
+                nb_per[tid] = max(cnt[0], 1) if cnt else 1
+
+        ph_ca = ','.join(['%s'] * len(ca_ids))
+        hc.execute(f"""
+            SELECT ca.id_cours_annee,
+                   COALESCE(ca.maxima_tj, (SELECT MAX(s.maxima_tj) FROM cours_annee s WHERE s.cours_id = ca.cours_id)) AS maxima_tj
+            FROM cours_annee ca WHERE ca.id_cours_annee IN ({ph_ca})
+        """, ca_ids)
+        ca_mx = {r[0]: r[1] for r in hc.fetchall()}
+
+    # 3. For each (config, cours), recalculate TJ for affected élèves
+    synced = 0
+    for cfg_id, ca_id in cc_pairs:
+        rt = cfg_type.get(cfg_id)
+        tj = type_tj.get(rt) if rt else None
+        if not tj:
+            continue
+        tj_nt_id, tj_pond = tj
+        n_p = nb_per.get(rt, 1)
+        mx = ca_mx.get(ca_id)
+        p_max = round(float(mx) / n_p, 2) if mx else (tj_pond or 20)
+
+        # All evaluations for this config+cours
+        cur.execute("""
+            SELECT ev.id_evaluation, ev.ponderer_eval
+            FROM evaluation ev
+            JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
+            WHERE er.id_repartition_config = %s AND ev.id_cours_classe_id = %s AND ev.id_etablissement = %s
+        """, [cfg_id, ca_id, etab_id])
+        all_ev = cur.fetchall()
+        if not all_ev:
+            continue
+        all_ev_ids = [e['id_evaluation'] for e in all_ev]
+        ph_ae = ','.join(['%s'] * len(all_ev_ids))
+
+        # Affected élèves for this (config, cours)
+        affected = [eid for eid in u_eleve_ids
+                     if any(ev_to_cc.get(p[0]) == (cfg_id, ca_id) for p in eval_eleve_pairs if p[1] == eid)]
+        if not affected:
+            continue
+
+        for eid in affected:
+            # Skip SAISIE_DIRECTE
+            cur.execute("""
+                SELECT 1 FROM note_bulletin
+                WHERE id_eleve_id=%s AND id_cours_annee=%s AND id_repartition_config=%s
+                  AND id_note_type=%s AND source_type='SAISIE_DIRECTE' LIMIT 1
+            """, [eid, ca_id, cfg_id, tj_nt_id])
+            if cur.fetchone():
+                continue
+
+            cur.execute(f"""
+                SELECT en.id_evaluation_id, en.note FROM eleve_note en
+                WHERE en.id_eleve_id = %s AND en.id_evaluation_id IN ({ph_ae})
+            """, [eid] + all_ev_ids)
+            raw = {r['id_evaluation_id']: float(r['note']) for r in cur.fetchall() if r['note'] is not None}
+
+            n_ev = len(all_ev)
+            eq_w = 100.0 / n_ev if n_ev > 0 else 0
+            w_sum = w_used = 0.0
+            for ev in all_ev:
+                n = raw.get(ev['id_evaluation'])
+                em = ev['ponderer_eval'] or 0
+                if n is not None and em > 0:
+                    w_sum += (n / em) * eq_w
+                    w_used += eq_w
+
+            scaled = round((w_sum / w_used) * p_max, 2) if w_used > 0 else None
+            if scaled is not None:
+                cur.execute("""
+                    INSERT INTO note_bulletin
+                        (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
+                         note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                    VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', NOW(), %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        note=VALUES(note), maxima=VALUES(maxima), date_calcul=NOW(), updated_at=NOW()
+                """, [eid, ca_id, cfg_id, tj_nt_id, scaled, p_max, etab_id, pays_id])
+                synced += 1
+    return synced
+
+
 # ============================================================
 # NOTES — API SAISIE & IMPORT
 # ============================================================
@@ -9640,6 +9796,7 @@ def save_notes(request):
         try:
             saved = 0
             updated = 0
+            _sync_pairs = []  # (evaluation_id, eleve_id) for bulletin sync
             with conn.cursor() as cur:
                 for nd in notes_data:
                     eleve_id = nd.get('eleve_id')
@@ -9662,6 +9819,7 @@ def save_notes(request):
                     if id_note:
                         # UPDATE existing
                         cur.execute("UPDATE eleve_note SET note = %s WHERE id_note = %s", [note_float, id_note])
+                        _sync_pairs.append((eval_id, eleve_id))
                         updated += 1
                     else:
                         # Check if exists already
@@ -9674,6 +9832,7 @@ def save_notes(request):
                         if existing:
                             cur.execute("UPDATE eleve_note SET note = %s WHERE id_note = %s",
                                         [note_float, existing['id_note']])
+                            _sync_pairs.append((eval_id, eleve_id))
                             updated += 1
                         else:
                             # Get evaluation context for FK fields
@@ -9723,14 +9882,25 @@ def save_notes(request):
                                   ev_ctx['id_repartition_instance'] or 0,
                                   ev_ctx['id_cours_classe_id'], id_type_note,
                                   ev_ctx['id_session_id'] or 0, etab_id, etab.pays_id])
+                            _sync_pairs.append((eval_id, eleve_id))
                             saved += 1
+
+                # Auto-sync to note_bulletin
+                bulletin_synced = 0
+                if _sync_pairs:
+                    try:
+                        bulletin_synced = _sync_notes_to_bulletin_inline(cur, _sync_pairs, etab_id, etab.pays_id)
+                    except Exception as sync_err:
+                        import traceback
+                        traceback.print_exc()
 
             conn.commit()
             return JsonResponse({
                 'success': True,
                 'saved': saved,
                 'updated': updated,
-                'message': f'{saved} note(s) créée(s), {updated} mise(s) à jour.'
+                'bulletin_synced': bulletin_synced,
+                'message': f'{saved} note(s) créée(s), {updated} mise(s) à jour, {bulletin_synced} sync bulletin.'
             })
         finally:
             conn.close()
@@ -10014,6 +10184,7 @@ def import_notes_excel(request):
         conn = _get_spoke_connection()
         try:
             saved = 0
+            _sync_pairs = []  # (evaluation_id, eleve_id) for bulletin sync
             with conn.cursor() as cur:
                 for nd in notes_to_save:
                     cur.execute("""
@@ -10072,9 +10243,20 @@ def import_notes_excel(request):
                               ev_ctx['id_cours_classe_id'], id_type_note,
                               ev_ctx['id_session_id'] or 0, etab_id, etab.pays_id])
                     saved += 1
+                    _sync_pairs.append((nd['evaluation_id'], nd['eleve_id']))
+
+                # Auto-sync to note_bulletin
+                bulletin_synced = 0
+                if _sync_pairs:
+                    try:
+                        bulletin_synced = _sync_notes_to_bulletin_inline(cur, _sync_pairs, etab_id, etab.pays_id)
+                    except Exception as sync_err:
+                        import traceback
+                        traceback.print_exc()
 
             conn.commit()
-            result = {'success': True, 'saved': saved, 'message': f'{saved} note(s) importée(s).'}
+            result = {'success': True, 'saved': saved, 'bulletin_synced': bulletin_synced,
+                      'message': f'{saved} note(s) importée(s), {bulletin_synced} sync bulletin.'}
             if errors:
                 result['warnings'] = errors[:5]
             return JsonResponse(result)
@@ -11713,6 +11895,87 @@ def sync_all_notes_bulletin(request):
             })
         finally:
             conn.close()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ============================================================
+# SYNC TOUTES LES NOTES D'UN ÉTABLISSEMENT → note_bulletin
+# ============================================================
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def sync_etab_all_notes_bulletin(request):
+    """
+    Synchronise TOUTES les notes de TOUTES les classes actives de l'établissement
+    depuis eleve_note → note_bulletin.
+    Itère sur chaque EAC et appelle la logique de sync_all_notes_bulletin.
+    Body JSON: {} (utilise le tenant de la session)
+    """
+    try:
+        user_id = request.session.get('user_id')
+        if not user_id:
+            return JsonResponse({'success': False, 'error': 'Non authentifié.'}, status=401)
+        etab, err = _get_tenant_etab(request)
+        if err: return err
+
+        from django.db import connections
+
+        # Get active année
+        annee = Annee.objects.filter(pays_id=etab.pays_id, isOpen=True).order_by('-annee').first()
+        if not annee:
+            return JsonResponse({'success': False, 'error': 'Aucune année active.'}, status=400)
+
+        # Get EtablissementAnnee
+        etab_annee = EtablissementAnnee.objects.filter(
+            etablissement=etab, annee=annee, id_pays=etab.pays_id
+        ).first()
+        if not etab_annee:
+            return JsonResponse({'success': False, 'error': 'Aucune configuration année pour cet établissement.'}, status=400)
+
+        # Get ALL active EACs
+        eacs = EtablissementAnneeClasse.objects.filter(
+            etablissement_annee=etab_annee
+        ).values_list('id', flat=True)
+
+        if not eacs:
+            return JsonResponse({'success': False, 'error': 'Aucune classe configurée.'}, status=400)
+
+        total_synced = 0
+        class_results = []
+        errors_list = []
+
+        for eac_id in eacs:
+            try:
+                # Build a fake request-like call to sync_all_notes_bulletin logic
+                # Instead of HTTP call, do inline sync using the same logic
+                from django.test import RequestFactory
+                factory = RequestFactory()
+                fake_req = factory.post('/fake/', json.dumps({'classe_id': eac_id}), content_type='application/json')
+                # Copy session data
+                fake_req.session = request.session
+                fake_req.id_pays = getattr(request, 'id_pays', None)
+                resp = sync_all_notes_bulletin(fake_req)
+                resp_data = json.loads(resp.content)
+                if resp_data.get('success'):
+                    calculated = resp_data.get('calculated', 0)
+                    total_synced += calculated
+                    class_results.append({'eac_id': eac_id, 'synced': calculated})
+                else:
+                    errors_list.append(f"EAC {eac_id}: {resp_data.get('error', '?')}")
+            except Exception as cls_err:
+                errors_list.append(f"EAC {eac_id}: {str(cls_err)}")
+
+        return JsonResponse({
+            'success': True,
+            'total_synced': total_synced,
+            'classes_processed': len(eacs),
+            'class_results': class_results,
+            'errors': errors_list[:10],
+            'message': f'{total_synced} note(s) synchronisées pour {len(eacs)} classe(s).'
+        })
     except Exception as e:
         import traceback
         traceback.print_exc()

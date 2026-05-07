@@ -168,6 +168,7 @@ urlpatterns = [
     path('api/notes/bulletin/calculate-period/', api_views.calculate_period_notes, name='calculate_period_notes'),
     path('api/notes/bulletin/calculate-period-batch/', api_views.calculate_period_batch, name='calculate_period_batch'),
     path('api/notes/bulletin/sync-all/', api_views.sync_all_notes_bulletin, name='sync_all_notes_bulletin'),
+    path('api/notes/bulletin/sync-etab/', api_views.sync_etab_all_notes_bulletin, name='sync_etab_all_notes_bulletin'),
     path('api/notes/bulletin/get/', api_views.get_notes_bulletin, name='get_notes_bulletin'),
     path('api/notes/bulletin/overview/', api_views.get_bulletin_overview, name='get_bulletin_overview'),
 
