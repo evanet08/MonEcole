@@ -11087,7 +11087,8 @@ def calculate_notes_bulletin(request):
                                     nb_periodes = int(nb_row['nb_periodes']) if nb_row and nb_row['nb_periodes'] and nb_row['nb_periodes'] > 0 else 1
                                     cours_maxima = round(float(c_maxima_tj) / nb_periodes, 2)
                                 else:
-                                    cours_maxima = default_max
+                                    # CAS 2: maxima_tj NULL → use maxima_exam (cycle sans périodes)
+                                    cours_maxima = cours_maximas.get(cours_id) or default_max
                             elif en.note_type.sigle == 'EX':
                                 # EX: use maxima_exam
                                 cours_maxima = cours_maximas.get(cours_id) or default_max
@@ -11461,8 +11462,19 @@ def sync_all_notes_bulletin(request):
 
                 calculated = 0
 
+                # CAS 2: Cycle SANS périodes (ex: Maternel)
+                # Les trimestres deviennent les unités de base pour PHASE 1
+                _is_cycle_sans_periodes = (len(child_configs) == 0 and len(parent_configs) > 0)
+                if _is_cycle_sans_periodes:
+                    child_configs = list(parent_configs)
+                    # Override maxima: use maxima_exam since no TJ for this cycle
+                    for cid in cours_ids:
+                        if not cours_maximas_tj.get(cid):
+                            cours_maximas_tj[cid] = cours_maximas_exam.get(cid)
+
                 # ============================================
                 # PHASE 1: Process CHILDREN (periods → TJ)
+                # For CAS 2: trimesters are treated as periods
                 # ============================================
                 for cfg in child_configs:
                     config_id = cfg['config_id']
@@ -15304,74 +15316,85 @@ def execute_deliberation(request):
 
         if delib_type == 'periode' and repartition_id:
             # Period deliberation: sum TJ for this single period config
-            config_ids = [int(repartition_id)]
+            # repartition_id is an instance PK — resolve to config_id
+            _cfg = _get_or_create_repartition_config(int(repartition_id), etab.id_etablissement, pays_id=etab.pays_id)
+            if _cfg:
+                config_ids = [_cfg.id]
+            else:
+                config_ids = []
             note_types = [tj_nt_id]
 
         elif delib_type == 'trimestre' and repartition_id:
-            # Trimester/Semester deliberation: 
-            # Find ALL child period configs under this parent config
-            # Sum TJ of all child periods + EX on parent
+            # Trimester/Semester deliberation
+            # repartition_id is an instance PK — resolve to config_id
+            _parent_cfg = _get_or_create_repartition_config(int(repartition_id), etab.id_etablissement, pays_id=etab.pays_id)
+            if not _parent_cfg:
+                return JsonResponse({'success': False, 'error': 'Config répartition non trouvée.'}, status=404)
+            parent_config_id = _parent_cfg.id
+            parent_type_id = _parent_cfg.repartition.type_id
+
             with connections['countryStructure'].cursor() as hub_cur:
-                # Get parent type
+                # Get child type (CYCLE-AWARE: cycle-specific > global)
                 hub_cur.execute("""
-                    SELECT r.type_id FROM repartition_configs_etab_annee rc
-                    JOIN repartition_instances r ON r.id = rc.repartition_id
-                    WHERE rc.id = %s
-                """, [int(repartition_id)])
-                parent_row = hub_cur.fetchone()
-                if parent_row:
-                    parent_type_id = parent_row[0]
-                    # Get child type (CYCLE-AWARE: cycle-specific > global)
+                    SELECT type_enfant_id FROM repartition_hierarchies
+                    WHERE type_parent_id = %s AND is_active = 1 AND id_pays = %s
+                    ORDER BY CASE WHEN cycle_id = %s THEN 0 WHEN cycle_id IS NULL THEN 1 ELSE 2 END
+                    LIMIT 1
+                """, [parent_type_id, etab.pays_id, _class_cycle_id])
+                child_type_row = hub_cur.fetchone()
+
+                if child_type_row:
+                    child_type_id = child_type_row[0]
+                    # CAS 1: Cycle AVEC périodes — get child configs
                     hub_cur.execute("""
-                        SELECT type_enfant_id FROM repartition_hierarchies
-                        WHERE type_parent_id = %s AND is_active = 1 AND id_pays = %s
-                        ORDER BY CASE WHEN cycle_id = %s THEN 0 WHEN cycle_id IS NULL THEN 1 ELSE 2 END
-                        LIMIT 1
-                    """, [parent_type_id, etab.pays_id, _class_cycle_id])
-                    child_type_row = hub_cur.fetchone()
-                    if child_type_row:
-                        child_type_id = child_type_row[0]
-                        # Get ALL child configs for this etab_annee
-                        hub_cur.execute("""
-                            SELECT rc.id FROM repartition_configs_etab_annee rc
-                            JOIN repartition_instances r ON r.id = rc.repartition_id
-                            WHERE rc.etablissement_annee_id = %s AND r.type_id = %s
-                            ORDER BY r.ordre
-                        """, [etab_annee_id, child_type_id])
-                        all_child_ids = [r[0] for r in hub_cur.fetchall()]
+                        SELECT rc.id FROM repartition_configs_etab_annee rc
+                        JOIN repartition_instances r ON r.id = rc.repartition_id
+                        WHERE rc.etablissement_annee_id = %s AND r.type_id = %s
+                        ORDER BY r.ordre
+                    """, [etab_annee_id, child_type_id])
+                    all_child_ids = [r[0] for r in hub_cur.fetchall()]
 
-                        # Get all parent configs to determine which children belong to this parent
-                        hub_cur.execute("""
-                            SELECT rc.id FROM repartition_configs_etab_annee rc
-                            JOIN repartition_instances r ON r.id = rc.repartition_id
-                            WHERE rc.etablissement_annee_id = %s AND r.type_id = %s
-                            ORDER BY r.ordre
-                        """, [etab_annee_id, parent_type_id])
-                        all_parent_ids = [r[0] for r in hub_cur.fetchall()]
+                    # Get all parent configs to determine which children belong to this parent
+                    hub_cur.execute("""
+                        SELECT rc.id FROM repartition_configs_etab_annee rc
+                        JOIN repartition_instances r ON r.id = rc.repartition_id
+                        WHERE rc.etablissement_annee_id = %s AND r.type_id = %s
+                        ORDER BY r.ordre
+                    """, [etab_annee_id, parent_type_id])
+                    all_parent_ids = [r[0] for r in hub_cur.fetchall()]
 
-                        if all_parent_ids and all_child_ids:
-                            kids_per_parent = len(all_child_ids) // len(all_parent_ids)
-                            try:
-                                pidx = all_parent_ids.index(int(repartition_id))
-                            except ValueError:
-                                pidx = 0
-                            start = pidx * kids_per_parent
-                            end = start + kids_per_parent
-                            my_child_ids = all_child_ids[start:end]
-                        else:
-                            my_child_ids = all_child_ids
+                    if all_parent_ids and all_child_ids:
+                        kids_per_parent = len(all_child_ids) // len(all_parent_ids)
+                        try:
+                            pidx = all_parent_ids.index(parent_config_id)
+                        except ValueError:
+                            pidx = 0
+                        start = pidx * kids_per_parent
+                        end = start + kids_per_parent
+                        my_child_ids = all_child_ids[start:end]
+                    else:
+                        my_child_ids = all_child_ids
 
-                        # Config IDs = child periods (TJ) + parent (EX)
-                        config_ids = my_child_ids + [int(repartition_id)]
-                        note_types = [tj_nt_id, ex_nt_id]
+                    # Config IDs = child periods (TJ) + parent (EX)
+                    config_ids = my_child_ids + [parent_config_id]
+                    note_types = [tj_nt_id, ex_nt_id]
+                else:
+                    # CAS 2: Cycle SANS périodes (Maternel) — trimestre IS the base unit
+                    # Notes are stored as TJ directly on the trimester config
+                    config_ids = [parent_config_id]
+                    note_types = [tj_nt_id, ex_nt_id]
 
             if not config_ids:
-                config_ids = [int(repartition_id)]
+                config_ids = [parent_config_id]
                 note_types = [tj_nt_id, ex_nt_id]
 
         elif delib_type == 'examen' and repartition_id:
-            # Exam deliberation: EX (type=2) on parent config
-            config_ids = [int(repartition_id)]
+            # Exam deliberation: EX on parent config
+            _cfg = _get_or_create_repartition_config(int(repartition_id), etab.id_etablissement, pays_id=etab.pays_id)
+            if _cfg:
+                config_ids = [_cfg.id]
+            else:
+                config_ids = []
             note_types = [ex_nt_id]
 
         elif delib_type == 'annee':

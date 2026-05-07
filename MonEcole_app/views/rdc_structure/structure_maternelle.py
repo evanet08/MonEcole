@@ -295,10 +295,64 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     from MonEcole_app.models.enseignmnts.matiere import Cours
 
     try:
-        eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=classe_id)
+        eac = EtablissementAnneeClasse.objects.select_related('classe', 'etablissement_annee').get(id=classe_id)
         hub_classe_id = eac.classe_id
     except EtablissementAnneeClasse.DoesNotExist:
         return elements
+
+    # ── Charger les notes depuis note_bulletin (CAS 2: TJ sur trimestres) ──
+    notes_par_cours = {}  # {cours_annee_id: {config_id: note_val}}
+    trim_config_ids = []  # ordered: [T1_config, T2_config, T3_config]
+    try:
+        from django.db import connections
+        from MonEcole_app.models.campus import Campus
+        campus_obj = Campus.objects.filter(idCampus=campus_id).first()
+        etab_id_val = campus_obj.id_etablissement if campus_obj else None
+
+        if etab_id_val and id_eleve:
+            with connections['countryStructure'].cursor() as hub_cur:
+                # Get trimester configs ordered
+                hub_cur.execute("""
+                    SELECT rc.id AS config_id, ri.code
+                    FROM repartition_configs_etab_annee rc
+                    JOIN repartition_instances ri ON ri.id = rc.repartition_id
+                    JOIN repartition_types rt ON rt.id = ri.type_id
+                    WHERE rc.etablissement_annee_id = %s AND rt.code = 'T'
+                    ORDER BY ri.ordre
+                """, [eac.etablissement_annee_id])
+                trim_config_ids = [r[0] for r in hub_cur.fetchall()]
+
+            if trim_config_ids:
+                from MonEcole_app.models.evaluations.note import NoteBulletin
+                # TJ notes (type=1) for these trimester configs
+                qs = NoteBulletin.objects.filter(
+                    id_eleve_id=id_eleve,
+                    id_etablissement=etab_id_val,
+                    id_note_type=1,  # TJ
+                    id_repartition_config__in=trim_config_ids,
+                )
+                for nb in qs:
+                    ca_id = nb.id_cours_annee
+                    cfg_id = nb.id_repartition_config
+                    notes_par_cours.setdefault(ca_id, {})[cfg_id] = (
+                        round(float(nb.note), 1) if nb.note is not None else None
+                    )
+
+        # Build cours_annee mapping: cours_annee_id → cours_pk
+        cours_annee_to_pk = {}
+        with connections['countryStructure'].cursor() as hub_cur:
+            hub_cur.execute("""
+                SELECT ca.id_cours_annee, ca.cours_id
+                FROM cours_annee ca
+                WHERE ca.cours_id IN (
+                    SELECT id FROM cours WHERE classe_id = %s
+                )
+            """, [hub_classe_id])
+            for row in hub_cur.fetchall():
+                cours_annee_to_pk[row[1]] = row[0]  # cours_pk → cours_annee_id
+    except Exception as _e:
+        import logging
+        logging.getLogger(__name__).warning(f"[BULLETIN MATERNELLE] Note loading error: {_e}")
 
     # CRITICAL: use pk (surrogate) not id_cours (business key)
     cours_pks = list(Cours.objects.filter(classe_id=hub_classe_id).values_list('pk', flat=True))
@@ -343,6 +397,9 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
 
        
         maxima_periode = groupes[domaine][0].maxima_periode
+        # CAS 2: si maxima_periode est null, utiliser maxima_exam
+        if maxima_periode is None:
+            maxima_periode = groupes[domaine][0].maxima_exam
         max_val = str(maxima_periode) if maxima_periode is not None else ""
 
         # Ligne "Groupe X" + Maxima
@@ -356,11 +413,30 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         ])
         current_row += 1
 
-        # Lignes des cours (une seule boucle)
+        # Lignes des cours avec notes dynamiques
         for cpc in groupes[domaine]:
+            # Résoudre cours_annee_id pour ce cours
+            cours_pk = cpc.id_cours.pk  # surrogate key
+            ca_id = cours_annee_to_pk.get(cours_pk)
+            cours_notes = notes_par_cours.get(ca_id, {}) if ca_id else {}
+
+            # Notes pour chaque trimestre (colonnes 2, 3, 4)
+            note_cells = []
+            for i, tcfg in enumerate(trim_config_ids[:3]):
+                val = cours_notes.get(tcfg)
+                if val is not None:
+                    display = str(int(val)) if val == int(val) else f"{val:.1f}"
+                else:
+                    display = ""
+                note_cells.append(Paragraph(display, small_center))
+            while len(note_cells) < 3:
+                note_cells.append(None)
+
             table_data.append([
                 Paragraph(f"{compteur_cours:02d}. {cpc.id_cours.cours}", style_normal),
-                None, None, None, None, None, None, None
+                None,
+                note_cells[0], note_cells[1], note_cells[2],
+                None, None, None
             ])
             ts_commands.append(('SPAN', (0, current_row), (1, current_row)))
             current_row += 1
