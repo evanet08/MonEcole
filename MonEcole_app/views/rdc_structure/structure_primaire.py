@@ -95,10 +95,11 @@ def get_styles():
     return styles, style_normal, style_center, style_center_bold, style_normal_bold, style_title, style_right
 
 def check_image_paths(logo_path, emblem_path):
+    import logging as _log
     if logo_path and not os.path.exists(logo_path):
-        raise ValueError(f"Fichier logo introuvable : {logo_path}")
+        _log.getLogger(__name__).warning(f"Fichier logo introuvable : {logo_path}")
     if emblem_path and not os.path.exists(emblem_path):
-        raise ValueError(f"Fichier emblème introuvable : {emblem_path}")
+        _log.getLogger(__name__).warning(f"Fichier emblème introuvable : {emblem_path}")
 
 def _resolve_logo_paths(logo_path, emblem_path):
     """Fallback: si les logos Institution/Pays ne sont pas trouvés, chercher à la racine du projet."""
