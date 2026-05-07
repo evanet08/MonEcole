@@ -15991,19 +15991,25 @@ def cancel_deliberation(request):
         print(f"[CANCEL DEBUG] config_to_info = { {k: (v['code'], v['pos'], v['is_period'], v['is_sem_tri']) for k,v in config_to_info.items()} }", file=sys.stderr)
 
         # Déterminer la position de la délibération qu'on annule
-        cancel_pos = 0
+        cancel_pos = -1  # -1 = non résolu → aucune suppression
         cancel_label = ''
         if delib_type == 'annee':
             cancel_pos = ANNUAL_POS
             cancel_label = 'Annuelle'
-        elif delib_type == 'trimestre' and repartition_id:
-            info = config_to_info.get(int(repartition_id), {})
-            cancel_pos = info.get('pos', 0)
-            cancel_label = info.get('nom', f'Trimestre {repartition_id}')
-        elif delib_type == 'periode' and repartition_id:
-            info = config_to_info.get(int(repartition_id), {})
-            cancel_pos = info.get('pos', 0)
-            cancel_label = info.get('nom', f'Période {repartition_id}')
+        elif delib_type in ('trimestre', 'periode') and repartition_id:
+            # Frontend sends instance PK → resolve to config_id
+            _cancel_config_id = int(repartition_id)
+            if _cancel_config_id not in config_to_info:
+                # repartition_id is an instance PK, resolve to config_id
+                _resolved = _resolve_instance_to_config(_cancel_config_id, eac.etablissement_annee_id) if eac else None
+                if _resolved:
+                    _cancel_config_id = _resolved
+            info = config_to_info.get(_cancel_config_id, {})
+            cancel_pos = info.get('pos', -1)
+            cancel_label = info.get('nom', f'{delib_type.capitalize()} {repartition_id}')
+
+        if cancel_pos < 0:
+            return JsonResponse({'success': False, 'error': f'Impossible de résoudre la position pour {delib_type} rep={repartition_id}.'}, status=400)
 
         print(f"[CANCEL DEBUG] cancel_pos={cancel_pos}, cancel_label={cancel_label}, delib_type={delib_type}", file=sys.stderr)
 
