@@ -385,20 +385,26 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     except Exception:
         pass
 
-    cours_par_classe_qs = Cours_par_classe.objects.filter(
+    # Sort: non-null maxima first so dedup keeps the entry with actual maxima data
+    cours_par_classe_list = list(Cours_par_classe.objects.filter(
         id_cours_id__in=cours_pks,
         id_annee_id=annee_id,
-    ).select_related('id_cours').order_by('ordre_cours')
+    ).select_related('id_cours'))
+    # Sort: entries with maxima_exam first, then by ordre_cours
+    cours_par_classe_list.sort(key=lambda c: (
+        0 if c.maxima_exam is not None else 1,
+        c.ordre_cours or 999
+    ))
 
    
     groupes = defaultdict(list)
-    seen_cours_ids = set()
+    seen_cours_pks = set()
 
-    for cpc in cours_par_classe_qs:
-        cours_id = cpc.id_cours.id_cours
-        if cours_id in seen_cours_ids:
+    for cpc in cours_par_classe_list:
+        cours_pk = cpc.id_cours.pk  # Hub PK — matches notes_par_cours keys
+        if cours_pk in seen_cours_pks:
             continue 
-        seen_cours_ids.add(cours_id)
+        seen_cours_pks.add(cours_pk)
 
         # Resolve domaine name from Hub lookup
         d_id = cpc.id_cours.domaine_id
@@ -444,38 +450,63 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         current_row += 1
 
         # Lignes des cours avec notes dynamiques
+        group_totals = [0.0, 0.0, 0.0]  # sum per trimester for sous-total
+        group_count = [0, 0, 0]
         for cpc in groupes[domaine]:
             # Use cours_id (Hub PK) to look up notes — matches _get_bulletin_context mapping
             cours_pk = cpc.id_cours.pk  # surrogate key = Hub cours.id
             cours_notes = notes_par_cours.get(cours_pk, {})
 
             # Notes pour chaque trimestre (colonnes 2, 3, 4)
+            note_vals = []
             note_cells = []
             for i, tcfg in enumerate(trim_config_ids[:3]):
                 val = cours_notes.get(tcfg)
+                note_vals.append(val)
                 if val is not None:
                     display = str(int(val)) if val == int(val) else f"{val:.1f}"
+                    group_totals[i] += val
+                    group_count[i] += 1
                 else:
                     display = ""
                 note_cells.append(Paragraph(display, small_center))
             while len(note_cells) < 3:
                 note_cells.append(None)
+                note_vals.append(None)
+
+            # Total = sum of trimester notes for this course
+            total_val = sum(v for v in note_vals if v is not None)
+            has_any = any(v is not None for v in note_vals)
+            total_display = ""
+            if has_any:
+                total_display = str(int(total_val)) if total_val == int(total_val) else f"{total_val:.1f}"
 
             table_data.append([
                 Paragraph(f"{compteur_cours:02d}. {cpc.id_cours.cours}", style_normal),
                 None,
                 note_cells[0], note_cells[1], note_cells[2],
-                None, None, None
+                Paragraph(total_display, small_center) if total_display else None,
+                None, None
             ])
             ts_commands.append(('SPAN', (0, current_row), (1, current_row)))
             current_row += 1
             compteur_cours += 1
 
-        # Sous-total (un seul par groupe)
+        # Sous-total per group
+        st_cells = []
+        for i in range(3):
+            if group_count[i] > 0:
+                v = group_totals[i]
+                st_cells.append(Paragraph(str(int(v)) if v == int(v) else f"{v:.1f}", small_center))
+            else:
+                st_cells.append(None)
+        st_total = sum(group_totals)
+        st_total_display = str(int(st_total)) if st_total == int(st_total) else f"{st_total:.1f}" if any(c > 0 for c in group_count) else ""
         table_data.append([
             Paragraph("sous-total", left_bold),
-            None, None, None, None,
-            Paragraph("", small_center),
+            None,
+            st_cells[0], st_cells[1], st_cells[2],
+            Paragraph(st_total_display, small_center) if st_total_display else None,
             None, None
         ])
         current_row += 1
