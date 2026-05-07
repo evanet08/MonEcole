@@ -338,17 +338,14 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         cours_annee_to_cours, config_to_rep, rep_to_code = _get_bulletin_context(eac)
 
         # 3. Load notes from note_bulletin
-        if trim_config_ids and etab_id_val and id_eleve:
+        if trim_config_ids and id_eleve:
             from MonEcole_app.models.evaluations.note import NoteBulletin
             qs = NoteBulletin.objects.filter(
                 id_eleve_id=id_eleve,
-                id_etablissement=etab_id_val,
                 id_note_type=1,  # TJ
                 id_repartition_config__in=trim_config_ids,
                 id_cours_annee__in=cours_annee_to_cours.keys(),
             )
-            if pays_id_val:
-                qs = qs.filter(id_pays=pays_id_val)
 
             for nb in qs:
                 # Map ca_id → cours_id (via _get_bulletin_context mapping)

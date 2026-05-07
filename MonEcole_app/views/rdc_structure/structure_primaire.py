@@ -1159,15 +1159,11 @@ def get_student_notes_rdc(id_eleve, id_annee, id_campus, id_cycle, id_classe):
         return defaultdict(dict)
 
     from MonEcole_app.models.evaluations.note import NoteBulletin
-    from MonEcole_app.models.campus import Campus
-    campus = Campus.objects.filter(idCampus=id_campus).first()
-    etab_id = campus.id_etablissement if campus else 1
 
     # TJ notes from note_bulletin (type=1, source=EVALUATIONS for periods)
     # order_by id_note_bulletin ASC so latest entry overwrites older duplicates
     notes_qs = NoteBulletin.objects.filter(
         id_eleve_id=id_eleve,
-        id_etablissement=etab_id,
         id_note_type=1,  # TJ
         id_cours_annee__in=cours_annee_to_cours.keys(),
     ).order_by('id_note_bulletin')
@@ -1223,14 +1219,10 @@ def get_student_exam_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe):
     _, deliberated_trim_configs = _get_deliberated_config_ids(id_eleve, eac)
 
     from MonEcole_app.models.evaluations.note import NoteBulletin
-    from MonEcole_app.models.campus import Campus
-    campus = Campus.objects.filter(idCampus=id_campus).first()
-    etab_id = campus.id_etablissement if campus else 1
 
     # EX notes from note_bulletin (type=2)
     notes_qs = NoteBulletin.objects.filter(
         id_eleve_id=id_eleve,
-        id_etablissement=etab_id,
         id_note_type=2,  # EX
         id_cours_annee__in=cours_annee_to_cours.keys(),
     ).order_by('id_note_bulletin')
@@ -1506,14 +1498,10 @@ def get_student_period_notes(id_eleve, id_annee, id_campus, id_cycle, id_classe)
     deliberated_period_configs, _ = _get_deliberated_config_ids(id_eleve, eac)
 
     from MonEcole_app.models.evaluations.note import NoteBulletin
-    from MonEcole_app.models.campus import Campus
-    campus = Campus.objects.filter(idCampus=id_campus).first()
-    etab_id = campus.id_etablissement if campus else 1
 
     # TJ notes from note_bulletin (type=1)
     notes_qs = NoteBulletin.objects.filter(
         id_eleve_id=id_eleve,
-        id_etablissement=etab_id,
         id_note_type=1,  # TJ
         id_cours_annee__in=cours_annee_to_cours.keys(),
     ).order_by('id_note_bulletin')
