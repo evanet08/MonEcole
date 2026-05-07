@@ -9086,16 +9086,26 @@ def save_evaluation(request):
                             """, [new_id, config.id])
                 else:
                     # INSERT — id_classe_id is the legacy EAC FK (NOT NULL)
+                    # Resolve cycle_id from the class
+                    _eval_cycle_id = None
+                    if bk:
+                        cur.execute("""
+                            SELECT c.cycle_id FROM countryStructure.classes c WHERE c.id = %s LIMIT 1
+                        """, [bk['classe_id']])
+                        _cyc = cur.fetchone()
+                        _eval_cycle_id = _cyc['cycle_id'] if _cyc else None
+
                     cur.execute("""
                         INSERT INTO evaluation (title, id_type_eval, ponderer_eval, date_eval, date_soumission,
                             contenu_evaluation, document_url, id_annee_id, idCampus_id, id_classe_id, classe_id,
-                            groupe, section_id, id_cours_classe_id, id_repartition_instance, id_etablissement, id_pays, date_creation)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                            groupe, section_id, id_cycle_id, id_cours_classe_id, id_repartition_instance, id_etablissement, id_pays, date_creation)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                     """, [title, id_type_eval, int(ponderer_eval), date_eval, date_soumission,
                           contenu, document_url, bk['annee_id'] if bk else None, campus_id,
                           int(classe_id),
                           bk['classe_id'] if bk else int(classe_id),
                           bk['groupe'] if bk else None, bk['section_id'] if bk else None,
+                          _eval_cycle_id,
                           int(cours_id), repartition_id, etab_id, etab.pays_id])
                     new_id = cur.lastrowid
 
@@ -9639,8 +9649,26 @@ def save_notes(request):
                             if not ev_ctx:
                                 continue
 
-                            # Map evaluation type to note type: default TJ=1
-                            id_type_note = 1  # TJ by default
+                            # Resolve note type dynamically from evaluation's repartition
+                            id_type_note = ev_ctx.get('id_type_eval') or 1
+                            # Map via Hub: check repartition type → default note_type
+                            _rep_inst_id = ev_ctx.get('id_repartition_instance')
+                            if _rep_inst_id:
+                                try:
+                                    from django.db import connections as _conns
+                                    with _conns['countryStructure'].cursor() as _nt_c:
+                                        _nt_c.execute("""
+                                            SELECT nt.id_type_note FROM repartition_instances ri
+                                            JOIN repartition_type_notes rtn ON rtn.repartition_type_id = ri.type_id
+                                            JOIN note_types nt ON nt.id = rtn.note_type_id
+                                            WHERE ri.id = %s AND rtn.source_type = 'EVALUATIONS'
+                                              AND rtn.is_active = 1 LIMIT 1
+                                        """, [_rep_inst_id])
+                                        _nt_r = _nt_c.fetchone()
+                                        if _nt_r:
+                                            id_type_note = _nt_r[0]
+                                except Exception:
+                                    pass
 
                             cur.execute("""
                                 INSERT INTO eleve_note
@@ -9970,8 +9998,25 @@ def import_notes_excel(request):
                         if not ev_ctx:
                             continue
 
-                        # Map evaluation type to note type: default TJ=1
-                        id_type_note = 1  # TJ by default
+                        # Resolve note type dynamically from evaluation's repartition
+                        id_type_note = ev_ctx.get('id_type_eval') or 1
+                        _rep_inst_id = ev_ctx.get('id_repartition_instance')
+                        if _rep_inst_id:
+                            try:
+                                from django.db import connections as _conns
+                                with _conns['countryStructure'].cursor() as _nt_c:
+                                    _nt_c.execute("""
+                                        SELECT nt.id_type_note FROM repartition_instances ri
+                                        JOIN repartition_type_notes rtn ON rtn.repartition_type_id = ri.type_id
+                                        JOIN note_types nt ON nt.id = rtn.note_type_id
+                                        WHERE ri.id = %s AND rtn.source_type = 'EVALUATIONS'
+                                          AND rtn.is_active = 1 LIMIT 1
+                                    """, [_rep_inst_id])
+                                    _nt_r = _nt_c.fetchone()
+                                    if _nt_r:
+                                        id_type_note = _nt_r[0]
+                            except Exception:
+                                pass
 
                         cur.execute("""
                             INSERT INTO eleve_note
@@ -11094,14 +11139,27 @@ def calculate_notes_bulletin(request):
 
                     elif en.source_type == 'HERITAGE':
                         # Sum/Average from child repartitions
-                        # Find child configs via hierarchy
-                        # Find child repartition type via hierarchy (raw SQL)
+                        # Find child repartition type via hierarchy (cycle-aware)
+                        # Resolve cycle for this class
                         conn_hub2 = connections['countryStructure'].cursor()
                         try:
+                            # Get cycle_id for this class
+                            conn_hub2.execute("""
+                                SELECT c.cycle_id
+                                FROM etablissements_annees_classes eac
+                                JOIN classes c ON c.id = eac.classe_id
+                                WHERE eac.id = %s LIMIT 1
+                            """, [classe_id])
+                            _cyc_row = conn_hub2.fetchone()
+                            _class_cycle_id = _cyc_row[0] if _cyc_row else None
+
+                            # Cycle-aware hierarchy: cycle-specific > global fallback
                             conn_hub2.execute("""
                                 SELECT type_enfant_id FROM repartition_hierarchies
-                                WHERE type_parent_id = %s LIMIT 1
-                            """, [rep_type_id])
+                                WHERE type_parent_id = %s AND is_active = 1 AND id_pays = %s
+                                ORDER BY CASE WHEN cycle_id = %s THEN 0 WHEN cycle_id IS NULL THEN 1 ELSE 2 END
+                                LIMIT 1
+                            """, [rep_type_id, etab.pays_id, _class_cycle_id])
                             hier_row = conn_hub2.fetchone()
                         finally:
                             conn_hub2.close()
@@ -11289,9 +11347,47 @@ def sync_all_notes_bulletin(request):
                 if not cours_ids:
                     return JsonResponse({'success': False, 'error': 'Aucun cours trouvé.'}, status=404)
 
-                # 4. Get ALL repartition configs for this establishment/year
-                #    Split by type_id: type 1 = periods (children), type 2 = trimesters (parents)
-                #    has_parent is always 0 in production, so we use type_id instead.
+                # 4. Resolve cycle → root type → child type DYNAMICALLY
+                #    No hardcoded type_id assumptions.
+                cur.execute("""
+                    SELECT c.cycle_id
+                    FROM countryStructure.etablissements_annees_classes eac
+                    JOIN countryStructure.classes c ON c.id = eac.classe_id
+                    WHERE eac.id = %s LIMIT 1
+                """, [classe_id])
+                cycle_row = cur.fetchone()
+                class_cycle_id = cycle_row['cycle_id'] if cycle_row else None
+
+                # Resolve root type for this cycle via repartition_config_cycles
+                root_type_id = None
+                child_type_id = None
+                conn_hub_hier = connections['countryStructure'].cursor()
+                try:
+                    if class_cycle_id:
+                        conn_hub_hier.execute("""
+                            SELECT type_racine_id FROM repartition_config_cycles
+                            WHERE cycle_id = %s AND is_active = 1 AND id_pays = %s LIMIT 1
+                        """, [class_cycle_id, etab.pays_id])
+                        rt_row = conn_hub_hier.fetchone()
+                        if rt_row:
+                            root_type_id = rt_row[0]
+
+                        # Resolve child type via hierarchy (cycle-specific > global fallback)
+                        if root_type_id:
+                            conn_hub_hier.execute("""
+                                SELECT type_enfant_id, nombre_enfants, cycle_id
+                                FROM repartition_hierarchies
+                                WHERE type_parent_id = %s AND is_active = 1 AND id_pays = %s
+                                ORDER BY CASE WHEN cycle_id = %s THEN 0 WHEN cycle_id IS NULL THEN 1 ELSE 2 END
+                                LIMIT 1
+                            """, [root_type_id, etab.pays_id, class_cycle_id])
+                            ch_row = conn_hub_hier.fetchone()
+                            if ch_row:
+                                child_type_id = ch_row[0]
+                finally:
+                    conn_hub_hier.close()
+
+                # Get ALL repartition configs for this establishment/year
                 cur.execute("""
                     SELECT rc.id AS config_id, rc.repartition_id, rc.parent_id, rc.has_parent,
                            r.type_id, r.code, r.nom, r.taux_participation, r.ordre, r.pays_id
@@ -11303,18 +11399,28 @@ def sync_all_notes_bulletin(request):
                 """, [ctx['etab_annee_id'], etab.pays_id])
                 all_configs = cur.fetchall()
 
-                child_configs = sorted([c for c in all_configs if c['type_id'] == 1], key=lambda x: x['ordre'])
-                parent_configs = sorted([c for c in all_configs if c['type_id'] == 2], key=lambda x: x['ordre'])
+                # Split dynamically: children = child_type_id, parents = root_type_id
+                if child_type_id and root_type_id:
+                    child_configs = sorted([c for c in all_configs if c['type_id'] == child_type_id], key=lambda x: x['ordre'])
+                    parent_configs = sorted([c for c in all_configs if c['type_id'] == root_type_id], key=lambda x: x['ordre'])
+                elif root_type_id:
+                    # Cycle without children (e.g., Maternel) → root configs only, no children
+                    child_configs = []
+                    parent_configs = sorted([c for c in all_configs if c['type_id'] == root_type_id], key=lambda x: x['ordre'])
+                else:
+                    # Fallback: cannot determine types, use all configs as parents
+                    child_configs = []
+                    parent_configs = sorted(all_configs, key=lambda x: x['ordre'])
 
-                # Map periods to trimesters by positional order
-                nb_trimesters = max(len(parent_configs), 1)
-                nb_periods_per_trim_calc = len(child_configs) // nb_trimesters if nb_trimesters > 0 else len(child_configs)
-                if nb_periods_per_trim_calc < 1:
-                    nb_periods_per_trim_calc = 1
+                # Map children to parents by positional order
+                nb_parents = max(len(parent_configs), 1)
+                nb_children_per_parent = len(child_configs) // nb_parents if nb_parents > 0 else len(child_configs)
+                if nb_children_per_parent < 1:
+                    nb_children_per_parent = max(1, len(child_configs))
                 trimester_children_map = {}
                 for t_idx, t_cfg in enumerate(parent_configs):
-                    start = t_idx * nb_periods_per_trim_calc
-                    end = start + nb_periods_per_trim_calc
+                    start = t_idx * nb_children_per_parent
+                    end = start + nb_children_per_parent
                     trimester_children_map[t_cfg['config_id']] = [
                         p['config_id'] for p in child_configs[start:end]
                     ]
@@ -12976,12 +13082,22 @@ def get_bulletin_overview(request):
                 root_count = cycle_config.nombre_au_niveau_racine
                 allowed_type_ids.add(root_type_id)
 
-                hierarchies = RepartitionHierarchie.objects.filter(
+                # Hierarchy (CYCLE-AWARE: cycle-specific > global)
+                all_hierarchies = RepartitionHierarchie.objects.filter(
                     type_parent_id=root_type_id, is_active=True, id_pays=etab.pays_id
                 )
-                for h in hierarchies:
-                    child_type_id = h.type_enfant_id
-                    child_count_per_root = h.nombre_enfants
+                cycle_hier = None
+                global_hier = None
+                for h in all_hierarchies:
+                    if h.cycle_id == cycle_id:
+                        cycle_hier = h
+                        break
+                    elif h.cycle_id is None:
+                        global_hier = h
+                resolved_hier = cycle_hier or global_hier
+                if resolved_hier:
+                    child_type_id = resolved_hier.type_enfant_id
+                    child_count_per_root = resolved_hier.nombre_enfants
                     allowed_type_ids.add(child_type_id)
 
         # Get all repartition configs for this etab/annee filtered by allowed types
@@ -14839,13 +14955,23 @@ def get_evaluations_repartitions(request):
                 root_count = cycle_config.nombre_au_niveau_racine
                 allowed_type_ids.add(root_type_id)
 
-                # Hiérarchie → types enfants (ex: Semestre → Période, nombre=2)
-                hierarchies = RepartitionHierarchie.objects.filter(
+                # Hiérarchie → types enfants (CYCLE-AWARE: cycle-specific > global)
+                all_hierarchies = RepartitionHierarchie.objects.filter(
                     type_parent_id=root_type_id, is_active=True, id_pays=etab.pays_id
                 )
-                for h in hierarchies:
-                    allowed_type_ids.add(h.type_enfant_id)
-                    child_count_per_root = h.nombre_enfants
+                # Resolve: cycle-specific > global fallback
+                cycle_hier = None
+                global_hier = None
+                for h in all_hierarchies:
+                    if h.cycle_id == cycle_id:
+                        cycle_hier = h
+                        break
+                    elif h.cycle_id is None:
+                        global_hier = h
+                resolved_hier = cycle_hier or global_hier
+                if resolved_hier:
+                    allowed_type_ids.add(resolved_hier.type_enfant_id)
+                    child_count_per_root = resolved_hier.nombre_enfants
 
         # Charger toutes les configs pour cet établissement/année
         configs = RepartitionConfigEtabAnnee.objects.filter(
@@ -15033,15 +15159,32 @@ def execute_deliberation(request):
         config_ids = []
         note_types = []
 
+        # Resolve note_type IDs dynamically from Hub (instead of hardcoded 1, 2)
+        _nt_ids = {}  # sigle → id_type_note
+        with connections['countryStructure'].cursor() as _nt_cur:
+            _nt_cur.execute("SELECT id_type_note, sigle FROM note_types WHERE id_pays = %s", [etab.pays_id])
+            for _nt_row in _nt_cur.fetchall():
+                _nt_ids[_nt_row[1]] = _nt_row[0]
+        tj_nt_id = _nt_ids.get('TJ', 1)
+        ex_nt_id = _nt_ids.get('EX', 2)
+
+        # Resolve cycle_id for this class
+        _class_cycle_id = getattr(eac.classe, 'cycle_id', None) if hasattr(eac, 'classe') else None
+        if not _class_cycle_id:
+            try:
+                _class_cycle_id = eac.classe.cycle_id
+            except Exception:
+                _class_cycle_id = None
+
         if delib_type == 'periode' and repartition_id:
-            # Period deliberation: sum TJ (type=1) for this single period config
+            # Period deliberation: sum TJ for this single period config
             config_ids = [int(repartition_id)]
-            note_types = [1]  # TJ only
+            note_types = [tj_nt_id]
 
         elif delib_type == 'trimestre' and repartition_id:
             # Trimester/Semester deliberation: 
             # Find ALL child period configs under this parent config
-            # Sum TJ (type=1) of all child periods + EX (type=2) on parent
+            # Sum TJ of all child periods + EX on parent
             with connections['countryStructure'].cursor() as hub_cur:
                 # Get parent type
                 hub_cur.execute("""
@@ -15052,11 +15195,13 @@ def execute_deliberation(request):
                 parent_row = hub_cur.fetchone()
                 if parent_row:
                     parent_type_id = parent_row[0]
-                    # Get child type
+                    # Get child type (CYCLE-AWARE: cycle-specific > global)
                     hub_cur.execute("""
                         SELECT type_enfant_id FROM repartition_hierarchies
-                        WHERE type_parent_id = %s AND is_active = 1 LIMIT 1
-                    """, [parent_type_id])
+                        WHERE type_parent_id = %s AND is_active = 1 AND id_pays = %s
+                        ORDER BY CASE WHEN cycle_id = %s THEN 0 WHEN cycle_id IS NULL THEN 1 ELSE 2 END
+                        LIMIT 1
+                    """, [parent_type_id, etab.pays_id, _class_cycle_id])
                     child_type_row = hub_cur.fetchone()
                     if child_type_row:
                         child_type_id = child_type_row[0]
@@ -15090,18 +15235,18 @@ def execute_deliberation(request):
                         else:
                             my_child_ids = all_child_ids
 
-                        # Config IDs = child periods (TJ type=1) + parent (EX type=2)
+                        # Config IDs = child periods (TJ) + parent (EX)
                         config_ids = my_child_ids + [int(repartition_id)]
-                        note_types = [1, 2]  # TJ from children + EX from parent
+                        note_types = [tj_nt_id, ex_nt_id]
 
             if not config_ids:
                 config_ids = [int(repartition_id)]
-                note_types = [1, 2, 5]
+                note_types = [tj_nt_id, ex_nt_id]
 
         elif delib_type == 'examen' and repartition_id:
             # Exam deliberation: EX (type=2) on parent config
             config_ids = [int(repartition_id)]
-            note_types = [2]
+            note_types = [ex_nt_id]
 
         elif delib_type == 'annee':
             # Annual deliberation: get ALL configs, sum all TJ + EX
@@ -15111,7 +15256,7 @@ def execute_deliberation(request):
                     WHERE rc.etablissement_annee_id = %s
                 """, [etab_annee_id])
                 config_ids = [r[0] for r in hub_cur.fetchall()]
-            note_types = [1, 2]  # All TJ + EX
+            note_types = [tj_nt_id, ex_nt_id]  # All TJ + EX
 
         else:
             return JsonResponse({'success': False, 'error': f'Type de délibération non supporté: {delib_type}'}, status=400)
@@ -15201,7 +15346,7 @@ def execute_deliberation(request):
         campus_id = campus.idCampus if campus else 1
 
         # Resolve cycle from EAC
-        cycle_id = eac.cycle_id if hasattr(eac, 'cycle_id') and eac.cycle_id else 3
+        cycle_id = _class_cycle_id or (eac.cycle_id if hasattr(eac, 'cycle_id') else None)
 
         # Save results to Spoke DB (depending on type)
         saved_count = 0
@@ -15331,38 +15476,65 @@ def cancel_deliberation(request):
             base_filter['groupe'] = eac.groupe
             base_filter['section_id'] = eac.section_id
 
-        # ── Ordre structurel des codes ──
-        CODE_POSITION = {
-            'P1': 1, 'P2': 2, 'S1': 5, 'T1': 5,
-            'P3': 6, 'P4': 7, 'S2': 10, 'T2': 10,
-            'P5': 11, 'P6': 12, 'S3': 15, 'T3': 15,
-        }
         ANNUAL_POS = 100
 
-        # Résoudre config_id → code + nom + type
-        config_to_info = {}  # config_id → {'code': 'P1', 'nom': '...', 'pos': N, 'type_code': 'P'}
+        # Resolve cycle → root_type → child_type DYNAMICALLY for this class
+        _cancel_root_type_id = None
+        _cancel_child_type_id = None
+        if eac:
+            try:
+                _cancel_cycle_id = eac.classe.cycle_id if hasattr(eac, 'classe') else None
+                if _cancel_cycle_id:
+                    cc = RepartitionConfigCycle.objects.filter(
+                        cycle_id=_cancel_cycle_id, is_active=True, id_pays=etab.pays_id
+                    ).first()
+                    if cc:
+                        _cancel_root_type_id = cc.type_racine_id
+                    # Cycle-aware hierarchy
+                    if _cancel_root_type_id:
+                        _all_h = list(RepartitionHierarchie.objects.filter(
+                            type_parent_id=_cancel_root_type_id, is_active=True, id_pays=etab.pays_id
+                        ))
+                        _c_h = next((h for h in _all_h if h.cycle_id == _cancel_cycle_id), None)
+                        _g_h = next((h for h in _all_h if h.cycle_id is None), None)
+                        _resolved_h = _c_h or _g_h
+                        if _resolved_h:
+                            _cancel_child_type_id = _resolved_h.type_enfant_id
+            except Exception:
+                import traceback; traceback.print_exc()
+
+        # Résoudre config_id → code + nom + type + position DYNAMIQUE
+        config_to_info = {}  # config_id → {'code': ..., 'nom': ..., 'pos': N, 'type_code': ..., ...}
         if eac:
             try:
                 with connections['countryStructure'].cursor() as cur:
                     cur.execute("""
-                        SELECT rc.id, ri.code, ri.nom, rc.parent_id, rc.has_parent, rt.code as type_code
+                        SELECT rc.id, ri.code, ri.nom, rc.parent_id, rc.has_parent,
+                               rt.code as type_code, ri.type_id, ri.ordre
                         FROM repartition_configs_etab_annee rc
                         JOIN repartition_instances ri ON ri.id = rc.repartition_id
                         LEFT JOIN repartition_types rt ON rt.id = ri.type_id
                         WHERE rc.etablissement_annee_id = %s
+                        ORDER BY ri.type_id ASC, ri.ordre ASC
                     """, [eac.etablissement_annee_id])
                     for row in cur.fetchall():
-                        cfg_id, code, nom, parent_id, has_parent, type_code = row
-                        pos = CODE_POSITION.get(code, 0)
-                        # Déterminer si c'est une période via le type_code ('P') ou le code (commence par 'P')
-                        is_period = (type_code == 'P') or (code and code.startswith('P'))
-                        is_sem_tri = (type_code in ('S', 'T')) or (code and code[:1] in ('S', 'T'))
+                        cfg_id, code, nom, parent_id, has_parent, type_code, type_id, ordre = row
+                        # Dynamic position: use instance ordre value directly
+                        # Children (periods) get their raw ordre, parents get ordre + 50
+                        is_child = (_cancel_child_type_id and type_id == _cancel_child_type_id)
+                        is_parent = (_cancel_root_type_id and type_id == _cancel_root_type_id)
+                        if is_child:
+                            pos = ordre  # e.g., 1, 2, 3, 4, 5, 6
+                        elif is_parent:
+                            pos = 50 + ordre  # e.g., 51, 52, 53
+                        else:
+                            pos = ordre  # fallback
                         config_to_info[cfg_id] = {
                             'code': code, 'nom': nom, 'pos': pos,
                             'parent_id': parent_id, 'has_parent': bool(has_parent),
                             'type_code': type_code or '',
-                            'is_period': is_period,
-                            'is_sem_tri': is_sem_tri,
+                            'is_period': is_child,
+                            'is_sem_tri': is_parent,
                         }
             except Exception as e:
                 import traceback; traceback.print_exc()
