@@ -11781,7 +11781,7 @@ def mass_import_template(request):
                         _mi_root_type = None
                         if _mi_cycle_id:
                             hub_cur.execute("""
-                                SELECT type_racine_id FROM repartition_config_cycles
+                                SELECT type_racine_id FROM repartition_configs_cycle
                                 WHERE cycle_id = %s AND is_active = 1 AND id_pays = %s LIMIT 1
                             """, [_mi_cycle_id, etab.pays_id])
                             _rt = hub_cur.fetchone()
@@ -11797,14 +11797,21 @@ def mass_import_template(request):
                                 LIMIT 1
                             """, [_mi_root_type, etab.pays_id, _mi_cycle_id])
                             h_row = hub_cur.fetchone()
-                            if h_row:
-                                nb_periodes_par_trim = int(h_row[0]) if h_row[0] else 2
+                            if h_row and h_row[0]:
+                                nb_periodes_par_trim = int(h_row[0])
+                            else:
+                                nb_periodes_par_trim = 0  # No hierarchy = no periods
                     finally:
                         hub_cur.close()
                 except Exception:
-                    nb_periodes_par_trim = 2
+                    nb_periodes_par_trim = 0
 
-                period_max = round(maxima_tj / nb_periodes_par_trim, 2) if nb_periodes_par_trim > 0 else maxima_tj
+                # CAS 1 (no periods): trimestres use maxima_exam directly
+                # CAS 2 (with periods): periods use maxima_tj / nb_periodes
+                if nb_periodes_par_trim > 0:
+                    period_max = round(maxima_tj / nb_periodes_par_trim, 2)
+                else:
+                    period_max = maxima_exam  # Cycle sans périodes: trimestres = exam max
 
                 # 4b. ORPHAN CLEANUP: delete evaluations for this cours+class that have NO notes
                 cur.execute("""
@@ -12410,7 +12417,7 @@ def mass_import_notes(request):
 
                     if _mi3_cycle_id:
                         hub_cur.execute("""
-                            SELECT type_racine_id FROM repartition_config_cycles
+                            SELECT type_racine_id FROM repartition_configs_cycle
                             WHERE cycle_id = %s AND is_active = 1 AND id_pays = %s LIMIT 1
                         """, [_mi3_cycle_id, pays_id])
                         _rt3 = hub_cur.fetchone()
@@ -12473,9 +12480,19 @@ def mass_import_notes(request):
                 # Determine periods per trimester and period_max
                 nb_parents = max(len(trimester_configs), 1)
                 nb_children_per_parent = len(period_configs) // nb_parents if nb_parents > 0 else len(period_configs)
-                if nb_children_per_parent < 1:
-                    nb_children_per_parent = max(1, len(period_configs))
-                period_max = round(c_maxima_tj / nb_children_per_parent, 2) if nb_children_per_parent > 0 else c_maxima_tj
+
+                # CAS 1: Cycle sans périodes → trimestres = unités de base
+                # Les trimestres sont traités comme des "périodes" pour la sync
+                _is_cas1_no_periods = (len(period_configs) == 0)
+                if _is_cas1_no_periods:
+                    # Trimestres deviennent les "period_configs" pour PHASE A
+                    period_configs = list(trimester_configs)
+                    nb_children_per_parent = 1
+                    period_max = c_maxima_exam  # Use exam max since no TJ for this cycle
+                else:
+                    if nb_children_per_parent < 1:
+                        nb_children_per_parent = max(1, len(period_configs))
+                    period_max = round(c_maxima_tj / nb_children_per_parent, 2) if nb_children_per_parent > 0 else c_maxima_tj
 
                 # Map children to parents by positional order
                 trimester_children = {}
@@ -12575,7 +12592,10 @@ def mass_import_notes(request):
 
                     # Find child period config IDs for this trimester
                     child_cfg_ids = trimester_children.get(config_id, [])
-                    if not child_cfg_ids:
+
+                    # CAS 1: Cycle sans périodes → trimestres sont les unités directes
+                    # Les notes eleve_note → note_bulletin TJ directement
+                    if not child_cfg_ids and not period_configs:
                         continue
 
                     heritage_max = int(c_maxima_tj)
