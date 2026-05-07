@@ -274,18 +274,19 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
 
     bold_center = ParagraphStyle('BoldCenter', parent=style_center, fontName='Helvetica-Bold', fontSize=9, alignment=1)
     small_center = ParagraphStyle('SmallCenter', parent=style_center, fontSize=8, alignment=1)
-    left_bold = ParagraphStyle('LeftBold', parent=style_normal, fontName='Helvetica-Bold', fontSize=10, alignment=0)
+    left_bold = ParagraphStyle('LeftBold', parent=style_normal, fontName='Helvetica-Bold', fontSize=9, alignment=0)
+    small_normal = ParagraphStyle('SmallNormal', parent=style_normal, fontSize=8, alignment=0)
 
-  
+    # ── ROW 0: Header ──
     table_data.append([
-        Paragraph("<b></b>", bold_center),   
-        Paragraph("<b>Trimestre</b>", bold_center),
-        Paragraph("<b>1er</b>", bold_center),
-        Paragraph("<b>2ème</b>", bold_center),
-        Paragraph("<b>3ème</b>", bold_center),
-        Paragraph("<b>Total</b>", bold_center),
-        Paragraph("<b>Qual.</b>", bold_center),
-        Paragraph("<b>coul</b>", bold_center),
+        Paragraph("<b>*</b>", bold_center),
+        Paragraph("<b>TRIMESTRES</b>", bold_center),
+        Paragraph("<b>TRIM 1</b>", bold_center),
+        Paragraph("<b>TRIM 2</b>", bold_center),
+        Paragraph("<b>TRIM 3</b>", bold_center),
+        Paragraph("<b>TOTAL</b>", bold_center),
+        Paragraph("<b>QUAL.</b>", bold_center),
+        Paragraph("<b>COUL</b>", bold_center),
     ])
     current_row = 1
 
@@ -426,38 +427,62 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
 
     compteur_cours = 1
 
-  
+    # ── ROW 1: MAXIMA global (maxima per course per trimester) ──
+    # Get maxima from first course with non-null value
+    maxima_per_trim = 4  # default from official model
+    for dom in ordered_domaines:
+        for cpc in groupes[dom]:
+            if cpc.maxima_exam is not None:
+                maxima_per_trim = int(cpc.maxima_exam)
+                break
+        if maxima_per_trim != 4:
+            break
+    maxima_total = maxima_per_trim * 3
+    table_data.append([
+        Paragraph("<b>*</b>", bold_center),
+        Paragraph("<b>MAXIMA</b>", bold_center),
+        Paragraph(f"<b>{maxima_per_trim}</b>", bold_center),
+        Paragraph(f"<b>{maxima_per_trim}</b>", bold_center),
+        Paragraph(f"<b>{maxima_per_trim}</b>", bold_center),
+        Paragraph(f"<b>{maxima_total}</b>", bold_center),
+        None, None
+    ])
+    current_row += 1
+
+    # ── Group descriptions mapping (official names) ──
+    group_descriptions = {
+        'GROUPE I': 'EDUCATION SENSORIELLE',
+        'GROUPE II': 'EDUCATION MOTRICE',
+        'GROUPE III': 'EDUCATION SOCIALE',
+        'GROUPE IV': 'EDUCATION INTELLECTUELLE',
+    }
+
+    grand_totals = [0.0, 0.0, 0.0]
+    grand_maxima = [0, 0, 0]
+
     for domaine in ordered_domaines:
         if not groupes[domaine]:
             continue
 
-       
-        maxima_periode = groupes[domaine][0].maxima_periode
-        # CAS 2: si maxima_periode est null, utiliser maxima_exam
-        if maxima_periode is None:
-            maxima_periode = groupes[domaine][0].maxima_exam
-        max_val = str(maxima_periode) if maxima_periode is not None else ""
-
-        # Ligne "Groupe X" + Maxima
+        # ── Group header (e.g. "• GROUPE I : EDUCATION SENSORIELLE") ──
+        desc = group_descriptions.get(domaine, '')
+        group_title = f"•    {domaine} : {desc}" if desc else f"•    {domaine}"
         table_data.append([
-            Paragraph(f"<b>{domaine}</b>", left_bold),
-            Paragraph("Maxima", bold_center),
-            Paragraph(max_val, small_center),
-            Paragraph(max_val, small_center),
-            Paragraph(max_val, small_center),
-            None, None, None
+            Paragraph(f"<b>{group_title}</b>", left_bold),
+            None, None, None, None, None, None, None
         ])
+        ts_commands.append(('SPAN', (0, current_row), (7, current_row)))
         current_row += 1
 
-        # Lignes des cours avec notes dynamiques
-        group_totals = [0.0, 0.0, 0.0]  # sum per trimester for sous-total
+        # ── Course lines with notes ──
+        group_totals = [0.0, 0.0, 0.0]
         group_count = [0, 0, 0]
+        nb_cours_in_group = len(groupes[domaine])
+
         for cpc in groupes[domaine]:
-            # Use cours_id (Hub PK) to look up notes — matches _get_bulletin_context mapping
-            cours_pk = cpc.id_cours.pk  # surrogate key = Hub cours.id
+            cours_pk = cpc.id_cours.pk
             cours_notes = notes_par_cours.get(cours_pk, {})
 
-            # Notes pour chaque trimestre (colonnes 2, 3, 4)
             note_vals = []
             note_cells = []
             for i, tcfg in enumerate(trim_config_ids[:3]):
@@ -474,7 +499,7 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
                 note_cells.append(None)
                 note_vals.append(None)
 
-            # Total = sum of trimester notes for this course
+            # Total = sum of trimester notes
             total_val = sum(v for v in note_vals if v is not None)
             has_any = any(v is not None for v in note_vals)
             total_display = ""
@@ -482,137 +507,215 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
                 total_display = str(int(total_val)) if total_val == int(total_val) else f"{total_val:.1f}"
 
             table_data.append([
-                Paragraph(f"{compteur_cours:02d}. {cpc.id_cours.cours}", style_normal),
-                None,
+                Paragraph(f"{compteur_cours}", small_center),
+                Paragraph(f"{cpc.id_cours.cours}", small_normal),
                 note_cells[0], note_cells[1], note_cells[2],
                 Paragraph(total_display, small_center) if total_display else None,
                 None, None
             ])
-            ts_commands.append(('SPAN', (0, current_row), (1, current_row)))
             current_row += 1
             compteur_cours += 1
 
-        # Sous-total per group
+        # ── SOUS-TOTAL with /N format ──
+        st_max_per_trim = nb_cours_in_group * maxima_per_trim
+        st_max_total = st_max_per_trim * 3
+
         st_cells = []
         for i in range(3):
-            if group_count[i] > 0:
-                v = group_totals[i]
-                st_cells.append(Paragraph(str(int(v)) if v == int(v) else f"{v:.1f}", small_center))
-            else:
-                st_cells.append(None)
-        st_total = sum(group_totals)
-        st_total_display = str(int(st_total)) if st_total == int(st_total) else f"{st_total:.1f}" if any(c > 0 for c in group_count) else ""
+            v = group_totals[i]
+            st_cells.append(Paragraph(f"/{st_max_per_trim}", small_center))
+            grand_totals[i] += v
+            grand_maxima[i] += st_max_per_trim
+
         table_data.append([
-            Paragraph("sous-total", left_bold),
-            None,
+            Paragraph("<b>*</b>", bold_center),
+            Paragraph("<b>SOUS - TOTAL</b>", left_bold),
             st_cells[0], st_cells[1], st_cells[2],
-            Paragraph(st_total_display, small_center) if st_total_display else None,
+            Paragraph(f"/{st_max_total}", small_center),
             None, None
         ])
         current_row += 1
 
+    # ── TOTAL GENERAL row ──
+    total_max_per_trim = sum(grand_maxima[i] for i in range(1)) if grand_maxima else 0
+    # Use first trim maxima (all same)
+    tm = grand_maxima[0] if grand_maxima else 0
+    total_max_all = tm * 3
+    table_data.append([
+        None,
+        Paragraph("<b>TOTAL</b>", bold_center),
+        Paragraph(f"<b>/{tm}</b>", bold_center),
+        Paragraph(f"<b>/{tm}</b>", bold_center),
+        Paragraph(f"<b>/{tm}</b>", bold_center),
+        Paragraph(f"<b>/{total_max_all}</b>", bold_center),
+        None, None
+    ])
+    current_row += 1
+
+    # ── APPRECIATION GENERALE ──
     row_apprec = current_row
-    table_data.append([Paragraph("<b>Appréciation générale</b>", left_bold), Paragraph("<b>Tot gen.</b>", small_center), None, None, None, None, None, None])
+    table_data.append([
+        Paragraph("<b>APPRECIATION<br/>GENERALE</b>", left_bold),
+        Paragraph("<b>CONVERSION QUALITATIVE</b>", small_center),
+        None, None, None, None, None, None
+    ])
     current_row += 1
-    table_data.append([None, Paragraph("<b>Qualité</b>", small_center), None, None, None, None, None, None])
-    current_row += 1
-    table_data.append([None, Paragraph("<b>Couleur</b>", small_center), None, None, None, None, None, None])
+    table_data.append([
+        None,
+        Paragraph("<b>COULEURS</b>", small_center),
+        None, None, None, None, None, None
+    ])
     current_row += 1
     ts_commands.extend([
-        ('SPAN', (0, row_apprec), (0, row_apprec + 2)),
-        ('VALIGN', (0, row_apprec), (0, row_apprec + 2), 'MIDDLE')
+        ('SPAN', (0, row_apprec), (0, row_apprec + 1)),
+        ('SPAN', (1, row_apprec), (1, row_apprec)),
+        ('SPAN', (1, row_apprec + 1), (1, row_apprec + 1)),
+        ('VALIGN', (0, row_apprec), (0, row_apprec + 1), 'MIDDLE'),
     ])
 
-    table_data.append([Paragraph("<b>Signatures</b>", bold_center), None, None, None, None, None, None, None])
+    # ── * SIGNATURES header ──
+    table_data.append([
+        Paragraph("<b>*   SIGNATURES</b>", left_bold),
+        None, None, None,
+        Paragraph("Fait à ........................, le ......./......./ 20....", small_normal),
+        None, None, None
+    ])
+    ts_commands.extend([
+        ('SPAN', (0, current_row), (3, current_row)),
+        ('SPAN', (4, current_row), (7, current_row)),
+    ])
     current_row += 1
 
+    # ── TRIMESTRES | INSTITUTEUR (TRICE) | PARENT ──
     margin = 5 * mm
     usable_width = A4[0] - 2 * margin
-    col_widths = [65*mm, 22*mm, 22*mm, 22*mm, 35*mm, 30*mm, 30*mm, 30*mm]
+    col_widths = [15*mm, 50*mm, 22*mm, 22*mm, 22*mm, 25*mm, 22*mm, 22*mm]
     total_w = sum(col_widths)
     if total_w > usable_width:
         ratio = usable_width / total_w
         col_widths = [w * ratio for w in col_widths]
-    sub_col_widths = [col_widths[0] / 2, col_widths[0] / 2]
 
-    # Sous-titre Trimestre / Parent
-    sub_header_data = [[Paragraph("<b>Trimestre</b>", small_center), Paragraph("<b>Parent</b>", small_center)]]
-    sub_header_table = Table(sub_header_data, colWidths=sub_col_widths, rowHeights=6.2*mm)
-    sub_header_table.setStyle(TableStyle([
-        ('LINEBEFORE', (1,0), (1,0), 0.5, colors.black),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-    ]))
-    table_data.append([sub_header_table, Paragraph("<b>Instituteur</b>", small_center), None, None, None, None, None, None])
+    table_data.append([
+        Paragraph("<b>TRIMESTRES</b>", bold_center),
+        None,
+        Paragraph("<b>INSTITUTEUR (TRICE)</b>", bold_center),
+        None,
+        Paragraph("<b>PARENT</b>", bold_center),
+        None,
+        Paragraph("Sceau de l'Ecole", small_center),
+        None,
+    ])
+    ts_commands.extend([
+        ('SPAN', (0, current_row), (1, current_row)),
+        ('SPAN', (2, current_row), (3, current_row)),
+        ('SPAN', (4, current_row), (5, current_row)),
+        ('SPAN', (6, current_row), (7, current_row)),
+    ])
     current_row += 1
 
-    # Lignes Trimestres (1e, 2e, 3e)
-    def make_trim_row(trim_text):
-        trim_data = [[Paragraph(trim_text, style_normal), None]]
-        trim_table = Table(trim_data, colWidths=sub_col_widths, rowHeights=6.2*mm)
-        trim_table.setStyle(TableStyle([
-            ('LINEBEFORE', (1,0), (1,0), 0.5, colors.black),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('ALIGN', (0,0), (0,0), 'LEFT'),
-            ('LEFTPADDING', (0,0), (0,0), 6),
-        ]))
-        return trim_table
-
-    for trim in ["1er Trimestre", "2ème Trimestre", "3ème Trimestre"]:
-        table_data.append([make_trim_row(trim), None, None, None, None, None, None, None])
+    for trim in ["1<super>er</super> TRIMESTRE", "2<super>e</super> TRIMESTRE", "3<super>e</super> TRIMESTRE"]:
+        table_data.append([
+            Paragraph(trim, small_normal), None,
+            None, None, None, None,
+            Paragraph("Le (la) Directeur (trice)", small_center) if trim.startswith("1") else None,
+            None,
+        ])
+        ts_commands.extend([
+            ('SPAN', (0, current_row), (1, current_row)),
+            ('SPAN', (6, current_row), (7, current_row)),
+        ])
         current_row += 1
 
     row_after_trim = current_row
 
-    # Espaces + bas de page
-    table_data.extend([[None]*8] * 2)  
-    current_row += 2
+    # ── LEGENDE ──
+    table_data.extend([[None]*8])
+    current_row += 1
 
     row_legende = current_row
-    table_data.extend([
-        [Paragraph("<b>Légende :</b>", style_normal), None, None, None, None, None, None, None],
-        [Paragraph("Qual. : appréciation qualitative", style_normal), None, None, None, None, None, None, None],
-        [Paragraph("Coul. : couleur correspondante", style_normal), None, None, None, None, None, None, None],
-        [None]*8,
+    # Row 1: LEGENDE | Pourcentages | 100-80 | 79-60 | 59-50 | 49-40 | 39-0
+    table_data.append([
+        Paragraph("<b>LEGENDE</b>", bold_center),
+        Paragraph("<b>Pourcentages</b>", small_center),
+        Paragraph("<b>100-80</b>", small_center),
+        Paragraph("<b>79-60</b>", small_center),
+        Paragraph("<b>59-50</b>", small_center),
+        Paragraph("<b>49-40</b>", small_center),
+        Paragraph("<b>39-0</b>", small_center),
+        None,
     ])
-    current_row += 4
+    current_row += 1
+    # Row 2: | Qualité | E | TB | B | AB | M
+    table_data.append([
+        None,
+        Paragraph("<b>Qualité</b>", small_center),
+        Paragraph("<b>E</b>", small_center),
+        Paragraph("<b>TB</b>", small_center),
+        Paragraph("<b>B</b>", small_center),
+        Paragraph("<b>AB</b>", small_center),
+        Paragraph("<b>M</b>", small_center),
+        None,
+    ])
+    current_row += 1
+    # Row 3: | Couleurs | JAUNE | BLEU | VERT | NOIR | ROUGE
+    table_data.append([
+        None,
+        Paragraph("<b>Couleurs</b>", small_center),
+        Paragraph("JAUNE", small_center),
+        Paragraph("BLEU", small_center),
+        Paragraph("VERT", small_center),
+        Paragraph("NOIR", small_center),
+        Paragraph("ROUGE", small_center),
+        None,
+    ])
+    current_row += 1
+    ts_commands.extend([
+        ('SPAN', (0, row_legende), (0, row_legende + 2)),
+        ('VALIGN', (0, row_legende), (0, row_legende + 2), 'MIDDLE'),
+        ('GRID', (0, row_legende), (6, row_legende + 2), 0.5, colors.black),
+        # Color backgrounds for legende
+        ('BACKGROUND', (2, row_legende + 2), (2, row_legende + 2), colors.yellow),
+        ('BACKGROUND', (3, row_legende + 2), (3, row_legende + 2), colors.HexColor('#4169E1')),
+        ('BACKGROUND', (4, row_legende + 2), (4, row_legende + 2), colors.green),
+        ('BACKGROUND', (5, row_legende + 2), (5, row_legende + 2), colors.black),
+        ('TEXTCOLOR', (5, row_legende + 2), (5, row_legende + 2), colors.white),
+        ('BACKGROUND', (6, row_legende + 2), (6, row_legende + 2), colors.red),
+        ('TEXTCOLOR', (6, row_legende + 2), (6, row_legende + 2), colors.white),
+    ])
+
+    # ── Observations + Note importante ──
+    table_data.extend([[None]*8])
+    current_row += 1
 
     row_obs = current_row
     table_data.extend([
-        [Paragraph("Observation : ................................................", style_normal), None, None, None,
-         Paragraph("Fait à ....... le .../.../20..", style_normal), None, None, None],
+        [Paragraph("<b>Observations :</b> ................................................", small_normal), None, None, None,
+         Paragraph("Fait à ....... le .../.../20..", small_normal), None, None, None],
         [None, None, None, None,
-         Paragraph("Sceau de l'école .................................... le (la) Directeur(trice)", style_normal), None, None, None],
+         Paragraph("Sceau de l'école .................... le (la) Directeur(trice)", small_normal), None, None, None],
     ])
     current_row += 2
 
     row_note = current_row
     table_data.extend([
-        [Paragraph("<i><b>Note importante :</b> le bulletin soit sans valeur s'il est raturé ou surchargé</i>", style_normal),
+        [Paragraph("<i><b>Note importante :</b> le bulletin est sans valeur s'il est raturé ou surchargé</i>", small_normal),
          None, None, None, None, None, None, None],
         [None]*8,
-        [None]*8
     ])
 
-    # STYLES GLOBAUX + DYNAMIQUES
+    # ── STYLES GLOBAUX ──
     ts_commands.extend([
         ('GRID', (0, 0), (-1, row_after_trim - 1), 0.5, colors.black),
-        ('LINEBEFORE', (4, 0), (4, -1), 1.5, colors.black),
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
         ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('LEFTPADDING', (0, 0), (-1, -1), 3),
         ('RIGHTPADDING', (0, 0), (-1, -1), 3),
-        ('ALIGN', (0, row_legende), (7, -1), 'LEFT'),
-        ('VALIGN', (0, row_legende), (7, -1), 'TOP'),
-        ('SPAN', (1, row_legende), (3, row_legende)),
-        ('SPAN', (0, row_legende + 1), (3, row_legende + 1)),
-        ('SPAN', (0, row_legende + 2), (3, row_legende + 2)),
         ('SPAN', (0, row_obs), (3, row_obs)),
         ('SPAN', (4, row_obs), (7, row_obs)),
         ('SPAN', (4, row_obs + 1), (7, row_obs + 1)),
         ('SPAN', (0, row_note), (7, row_note)),
-        ('ALIGN', (0, row_note), (7, row_note), 'CENTER'),
     ])
 
     # Création du tableau principal
