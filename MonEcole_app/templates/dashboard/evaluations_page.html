@@ -543,7 +543,7 @@
 
                 <!-- Period/Exam checkboxes -->
                 <div style="margin-bottom:14px">
-                    <div style="font-size:.74rem;font-weight:700;color:#475569;margin-bottom:8px"><i class="fas fa-calendar-day" style="color:#7c3aed;margin-right:4px"></i>Périodes</div>
+                    <div id="miPeriodLabel" style="font-size:.74rem;font-weight:700;color:#475569;margin-bottom:8px"><i class="fas fa-calendar-day" style="color:#7c3aed;margin-right:4px"></i>Répartitions</div>
                     <div id="miPeriodCheckboxes" style="display:flex;flex-wrap:wrap;gap:6px"></div>
                 </div>
 
@@ -1802,6 +1802,8 @@ async function onMiClasseChange() {
     _miCoursCache = {};
     _miSelectedCours = null;
     _miPreviewData = null;
+    window._miRepartitionsData = [];  // Reset per-class repartitions
+    window._miCycleHasChildren = true;  // assume yes until proven otherwise
 
     document.getElementById('miSelectionArea').style.display = 'none';
     document.getElementById('miEmptyState').style.display = '';
@@ -1811,6 +1813,19 @@ async function onMiClasseChange() {
     if (!classeId) return;
 
     try {
+        // 1. Load cycle-aware repartitions for this class
+        const repRes = await fetch('/api/evaluations/repartitions/?classe_id=' + classeId);
+        const repData = await repRes.json();
+        if (repData.success && repData.repartitions) {
+            window._miRepartitionsData = repData.repartitions;
+            // Determine if cycle has children (periods)
+            const hasLeafs = repData.repartitions.some(r => r.is_leaf !== false);
+            const hasParents = repData.repartitions.some(r => r.is_leaf === false);
+            // If there are only parents (no leafs), or all items are the same type → no children
+            window._miCycleHasChildren = hasLeafs && hasParents;
+        }
+
+        // 2. Load courses
         const res = await fetch('/api/dashboard/attribution-cours/', {
             method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
@@ -1860,7 +1875,42 @@ async function onMiCoursChange() {
 }
 
 function _miRenderCheckboxes() {
-    const reps = window._repartitionsData || [];
+    // Use class-specific repartitions (loaded by onMiClasseChange)
+    const reps = window._miRepartitionsData || [];
+    const cycleHasChildren = window._miCycleHasChildren;
+
+    const periodContainer = document.getElementById('miPeriodCheckboxes');
+    const periodLabel = document.getElementById('miPeriodLabel');
+    if (periodLabel) {
+        periodLabel.innerHTML = cycleHasChildren
+            ? '<i class="fas fa-calendar-day" style="color:#7c3aed;margin-right:4px"></i>Périodes & Examens'
+            : '<i class="fas fa-clipboard-list" style="color:#7c3aed;margin-right:4px"></i>Évaluations';
+    }
+
+    // ─── CAS 1: Cycle WITHOUT periods (e.g., Maternel) ───
+    // Only show parent repartitions as exam/evaluation checkboxes, no periods at all
+    if (!cycleHasChildren) {
+        // All reps are "root" level — show them as direct evaluation entries
+        const rootReps = reps.length > 0 ? reps : [];
+        _miNbPeriodsPerTrimester = 0;  // No periods
+
+        if (rootReps.length === 0) {
+            periodContainer.innerHTML = '<div style="color:#94a3b8;padding:12px;font-style:italic">Aucune répartition configurée pour ce cycle.</div>';
+            document.getElementById('miExamCheckboxes').parentElement.style.display = 'none';
+            return;
+        }
+
+        let html = '<label class="mass-chk-label checked" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border-color:#7c3aed;font-weight:700"><input type="checkbox" checked onchange="miToggleAll(this)"> Tout</label>';
+        rootReps.forEach(r => {
+            const rid = r.id || r.id_instance;
+            html += `<label class="mass-chk-label checked" style="border-color:#dc2626"><input type="checkbox" checked value="${rid}" data-nom="${r.nom || 'Évaluation'}" data-type="exam" onchange="miUpdateSelection()"> 📝 ${r.nom || 'Évaluation'}</label>`;
+        });
+        periodContainer.innerHTML = html;
+        document.getElementById('miExamCheckboxes').parentElement.style.display = 'none';
+        return;
+    }
+
+    // ─── CAS 2: Cycle WITH periods (standard) ───
     const leafReps = reps.filter(r => r.is_leaf !== false);
     const parentReps = reps.filter(r => r.is_leaf === false);
 
@@ -1893,7 +1943,6 @@ function _miRenderCheckboxes() {
     _miNbPeriodsPerTrimester = groupList.length > 0 ? groupList[0].children.length : leafReps.length;
 
     // Render CHRONOLOGICAL: P1, P2, ✏️Examen T1, P3, P4, ✏️Examen T2, ...
-    const periodContainer = document.getElementById('miPeriodCheckboxes');
     let html = '<label class="mass-chk-label checked" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border-color:#7c3aed;font-weight:700"><input type="checkbox" checked onchange="miToggleAll(this)"> Tout</label>';
 
     groupList.forEach(g => {
