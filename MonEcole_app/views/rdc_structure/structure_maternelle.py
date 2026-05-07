@@ -301,8 +301,10 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         return elements
 
     # ── Charger notes via _get_bulletin_context (même pattern que Primaire) ──
-    notes_par_cours = {}  # {cours_id: {config_id: note_val}}
+    notes_par_cours = {}  # {cours_pk: {config_id: note_val}}
     trim_config_ids = []
+    import logging as _log
+    _logger = _log.getLogger(__name__)
     try:
         from django.db import connections
         from MonEcole_app.models.campus import Campus
@@ -310,6 +312,7 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
 
         campus_obj = Campus.objects.filter(idCampus=campus_id).first()
         etab_id_val = campus_obj.id_etablissement if campus_obj else None
+        _logger.warning(f"[MATERNELLE] campus_id={campus_id}, etab_id_val={etab_id_val}, id_eleve={id_eleve}")
 
         # Resolve pays_id
         pays_id_val = None
@@ -317,6 +320,7 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
             from MonEcole_app.models.country_structure import Etablissement
             _etab_obj = Etablissement.objects.filter(id_etablissement=etab_id_val).first()
             pays_id_val = _etab_obj.pays_id if _etab_obj else None
+        _logger.warning(f"[MATERNELLE] pays_id_val={pays_id_val}, ea_id={eac.etablissement_annee_id}")
 
         # 1. Get trimester configs
         if etab_id_val and id_eleve and pays_id_val:
@@ -333,9 +337,11 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
                     ORDER BY ri.ordre
                 """, [eac.etablissement_annee_id, pays_id_val])
                 trim_config_ids = [r[0] for r in hub_cur.fetchall()]
+        _logger.warning(f"[MATERNELLE] trim_config_ids={trim_config_ids}")
 
         # 2. Build mappings via _get_bulletin_context (handles duplicates properly)
         cours_annee_to_cours, config_to_rep, rep_to_code = _get_bulletin_context(eac)
+        _logger.warning(f"[MATERNELLE] cours_annee_to_cours: {len(cours_annee_to_cours)} entries")
 
         # 3. Load notes from note_bulletin
         if trim_config_ids and id_eleve:
@@ -346,6 +352,7 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
                 id_repartition_config__in=trim_config_ids,
                 id_cours_annee__in=cours_annee_to_cours.keys(),
             )
+            _logger.warning(f"[MATERNELLE] NoteBulletin query: {qs.count()} rows for eleve={id_eleve}")
 
             for nb in qs:
                 # Map ca_id → cours_id (via _get_bulletin_context mapping)
@@ -356,10 +363,10 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
                 notes_par_cours.setdefault(cours_id, {})[cfg_id] = (
                     round(float(nb.note), 1) if nb.note is not None else None
                 )
+        _logger.warning(f"[MATERNELLE] notes_par_cours: {len(notes_par_cours)} cours with notes")
 
     except Exception as _e:
-        import logging
-        logging.getLogger(__name__).warning(f"[BULLETIN MATERNELLE] Note loading error: {_e}")
+        _logger.error(f"[BULLETIN MATERNELLE] Note loading error: {_e}", exc_info=True)
 
     # CRITICAL: use pk (surrogate) not id_cours (business key)
     cours_pks = list(Cours.objects.filter(classe_id=hub_classe_id).values_list('pk', flat=True))
