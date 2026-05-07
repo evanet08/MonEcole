@@ -14978,15 +14978,16 @@ def get_evaluations_sessions(request):
 
 @require_http_methods(["GET"])
 def get_evaluations_repartitions(request):
-    """Retourne les répartitions configurées pour une classe, filtrées par cycle.
+    """Retourne les répartitions pour une classe, résolues par cycle et pays.
     
-    Logique de filtrage:
-      1. Trouve le cycle de la classe sélectionnée (via EAC → classe → cycle)
-      2. Trouve le type racine du cycle (Trimestre ou Semestre) via RepartitionConfigCycle
-      3. Trouve les types enfants via RepartitionHierarchie (généralement Période)
-      4. Filtre les configs pour ne garder que les répartitions dont le type
-         correspond au type racine ou ses enfants
-      5. Limite le nombre de répartitions au nombre prévu par la config cycle × hiérarchie
+    Logique (Hub-to-Spoke, national):
+      1. Résout le cycle de la classe (EAC → classe → cycle_id)
+      2. Résout la config cycle → type racine (Trimestre/Semestre) + nombre
+      3. Résout la hiérarchie → type enfant (Période) + nombre par parent
+      4. Charge les repartition_instances filtrées par pays_id + types autorisés
+      5. Limite au nombre prévu par la config
+      
+    Les répartitions sont NATIONALES (par pays + cycle), PAS par établissement.
     """
     try:
         classe_id = request.GET.get('classe_id') or request.GET.get('id_classe_id')
@@ -14997,125 +14998,104 @@ def get_evaluations_repartitions(request):
         if err:
             return err
 
-        annee = Annee.objects.filter(isOpen=True, pays_id=etab.pays_id).first()
-        if not annee:
-            return JsonResponse({'success': True, 'repartitions': []})
-
-        ea = EtablissementAnnee.objects.filter(
-            etablissement_id=etab.id_etablissement,
-            annee=annee
-        ).first()
-        if not ea:
-            return JsonResponse({'success': True, 'repartitions': []})
+        pays_id = etab.pays_id
 
         # Résoudre le cycle de la classe sélectionnée
         eac = EtablissementAnneeClasse.objects.filter(id=classe_id).select_related('classe').first()
+        if not eac:
+            return JsonResponse({'success': True, 'repartitions': [], 'has_children': False})
+
         cycle_id = None
-        if eac and hasattr(eac.classe, 'cycle_id'):
+        if hasattr(eac.classe, 'cycle_id'):
             cycle_id = eac.classe.cycle_id
-        elif eac and hasattr(eac, 'cycle_id'):
+        elif hasattr(eac, 'cycle_id'):
             cycle_id = eac.cycle_id
 
-        # Déterminer les types de répartition autorisés pour ce cycle
-        allowed_type_ids = set()
-        root_count = 0  # nombre de racines (ex: 3 trimestres, 2 semestres)
-        child_count_per_root = 0  # nombre d'enfants par racine (ex: 2 périodes/trimestre)
-        cycle_config = None  # initialized here for safe access later
-        resolved_hier = None  # initialized here for safe access later
+        if not cycle_id:
+            return JsonResponse({'success': True, 'repartitions': [], 'has_children': False})
 
-        if cycle_id:
-            # Config cycle → type racine (ex: Cycle "Ecole de Base" → Semestre, nombre=2)
-            cycle_config = RepartitionConfigCycle.objects.filter(
-                cycle_id=cycle_id, is_active=True, id_pays=etab.pays_id
-            ).select_related('type_racine').first()
+        # 1. Config cycle → type racine + nombre
+        cycle_config = RepartitionConfigCycle.objects.filter(
+            cycle_id=cycle_id, is_active=True, id_pays=pays_id
+        ).select_related('type_racine').first()
 
-            if cycle_config:
-                root_type_id = cycle_config.type_racine_id
-                root_count = cycle_config.nombre_au_niveau_racine
-                allowed_type_ids.add(root_type_id)
+        if not cycle_config:
+            return JsonResponse({'success': True, 'repartitions': [], 'has_children': False})
 
-                # Hiérarchie → types enfants (CYCLE-AWARE: cycle-specific > global)
-                all_hierarchies = RepartitionHierarchie.objects.filter(
-                    type_parent_id=root_type_id, is_active=True, id_pays=etab.pays_id
-                )
-                # Resolve: cycle-specific > global fallback
-                cycle_hier = None
-                global_hier = None
-                for h in all_hierarchies:
-                    if h.cycle_id == cycle_id:
-                        cycle_hier = h
-                        break
-                    elif h.cycle_id is None:
-                        global_hier = h
-                resolved_hier = cycle_hier or global_hier
-                if resolved_hier:
-                    allowed_type_ids.add(resolved_hier.type_enfant_id)
-                    child_count_per_root = resolved_hier.nombre_enfants
+        root_type_id = cycle_config.type_racine_id
+        root_count = cycle_config.nombre_au_niveau_racine
+        allowed_type_ids = {root_type_id}
 
-        # Charger toutes les configs pour cet établissement/année
-        configs = RepartitionConfigEtabAnnee.objects.filter(
-            etablissement_annee=ea
-        ).select_related('repartition', 'repartition__type')
+        # 2. Hiérarchie → type enfant + nombre (cycle-specific > global)
+        resolved_hier = None
+        child_count_per_root = 0
+        all_hierarchies = RepartitionHierarchie.objects.filter(
+            type_parent_id=root_type_id, is_active=True, id_pays=pays_id
+        )
+        cycle_hier = None
+        global_hier = None
+        for h in all_hierarchies:
+            if h.cycle_id == cycle_id:
+                cycle_hier = h
+                break
+            elif h.cycle_id is None:
+                global_hier = h
+        resolved_hier = cycle_hier or global_hier
+        if resolved_hier:
+            allowed_type_ids.add(resolved_hier.type_enfant_id)
+            child_count_per_root = resolved_hier.nombre_enfants
 
-        # Filtrer par types autorisés et limiter le nombre
+        has_children = child_count_per_root > 0 and resolved_hier is not None
+
+        # 3. Charger les repartition_instances NATIONALES (par pays + types autorisés)
+        from MonEcole_app.models.country_structure import RepartitionInstance
+        instances = RepartitionInstance.objects.filter(
+            pays_id=pays_id,
+            type_id__in=allowed_type_ids
+        ).select_related('type').order_by('type_id', 'ordre')
+
+        # 4. Limiter le nombre par type selon la config
         repartitions = []
-        count_by_type = {}  # {type_id: count} pour limiter
+        count_by_type = {}
 
-        for cfg in configs:
-            rep = cfg.repartition
-            type_id = rep.type_id if rep.type else None
-
-            # Si on a un cycle défini, filtrer par types autorisés
-            if allowed_type_ids and type_id not in allowed_type_ids:
-                continue
-
-            # Limiter le nombre par type
+        for inst in instances:
+            type_id = inst.type_id
             if type_id not in count_by_type:
                 count_by_type[type_id] = 0
 
-            # Calculer la limite pour ce type
-            if cycle_id and allowed_type_ids and cycle_config:
-                is_root_type = (type_id == cycle_config.type_racine_id)
-                max_count = root_count if is_root_type else (root_count * child_count_per_root)
-                if count_by_type[type_id] >= max_count:
-                    continue
+            # Limiter
+            is_root_type = (type_id == root_type_id)
+            max_count = root_count if is_root_type else (root_count * child_count_per_root)
+            if count_by_type[type_id] >= max_count:
+                continue
 
             count_by_type[type_id] = count_by_type.get(type_id, 0) + 1
 
-            # Determine if this is a leaf (child/period) or parent (trimester/semester)
-            is_root = (cycle_config and type_id == cycle_config.type_racine_id) if cycle_id else False
-            is_leaf = not is_root  # Children are leaves, root items are not
+            is_leaf = not is_root_type
 
             repartitions.append({
-                'id': cfg.id,
-                'repartition_id': rep.id_instance,
-                'id_instance': rep.id_instance,
-                'nom': rep.nom,
-                'code': rep.code,
-                'type_code': rep.type.code if rep.type else '',
-                'type_nom': rep.type.nom if rep.type else '',
+                'id': inst.id,
+                'repartition_id': inst.id_instance,
+                'id_instance': inst.id_instance,
+                'nom': inst.nom,
+                'code': getattr(inst, 'code', ''),
+                'type_code': inst.type.code if inst.type else '',
+                'type_nom': inst.type.nom if inst.type else '',
                 'type_id': type_id,
-                'is_open': cfg.is_open,
                 'is_leaf': is_leaf,
-                'ordre': rep.ordre,
+                'ordre': inst.ordre,
             })
 
-        # Trier par type puis par ordre
+        # 5. Trier par type puis par ordre
         repartitions.sort(key=lambda r: (r['type_code'], r['ordre']))
 
-        # Resolve parent info for leaf items
-        root_type_id_val = cycle_config.type_racine_id if cycle_config else None
-        child_type_id_val = resolved_hier.type_enfant_id if resolved_hier else None
-        has_children = child_count_per_root > 0 and child_type_id_val is not None
-
+        # 6. Résoudre parent_instance_id pour les enfants
         if has_children:
-            # Build parent groups: split root reps and child reps
-            root_reps = [r for r in repartitions if r.get('type_id') == root_type_id_val]
-            child_reps = [r for r in repartitions if r.get('type_id') == child_type_id_val]
+            root_reps = [r for r in repartitions if r.get('type_id') == root_type_id]
+            child_reps = [r for r in repartitions if r.get('type_id') != root_type_id]
             root_reps.sort(key=lambda x: x['ordre'])
             child_reps.sort(key=lambda x: x['ordre'])
 
-            # Map children to parents by position
             nb_per_parent = child_count_per_root if child_count_per_root > 0 else (len(child_reps) // max(len(root_reps), 1))
             for c_idx, child in enumerate(child_reps):
                 parent_idx = c_idx // nb_per_parent if nb_per_parent > 0 else 0
