@@ -1902,8 +1902,8 @@ function _miRenderCheckboxes() {
 
         let html = '<label class="mass-chk-label checked" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border-color:#7c3aed;font-weight:700"><input type="checkbox" checked onchange="miToggleAll(this)"> Tout</label>';
         displayReps.forEach(r => {
-            const rid = r.id || r.id_instance;
-            // data-type="period" so backend treats these as normal evaluations (not exam SAISIE_DIRECTE)
+            // USE repartition_id (instance ID) — NOT r.id (config ID)!
+            const rid = r.repartition_id || r.id_instance;
             html += `<label class="mass-chk-label checked"><input type="checkbox" checked value="${rid}" data-nom="${r.nom || 'Trimestre'}" data-type="period" onchange="miUpdateSelection()"> ${r.nom || 'Trimestre'}</label>`;
         });
         periodContainer.innerHTML = html;
@@ -1929,7 +1929,10 @@ function _miRenderCheckboxes() {
     });
     // Fallback: if no parent_instance_id, use parentReps directly
     if (Object.keys(groups).length === 0 && parentReps.length > 0) {
-        parentReps.forEach(p => { groups[p.id_instance || p.id] = { parent_nom: p.nom, parent_id: p.id_instance || p.id, children: [] }; });
+        parentReps.forEach(p => {
+            const pInstId = p.repartition_id || p.id_instance;
+            groups[pInstId] = { parent_nom: p.nom, parent_id: pInstId, children: [] };
+        });
         // Distribute orphan leafs across parents by order
         orphanLeafs.forEach((r, i) => {
             const gKeys = Object.keys(groups);
@@ -1947,20 +1950,20 @@ function _miRenderCheckboxes() {
     let html = '<label class="mass-chk-label checked" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border-color:#7c3aed;font-weight:700"><input type="checkbox" checked onchange="miToggleAll(this)"> Tout</label>';
 
     groupList.forEach(g => {
-        // Children periods
+        // Children periods — USE repartition_id (instance ID)
         g.children.forEach(r => {
-            const pid = r.id || r.id_instance;
-            html += `<label class="mass-chk-label checked"><input type="checkbox" checked value="${pid}" data-nom="${r.nom || 'Période'}" data-type="period" data-parent="${g.parent_id}" onchange="miUpdateSelection()"> ${r.nom || 'Période'}</label>`;
+            const repId = r.repartition_id || r.id_instance;
+            html += `<label class="mass-chk-label checked"><input type="checkbox" checked value="${repId}" data-nom="${r.nom || 'Période'}" data-type="period" data-parent="${g.parent_id}" onchange="miUpdateSelection()"> ${r.nom || 'Période'}</label>`;
         });
-        // Exam column for this parent
+        // Exam column for this parent — parent_id is already instance ID
         html += `<label class="mass-chk-label" style="border-color:#dc2626"><input type="checkbox" value="${g.parent_id}" data-nom="${g.parent_nom}" data-type="exam" onchange="miUpdateSelection()"> 📝 ${g.parent_nom}</label>`;
     });
 
     // Orphan leafs (no parent) — just list them
     if (groupList.length === 0) {
         orphanLeafs.forEach(r => {
-            const pid = r.id || r.id_instance;
-            html += `<label class="mass-chk-label checked"><input type="checkbox" checked value="${pid}" data-nom="${r.nom || 'Période'}" data-type="period" onchange="miUpdateSelection()"> ${r.nom || 'Période'}</label>`;
+            const repId = r.repartition_id || r.id_instance;
+            html += `<label class="mass-chk-label checked"><input type="checkbox" checked value="${repId}" data-nom="${r.nom || 'Période'}" data-type="period" onchange="miUpdateSelection()"> ${r.nom || 'Période'}</label>`;
         });
     }
 
