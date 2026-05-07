@@ -364,6 +364,20 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     # CRITICAL: use pk (surrogate) not id_cours (business key)
     cours_pks = list(Cours.objects.filter(classe_id=hub_classe_id).values_list('pk', flat=True))
 
+    # Resolve domaine names from Hub (Cours.domaine_id → domaines.nom)
+    domaine_names = {}
+    try:
+        from django.db import connections as _conns
+        domaine_ids = set(Cours.objects.filter(pk__in=cours_pks).values_list('domaine_id', flat=True))
+        if domaine_ids:
+            with _conns['countryStructure'].cursor() as _dc:
+                _dc.execute("SELECT id, nom FROM domaines WHERE id IN ({})".format(
+                    ','.join(str(int(d)) for d in domaine_ids if d)
+                ))
+                domaine_names = {r[0]: r[1] for r in _dc.fetchall()}
+    except Exception:
+        pass
+
     cours_par_classe_qs = Cours_par_classe.objects.filter(
         id_cours_id__in=cours_pks,
         id_annee_id=annee_id,
@@ -379,7 +393,9 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
             continue 
         seen_cours_ids.add(cours_id)
 
-        domaine = (cpc.id_cours.domaine or "Sans groupe").strip()
+        # Resolve domaine name from Hub lookup
+        d_id = cpc.id_cours.domaine_id
+        domaine = domaine_names.get(d_id, "Sans groupe").strip() if d_id else "Sans groupe"
         groupes[domaine].append(cpc)
 
  
