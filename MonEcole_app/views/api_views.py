@@ -11674,124 +11674,207 @@ def sync_all_notes_bulletin(request):
                 calculated = 0
 
                 # CAS 2: Cycle SANS périodes (ex: Maternel)
-                # Les trimestres deviennent les unités de base pour PHASE 1
+                # Trimestres = unités de base. Note directe = note brute, maxima = maxima_exam.
                 _is_cycle_sans_periodes = (len(child_configs) == 0 and len(parent_configs) > 0)
+
                 if _is_cycle_sans_periodes:
-                    child_configs = list(parent_configs)
-                    # Override maxima: use maxima_exam since no TJ for this cycle
-                    for cid in cours_ids:
-                        if not cours_maximas_tj.get(cid):
-                            cours_maximas_tj[cid] = cours_maximas_exam.get(cid)
-
-                # ============================================
-                # PHASE 1: Process CHILDREN (periods → TJ)
-                # For CAS 2: trimesters are treated as periods
-                # ============================================
-                for cfg in child_configs:
-                    config_id = cfg['config_id']
-                    rep_type_id = cfg['type_id']
-                    nts = note_types_by_rep_type.get(rep_type_id, [])
-                    tj_nt = next((n for n in nts if n['sigle'] == 'TJ'), None)
-                    if not tj_nt:
-                        continue
-
-                    tj_nt_id = tj_nt['id_type_note']
-
-                    # Count sibling periods (same type, same etab_annee)
-                    cur.execute("""
-                        SELECT COUNT(*) AS nb_periodes
-                        FROM countryStructure.repartition_configs_etab_annee rc
-                        JOIN countryStructure.repartition_instances r ON r.id = rc.repartition_id
-                        WHERE rc.etablissement_annee_id = %s AND r.type_id = %s AND rc.is_open = 1
-                    """, [ctx['etab_annee_id'], rep_type_id])
-                    cnt_row = cur.fetchone()
-                    nombre_de_periodes = int(cnt_row['nb_periodes']) if cnt_row and cnt_row['nb_periodes'] and cnt_row['nb_periodes'] > 0 else 1
-
-                    for cours_id in cours_ids:
-                        c_maxima_tj = cours_maximas_tj.get(cours_id)
-                        if c_maxima_tj:
-                            period_max = round(float(c_maxima_tj) / nombre_de_periodes, 2)
-                        else:
-                            period_max = tj_nt['ponderation_max'] or 20
-
-                        # Get evaluations assigned to this config+cours
-                        cur.execute("""
-                            SELECT ev.id_evaluation, ev.ponderer_eval
-                            FROM evaluation ev
-                            JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
-                            WHERE er.id_repartition_config = %s
-                              AND ev.id_cours_classe_id = %s
-                              AND ev.id_etablissement = %s
-                        """, [config_id, cours_id, etab_id])
-                        evals = cur.fetchall()
-
-                        if not evals:
+                    # ── CYCLE SANS PÉRIODES: note directe par trimestre ──
+                    for cfg in parent_configs:
+                        config_id = cfg['config_id']
+                        rep_type_id = cfg['type_id']
+                        nts = note_types_by_rep_type.get(rep_type_id, [])
+                        tj_nt = next((n for n in nts if n['sigle'] == 'TJ'), None)
+                        if not tj_nt:
                             continue
+                        tj_nt_id = tj_nt['id_type_note']
 
-                        eval_ids = [e['id_evaluation'] for e in evals]
-                        if not eval_ids:
-                            continue
+                        for cours_id in cours_ids:
+                            # maxima = maxima_exam du cours (COALESCE résout les doublons NULL)
+                            c_maxima = cours_maximas_exam.get(cours_id)
+                            if not c_maxima:
+                                c_maxima = cours_maximas_tj.get(cours_id) or 20
 
-                        placeholders = ','.join(['%s'] * len(eval_ids))
-
-                        for eleve_id in eleve_ids:
-                            # Skip if SAISIE_DIRECTE already exists
+                            # Get evaluations assigned to this config+cours
                             cur.execute("""
-                                SELECT source_type FROM note_bulletin
-                                WHERE id_eleve_id = %s AND id_cours_annee = %s
-                                  AND id_repartition_config = %s AND id_note_type = %s
-                                  AND source_type = 'SAISIE_DIRECTE'
-                            """, [eleve_id, cours_id, config_id, tj_nt_id])
-                            if cur.fetchone():
+                                SELECT ev.id_evaluation, ev.ponderer_eval
+                                FROM evaluation ev
+                                JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
+                                WHERE er.id_repartition_config = %s
+                                  AND ev.id_cours_classe_id = %s
+                                  AND ev.id_etablissement = %s
+                            """, [config_id, cours_id, etab_id])
+                            evals = cur.fetchall()
+                            if not evals:
                                 continue
 
-                            # Fetch individual notes for each evaluation
-                            cur.execute(f"""
-                                SELECT en.id_evaluation_id, en.note
-                                FROM eleve_note en
-                                WHERE en.id_eleve_id = %s
-                                  AND en.id_evaluation_id IN ({placeholders})
-                            """, [eleve_id] + eval_ids)
-                            raw_notes = {r['id_evaluation_id']: float(r['note']) if r['note'] is not None else None
-                                         for r in cur.fetchall()}
+                            eval_ids = [e['id_evaluation'] for e in evals]
+                            placeholders = ','.join(['%s'] * len(eval_ids))
 
-                            # Normalized weighted calculation:
-                            # - Normalize each note to [0,1] (note / eval_max)
-                            # - Apply equal weight to each evaluation
-                            # - Scale result to period_max
-                            n_evals_count = len(evals)
-                            equal_weight = 100.0 / n_evals_count if n_evals_count > 0 else 0
-                            weighted_sum = 0.0
-                            weight_used = 0.0
-                            for ev in evals:
-                                note = raw_notes.get(ev['id_evaluation'])
-                                ev_max = ev['ponderer_eval'] or 0
-                                if note is not None and ev_max > 0:
-                                    normalized = note / ev_max  # [0,1]
-                                    weighted_sum += normalized * equal_weight
-                                    weight_used += equal_weight
-
-                            if weight_used > 0:
-                                scaled = round((weighted_sum / weight_used) * period_max, 2)
-                            else:
-                                scaled = None
-
-                            if scaled is not None:
+                            for eleve_id in eleve_ids:
+                                # Skip SAISIE_DIRECTE
                                 cur.execute("""
-                                    INSERT INTO note_bulletin
-                                        (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                         note, maxima, source_type, date_calcul, id_etablissement, id_pays)
-                                    VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', NOW(), %s, %s)
-                                    ON DUPLICATE KEY UPDATE
-                                        note = VALUES(note), maxima = VALUES(maxima),
-                                        date_calcul = NOW(), updated_at = NOW()
-                                """, [eleve_id, cours_id, config_id, tj_nt_id, scaled, period_max, etab_id, etab.pays_id])
-                                calculated += 1
+                                    SELECT 1 FROM note_bulletin
+                                    WHERE id_eleve_id=%s AND id_cours_annee=%s
+                                      AND id_repartition_config=%s AND id_note_type=%s
+                                      AND source_type='SAISIE_DIRECTE'
+                                """, [eleve_id, cours_id, config_id, tj_nt_id])
+                                if cur.fetchone():
+                                    continue
+
+                                # Fetch raw notes
+                                cur.execute(f"""
+                                    SELECT en.id_evaluation_id, en.note
+                                    FROM eleve_note en
+                                    WHERE en.id_eleve_id = %s
+                                      AND en.id_evaluation_id IN ({placeholders})
+                                """, [eleve_id] + eval_ids)
+                                raw_notes = {r['id_evaluation_id']: float(r['note']) if r['note'] is not None else None
+                                             for r in cur.fetchall()}
+
+                                # 1 eval par trimestre → note directe
+                                # Si plusieurs evals: moyenne pondérée puis scale à maxima_exam
+                                if len(evals) == 1:
+                                    note_val = raw_notes.get(evals[0]['id_evaluation'])
+                                else:
+                                    # Moyenne pondérée normalisée
+                                    n_evals = len(evals)
+                                    w = 100.0 / n_evals if n_evals > 0 else 0
+                                    ws, wu = 0.0, 0.0
+                                    for ev in evals:
+                                        n = raw_notes.get(ev['id_evaluation'])
+                                        mx = ev['ponderer_eval'] or 0
+                                        if n is not None and mx > 0:
+                                            ws += (n / mx) * w
+                                            wu += w
+                                    note_val = round((ws / wu) * float(c_maxima), 2) if wu > 0 else None
+
+                                if note_val is not None:
+                                    # PLAFONNEMENT: note ≤ maxima
+                                    if note_val > float(c_maxima):
+                                        note_val = float(c_maxima)
+
+                                    cur.execute("""
+                                        INSERT INTO note_bulletin
+                                            (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
+                                             note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                                        VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', NOW(), %s, %s)
+                                        ON DUPLICATE KEY UPDATE
+                                            note=VALUES(note), maxima=VALUES(maxima),
+                                            date_calcul=NOW(), updated_at=NOW()
+                                    """, [eleve_id, cours_id, config_id, tj_nt_id,
+                                          round(note_val, 2), int(c_maxima), etab_id, etab.pays_id])
+                                    calculated += 1
+
+                    # Cycle sans périodes: pas de PHASE 2 (pas de parent à agréger)
+
+                else:
+                    # ── CYCLE AVEC PÉRIODES: logique existante ──
+                    # PHASE 1: Process CHILDREN (periods → TJ)
+                    for cfg in child_configs:
+                        config_id = cfg['config_id']
+                        rep_type_id = cfg['type_id']
+                        nts = note_types_by_rep_type.get(rep_type_id, [])
+                        tj_nt = next((n for n in nts if n['sigle'] == 'TJ'), None)
+                        if not tj_nt:
+                            continue
+
+                        tj_nt_id = tj_nt['id_type_note']
+
+                        # Count sibling periods (same type, same etab_annee)
+                        cur.execute("""
+                            SELECT COUNT(*) AS nb_periodes
+                            FROM countryStructure.repartition_configs_etab_annee rc
+                            JOIN countryStructure.repartition_instances r ON r.id = rc.repartition_id
+                            WHERE rc.etablissement_annee_id = %s AND r.type_id = %s AND rc.is_open = 1
+                        """, [ctx['etab_annee_id'], rep_type_id])
+                        cnt_row = cur.fetchone()
+                        nombre_de_periodes = int(cnt_row['nb_periodes']) if cnt_row and cnt_row['nb_periodes'] and cnt_row['nb_periodes'] > 0 else 1
+
+                        for cours_id in cours_ids:
+                            c_maxima_tj = cours_maximas_tj.get(cours_id)
+                            if c_maxima_tj:
+                                period_max = round(float(c_maxima_tj) / nombre_de_periodes, 2)
+                            else:
+                                period_max = tj_nt['ponderation_max'] or 20
+
+                            # Get evaluations assigned to this config+cours
+                            cur.execute("""
+                                SELECT ev.id_evaluation, ev.ponderer_eval
+                                FROM evaluation ev
+                                JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
+                                WHERE er.id_repartition_config = %s
+                                  AND ev.id_cours_classe_id = %s
+                                  AND ev.id_etablissement = %s
+                            """, [config_id, cours_id, etab_id])
+                            evals = cur.fetchall()
+
+                            if not evals:
+                                continue
+
+                            eval_ids = [e['id_evaluation'] for e in evals]
+                            if not eval_ids:
+                                continue
+
+                            placeholders = ','.join(['%s'] * len(eval_ids))
+
+                            for eleve_id in eleve_ids:
+                                # Skip if SAISIE_DIRECTE already exists
+                                cur.execute("""
+                                    SELECT source_type FROM note_bulletin
+                                    WHERE id_eleve_id = %s AND id_cours_annee = %s
+                                      AND id_repartition_config = %s AND id_note_type = %s
+                                      AND source_type = 'SAISIE_DIRECTE'
+                                """, [eleve_id, cours_id, config_id, tj_nt_id])
+                                if cur.fetchone():
+                                    continue
+
+                                # Fetch individual notes for each evaluation
+                                cur.execute(f"""
+                                    SELECT en.id_evaluation_id, en.note
+                                    FROM eleve_note en
+                                    WHERE en.id_eleve_id = %s
+                                      AND en.id_evaluation_id IN ({placeholders})
+                                """, [eleve_id] + eval_ids)
+                                raw_notes = {r['id_evaluation_id']: float(r['note']) if r['note'] is not None else None
+                                             for r in cur.fetchall()}
+
+                                n_evals_count = len(evals)
+                                equal_weight = 100.0 / n_evals_count if n_evals_count > 0 else 0
+                                weighted_sum = 0.0
+                                weight_used = 0.0
+                                for ev in evals:
+                                    note = raw_notes.get(ev['id_evaluation'])
+                                    ev_max = ev['ponderer_eval'] or 0
+                                    if note is not None and ev_max > 0:
+                                        normalized = note / ev_max
+                                        weighted_sum += normalized * equal_weight
+                                        weight_used += equal_weight
+
+                                if weight_used > 0:
+                                    scaled = round((weighted_sum / weight_used) * period_max, 2)
+                                    # PLAFONNEMENT
+                                    if scaled > period_max:
+                                        scaled = period_max
+                                else:
+                                    scaled = None
+
+                                if scaled is not None:
+                                    cur.execute("""
+                                        INSERT INTO note_bulletin
+                                            (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
+                                             note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                                        VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', NOW(), %s, %s)
+                                        ON DUPLICATE KEY UPDATE
+                                            note = VALUES(note), maxima = VALUES(maxima),
+                                            date_calcul = NOW(), updated_at = NOW()
+                                    """, [eleve_id, cours_id, config_id, tj_nt_id, scaled, period_max, etab_id, etab.pays_id])
+                                    calculated += 1
 
                 # ============================================
                 # PHASE 2: Process PARENTS (trimestres/semestres → HERITAGE + FORMULE)
+                # SKIP for cycles sans périodes (already handled above)
                 # ============================================
-                for cfg in parent_configs:
+                for cfg in (parent_configs if not _is_cycle_sans_periodes else []):
                     config_id = cfg['config_id']
                     rep_type_id = cfg['type_id']
                     nts = note_types_by_rep_type.get(rep_type_id, [])
