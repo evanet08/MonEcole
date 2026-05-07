@@ -472,7 +472,7 @@ def generer_bulletin_pdf(request):
                         elements.append(PageBreak())
 
                     elements.append(Spacer(1, 3*mm))
-                    institution = Institution.objects.filter(id_ecole=idCampus).first()
+                    institution = Institution.objects.filter(id_ecole=idCampus, pays_id=_pdf_pays_id).first() if _pdf_pays_id else Institution.objects.filter(id_ecole=idCampus).first()
                     logo_path = institution.logo_ecole.path if institution.logo_ecole else None
                     emblem_path = institution.logo_ministere.path if institution.logo_ministere else None
                     check_image_paths(logo_path, emblem_path)

@@ -25,6 +25,7 @@ class Institution(models.Model):
     representant = models.CharField(max_length=200, null=True, blank=True)
     b_postale = models.CharField(max_length=50, null=True, blank=True, db_column='boite_postale')
     emplacement = models.CharField(max_length=200, null=True, blank=True)
+    pays_id = models.IntegerField(null=True, blank=True)
 
     def __str__(self):
         return self.nom_ecole
