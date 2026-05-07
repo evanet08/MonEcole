@@ -473,8 +473,23 @@ def generer_bulletin_pdf(request):
 
                     elements.append(Spacer(1, 3*mm))
                     institution = Institution.objects.filter(id_ecole=idCampus, pays_id=_pdf_pays_id).first() if _pdf_pays_id else Institution.objects.filter(id_ecole=idCampus).first()
-                    logo_path = institution.logo_ecole.path if institution.logo_ecole else None
-                    emblem_path = institution.logo_ministere.path if institution.logo_ministere else None
+                    # Safe logo path resolution (handles absolute paths stored in DB)
+                    import os as _os
+                    _media_root = getattr(__import__('django.conf', fromlist=['settings']).settings, 'MEDIA_ROOT', '')
+                    logo_path = None
+                    emblem_path = None
+                    if institution and institution.logo_ecole:
+                        try:
+                            logo_path = institution.logo_ecole.path
+                        except Exception:
+                            _lp = str(institution.logo_ecole)
+                            logo_path = _os.path.join(_media_root, _lp.lstrip('/')) if _lp else None
+                    if institution:
+                        try:
+                            _em = institution.logo_ministere
+                            emblem_path = _em.path if _em else None
+                        except Exception:
+                            emblem_path = None
                     check_image_paths(logo_path, emblem_path)
 
                     create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=eleve)
