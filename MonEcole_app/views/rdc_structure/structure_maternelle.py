@@ -643,14 +643,11 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     ts_commands.append(('SPAN', (0, row_t3), (1, row_t3)))
     current_row += 1
 
-    # Right side: ONE big merge from row_sig→row_t1 (Fait à + Sceau + Directeur)
-    # Then separate merge for 2e+3e trimestre
+    # Right side: ONE big merge from row_sig→row_t3 (no internal lines)
     ts_commands.extend([
-        ('SPAN', (4, row_sig), (7, row_t1)),
-        ('VALIGN', (4, row_sig), (7, row_t1), 'MIDDLE'),
-        ('ALIGN', (4, row_sig), (7, row_t1), 'CENTER'),
-        ('SPAN', (4, row_t2), (7, row_t3)),
-        ('VALIGN', (4, row_t2), (7, row_t3), 'MIDDLE'),
+        ('SPAN', (4, row_sig), (7, row_t3)),
+        ('VALIGN', (4, row_sig), (7, row_t3), 'MIDDLE'),
+        ('ALIGN', (4, row_sig), (7, row_t3), 'CENTER'),
     ])
 
     # ── LEGENDE (3 rows) — cols 0+1 merged vertically, values in cols 2-7 ──
