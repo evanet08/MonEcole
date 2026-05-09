@@ -615,23 +615,22 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         Paragraph("<b>TRIMESTRES</b>", bold_center),
         None,
         Paragraph("<b>INSTITUTEUR (TRICE)</b>", bold_center),
-        None,
         Paragraph("<b>PARENT</b>", bold_center),
         Paragraph("Sceau de l'Ecole", small_center),
-        None, None,
+        None, None, None,
     ])
     ts_commands.extend([
         ('SPAN', (0, row_th), (1, row_th)),
-        ('SPAN', (2, row_th), (3, row_th)),
+        ('SPAN', (4, row_th), (7, row_th)),
     ])
     current_row += 1
 
-    # 1er, 2e, 3e TRIMESTRE — all merge cols 0+1
+    # 1er, 2e, 3e TRIMESTRE — cols 0+1 merged, cols 4-7 for right side
     row_t1 = current_row
     table_data.append([Paragraph("1<super>er</super> TRIMESTRE", small_normal),
-                        None, None, None, None,
+                        None, None, None,
                         Paragraph("Le (la) Directeur (trice)", small_center),
-                        None, None])
+                        None, None, None])
     ts_commands.append(('SPAN', (0, row_t1), (1, row_t1)))
     current_row += 1
 
@@ -647,13 +646,13 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     ts_commands.append(('SPAN', (0, row_t3), (1, row_t3)))
     current_row += 1
 
-    # Right side: Sceau merged header+1er, Directeur merged 1er+2e+3e
+    # Right side: Sceau merged header+1er, Directeur merged 1er→3e
     ts_commands.extend([
-        ('SPAN', (5, row_th), (7, row_t1)),
-        ('VALIGN', (5, row_th), (7, row_t1), 'MIDDLE'),
-        ('SPAN', (5, row_t1), (7, row_t1)),
-        ('SPAN', (5, row_t2), (7, row_t3)),
-        ('VALIGN', (5, row_t2), (7, row_t3), 'MIDDLE'),
+        ('SPAN', (4, row_th), (7, row_t1)),
+        ('VALIGN', (4, row_th), (7, row_t1), 'MIDDLE'),
+        ('SPAN', (4, row_t1), (7, row_t1)),
+        ('SPAN', (4, row_t2), (7, row_t3)),
+        ('VALIGN', (4, row_t2), (7, row_t3), 'MIDDLE'),
     ])
 
     # ── LEGENDE (3 rows) — cols 0+1 merged vertically, values in cols 2-7 ──
