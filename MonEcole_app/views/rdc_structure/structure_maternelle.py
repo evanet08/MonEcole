@@ -542,79 +542,72 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
 
     # =====================================================================
     # BAS DE PAGE – REPRODUCTION STRICTE du modèle officiel RDC Maternelle
+    # UN SEUL TABLEAU – colspan/rowspan uniquement – AUCUN sous-tableau
     # =====================================================================
 
-    # Additional paragraph styles for bottom section
     small_left_bold = ParagraphStyle('SmallLeftBold', parent=style_normal,
                                       fontName='Helvetica-Bold', fontSize=8, alignment=0)
     tiny_normal = ParagraphStyle('TinyNormal', parent=style_normal, fontSize=6.5, alignment=0)
-    tiny_center = ParagraphStyle('TinyCenter', parent=style_normal, fontSize=6.5, alignment=1)
-    tiny_italic = ParagraphStyle('TinyItalic', parent=style_normal,
-                                  fontName='Helvetica-Oblique', fontSize=6, alignment=1)
-    footer_style = ParagraphStyle('FooterStyle', parent=style_normal,
-                                   fontName='Helvetica-BoldOblique', fontSize=7, alignment=1,
-                                   textDecoration='underline')
+    appre_style = ParagraphStyle('ApprecBold', parent=style_normal,
+                                  fontName='Helvetica-Bold', fontSize=8, alignment=0, leading=10)
 
-    # ── APPRECIATION GENERALE (3 rows, col 0 merged vertically) ──
+    # ── APPRECIATION GENERALE (3 rows) ──
+    # Col 0 merged vertically = "APPRECIATION GENERALE" (small font to fit 12mm)
+    # Col 1 = TOTAL / CONVERSION QUALITATIVE / COULEURS (labels)
+    # Cols 2-5 = /trim values aligned with TRIM 1/2/3/TOTAL headers
+    # Cols 6-7 = barcode zone (merged over 3 rows)
     row_apprec = current_row
 
-    # Row 1: APPRECIATION GENERALE | TOTAL | /48 | /48 | /48 | /144 | [barcode zone]
     table_data.append([
-        Paragraph("<b>APPRECIATION<br/>GENERALE</b>", ParagraphStyle(
+        Paragraph("<b>APPR<br/>ECIAT<br/>ION<br/>GENE<br/>RALE</b>", ParagraphStyle(
             'ApprecBold', parent=style_normal, fontName='Helvetica-Bold',
-            fontSize=9, alignment=0, leading=11)),
+            fontSize=6, alignment=1, leading=7)),
         Paragraph("<b>TOTAL</b>", bold_center),
         Paragraph(f"<b>/{tm}</b>", bold_center),
         Paragraph(f"<b>/{tm}</b>", bold_center),
         Paragraph(f"<b>/{tm}</b>", bold_center),
         Paragraph(f"<b>/{total_max_all}</b>", bold_center),
-        None, None
+        None, None,
     ])
     current_row += 1
 
-    # Row 2: [merged] | CONVERSION QUALITATIVE | empty cells | [barcode zone]
     table_data.append([
         None,
         Paragraph("<b>CONVERSION QUALITATIVE</b>", small_center),
-        None, None, None, None, None, None
+        None, None, None, None, None, None,
     ])
     current_row += 1
 
-    # Row 3: [merged] | COULEURS | empty cells | [barcode zone]
     table_data.append([
         None,
         Paragraph("<b>COULEURS</b>", small_center),
-        None, None, None, None, None, None
+        None, None, None, None, None, None,
     ])
     current_row += 1
 
-    # Merges for APPRECIATION GENERALE
     ts_commands.extend([
-        # Col 0 merged over 3 rows
-        ('SPAN', (0, row_apprec), (0, row_apprec + 2)),
+        ('SPAN', (0, row_apprec), (0, row_apprec + 2)),   # Col 0 merged over 3 rows
         ('VALIGN', (0, row_apprec), (0, row_apprec + 2), 'MIDDLE'),
-        ('LEFTPADDING', (0, row_apprec), (0, row_apprec + 2), 4),
-        # Barcode zone: cols 6-7 merged over 3 rows
-        ('SPAN', (6, row_apprec), (7, row_apprec + 2)),
+        ('SPAN', (6, row_apprec), (7, row_apprec + 2)),   # Barcode cols 6-7, 3 rows
     ])
 
-    # ── * SIGNATURES line ──
-    row_signatures = current_row
+    # ── * SIGNATURES ──
+    row_sig = current_row
     table_data.append([
         Paragraph("<b>*</b>", bold_center),
         Paragraph("<b>SIGNATURES</b>", small_left_bold),
         None, None,
-        Paragraph("Fait à .............................., le ......./......./ 20....", small_normal),
-        None, None, None
+        Paragraph("Fait à ..............................., le ......./ ......./ 20.....", small_normal),
+        None, None, None,
     ])
     ts_commands.extend([
-        ('SPAN', (1, row_signatures), (3, row_signatures)),
-        ('SPAN', (4, row_signatures), (7, row_signatures)),
+        ('SPAN', (1, row_sig), (3, row_sig)),
+        ('SPAN', (4, row_sig), (7, row_sig)),
     ])
     current_row += 1
 
-    # ── TRIMESTRES / INSTITUTEUR (TRICE) / PARENT header ──
-    row_trim_header = current_row
+    # ── TRIMESTRES / INSTITUTEUR (TRICE) / PARENT / Sceau ──
+    row_th = current_row
     table_data.append([
         Paragraph("<b>TRIMESTRES</b>", bold_center),
         Paragraph("<b>INSTITUTEUR (TRICE)</b>", bold_center),
@@ -625,55 +618,51 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         None,
     ])
     ts_commands.extend([
-        ('SPAN', (1, row_trim_header), (3, row_trim_header)),
-        ('SPAN', (4, row_trim_header), (5, row_trim_header)),
+        ('SPAN', (1, row_th), (3, row_th)),
+        ('SPAN', (4, row_th), (5, row_th)),
     ])
     current_row += 1
 
-    # ── 1er TRIMESTRE row ──
-    row_trim1 = current_row
+    # 1er TRIMESTRE
+    row_t1 = current_row
     table_data.append([
         Paragraph("1<super>er</super> TRIMESTRE", small_normal),
-        None, None, None, None, None,
-        None, None,
+        None, None, None, None, None, None, None,
     ])
     current_row += 1
 
-    # ── 2e TRIMESTRE ──
-    row_trim2 = current_row
+    # 2e TRIMESTRE
+    row_t2 = current_row
     table_data.append([
         Paragraph("2<super>e</super> TRIMESTRE", small_normal),
         None, None, None, None, None, None, None,
     ])
     current_row += 1
 
-    # ── 3e TRIMESTRE ──
-    row_trim3 = current_row
+    # 3e TRIMESTRE
+    row_t3 = current_row
     table_data.append([
         Paragraph("3<super>e</super> TRIMESTRE", small_normal),
         None, None, None, None, None, None, None,
     ])
     current_row += 1
 
-    # Right side: Sceau de l'Ecole merged over trim header + 1er trim, then Directeur over 2e+3e
+    # Right side merges: Sceau (header+1er) + Directeur (2e+3e)
     ts_commands.extend([
-        ('SPAN', (6, row_trim_header), (7, row_trim1)),  # "Sceau de l'Ecole" merged
-        ('VALIGN', (6, row_trim_header), (7, row_trim1), 'TOP'),
+        ('SPAN', (6, row_th), (7, row_t1)),
+        ('VALIGN', (6, row_th), (7, row_t1), 'MIDDLE'),
+        ('SPAN', (6, row_t2), (7, row_t3)),
+        ('VALIGN', (6, row_t2), (7, row_t3), 'MIDDLE'),
     ])
-    # "Le (la) Directeur (trice)" merged over rows 2e and 3e trimestre
-    table_data[row_trim2][6] = Paragraph(
-        "Le (la) Directeur (trice)", small_center)
-    ts_commands.extend([
-        ('SPAN', (6, row_trim2), (7, row_trim3)),
-        ('VALIGN', (6, row_trim2), (7, row_trim3), 'TOP'),
-    ])
+    table_data[row_t2][6] = Paragraph("Le (la) Directeur (trice)", small_center)
 
-    row_after_trim = current_row
+    # ── LEGENDE (3 rows) ──
+    # Col 0 = "LEGENDE" merged vertically
+    # Col 1 = Pourcentages/Qualité/Couleurs labels
+    # Cols 2-6 = 5 value bands (100-80, 79-60, 59-50, 49-40, 39-0)
+    # Col 7 = empty
+    row_leg = current_row
 
-    # ── LEGENDE (3 rows, col 0 "LEGENDE" merged vertically) ──
-    row_legende = current_row
-
-    # Row 1: LEGENDE | Pourcentages | 100-80 | 79-60 | 59-50 | 49-40 | 39-0
     table_data.append([
         Paragraph("<b>LEGENDE</b>", bold_center),
         Paragraph("<b>Pourcentages</b>", small_center),
@@ -686,7 +675,6 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     ])
     current_row += 1
 
-    # Row 2: [merged] | Qualité | E | TB | B | AB | M
     table_data.append([
         None,
         Paragraph("<b>Qualité</b>", small_center),
@@ -699,7 +687,6 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     ])
     current_row += 1
 
-    # Row 3: [merged] | Couleurs | JAUNE | BLEU | VERT | NOIR | ROUGE
     table_data.append([
         None,
         Paragraph("<b>Couleurs</b>", small_center),
@@ -713,33 +700,31 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     current_row += 1
 
     ts_commands.extend([
-        ('SPAN', (0, row_legende), (0, row_legende + 2)),
-        ('VALIGN', (0, row_legende), (0, row_legende + 2), 'MIDDLE'),
-        ('GRID', (0, row_legende), (6, row_legende + 2), 0.5, colors.black),
+        ('SPAN', (0, row_leg), (0, row_leg + 2)),   # LEGENDE col 0, 3 rows
+        ('VALIGN', (0, row_leg), (0, row_leg + 2), 'MIDDLE'),
     ])
 
-    # ── Observations block (left) + Sceau/Directeur (right) ──
+    row_last_grid = current_row - 1  # Last row of LEGENDE = last bordered row
+
+    # ── Observations (below grid) ──
     row_obs = current_row
 
-    # Observations row 1: "Observations :" (left 4 cols) | "Sceau de l'Ecole" (right 4 cols)
     table_data.append([
         Paragraph("<b>Observations :</b>", small_left_bold),
         None, None, None,
         Paragraph("Sceau de l'Ecole", small_center),
-        None, None, None
+        None, None, None,
     ])
     current_row += 1
 
-    # Observations row 2: "(1) Biffer la mention inutile" | "Le (la) Directeur (trice)"
     table_data.append([
         Paragraph("(1) Biffer la mention inutile", tiny_normal),
         None, None, None,
         Paragraph("<b>Le (la) Directeur (trice)</b>", small_center),
-        None, None, None
+        None, None, None,
     ])
     current_row += 1
 
-    # Observations row 3: "Note importante..." | IGE/PS.001
     table_data.append([
         Paragraph("<i>Note importante : le bulletin est sans valeur s'il est raturé ou surchargé</i>",
                    tiny_normal),
@@ -751,40 +736,34 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     ])
     current_row += 1
 
-    # Footer: legal notice
+    ts_commands.extend([
+        ('SPAN', (0, row_obs), (3, row_obs)),
+        ('SPAN', (4, row_obs), (7, row_obs)),
+        ('SPAN', (0, row_obs + 1), (3, row_obs + 1)),
+        ('SPAN', (4, row_obs + 1), (7, row_obs + 1)),
+        ('SPAN', (0, row_obs + 2), (3, row_obs + 2)),
+        ('SPAN', (4, row_obs + 2), (6, row_obs + 2)),
+        ('ALIGN', (0, row_obs), (3, row_obs + 2), 'LEFT'),
+        ('VALIGN', (0, row_obs), (3, row_obs + 2), 'TOP'),
+    ])
+
+    # Footer
     row_footer = current_row
     table_data.append([
         Paragraph("<i><b><u>Interdiction formelle de reproduire ce bulletin sous peine "
                    "des sanctions prévues par la loi.</u></b></i>",
                    ParagraphStyle('LegalFooter', parent=style_normal,
                                    fontName='Helvetica-BoldOblique', fontSize=7, alignment=1)),
-        None, None, None, None, None, None, None
+        None, None, None, None, None, None, None,
     ])
     ts_commands.append(('SPAN', (0, row_footer), (7, row_footer)))
-    current_row += 1
 
-    # Spans for observations block
+    # ══════════════════════════════════════════════════════════════════════
+    # STYLES GLOBAUX – UN SEUL GRID CONTINU couvrant TOUT le tableau bordé
+    # ══════════════════════════════════════════════════════════════════════
     ts_commands.extend([
-        # Left side: observations merged
-        ('SPAN', (0, row_obs), (3, row_obs)),
-        ('SPAN', (0, row_obs + 1), (3, row_obs + 1)),
-        ('SPAN', (0, row_obs + 2), (3, row_obs + 2)),
-        # Right side: Sceau de l'Ecole
-        ('SPAN', (4, row_obs), (7, row_obs)),
-        # Right side: Le (la) Directeur (trice)
-        ('SPAN', (4, row_obs + 1), (6, row_obs + 1)),
-        # Right side: IGE/PS.001 stays in col 7
-        ('SPAN', (4, row_obs + 2), (6, row_obs + 2)),
-        # Alignment for observation zone
-        ('ALIGN', (0, row_obs), (3, row_obs + 2), 'LEFT'),
-        ('VALIGN', (0, row_obs), (3, row_obs + 2), 'TOP'),
-        ('ALIGN', (4, row_obs), (7, row_obs + 1), 'CENTER'),
-    ])
-
-    # ── STYLES GLOBAUX (noir/blanc/gris uniquement) ──
-    ts_commands.extend([
-        # Grid for main bulletin body (up to end of trim rows)
-        ('GRID', (0, 0), (-1, row_after_trim - 1), 0.5, colors.black),
+        # SINGLE CONTINUOUS GRID: row 0 → end of LEGENDE
+        ('GRID', (0, 0), (-1, row_last_grid), 0.5, colors.black),
         # Header background
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E8E8E8')),
         # Alignments
