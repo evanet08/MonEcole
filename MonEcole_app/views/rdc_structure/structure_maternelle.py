@@ -598,14 +598,13 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     # ── * SIGNATURES ──
     row_sig = current_row
     table_data.append([
-        Paragraph("<b>*</b>", bold_center),
-        Paragraph("<b>SIGNATURES</b>", small_left_bold),
-        None, None,
+        Paragraph("<b>*    SIGNATURES</b>", small_left_bold),
+        None, None, None,
         Paragraph("Fait à ..............................., le ......./ ......./ 20.....", small_normal),
         None, None, None,
     ])
     ts_commands.extend([
-        ('SPAN', (1, row_sig), (3, row_sig)),
+        ('SPAN', (0, row_sig), (3, row_sig)),
         ('SPAN', (4, row_sig), (7, row_sig)),
     ])
     current_row += 1
@@ -614,88 +613,89 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     row_th = current_row
     table_data.append([
         Paragraph("<b>TRIMESTRES</b>", bold_center),
+        None,
         Paragraph("<b>INSTITUTEUR (TRICE)</b>", bold_center),
-        None, None,
+        None,
         Paragraph("<b>PARENT</b>", bold_center),
-        None,
         Paragraph("Sceau de l'Ecole", small_center),
-        None,
+        None, None,
     ])
     ts_commands.extend([
-        ('SPAN', (1, row_th), (3, row_th)),
-        ('SPAN', (4, row_th), (5, row_th)),
+        ('SPAN', (0, row_th), (1, row_th)),
+        ('SPAN', (2, row_th), (3, row_th)),
     ])
     current_row += 1
 
-    # 1er, 2e, 3e TRIMESTRE
+    # 1er, 2e, 3e TRIMESTRE — all merge cols 0+1
     row_t1 = current_row
     table_data.append([Paragraph("1<super>er</super> TRIMESTRE", small_normal),
-                        None, None, None, None, None, None, None])
+                        None, None, None, None,
+                        Paragraph("Le (la) Directeur (trice)", small_center),
+                        None, None])
+    ts_commands.append(('SPAN', (0, row_t1), (1, row_t1)))
     current_row += 1
 
     row_t2 = current_row
     table_data.append([Paragraph("2<super>e</super> TRIMESTRE", small_normal),
                         None, None, None, None, None, None, None])
+    ts_commands.append(('SPAN', (0, row_t2), (1, row_t2)))
     current_row += 1
 
     row_t3 = current_row
     table_data.append([Paragraph("3<super>e</super> TRIMESTRE", small_normal),
                         None, None, None, None, None, None, None])
+    ts_commands.append(('SPAN', (0, row_t3), (1, row_t3)))
     current_row += 1
 
-    # Sceau merged over header+1er, Directeur over 2e+3e
+    # Right side: Sceau merged header+1er, Directeur merged 1er+2e+3e
     ts_commands.extend([
-        ('SPAN', (6, row_th), (7, row_t1)),
-        ('VALIGN', (6, row_th), (7, row_t1), 'MIDDLE'),
-    ])
-    table_data[row_t2][6] = Paragraph("Le (la) Directeur (trice)", small_center)
-    ts_commands.extend([
-        ('SPAN', (6, row_t2), (7, row_t3)),
-        ('VALIGN', (6, row_t2), (7, row_t3), 'MIDDLE'),
+        ('SPAN', (5, row_th), (7, row_t1)),
+        ('VALIGN', (5, row_th), (7, row_t1), 'MIDDLE'),
+        ('SPAN', (5, row_t1), (7, row_t1)),
+        ('SPAN', (5, row_t2), (7, row_t3)),
+        ('VALIGN', (5, row_t2), (7, row_t3), 'MIDDLE'),
     ])
 
-    # ── LEGENDE (3 rows) ──
+    # ── LEGENDE (3 rows) — cols 0+1 merged vertically, values in cols 2-7 ──
     row_leg = current_row
 
     table_data.append([
         Paragraph("<b>LEGENDE</b>", bold_center),
+        None,
         Paragraph("<b>Pourcentages</b>", small_center),
         Paragraph("<b>100-80</b>", small_center),
         Paragraph("<b>79-60</b>", small_center),
         Paragraph("<b>59-50</b>", small_center),
         Paragraph("<b>49-40</b>", small_center),
         Paragraph("<b>39-0</b>", small_center),
-        None,
     ])
     current_row += 1
 
     table_data.append([
-        None,
+        None, None,
         Paragraph("<b>Qualité</b>", small_center),
         Paragraph("<b>E</b>", small_center),
         Paragraph("<b>TB</b>", small_center),
         Paragraph("<b>B</b>", small_center),
         Paragraph("<b>AB</b>", small_center),
         Paragraph("<b>M</b>", small_center),
-        None,
     ])
     current_row += 1
 
     table_data.append([
-        None,
+        None, None,
         Paragraph("<b>Couleurs</b>", small_center),
         Paragraph("JAUNE", small_center),
         Paragraph("BLEU", small_center),
         Paragraph("VERT", small_center),
         Paragraph("NOIR", small_center),
         Paragraph("ROUGE", small_center),
-        None,
     ])
     current_row += 1
 
     ts_commands.extend([
-        ('SPAN', (0, row_leg), (0, row_leg + 2)),
-        ('VALIGN', (0, row_leg), (0, row_leg + 2), 'MIDDLE'),
+        ('SPAN', (0, row_leg), (1, row_leg + 2)),
+        ('VALIGN', (0, row_leg), (1, row_leg + 2), 'MIDDLE'),
     ])
 
     row_last_grid = current_row - 1
