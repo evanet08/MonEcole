@@ -600,12 +600,13 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     table_data.append([
         Paragraph("<b>*    SIGNATURES</b>", small_left_bold),
         None, None, None,
-        Paragraph("Fait à ..............................., le ......./ ......./ 20.....", small_normal),
+        Paragraph("Fait à ..............................., le ......./ ......./ 20.....<br/><br/>"
+                   "Sceau de l'Ecole<br/>Le (la) Directeur (trice)",
+                   ParagraphStyle('FaitA', parent=style_normal, fontSize=8, alignment=1, leading=11)),
         None, None, None,
     ])
     ts_commands.extend([
         ('SPAN', (0, row_sig), (3, row_sig)),
-        ('SPAN', (4, row_sig), (7, row_sig)),
     ])
     current_row += 1
 
@@ -616,21 +617,17 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         None,
         Paragraph("<b>INSTITUTEUR (TRICE)</b>", bold_center),
         Paragraph("<b>PARENT</b>", bold_center),
-        Paragraph("Sceau de l'Ecole", small_center),
-        None, None, None,
+        None, None, None, None,
     ])
     ts_commands.extend([
         ('SPAN', (0, row_th), (1, row_th)),
-        ('SPAN', (4, row_th), (7, row_th)),
     ])
     current_row += 1
 
-    # 1er, 2e, 3e TRIMESTRE — cols 0+1 merged, cols 4-7 for right side
+    # 1er, 2e, 3e TRIMESTRE — cols 0+1 merged
     row_t1 = current_row
     table_data.append([Paragraph("1<super>er</super> TRIMESTRE", small_normal),
-                        None, None, None,
-                        Paragraph("Le (la) Directeur (trice)", small_center),
-                        None, None, None])
+                        None, None, None, None, None, None, None])
     ts_commands.append(('SPAN', (0, row_t1), (1, row_t1)))
     current_row += 1
 
@@ -646,11 +643,12 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     ts_commands.append(('SPAN', (0, row_t3), (1, row_t3)))
     current_row += 1
 
-    # Right side: Sceau merged header+1er, Directeur merged 1er→3e
+    # Right side: ONE big merge from row_sig→row_t1 (Fait à + Sceau + Directeur)
+    # Then separate merge for 2e+3e trimestre
     ts_commands.extend([
-        ('SPAN', (4, row_th), (7, row_t1)),
-        ('VALIGN', (4, row_th), (7, row_t1), 'MIDDLE'),
-        ('SPAN', (4, row_t1), (7, row_t1)),
+        ('SPAN', (4, row_sig), (7, row_t1)),
+        ('VALIGN', (4, row_sig), (7, row_t1), 'MIDDLE'),
+        ('ALIGN', (4, row_sig), (7, row_t1), 'CENTER'),
         ('SPAN', (4, row_t2), (7, row_t3)),
         ('VALIGN', (4, row_t2), (7, row_t3), 'MIDDLE'),
     ])
