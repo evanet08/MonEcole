@@ -12668,43 +12668,9 @@ def mass_import_notes(request):
                             """, [eval_id, config.id, etab.pays_id])
 
                 # ============================================
-                # STEP 2: INSERT NOTES INTO eleve_note
-                # Detect CAS 1 (no periods) to also write directly to note_bulletin
+                # STEP 2: INSERT NOTES INTO eleve_note + note_bulletin
+                # Unified: ALL notes (period & exam) write to BOTH tables
                 # ============================================
-                _is_no_period_cycle = False
-                try:
-                    _s2_hub = _conns['countryStructure'].cursor()
-                    try:
-                        _s2_hub.execute("""
-                            SELECT c.cycle_id FROM classes c
-                            JOIN etablissements_annees_classes eac ON eac.classe_id = c.id
-                            WHERE eac.id = %s LIMIT 1
-                        """, [classe_id])
-                        _s2_cyc = _s2_hub.fetchone()
-                        _s2_cycle_id = _s2_cyc[0] if _s2_cyc else None
-                        if _s2_cycle_id:
-                            _s2_hub.execute("""
-                                SELECT type_racine_id FROM repartition_configs_cycle
-                                WHERE cycle_id = %s AND is_active = 1 AND id_pays = %s LIMIT 1
-                            """, [_s2_cycle_id, etab.pays_id])
-                            _s2_rt = _s2_hub.fetchone()
-                            if _s2_rt:
-                                _s2_hub.execute("""
-                                    SELECT nombre_enfants FROM repartition_hierarchies
-                                    WHERE type_parent_id = %s AND is_active = 1 AND id_pays = %s
-                                      AND (cycle_id = %s OR cycle_id IS NULL)
-                                    ORDER BY CASE WHEN cycle_id = %s THEN 0 ELSE 1 END
-                                    LIMIT 1
-                                """, [_s2_rt[0], etab.pays_id, _s2_cycle_id, _s2_cycle_id])
-                                _s2_h = _s2_hub.fetchone()
-                                if not _s2_h or not _s2_h[0]:
-                                    _is_no_period_cycle = True
-                            else:
-                                _is_no_period_cycle = True
-                    finally:
-                        _s2_hub.close()
-                except Exception:
-                    pass
                 for student in students_data:
                     eleve_id = student['eleve_id']
                     for col_idx, note_val in enumerate(student['notes']):
@@ -12758,39 +12724,38 @@ def mass_import_notes(request):
                                           etab_id, etab.pays_id])
                             notes_saved += 1
 
-                            # CAS 1 (no periods): also write directly to note_bulletin
-                            # so that bulletin data exists even if STEP 3 sync fails
-                            if _is_no_period_cycle:
-                                _cas1_config = _get_or_create_repartition_config(
-                                    int(rep_ids[col_idx]), etab_id, pays_id=etab.pays_id
-                                ) if rep_ids[col_idx] and rep_ids[col_idx] != 'None' else None
-                                if _cas1_config:
-                                    # Find TJ note_type for this repartition type
-                                    from django.db import connections as _c1conns
-                                    _c1hub = _c1conns['countryStructure'].cursor()
-                                    try:
-                                        _c1hub.execute("""
-                                            SELECT nt.id_type_note
-                                            FROM repartition_type_notes rtn
-                                            JOIN note_types nt ON nt.id = rtn.note_type_id
-                                            WHERE rtn.repartition_type_id = %s AND nt.sigle = 'TJ'
-                                              AND rtn.is_active = 1 LIMIT 1
-                                        """, [_cas1_config.repartition.type_id])
-                                        _c1row = _c1hub.fetchone()
-                                        _c1_tj_id = _c1row[0] if _c1row else 1
-                                    finally:
-                                        _c1hub.close()
-                                    cur.execute("""
-                                        INSERT INTO note_bulletin
-                                            (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                             note, maxima, source_type, date_calcul, id_etablissement, id_pays)
-                                        VALUES (%s, %s, %s, %s, %s, %s, 'SAISIE_DIRECTE', NOW(), %s, %s)
-                                        ON DUPLICATE KEY UPDATE
-                                            note = VALUES(note), maxima = VALUES(maxima),
-                                            source_type = 'SAISIE_DIRECTE',
-                                            date_calcul = NOW(), updated_at = NOW()
-                                    """, [eleve_id, int(cours_id), _cas1_config.id, _c1_tj_id,
-                                          note_val, maximas[col_idx], etab_id, etab.pays_id])
+                            # UNIFIED: write directly to note_bulletin for ALL period notes
+                            # Same logic for cycles with and without periods
+                            _nb_config = _get_or_create_repartition_config(
+                                int(rep_ids[col_idx]), etab_id, pays_id=etab.pays_id
+                            ) if rep_ids[col_idx] and rep_ids[col_idx] != 'None' else None
+                            if _nb_config:
+                                # Find TJ note_type for this repartition type
+                                from django.db import connections as _c1conns
+                                _c1hub = _c1conns['countryStructure'].cursor()
+                                try:
+                                    _c1hub.execute("""
+                                        SELECT nt.id_type_note
+                                        FROM repartition_type_notes rtn
+                                        JOIN note_types nt ON nt.id = rtn.note_type_id
+                                        WHERE rtn.repartition_type_id = %s AND nt.sigle = 'TJ'
+                                          AND rtn.is_active = 1 LIMIT 1
+                                    """, [_nb_config.repartition.type_id])
+                                    _c1row = _c1hub.fetchone()
+                                    _c1_tj_id = _c1row[0] if _c1row else 1
+                                finally:
+                                    _c1hub.close()
+                                cur.execute("""
+                                    INSERT INTO note_bulletin
+                                        (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
+                                         note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                                    VALUES (%s, %s, %s, %s, %s, %s, 'SAISIE_DIRECTE', NOW(), %s, %s)
+                                    ON DUPLICATE KEY UPDATE
+                                        note = VALUES(note), maxima = VALUES(maxima),
+                                        source_type = 'SAISIE_DIRECTE',
+                                        date_calcul = NOW(), updated_at = NOW()
+                                """, [eleve_id, int(cours_id), _nb_config.id, _c1_tj_id,
+                                      note_val, maximas[col_idx], etab_id, etab.pays_id])
 
                         elif col_type == 'exam':
                             # Insert/update exam note directly in note_bulletin (SAISIE_DIRECTE)
@@ -12831,315 +12796,15 @@ def mass_import_notes(request):
         finally:
             conn.close()
 
-        # ============================================
-        # STEP 3: SYNC period notes → note_bulletin (INLINE)
-        # Dynamically resolves parent/child types via cycle-aware hierarchy.
-        # ============================================
-        notes_synced = 0
-        pays_id = etab.pays_id
-        conn2 = _get_spoke_connection()
-        try:
-            with conn2.cursor() as cur:
-                from django.db import connections as _conns
-
-                # Get etab_annee_id for config lookups
-                cur.execute("""
-                    SELECT ea.id AS etab_annee_id, ea.annee_id
-                    FROM countryStructure.etablissements_annees_classes eac
-                    JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
-                    WHERE eac.id = %s LIMIT 1
-                """, [classe_id])
-                ea_row = cur.fetchone()
-                etab_annee_id = ea_row['etab_annee_id'] if ea_row else None
-
-                # Get cours maxima
-                cur.execute("""
-                    SELECT cann.maxima_tj, cann.maxima_exam
-                    FROM countryStructure.cours_annee cann
-                    WHERE cann.id_cours_annee = %s LIMIT 1
-                """, [cours_id])
-                cm = cur.fetchone()
-                c_maxima_tj = float(cm['maxima_tj']) if cm and cm['maxima_tj'] else 20
-                c_maxima_exam = float(cm['maxima_exam']) if cm and cm['maxima_exam'] else 20
-
-                # Resolve cycle → root type → child type DYNAMICALLY
-                _mi3_root_type = None
-                _mi3_child_type = None
-                hub_cur = _conns['countryStructure'].cursor()
-                try:
-                    hub_cur.execute("""
-                        SELECT c.cycle_id FROM classes c
-                        JOIN etablissements_annees_classes eac ON eac.classe_id = c.id
-                        WHERE eac.id = %s LIMIT 1
-                    """, [classe_id])
-                    _cyc3 = hub_cur.fetchone()
-                    _mi3_cycle_id = _cyc3[0] if _cyc3 else None
-
-                    if _mi3_cycle_id:
-                        hub_cur.execute("""
-                            SELECT type_racine_id FROM repartition_configs_cycle
-                            WHERE cycle_id = %s AND is_active = 1 AND id_pays = %s LIMIT 1
-                        """, [_mi3_cycle_id, pays_id])
-                        _rt3 = hub_cur.fetchone()
-                        if _rt3:
-                            _mi3_root_type = _rt3[0]
-                        if _mi3_root_type:
-                            hub_cur.execute("""
-                                SELECT type_enfant_id FROM repartition_hierarchies
-                                WHERE type_parent_id = %s AND is_active = 1 AND id_pays = %s
-                                  AND (cycle_id = %s OR cycle_id IS NULL)
-                                ORDER BY CASE WHEN cycle_id = %s THEN 0 ELSE 1 END
-                                LIMIT 1
-                            """, [_mi3_root_type, pays_id, _mi3_cycle_id, _mi3_cycle_id])
-                            _ch3 = hub_cur.fetchone()
-                            if _ch3:
-                                _mi3_child_type = _ch3[0]
-                finally:
-                    hub_cur.close()
-
-                # Get all repartition configs for this etab_annee
-                cur.execute("""
-                    SELECT rc.id AS config_id, rc.repartition_id, rc.parent_id, rc.has_parent,
-                           r.type_id, r.nom, r.ordre, r.pays_id
-                    FROM countryStructure.repartition_configs_etab_annee rc
-                    JOIN countryStructure.repartition_instances r ON r.id = rc.repartition_id
-                    WHERE rc.etablissement_annee_id = %s AND rc.is_open = 1
-                      AND r.pays_id = %s
-                    ORDER BY r.type_id ASC, r.ordre ASC
-                """, [etab_annee_id, pays_id])
-                all_configs = cur.fetchall()
-
-                # Split DYNAMICALLY by resolved types
-                if _mi3_child_type and _mi3_root_type:
-                    period_configs = sorted([c for c in all_configs if c['type_id'] == _mi3_child_type], key=lambda x: x['ordre'])
-                    trimester_configs = sorted([c for c in all_configs if c['type_id'] == _mi3_root_type], key=lambda x: x['ordre'])
-                elif _mi3_root_type:
-                    period_configs = []
-                    trimester_configs = sorted([c for c in all_configs if c['type_id'] == _mi3_root_type], key=lambda x: x['ordre'])
-                else:
-                    period_configs = []
-                    trimester_configs = sorted(all_configs, key=lambda x: x['ordre'])
-
-                # Get note_types (TJ, EX, TOTAL) per repartition type
-                type_ids = set(c['type_id'] for c in all_configs)
-                note_types_by_rep_type = {}
-                hub_cur = _conns['countryStructure'].cursor()
-                try:
-                    for tid in type_ids:
-                        hub_cur.execute("""
-                            SELECT rtn.ponderation_max, nt.id_type_note, nt.sigle
-                            FROM repartition_type_notes rtn
-                            JOIN note_types nt ON nt.id = rtn.note_type_id
-                            WHERE rtn.repartition_type_id = %s AND rtn.is_active = 1
-                            ORDER BY rtn.ordre
-                        """, [tid])
-                        cols = [c[0] for c in hub_cur.description]
-                        note_types_by_rep_type[tid] = [dict(zip(cols, r)) for r in hub_cur.fetchall()]
-                finally:
-                    hub_cur.close()
-
-                # Determine periods per trimester and period_max
-                nb_parents = max(len(trimester_configs), 1)
-                nb_children_per_parent = len(period_configs) // nb_parents if nb_parents > 0 else len(period_configs)
-
-                # CAS 1: Cycle sans périodes → trimestres = unités de base
-                # Les trimestres sont traités comme des "périodes" pour la sync
-                _is_cas1_no_periods = (len(period_configs) == 0)
-                if _is_cas1_no_periods:
-                    # Trimestres deviennent les "period_configs" pour PHASE A
-                    period_configs = list(trimester_configs)
-                    nb_children_per_parent = 1
-                    period_max = c_maxima_exam  # Use exam max since no TJ for this cycle
-                else:
-                    if nb_children_per_parent < 1:
-                        nb_children_per_parent = max(1, len(period_configs))
-                    period_max = round(c_maxima_tj / nb_children_per_parent, 2) if nb_children_per_parent > 0 else c_maxima_tj
-
-                # Map children to parents by positional order
-                trimester_children = {}
-                for t_idx, t_cfg in enumerate(trimester_configs):
-                    start = t_idx * nb_children_per_parent
-                    end = start + nb_children_per_parent
-                    trimester_children[t_cfg['config_id']] = [
-                        p['config_id'] for p in period_configs[start:end]
-                    ]
-
-                # Get all student IDs from the imported data
-                student_ids = [s['eleve_id'] for s in students_data]
-
-                # ---- PHASE A: Period notes → note_bulletin (TJ) ----
-                _child_type_for_nts = _mi3_child_type or (period_configs[0]['type_id'] if period_configs else None)
-                period_nts = note_types_by_rep_type.get(_child_type_for_nts, []) if _child_type_for_nts else []
-                period_tj_nt = next((n for n in period_nts if n['sigle'] == 'TJ'), None)
-                if not period_tj_nt:
-                    # Fallback: search all types for TJ
-                    for _nts in note_types_by_rep_type.values():
-                        period_tj_nt = next((n for n in _nts if n['sigle'] == 'TJ'), None)
-                        if period_tj_nt:
-                            break
-                if not period_tj_nt:
-                    period_tj_nt = {'id_type_note': 1, 'ponderation_max': 20, 'sigle': 'TJ'}
-
-                period_tj_nt_id = period_tj_nt['id_type_note']
-
-                for cfg in period_configs:
-                    config_id = cfg['config_id']
-
-                    # Find evaluations linked to this config for our cours
-                    cur.execute("""
-                        SELECT ev.id_evaluation, ev.ponderer_eval
-                        FROM evaluation ev
-                        JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
-                        WHERE er.id_repartition_config = %s
-                          AND ev.id_cours_classe_id = %s
-                          AND ev.id_etablissement = %s
-                    """, [config_id, int(cours_id), etab_id])
-                    evals = cur.fetchall()
-                    if not evals:
-                        continue
-
-                    eval_ids = [e['id_evaluation'] for e in evals]
-                    placeholders = ','.join(['%s'] * len(eval_ids))
-
-                    for eleve_id in student_ids:
-                        # Read notes from eleve_note for these evaluations
-                        cur.execute(f"""
-                            SELECT en.id_evaluation_id, en.note
-                            FROM eleve_note en
-                            WHERE en.id_eleve_id = %s
-                              AND en.id_evaluation_id IN ({placeholders})
-                        """, [eleve_id] + eval_ids)
-                        raw_notes = {r['id_evaluation_id']: float(r['note']) if r['note'] is not None else None
-                                     for r in cur.fetchall()}
-
-                        # Weighted average (equal weight per evaluation)
-                        n_evals = len(evals)
-                        eq_w = 100.0 / n_evals if n_evals > 0 else 0
-                        w_sum = 0.0
-                        w_used = 0.0
-                        for ev in evals:
-                            note = raw_notes.get(ev['id_evaluation'])
-                            ev_max = ev['ponderer_eval'] or 0
-                            if note is not None and ev_max > 0:
-                                w_sum += (note / ev_max) * eq_w
-                                w_used += eq_w
-                        if w_used > 0:
-                            scaled = round((w_sum / w_used) * period_max, 2)
-                        else:
-                            scaled = None
-
-                        if scaled is not None:
-                            cur.execute("""
-                                INSERT INTO note_bulletin
-                                    (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                     note, maxima, source_type, date_calcul, id_etablissement, id_pays)
-                                VALUES (%s, %s, %s, %s, %s, %s, 'EVALUATIONS', NOW(), %s, %s)
-                                ON DUPLICATE KEY UPDATE
-                                    note = VALUES(note), maxima = VALUES(maxima),
-                                    date_calcul = NOW(), updated_at = NOW()
-                            """, [eleve_id, int(cours_id), config_id, period_tj_nt_id,
-                                  scaled, period_max, etab_id, pays_id])
-                            notes_synced += 1
-
-                # ---- PHASE B: Trimester HERITAGE TJ + TOTAL ----
-                _root_type_for_nts = _mi3_root_type or (trimester_configs[0]['type_id'] if trimester_configs else None)
-                trimester_nts = note_types_by_rep_type.get(_root_type_for_nts, []) if _root_type_for_nts else []
-                trim_tj_nt = next((n for n in trimester_nts if n['sigle'] == 'TJ'), None)
-                trim_ex_nt = next((n for n in trimester_nts if n['sigle'] == 'EX'), None)
-                trim_tot_nt = next((n for n in trimester_nts if n['sigle'] in ('TOTAL', 'TOT')), None)
-
-                for cfg in trimester_configs:
-                    config_id = cfg['config_id']
-
-                    # Find child period config IDs for this trimester
-                    child_cfg_ids = trimester_children.get(config_id, [])
-
-                    # CAS 1: Cycle sans périodes → trimestres sont les unités directes
-                    # Les notes eleve_note → note_bulletin TJ directement
-                    if not child_cfg_ids and not period_configs:
-                        continue
-
-                    heritage_max = int(c_maxima_tj)
-                    ch_ph = ','.join(['%s'] * len(child_cfg_ids))
-
-                    for eleve_id in student_ids:
-                        # TJ HERITAGE: sum child TJ notes → parent TJ
-                        if trim_tj_nt:
-                            cur.execute(f"""
-                                SELECT COALESCE(SUM(nb.note), 0) AS total,
-                                       COALESCE(SUM(nb.maxima), 0) AS total_max
-                                FROM note_bulletin nb
-                                WHERE nb.id_eleve_id = %s AND nb.id_cours_annee = %s
-                                  AND nb.id_note_type = %s
-                                  AND nb.id_repartition_config IN ({ch_ph})
-                            """, [eleve_id, int(cours_id), period_tj_nt_id] + child_cfg_ids)
-                            row = cur.fetchone()
-                            raw_total = float(row['total']) if row and row['total'] else None
-                            raw_max = float(row['total_max']) if row and row['total_max'] else None
-
-                            if raw_total is not None and raw_max and raw_max > 0:
-                                note_val = round((raw_total / raw_max) * heritage_max, 2)
-                            else:
-                                note_val = None
-
-                            if note_val is not None:
-                                cur.execute("""
-                                    INSERT INTO note_bulletin
-                                        (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                         note, maxima, source_type, date_calcul, id_etablissement, id_pays)
-                                    VALUES (%s, %s, %s, %s, %s, %s, 'HERITAGE', NOW(), %s, %s)
-                                    ON DUPLICATE KEY UPDATE
-                                        note = VALUES(note), maxima = VALUES(maxima),
-                                        date_calcul = NOW(), updated_at = NOW()
-                                """, [eleve_id, int(cours_id), config_id, trim_tj_nt['id_type_note'],
-                                      note_val, heritage_max, etab_id, pays_id])
-                                notes_synced += 1
-
-                        # TOTAL = TJ + EX (FORMULE)
-                        if trim_tot_nt:
-                            other_nt_ids = [n['id_type_note'] for n in trimester_nts
-                                            if n['sigle'] not in ('TOTAL', 'TOT')]
-                            if other_nt_ids:
-                                other_ph = ','.join(['%s'] * len(other_nt_ids))
-                                cur.execute(f"""
-                                    SELECT COALESCE(SUM(nb.note), 0) AS total,
-                                           COALESCE(SUM(nb.maxima), 0) AS total_max
-                                    FROM note_bulletin nb
-                                    WHERE nb.id_eleve_id = %s AND nb.id_cours_annee = %s
-                                      AND nb.id_repartition_config = %s
-                                      AND nb.id_note_type IN ({other_ph})
-                                """, [eleve_id, int(cours_id), config_id] + other_nt_ids)
-                                row = cur.fetchone()
-                                total_val = round(float(row['total']), 2) if row and row['total'] else None
-                                total_max_val = int(row['total_max']) if row and row['total_max'] else (trim_tot_nt['ponderation_max'] or 40)
-
-                                if total_val is not None and total_val > 0:
-                                    cur.execute("""
-                                        INSERT INTO note_bulletin
-                                            (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
-                                             note, maxima, source_type, date_calcul, id_etablissement, id_pays)
-                                        VALUES (%s, %s, %s, %s, %s, %s, 'FORMULE', NOW(), %s, %s)
-                                        ON DUPLICATE KEY UPDATE
-                                            note = VALUES(note), maxima = VALUES(maxima),
-                                            date_calcul = NOW(), updated_at = NOW()
-                                    """, [eleve_id, int(cours_id), config_id, trim_tot_nt['id_type_note'],
-                                          total_val, total_max_val, etab_id, pays_id])
-                                    notes_synced += 1
-
-            conn2.commit()
-        except Exception as sync_err:
-            import traceback
-            traceback.print_exc()
-            notes_synced = -1  # signal error
-        finally:
-            conn2.close()
+        # STEP 2 already wrote to both eleve_note AND note_bulletin
+        notes_synced = notes_saved
 
         return JsonResponse({
             'success': True,
             'evals_created': evals_created,
             'notes_saved': notes_saved,
             'notes_synced': notes_synced,
-            'message': f'{evals_created} évaluation(s) créée(s), {notes_saved} note(s) importée(s), {notes_synced} note(s) pondérées synchronisées.'
+            'message': f'{evals_created} évaluation(s) créée(s), {notes_saved} note(s) importée(s), {notes_synced} note(s) synchronisées.'
         })
 
     except Exception as e:
