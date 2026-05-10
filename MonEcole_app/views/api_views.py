@@ -12663,13 +12663,48 @@ def mass_import_notes(request):
                         """, [eval_id, config.id])
                         if not cur.fetchone():
                             cur.execute("""
-                                INSERT INTO evaluation_repartition (id_evaluation, id_repartition_config)
-                                VALUES (%s, %s)
-                            """, [eval_id, config.id])
+                                INSERT INTO evaluation_repartition (id_evaluation, id_repartition_config, id_pays)
+                                VALUES (%s, %s, %s)
+                            """, [eval_id, config.id, etab.pays_id])
 
                 # ============================================
                 # STEP 2: INSERT NOTES INTO eleve_note
+                # Detect CAS 1 (no periods) to also write directly to note_bulletin
                 # ============================================
+                _is_no_period_cycle = False
+                try:
+                    _s2_hub = _conns['countryStructure'].cursor()
+                    try:
+                        _s2_hub.execute("""
+                            SELECT c.cycle_id FROM classes c
+                            JOIN etablissements_annees_classes eac ON eac.classe_id = c.id
+                            WHERE eac.id = %s LIMIT 1
+                        """, [classe_id])
+                        _s2_cyc = _s2_hub.fetchone()
+                        _s2_cycle_id = _s2_cyc[0] if _s2_cyc else None
+                        if _s2_cycle_id:
+                            _s2_hub.execute("""
+                                SELECT type_racine_id FROM repartition_configs_cycle
+                                WHERE cycle_id = %s AND is_active = 1 AND id_pays = %s LIMIT 1
+                            """, [_s2_cycle_id, etab.pays_id])
+                            _s2_rt = _s2_hub.fetchone()
+                            if _s2_rt:
+                                _s2_hub.execute("""
+                                    SELECT nombre_enfants FROM repartition_hierarchies
+                                    WHERE type_parent_id = %s AND is_active = 1 AND id_pays = %s
+                                      AND (cycle_id = %s OR cycle_id IS NULL)
+                                    ORDER BY CASE WHEN cycle_id = %s THEN 0 ELSE 1 END
+                                    LIMIT 1
+                                """, [_s2_rt[0], etab.pays_id, _s2_cycle_id, _s2_cycle_id])
+                                _s2_h = _s2_hub.fetchone()
+                                if not _s2_h or not _s2_h[0]:
+                                    _is_no_period_cycle = True
+                            else:
+                                _is_no_period_cycle = True
+                    finally:
+                        _s2_hub.close()
+                except Exception:
+                    pass
                 for student in students_data:
                     eleve_id = student['eleve_id']
                     for col_idx, note_val in enumerate(student['notes']):
@@ -12722,6 +12757,40 @@ def mass_import_notes(request):
                                           ev_ctx['id_session_id'] or 0,
                                           etab_id, etab.pays_id])
                             notes_saved += 1
+
+                            # CAS 1 (no periods): also write directly to note_bulletin
+                            # so that bulletin data exists even if STEP 3 sync fails
+                            if _is_no_period_cycle:
+                                _cas1_config = _get_or_create_repartition_config(
+                                    int(rep_ids[col_idx]), etab_id, pays_id=etab.pays_id
+                                ) if rep_ids[col_idx] and rep_ids[col_idx] != 'None' else None
+                                if _cas1_config:
+                                    # Find TJ note_type for this repartition type
+                                    from django.db import connections as _c1conns
+                                    _c1hub = _c1conns['countryStructure'].cursor()
+                                    try:
+                                        _c1hub.execute("""
+                                            SELECT nt.id_type_note
+                                            FROM repartition_type_notes rtn
+                                            JOIN note_types nt ON nt.id = rtn.note_type_id
+                                            WHERE rtn.repartition_type_id = %s AND nt.sigle = 'TJ'
+                                              AND rtn.is_active = 1 LIMIT 1
+                                        """, [_cas1_config.repartition.type_id])
+                                        _c1row = _c1hub.fetchone()
+                                        _c1_tj_id = _c1row[0] if _c1row else 1
+                                    finally:
+                                        _c1hub.close()
+                                    cur.execute("""
+                                        INSERT INTO note_bulletin
+                                            (id_eleve_id, id_cours_annee, id_repartition_config, id_note_type,
+                                             note, maxima, source_type, date_calcul, id_etablissement, id_pays)
+                                        VALUES (%s, %s, %s, %s, %s, %s, 'SAISIE_DIRECTE', NOW(), %s, %s)
+                                        ON DUPLICATE KEY UPDATE
+                                            note = VALUES(note), maxima = VALUES(maxima),
+                                            source_type = 'SAISIE_DIRECTE',
+                                            date_calcul = NOW(), updated_at = NOW()
+                                    """, [eleve_id, int(cours_id), _cas1_config.id, _c1_tj_id,
+                                          note_val, maximas[col_idx], etab_id, etab.pays_id])
 
                         elif col_type == 'exam':
                             # Insert/update exam note directly in note_bulletin (SAISIE_DIRECTE)
