@@ -43,27 +43,65 @@ def recuperer_cours_obligatoires(id_annee, id_campus, id_cycle, id_classe):
     """
     Récupère les cours obligatoires d'une classe.
     id_classe = EAC ID → résolu en Hub classe_id via Cours.
+    
+    CRITICAL: Source = cours_annee (Cours_par_classe), scoped by id_pays.
     """
-    from MonEcole_app.models.country_structure import EtablissementAnneeClasse
+    from MonEcole_app.models.country_structure import EtablissementAnneeClasse, Etablissement
     from MonEcole_app.models.enseignmnts.matiere import Cours
+    from MonEcole_app.models.campus import Campus
 
     try:
-        eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=id_classe)
+        eac = EtablissementAnneeClasse.objects.select_related(
+            'classe', 'etablissement_annee', 'classe__cycle'
+        ).get(id=id_classe)
         hub_classe_id = eac.classe_id
+        etab_id = eac.etablissement_annee.etablissement_id
     except EtablissementAnneeClasse.DoesNotExist:
         return []
 
-    # Hub: Cours liés à cette classe
+    # Resolve pays_id via établissement
+    pays_id = None
+    try:
+        etab = Etablissement.objects.get(id_etablissement=etab_id)
+        pays_id = etab.pays_id
+    except Etablissement.DoesNotExist:
+        try:
+            campus = Campus.objects.get(idCampus=id_campus)
+            if campus.id_etablissement:
+                etab = Etablissement.objects.get(id_etablissement=campus.id_etablissement)
+                pays_id = etab.pays_id
+        except Exception:
+            pass
+    if not pays_id:
+        pays_id = getattr(eac, 'id_pays', None)
+
+    # Hub: Cours liés à cette classe — scoped by pays
     # CRITICAL: use pk (surrogate) not id_cours (business key)
-    cours_pks = list(Cours.objects.filter(classe_id=hub_classe_id).values_list('pk', flat=True))
+    cours_filter = {'classe_id': hub_classe_id}
+    if pays_id:
+        cours_filter['id_pays'] = pays_id
+    cours_pks = list(Cours.objects.filter(**cours_filter).values_list('pk', flat=True))
     if not cours_pks:
         return []
 
-    qs = Cours_par_classe.objects.filter(
-        id_cours_id__in=cours_pks,
-        id_annee_id=id_annee,
-        is_obligatory=True
-    ).select_related('id_cours')
+    # CRITICAL: cours_annee (Cours_par_classe) avec scoping complet
+    cpc_filter = {
+        'id_cours_id__in': cours_pks,
+        'id_annee_id': id_annee,
+        'is_obligatory': True,
+    }
+    if pays_id:
+        cpc_filter['id_pays'] = pays_id
+
+    # Check if cycle uses non-uniform courses
+    try:
+        cycle_obj = eac.classe.cycle
+        if cycle_obj and not cycle_obj.coursUniformes and etab_id:
+            cpc_filter['etablissement_id'] = etab_id
+    except Exception:
+        pass
+
+    qs = Cours_par_classe.objects.filter(**cpc_filter).select_related('id_cours')
 
     cours = []
     for c in qs:
@@ -74,6 +112,7 @@ def recuperer_cours_obligatoires(id_annee, id_campus, id_cycle, id_classe):
         })
 
     return cours
+
 
 
 

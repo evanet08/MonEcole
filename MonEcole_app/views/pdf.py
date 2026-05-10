@@ -532,9 +532,30 @@ def generer_bulletin_pdf(request):
                         elements.append(PageBreak())
 
                     elements.append(Spacer(1, 1*mm))
-                    institution = Institution.objects.get(id_ecole=idCampus)
-                    logo_path = institution.logo_ecole.path if institution.logo_ecole else None
-                    emblem_path = institution.logo_ministere.path if institution.logo_ministere else None
+                    # Logos from Pays table via Campus → Etablissement → Pays
+                    logo_path = None
+                    emblem_path = None
+                    try:
+                        from MonEcole_app.models.country_structure import Etablissement as _PrimEtab, Pays as _PrimPays
+                        import os as _pos
+                        _prim_campus = Campus.objects.get(idCampus=idCampus)
+                        _prim_etab = _PrimEtab.objects.select_related('pays').get(
+                            id_etablissement=_prim_campus.id_etablissement
+                        )
+                        _prim_pays = _prim_etab.pays
+                        _prim_media = getattr(settings, 'MEDIA_ROOT', '')
+                        if not _prim_media:
+                            _prim_media = _pos.path.join(settings.BASE_DIR, 'media')
+                        if _prim_pays.logo_pays:
+                            _lp = _pos.path.join(_prim_media, _prim_pays.logo_pays)
+                            if _pos.path.exists(_lp):
+                                logo_path = _lp
+                        if _prim_pays.logo_ministere:
+                            _ep = _pos.path.join(_prim_media, _prim_pays.logo_ministere)
+                            if _pos.path.exists(_ep):
+                                emblem_path = _ep
+                    except Exception as _logo_e:
+                        logger.warning(f"[BULLETIN PDF] Could not fetch Pays logos for Primaire: {_logo_e}")
                     check_image_paths(logo_path, emblem_path)
 
                     create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=eleve)
@@ -644,9 +665,30 @@ def generer_bulletin_pdf(request):
                             elements.append(PageBreak())
 
                         elements.append(Spacer(1, 3*mm))
-                        institution = Institution.objects.get(id_ecole=idCampus)
-                        logo_path = institution.logo_ecole.path if institution.logo_ecole else None
-                        emblem_path = institution.logo_ministere.path if institution.logo_ministere else None
+                        # Logos from Pays table via Campus → Etablissement → Pays
+                        logo_path = None
+                        emblem_path = None
+                        try:
+                            from MonEcole_app.models.country_structure import Etablissement as _SupEtab, Pays as _SupPays
+                            import os as _sos
+                            _sup_campus = Campus.objects.get(idCampus=idCampus)
+                            _sup_etab = _SupEtab.objects.select_related('pays').get(
+                                id_etablissement=_sup_campus.id_etablissement
+                            )
+                            _sup_pays = _sup_etab.pays
+                            _sup_media = getattr(settings, 'MEDIA_ROOT', '')
+                            if not _sup_media:
+                                _sup_media = _sos.path.join(settings.BASE_DIR, 'media')
+                            if _sup_pays.logo_pays:
+                                _lp = _sos.path.join(_sup_media, _sup_pays.logo_pays)
+                                if _sos.path.exists(_lp):
+                                    logo_path = _lp
+                            if _sup_pays.logo_ministere:
+                                _ep = _sos.path.join(_sup_media, _sup_pays.logo_ministere)
+                                if _sos.path.exists(_ep):
+                                    emblem_path = _ep
+                        except Exception as _logo_e:
+                            logger.warning(f"[BULLETIN PDF] Could not fetch Pays logos for Humanités 4ème: {_logo_e}")
                         check_image_paths(logo_path, emblem_path)
 
                         create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=eleve)
@@ -683,9 +725,30 @@ def generer_bulletin_pdf(request):
                         if idx > 0:
                             elements.append(PageBreak())
 
-                        institution = Institution.objects.get(id_ecole=idCampus)
-                        logo_path = institution.logo_ecole.path if institution.logo_ecole else None
-                        emblem_path = institution.logo_ministere.path if institution.logo_ministere else None
+                        # Logos from Pays table via Campus → Etablissement → Pays
+                        logo_path = None
+                        emblem_path = None
+                        try:
+                            from MonEcole_app.models.country_structure import Etablissement as _HumEtab, Pays as _HumPays
+                            import os as _hos
+                            _hum_campus = Campus.objects.get(idCampus=idCampus)
+                            _hum_etab = _HumEtab.objects.select_related('pays').get(
+                                id_etablissement=_hum_campus.id_etablissement
+                            )
+                            _hum_pays = _hum_etab.pays
+                            _hum_media = getattr(settings, 'MEDIA_ROOT', '')
+                            if not _hum_media:
+                                _hum_media = _hos.path.join(settings.BASE_DIR, 'media')
+                            if _hum_pays.logo_pays:
+                                _lp = _hos.path.join(_hum_media, _hum_pays.logo_pays)
+                                if _hos.path.exists(_lp):
+                                    logo_path = _lp
+                            if _hum_pays.logo_ministere:
+                                _ep = _hos.path.join(_hum_media, _hum_pays.logo_ministere)
+                                if _hos.path.exists(_ep):
+                                    emblem_path = _ep
+                        except Exception as _logo_e:
+                            logger.warning(f"[BULLETIN PDF] Could not fetch Pays logos for Humanités: {_logo_e}")
                         check_image_paths(logo_path, emblem_path)
 
                         create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=eleve)

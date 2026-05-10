@@ -292,11 +292,11 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
 
 
     # Résolution EAC → business keys pour trouver les cours
-    from MonEcole_app.models.country_structure import EtablissementAnneeClasse
+    from MonEcole_app.models.country_structure import EtablissementAnneeClasse, Etablissement
     from MonEcole_app.models.enseignmnts.matiere import Cours
 
     try:
-        eac = EtablissementAnneeClasse.objects.select_related('classe', 'etablissement_annee').get(id=classe_id)
+        eac = EtablissementAnneeClasse.objects.select_related('classe', 'etablissement_annee', 'classe__cycle').get(id=classe_id)
         hub_classe_id = eac.classe_id
     except EtablissementAnneeClasse.DoesNotExist:
         return elements
@@ -369,27 +369,45 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     except Exception as _e:
         _logger.error(f"[BULLETIN MATERNELLE] Note loading error: {_e}", exc_info=True)
 
-    # CRITICAL: use pk (surrogate) not id_cours (business key)
-    cours_pks = list(Cours.objects.filter(classe_id=hub_classe_id).values_list('pk', flat=True))
+    # ── SOURCE: cours_annee (Cours_par_classe) pour groupes & domaines ──
+    # CRITICAL: NE PAS utiliser la table cours directement pour les domaines.
+    # cours_annee contient la structuration pédagogique réelle.
 
-    # Resolve domaine names from Hub (Cours.domaine_id → domaines.nom)
-    domaine_names = {}
+    # Resolve pays_id for scoping
+    _mat_pays_id = None
     try:
-        from django.db import connections as _conns
-        domaine_ids = set(Cours.objects.filter(pk__in=cours_pks).values_list('domaine_id', flat=True))
-        if domaine_ids:
-            with _conns['countryStructure'].cursor() as _dc:
-                _dc.execute("SELECT id, nom FROM domaines WHERE id IN ({})".format(
-                    ','.join(str(int(d)) for d in domaine_ids if d)
-                ))
-                domaine_names = {r[0]: r[1] for r in _dc.fetchall()}
+        _mat_etab_id = eac.etablissement_annee.etablissement_id
+        _mat_etab = Etablissement.objects.get(id_etablissement=_mat_etab_id)
+        _mat_pays_id = _mat_etab.pays_id
+    except Exception:
+        _mat_pays_id = getattr(eac, 'id_pays', None)
+
+    # Check if cycle uses non-uniform courses
+    _mat_cours_uniformes = True
+    try:
+        _mat_cycle_obj = eac.classe.cycle
+        if _mat_cycle_obj:
+            _mat_cours_uniformes = _mat_cycle_obj.coursUniformes
     except Exception:
         pass
 
-    # Sort: non-null maxima first so dedup keeps the entry with actual maxima data
+    # Build cours_annee filter scoped by pays + annee + classe
+    _mat_cours_filter = {'classe_id': hub_classe_id}
+    if _mat_pays_id:
+        _mat_cours_filter['id_pays'] = _mat_pays_id
+    _mat_cours_pks = list(Cours.objects.filter(**_mat_cours_filter).values_list('pk', flat=True))
+
+    _mat_cpc_filter = {
+        'id_cours_id__in': _mat_cours_pks,
+        'id_annee_id': annee_id,
+    }
+    if _mat_pays_id:
+        _mat_cpc_filter['id_pays'] = _mat_pays_id
+    if not _mat_cours_uniformes and _mat_etab_id:
+        _mat_cpc_filter['etablissement_id'] = _mat_etab_id
+
     cours_par_classe_list = list(Cours_par_classe.objects.filter(
-        id_cours_id__in=cours_pks,
-        id_annee_id=annee_id,
+        **_mat_cpc_filter
     ).select_related('id_cours'))
     # Sort: entries with maxima_exam first, then by ordre_cours
     cours_par_classe_list.sort(key=lambda c: (
@@ -397,7 +415,28 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         c.ordre_cours or 999
     ))
 
-   
+    # Resolve domaine names from Hub — scoped by pays
+    domaine_names = {}
+    try:
+        from django.db import connections as _conns
+        # Collect all domaine_ids from cours_annee (priority) then cours (fallback)
+        domaine_ids = set()
+        for cpc in cours_par_classe_list:
+            d_id = cpc.domaine_id or cpc.id_cours.domaine_id
+            if d_id:
+                domaine_ids.add(d_id)
+        if domaine_ids:
+            _dom_sql = "SELECT id, nom FROM domaines WHERE id IN ({})".format(
+                ','.join(str(int(d)) for d in domaine_ids if d)
+            )
+            if _mat_pays_id:
+                _dom_sql += f" AND pays_id = {int(_mat_pays_id)}"
+            with _conns['countryStructure'].cursor() as _dc:
+                _dc.execute(_dom_sql)
+                domaine_names = {r[0]: r[1] for r in _dc.fetchall()}
+    except Exception:
+        pass
+
     groupes = defaultdict(list)
     seen_cours_pks = set()
 
@@ -407,8 +446,8 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
             continue 
         seen_cours_pks.add(cours_pk)
 
-        # Resolve domaine name from Hub lookup
-        d_id = cpc.id_cours.domaine_id
+        # CRITICAL: domaine_id from cours_annee has PRIORITY over cours
+        d_id = cpc.domaine_id or cpc.id_cours.domaine_id
         domaine = domaine_names.get(d_id, "Sans groupe").strip() if d_id else "Sans groupe"
         groupes[domaine].append(cpc)
 

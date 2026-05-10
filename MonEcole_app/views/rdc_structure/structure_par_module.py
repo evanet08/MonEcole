@@ -68,21 +68,49 @@ def create_bulletin_content_cycle_superieur(elements, style_normal, style_center
     )
 
     # Résolution EAC → business keys
-    from MonEcole_app.models.country_structure import EtablissementAnneeClasse
+    from MonEcole_app.models.country_structure import EtablissementAnneeClasse, Etablissement
     from MonEcole_app.models.enseignmnts.matiere import Cours
 
     try:
-        eac = EtablissementAnneeClasse.objects.select_related('classe').get(id=classe_id)
+        eac = EtablissementAnneeClasse.objects.select_related(
+            'classe', 'etablissement_annee', 'classe__cycle'
+        ).get(id=classe_id)
         hub_classe_id = eac.classe_id
+        etab_id = eac.etablissement_annee.etablissement_id
     except EtablissementAnneeClasse.DoesNotExist:
         return elements
 
-    # CRITICAL: use pk (surrogate) not id_cours (business key)
-    cours_pks = list(Cours.objects.filter(classe_id=hub_classe_id).values_list('pk', flat=True))
+    # Resolve pays_id via établissement
+    _pm_pays_id = None
+    try:
+        _pm_etab = Etablissement.objects.get(id_etablissement=etab_id)
+        _pm_pays_id = _pm_etab.pays_id
+    except Exception:
+        _pm_pays_id = getattr(eac, 'id_pays', None)
+
+    # CRITICAL: use pk (surrogate) not id_cours (business key) — scoped by pays
+    _pm_cours_filter = {'classe_id': hub_classe_id}
+    if _pm_pays_id:
+        _pm_cours_filter['id_pays'] = _pm_pays_id
+    cours_pks = list(Cours.objects.filter(**_pm_cours_filter).values_list('pk', flat=True))
+
+    # CRITICAL: cours_annee (Cours_par_classe) avec scoping complet
+    _pm_cpc_filter = {
+        'id_cours_id__in': cours_pks,
+        'id_annee_id': annee_id,
+    }
+    if _pm_pays_id:
+        _pm_cpc_filter['id_pays'] = _pm_pays_id
+    # Check if cycle uses non-uniform courses
+    try:
+        _pm_cycle_obj = eac.classe.cycle
+        if _pm_cycle_obj and not _pm_cycle_obj.coursUniformes and etab_id:
+            _pm_cpc_filter['etablissement_id'] = etab_id
+    except Exception:
+        pass
 
     cours_qs = Cours_par_classe.objects.filter(
-        id_cours_id__in=cours_pks,
-        id_annee_id=annee_id,
+        **_pm_cpc_filter
     ).select_related('id_cours').order_by('ordre_cours')
 
     # Tous les cours (pour colonne 0)
