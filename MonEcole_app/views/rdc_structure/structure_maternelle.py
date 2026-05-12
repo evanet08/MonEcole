@@ -495,6 +495,7 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         current_row += 1
 
         group_totals = [0.0, 0.0, 0.0]
+        group_has_notes = [False, False, False]
         nb_cours_in_group = len(groupes[domaine])
 
         for cpc in groupes[domaine]:
@@ -509,6 +510,7 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
                 if val is not None:
                     display = str(int(val)) if val == int(val) else f"{val:.1f}"
                     group_totals[i] += val
+                    group_has_notes[i] = True
                 else:
                     display = ""
                 note_cells.append(Paragraph(display, small_center))
@@ -538,19 +540,32 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         st_max_total = st_max_per_trim * 3
 
         st_cells = []
-        st_total_val = 0.0
+        st_total_sum = 0.0
         for i in range(3):
             v = group_totals[i]
-            st_total_val += v
+            st_total_sum += v
             grand_totals[i] += v
             grand_maxima[i] += st_max_per_trim
-            st_cells.append(Paragraph(f"/{st_max_per_trim}", small_center))
+            # Show actual value / max if there are notes for this trim
+            if group_has_notes[i]:
+                v_display = str(int(v)) if v == int(v) else f"{v:.1f}"
+                st_cells.append(Paragraph(f"{v_display}/{st_max_per_trim}", small_center))
+            else:
+                st_cells.append(Paragraph(f"/{st_max_per_trim}", small_center))
+
+        # Total column
+        has_any_note = any(group_has_notes)
+        if has_any_note:
+            st_total_display = str(int(st_total_sum)) if st_total_sum == int(st_total_sum) else f"{st_total_sum:.1f}"
+            st_total_cell = Paragraph(f"{st_total_display}/{st_max_total}", small_center)
+        else:
+            st_total_cell = Paragraph(f"/{st_max_total}", small_center)
 
         table_data.append([
             Paragraph("<b>*</b>", bold_center),
             Paragraph("<b>SOUS - TOTAL</b>", left_bold), None,
             st_cells[0], st_cells[1], st_cells[2],
-            Paragraph(f"/{st_max_total}", small_center),
+            st_total_cell,
             None, None
         ])
         ts_commands.append(('SPAN', (1, current_row), (2, current_row)))
@@ -580,31 +595,50 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         else:
             return 'M', '#FF0000'      # ROUGE
 
+    # Detect which trimesters actually have notes
+    trim_has_notes = [False, False, False]
+    for i in range(3):
+        if i < len(trim_config_ids):
+            for cours_notes in notes_par_cours.values():
+                if cours_notes.get(trim_config_ids[i]) is not None:
+                    trim_has_notes[i] = True
+                    break
+
     # Compute values for TOTAL row
     total_t1 = grand_totals[0]
     total_t2 = grand_totals[1]
     total_t3 = grand_totals[2]
     total_all = total_t1 + total_t2 + total_t3
+    any_has_notes = any(trim_has_notes)
 
-    # Qualitative for each trim + total
-    q_t1, c_t1 = get_qualitative(total_t1, tm)
-    q_t2, c_t2 = get_qualitative(total_t2, tm)
-    q_t3, c_t3 = get_qualitative(total_t3, tm)
-    q_tot, c_tot = get_qualitative(total_all, total_max_all)
+    # Qualitative ONLY for trimesters with notes
+    q_t1, c_t1 = get_qualitative(total_t1, tm) if trim_has_notes[0] else ('', '')
+    q_t2, c_t2 = get_qualitative(total_t2, tm) if trim_has_notes[1] else ('', '')
+    q_t3, c_t3 = get_qualitative(total_t3, tm) if trim_has_notes[2] else ('', '')
+    q_tot, c_tot = get_qualitative(total_all, total_max_all) if any_has_notes else ('', '')
+
+    # Format TOTAL display values
+    def _fmt(val):
+        return str(int(val)) if val == int(val) else f"{val:.1f}"
 
     row_apprec = current_row
 
-    # Row TOTAL
+    # Row TOTAL — show actual totals
+    t1_disp = f"<b>{_fmt(total_t1)}/{tm}</b>" if trim_has_notes[0] else f"<b>/{tm}</b>"
+    t2_disp = f"<b>{_fmt(total_t2)}/{tm}</b>" if trim_has_notes[1] else f"<b>/{tm}</b>"
+    t3_disp = f"<b>{_fmt(total_t3)}/{tm}</b>" if trim_has_notes[2] else f"<b>/{tm}</b>"
+    tot_disp = f"<b>{_fmt(total_all)}/{total_max_all}</b>" if any_has_notes else f"<b>/{total_max_all}</b>"
+
     table_data.append([
         Paragraph("<b>APPRECIATION<br/>GENERALE</b>", ParagraphStyle(
             'ApprecStyle', parent=style_normal, fontName='Helvetica-Bold',
             fontSize=9, alignment=0, leading=11)),
         None,
         Paragraph("<b>TOTAL</b>", small_left_bold),
-        Paragraph(f"<b>/{tm}</b>", bold_center),
-        Paragraph(f"<b>/{tm}</b>", bold_center),
-        Paragraph(f"<b>/{tm}</b>", bold_center),
-        Paragraph(f"<b>/{total_max_all}</b>", bold_center),
+        Paragraph(t1_disp, bold_center),
+        Paragraph(t2_disp, bold_center),
+        Paragraph(t3_disp, bold_center),
+        Paragraph(tot_disp, bold_center),
         None, None,
     ])
     current_row += 1
@@ -613,10 +647,10 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     table_data.append([
         None, None,
         Paragraph("<b>CONVERSION QUALITATIVE</b>", small_left_bold),
-        Paragraph(f"<b>{q_t1}</b>", bold_center),
-        Paragraph(f"<b>{q_t2}</b>", bold_center),
-        Paragraph(f"<b>{q_t3}</b>", bold_center),
-        Paragraph(f"<b>{q_tot}</b>", bold_center),
+        Paragraph(f"<b>{q_t1}</b>", bold_center) if q_t1 else None,
+        Paragraph(f"<b>{q_t2}</b>", bold_center) if q_t2 else None,
+        Paragraph(f"<b>{q_t3}</b>", bold_center) if q_t3 else None,
+        Paragraph(f"<b>{q_tot}</b>", bold_center) if q_tot else None,
         None, None,
     ])
     current_row += 1
@@ -635,10 +669,10 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         ('LEFTPADDING', (0, row_apprec), (0, row_apprec + 2), 5),
     ])
 
-    # Color cells for COULEURS row (row_apprec + 2)
+    # Color cells for COULEURS row — ONLY for trimesters with notes
     couleur_row = row_apprec + 2
-    for col_idx, hex_color in [(3, c_t1), (4, c_t2), (5, c_t3), (6, c_tot)]:
-        if hex_color:
+    for col_idx, hex_color, has_note in [(3, c_t1, trim_has_notes[0]), (4, c_t2, trim_has_notes[1]), (5, c_t3, trim_has_notes[2]), (6, c_tot, any_has_notes)]:
+        if hex_color and has_note:
             ts_commands.append(('BACKGROUND', (col_idx, couleur_row), (col_idx, couleur_row), colors.HexColor(hex_color)))
 
     # ── SIGNATURES ──
@@ -659,7 +693,7 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     table_data.append([
         Paragraph("<b>TRIMESTRES</b>", bold_center),
         None,
-        Paragraph("<b>INSTITUTEU<br/>R (TRICE)</b>", ParagraphStyle('InstStyle', parent=style_center, fontName='Helvetica-Bold', fontSize=7, alignment=1)),
+        Paragraph("<b>INSTITUTEUR (TRICE)</b>", ParagraphStyle('InstStyle', parent=style_center, fontName='Helvetica-Bold', fontSize=6, alignment=1)),
         Paragraph("<b>PARENT</b>", bold_center),
         None, None, None, None, None,
     ])
