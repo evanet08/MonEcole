@@ -648,7 +648,7 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         None, None, None,
         Paragraph("Fait à ..............................., le ......./ ......./ 20.....<br/><br/>"
                    "Sceau de l'Ecole<br/>Le (la) Directeur (trice)",
-                   ParagraphStyle('FaitA', parent=style_normal, fontSize=8, alignment=1, leading=11)),
+                   ParagraphStyle('FaitA', parent=style_normal, fontSize=7, alignment=1, leading=10)),
         None, None, None, None,
     ])
     ts_commands.append(('SPAN', (0, row_sig), (3, row_sig)))
@@ -658,36 +658,37 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     row_th = current_row
     table_data.append([
         Paragraph("<b>TRIMESTRES</b>", bold_center),
-        None, None,
+        None,
         Paragraph("<b>INSTITUTEU<br/>R (TRICE)</b>", ParagraphStyle('InstStyle', parent=style_center, fontName='Helvetica-Bold', fontSize=7, alignment=1)),
         Paragraph("<b>PARENT</b>", bold_center),
-        None, None, None, None,
+        None, None, None, None, None,
     ])
-    ts_commands.append(('SPAN', (0, row_th), (2, row_th)))
+    ts_commands.append(('SPAN', (0, row_th), (1, row_th)))
     current_row += 1
 
     row_t1 = current_row
     table_data.append([Paragraph("1<super>er</super> TRIMESTRE", small_normal),
                         None, None, None, None, None, None, None, None])
-    ts_commands.append(('SPAN', (0, row_t1), (2, row_t1)))
+    ts_commands.append(('SPAN', (0, row_t1), (1, row_t1)))
     current_row += 1
 
     row_t2 = current_row
     table_data.append([Paragraph("2<super>e</super> TRIMESTRE", small_normal),
                         None, None, None, None, None, None, None, None])
-    ts_commands.append(('SPAN', (0, row_t2), (2, row_t2)))
+    ts_commands.append(('SPAN', (0, row_t2), (1, row_t2)))
     current_row += 1
 
     row_t3 = current_row
     table_data.append([Paragraph("3<super>e</super> TRIMESTRE", small_normal),
                         None, None, None, None, None, None, None, None])
-    ts_commands.append(('SPAN', (0, row_t3), (2, row_t3)))
+    ts_commands.append(('SPAN', (0, row_t3), (1, row_t3)))
     current_row += 1
 
+    # Merge "Fait à..." block across cols 4-8 from row_sig to row_t3
     ts_commands.extend([
-        ('SPAN', (5, row_sig), (8, row_t3)),
-        ('VALIGN', (5, row_sig), (8, row_t3), 'MIDDLE'),
-        ('ALIGN', (5, row_sig), (8, row_t3), 'CENTER'),
+        ('SPAN', (4, row_sig), (8, row_t3)),
+        ('VALIGN', (4, row_sig), (8, row_t3), 'MIDDLE'),
+        ('ALIGN', (4, row_sig), (8, row_t3), 'CENTER'),
     ])
 
     # ── LEGENDE ──
