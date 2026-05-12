@@ -472,29 +472,30 @@ def generer_bulletin_pdf(request):
                         elements.append(PageBreak())
 
                     elements.append(Spacer(1, 3*mm))
-                    institution = Institution.objects.filter(id_ecole=idCampus, pays_id=_pdf_pays_id).first() if _pdf_pays_id else Institution.objects.filter(id_ecole=idCampus).first()
-                    # Safe logo path resolution (handles absolute paths stored in DB)
+                    # Logos from Pays table via Campus → Etablissement → Pays
                     import os as _os
-                    _media_root = getattr(__import__('django.conf', fromlist=['settings']).settings, 'MEDIA_ROOT', '')
                     logo_path = None
                     emblem_path = None
-                    if institution and institution.logo_ecole:
-                        try:
-                            logo_path = institution.logo_ecole.path
-                        except Exception:
-                            _lp = str(institution.logo_ecole)
-                            if _lp:
-                                # Strip /media/ prefix since MEDIA_ROOT already includes it
-                                _lp_clean = _lp.lstrip('/')
-                                if _lp_clean.startswith('media/'):
-                                    _lp_clean = _lp_clean[6:]  # remove 'media/'
-                                logo_path = _os.path.join(_media_root, _lp_clean)
-                    if institution:
-                        try:
-                            _em = institution.logo_ministere
-                            emblem_path = _em.path if _em else None
-                        except Exception:
-                            emblem_path = None
+                    try:
+                        from MonEcole_app.models.country_structure import Etablissement as _MatEtab, Pays as _MatPays
+                        _mat_campus = Campus.objects.get(idCampus=idCampus)
+                        _mat_etab = _MatEtab.objects.select_related('pays').get(
+                            id_etablissement=_mat_campus.id_etablissement
+                        )
+                        _mat_pays = _mat_etab.pays
+                        _mat_media = getattr(settings, 'MEDIA_ROOT', '')
+                        if not _mat_media:
+                            _mat_media = _os.path.join(settings.BASE_DIR, 'media')
+                        if _mat_pays.logo_pays:
+                            _lp = _os.path.join(_mat_media, _mat_pays.logo_pays)
+                            if _os.path.exists(_lp):
+                                logo_path = _lp
+                        if _mat_pays.logo_ministere:
+                            _ep = _os.path.join(_mat_media, _mat_pays.logo_ministere)
+                            if _os.path.exists(_ep):
+                                emblem_path = _ep
+                    except Exception as _logo_e:
+                        logger.warning(f"[BULLETIN PDF] Could not fetch Pays logos for Maternelle: {_logo_e}")
                     check_image_paths(logo_path, emblem_path)
 
                     create_header(elements, logo_path, emblem_path, style_title, style_center, eleve=eleve)
