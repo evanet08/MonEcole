@@ -265,10 +265,18 @@ from collections import defaultdict
 
 
 
+
 def create_bulletin_maternelle(elements, style_normal, style_center, style_title,
                                annee_id, campus_id, cycle_id, classe_id, id_eleve=None,
                                rounded_values=False):
-   
+    from reportlab.lib import colors
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import KeepTogether
+    from collections import defaultdict
+
     table_data = []
     ts_commands = []
 
@@ -277,21 +285,21 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     left_bold = ParagraphStyle('LeftBold', parent=style_normal, fontName='Helvetica-Bold', fontSize=9, alignment=0)
     small_normal = ParagraphStyle('SmallNormal', parent=style_normal, fontSize=8, alignment=0)
 
-    # ── ROW 0: Header ──
+    # ── ROW 0: Header (9 columns) ──
     table_data.append([
         Paragraph("<b>*</b>", bold_center),
-        Paragraph("<b>TRIMESTRES</b>", bold_center),
+        Paragraph("<b>TRIMESTRES</b>", bold_center), None,
         Paragraph("<b>TRIM 1</b>", bold_center),
         Paragraph("<b>TRIM 2</b>", bold_center),
         Paragraph("<b>TRIM 3</b>", bold_center),
         Paragraph("<b>TOTAL</b>", bold_center),
         Paragraph("<b>QUAL.</b>", bold_center),
-        Paragraph("<b>COUL</b>", bold_center),
+        Paragraph("<b>COUL.</b>", bold_center),
     ])
+    ts_commands.append(('SPAN', (1, 0), (2, 0)))
     current_row = 1
 
-
-    # Résolution EAC → business keys pour trouver les cours
+    # ── Load notes (same logic as before) ──
     from MonEcole_app.models.country_structure import EtablissementAnneeClasse, Etablissement
     from MonEcole_app.models.enseignmnts.matiere import Cours
 
@@ -301,8 +309,7 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     except EtablissementAnneeClasse.DoesNotExist:
         return elements
 
-    # ── Charger notes via _get_bulletin_context (même pattern que Primaire) ──
-    notes_par_cours = {}  # {cours_pk: {config_id: note_val}}
+    notes_par_cours = {}
     trim_config_ids = []
     import logging as _log
     _logger = _log.getLogger(__name__)
@@ -313,17 +320,12 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
 
         campus_obj = Campus.objects.filter(idCampus=campus_id).first()
         etab_id_val = campus_obj.id_etablissement if campus_obj else None
-        _logger.warning(f"[MATERNELLE] campus_id={campus_id}, etab_id_val={etab_id_val}, id_eleve={id_eleve}")
 
-        # Resolve pays_id
         pays_id_val = None
         if etab_id_val:
-            from MonEcole_app.models.country_structure import Etablissement
             _etab_obj = Etablissement.objects.filter(id_etablissement=etab_id_val).first()
             pays_id_val = _etab_obj.pays_id if _etab_obj else None
-        _logger.warning(f"[MATERNELLE] pays_id_val={pays_id_val}, ea_id={eac.etablissement_annee_id}")
 
-        # 1. Get trimester configs
         if etab_id_val and id_eleve and pays_id_val:
             with connections['countryStructure'].cursor() as hub_cur:
                 hub_cur.execute("""
@@ -338,25 +340,18 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
                     ORDER BY ri.ordre
                 """, [eac.etablissement_annee_id, pays_id_val])
                 trim_config_ids = [r[0] for r in hub_cur.fetchall()]
-        _logger.warning(f"[MATERNELLE] trim_config_ids={trim_config_ids}")
 
-        # 2. Build mappings via _get_bulletin_context (handles duplicates properly)
         cours_annee_to_cours, config_to_rep, rep_to_code = _get_bulletin_context(eac)
-        _logger.warning(f"[MATERNELLE] cours_annee_to_cours: {len(cours_annee_to_cours)} entries")
 
-        # 3. Load notes from note_bulletin
         if trim_config_ids and id_eleve:
             from MonEcole_app.models.evaluations.note import NoteBulletin
             qs = NoteBulletin.objects.filter(
                 id_eleve_id=id_eleve,
-                id_note_type=1,  # TJ
+                id_note_type=1,
                 id_repartition_config__in=trim_config_ids,
                 id_cours_annee__in=cours_annee_to_cours.keys(),
             )
-            _logger.warning(f"[MATERNELLE] NoteBulletin query: {qs.count()} rows for eleve={id_eleve}")
-
             for nb in qs:
-                # Map ca_id → cours_id (via _get_bulletin_context mapping)
                 cours_id = cours_annee_to_cours.get(nb.id_cours_annee)
                 if not cours_id:
                     continue
@@ -364,16 +359,12 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
                 notes_par_cours.setdefault(cours_id, {})[cfg_id] = (
                     round(float(nb.note), 1) if nb.note is not None else None
                 )
-        _logger.warning(f"[MATERNELLE] notes_par_cours: {len(notes_par_cours)} cours with notes")
-
     except Exception as _e:
         _logger.error(f"[BULLETIN MATERNELLE] Note loading error: {_e}", exc_info=True)
 
-    # ── SOURCE: cours_annee (Cours_par_classe) pour groupes & domaines ──
-    # CRITICAL: NE PAS utiliser la table cours directement pour les domaines.
-    # cours_annee contient la structuration pédagogique réelle.
+    # ── Cours par classe (same logic) ──
+    from MonEcole_app.views.rdc_structure.structure_cycle_sup import Cours_par_classe
 
-    # Resolve pays_id for scoping
     _mat_pays_id = None
     try:
         _mat_etab_id = eac.etablissement_annee.etablissement_id
@@ -382,7 +373,6 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     except Exception:
         _mat_pays_id = getattr(eac, 'id_pays', None)
 
-    # Check if cycle uses non-uniform courses
     _mat_cours_uniformes = True
     try:
         _mat_cycle_obj = eac.classe.cycle
@@ -391,7 +381,6 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     except Exception:
         pass
 
-    # Build cours_annee filter scoped by pays + annee + classe
     _mat_cours_filter = {'classe_id': hub_classe_id}
     if _mat_pays_id:
         _mat_cours_filter['id_pays'] = _mat_pays_id
@@ -409,17 +398,14 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     cours_par_classe_list = list(Cours_par_classe.objects.filter(
         **_mat_cpc_filter
     ).select_related('id_cours'))
-    # Sort: entries with maxima_exam first, then by ordre_cours
     cours_par_classe_list.sort(key=lambda c: (
         0 if c.maxima_exam is not None else 1,
         c.ordre_cours or 999
     ))
 
-    # Resolve domaine names from Hub — scoped by pays
     domaine_names = {}
     try:
         from django.db import connections as _conns
-        # Collect all domaine_ids from cours_annee (priority) then cours (fallback)
         domaine_ids = set()
         for cpc in cours_par_classe_list:
             d_id = cpc.domaine_id or cpc.id_cours.domaine_id
@@ -439,36 +425,30 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
 
     groupes = defaultdict(list)
     seen_cours_pks = set()
-
     for cpc in cours_par_classe_list:
-        cours_pk = cpc.id_cours.pk  # Hub PK — matches notes_par_cours keys
+        cours_pk = cpc.id_cours.pk
         if cours_pk in seen_cours_pks:
-            continue 
+            continue
         seen_cours_pks.add(cours_pk)
-
-        # CRITICAL: domaine_id from cours_annee has PRIORITY over cours
         d_id = cpc.domaine_id or cpc.id_cours.domaine_id
         domaine = domaine_names.get(d_id, "Sans groupe").strip() if d_id else "Sans groupe"
         groupes[domaine].append(cpc)
 
- 
     def groupe_order(domaine):
-        mapping = {'I': 1, 'II': 2, 'III': 3}
+        mapping = {'I': 1, 'II': 2, 'III': 3, 'IV': 4}
         try:
             return mapping[domaine.split()[-1]]
         except (IndexError, KeyError):
             return 99
 
     ordered_domaines = sorted(groupes.keys(), key=groupe_order)
-
     for domaine in ordered_domaines:
         groupes[domaine].sort(key=lambda cpc: cpc.ordre_cours or 999)
 
     compteur_cours = 1
 
-    # ── ROW 1: MAXIMA global (maxima per course per trimester) ──
-    # Get maxima from first course with non-null value
-    maxima_per_trim = 4  # default from official model
+    # Maxima per trim
+    maxima_per_trim = 4
     for dom in ordered_domaines:
         for cpc in groupes[dom]:
             if cpc.maxima_exam is not None:
@@ -477,18 +457,20 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         if maxima_per_trim != 4:
             break
     maxima_total = maxima_per_trim * 3
+
+    # ── ROW 1: MAXIMA ──
     table_data.append([
         Paragraph("<b>*</b>", bold_center),
-        Paragraph("<b>MAXIMA</b>", bold_center),
+        Paragraph("<b>MAXIMA</b>", bold_center), None,
         Paragraph(f"<b>{maxima_per_trim}</b>", bold_center),
         Paragraph(f"<b>{maxima_per_trim}</b>", bold_center),
         Paragraph(f"<b>{maxima_per_trim}</b>", bold_center),
         Paragraph(f"<b>{maxima_total}</b>", bold_center),
         None, None
     ])
+    ts_commands.append(('SPAN', (1, current_row), (2, current_row)))
     current_row += 1
 
-    # ── Group descriptions mapping (official names) ──
     group_descriptions = {
         'GROUPE I': 'EDUCATION SENSORIELLE',
         'GROUPE II': 'EDUCATION MOTRICE',
@@ -503,19 +485,16 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         if not groupes[domaine]:
             continue
 
-        # ── Group header (e.g. "• GROUPE I : EDUCATION SENSORIELLE") ──
         desc = group_descriptions.get(domaine, '')
-        group_title = f"•    {domaine} : {desc}" if desc else f"•    {domaine}"
+        group_title = f"•    {domaine}: {desc}" if desc else f"•    {domaine}"
         table_data.append([
             Paragraph(f"<b>{group_title}</b>", left_bold),
-            None, None, None, None, None, None, None
+            None, None, None, None, None, None, None, None
         ])
-        ts_commands.append(('SPAN', (0, current_row), (7, current_row)))
+        ts_commands.append(('SPAN', (0, current_row), (8, current_row)))
         current_row += 1
 
-        # ── Course lines with notes ──
         group_totals = [0.0, 0.0, 0.0]
-        group_count = [0, 0, 0]
         nb_cours_in_group = len(groupes[domaine])
 
         for cpc in groupes[domaine]:
@@ -530,7 +509,6 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
                 if val is not None:
                     display = str(int(val)) if val == int(val) else f"{val:.1f}"
                     group_totals[i] += val
-                    group_count[i] += 1
                 else:
                     display = ""
                 note_cells.append(Paragraph(display, small_center))
@@ -538,7 +516,6 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
                 note_cells.append(None)
                 note_vals.append(None)
 
-            # Total = sum of trimester notes
             total_val = sum(v for v in note_vals if v is not None)
             has_any = any(v is not None for v in note_vals)
             total_display = ""
@@ -547,94 +524,124 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
 
             table_data.append([
                 Paragraph(f"{compteur_cours}", small_center),
-                Paragraph(f"{cpc.id_cours.cours}", small_normal),
+                Paragraph(f"{cpc.id_cours.cours}", small_normal), None,
                 note_cells[0], note_cells[1], note_cells[2],
                 Paragraph(total_display, small_center) if total_display else None,
                 None, None
             ])
+            ts_commands.append(('SPAN', (1, current_row), (2, current_row)))
             current_row += 1
             compteur_cours += 1
 
-        # ── SOUS-TOTAL with /N format ──
+        # ── SOUS-TOTAL with actual values ──
         st_max_per_trim = nb_cours_in_group * maxima_per_trim
         st_max_total = st_max_per_trim * 3
 
         st_cells = []
+        st_total_val = 0.0
         for i in range(3):
             v = group_totals[i]
-            st_cells.append(Paragraph(f"/{st_max_per_trim}", small_center))
+            st_total_val += v
             grand_totals[i] += v
             grand_maxima[i] += st_max_per_trim
+            st_cells.append(Paragraph(f"/{st_max_per_trim}", small_center))
 
         table_data.append([
             Paragraph("<b>*</b>", bold_center),
-            Paragraph("<b>SOUS - TOTAL</b>", left_bold),
+            Paragraph("<b>SOUS - TOTAL</b>", left_bold), None,
             st_cells[0], st_cells[1], st_cells[2],
             Paragraph(f"/{st_max_total}", small_center),
             None, None
         ])
+        ts_commands.append(('SPAN', (1, current_row), (2, current_row)))
         current_row += 1
 
-    # ── TOTAL is shown inside the APPRECIATION GENERALE block (see below) ──
+    # ── APPRECIATION GENERALE (3 rows, 9 cols) ──
     tm = grand_maxima[0] if grand_maxima else 0
     total_max_all = tm * 3
-
-    # =====================================================================
-    # BAS DE PAGE – REPRODUCTION STRICTE du modèle officiel RDC Maternelle
-    # UN SEUL TABLEAU – colspan/rowspan uniquement – AUCUN sous-tableau
-    # =====================================================================
 
     small_left_bold = ParagraphStyle('SmallLeftBold', parent=style_normal,
                                       fontName='Helvetica-Bold', fontSize=8, alignment=0)
     tiny_normal = ParagraphStyle('TinyNormal', parent=style_normal, fontSize=6.5, alignment=0)
 
-    # ── APPRECIATION GENERALE (3 rows) ──
-    # Cols 0+1 merged vertically = "APPRECIATION GENERALE" (65mm)
-    # Col 2 = TOTAL / CONVERSION QUALITATIVE / COULEURS labels
-    # Cols 3, 4, 5 = /trim values
-    # Col 6 = /grand total
-    # Col 7 = barcode zone (merged 3 rows)
+    # Qualitative conversion helper
+    def get_qualitative(value, maximum):
+        if maximum <= 0 or value is None:
+            return '', ''
+        pct = (value / maximum) * 100
+        if pct >= 80:
+            return 'E', '#FFFF00'      # JAUNE
+        elif pct >= 60:
+            return 'TB', '#0000FF'     # BLEU
+        elif pct >= 50:
+            return 'B', '#00FF00'      # VERT
+        elif pct >= 40:
+            return 'AB', '#000000'     # NOIR
+        else:
+            return 'M', '#FF0000'      # ROUGE
+
+    # Compute values for TOTAL row
+    total_t1 = grand_totals[0]
+    total_t2 = grand_totals[1]
+    total_t3 = grand_totals[2]
+    total_all = total_t1 + total_t2 + total_t3
+
+    # Qualitative for each trim + total
+    q_t1, c_t1 = get_qualitative(total_t1, tm)
+    q_t2, c_t2 = get_qualitative(total_t2, tm)
+    q_t3, c_t3 = get_qualitative(total_t3, tm)
+    q_tot, c_tot = get_qualitative(total_all, total_max_all)
+
     row_apprec = current_row
 
-    # Row 1: APPRECIATION GENERALE (span 0-1) | TOTAL | /tm | /tm | /tm | /total | barcode
+    # Row TOTAL
     table_data.append([
         Paragraph("<b>APPRECIATION<br/>GENERALE</b>", ParagraphStyle(
             'ApprecStyle', parent=style_normal, fontName='Helvetica-Bold',
             fontSize=9, alignment=0, leading=11)),
         None,
-        Paragraph("<b>TOTAL</b>", bold_center),
+        Paragraph("<b>TOTAL</b>", small_left_bold),
         Paragraph(f"<b>/{tm}</b>", bold_center),
         Paragraph(f"<b>/{tm}</b>", bold_center),
         Paragraph(f"<b>/{tm}</b>", bold_center),
         Paragraph(f"<b>/{total_max_all}</b>", bold_center),
-        None,
+        None, None,
     ])
     current_row += 1
 
-    # Row 2: [merged] | [merged] | CONVERSION QUALITATIVE | (empty) ...
+    # Row CONVERSION QUALITATIVE
     table_data.append([
         None, None,
-        Paragraph("<b>CONVERSION QUALITATIVE</b>", small_center),
-        None, None, None, None, None,
+        Paragraph("<b>CONVERSION QUALITATIVE</b>", small_left_bold),
+        Paragraph(f"<b>{q_t1}</b>", bold_center),
+        Paragraph(f"<b>{q_t2}</b>", bold_center),
+        Paragraph(f"<b>{q_t3}</b>", bold_center),
+        Paragraph(f"<b>{q_tot}</b>", bold_center),
+        None, None,
     ])
     current_row += 1
 
-    # Row 3: [merged] | [merged] | COULEURS | (empty) ...
+    # Row COULEURS
     table_data.append([
         None, None,
-        Paragraph("<b>COULEURS</b>", small_center),
-        None, None, None, None, None,
+        Paragraph("<b>COULEURS</b>", small_left_bold),
+        None, None, None, None, None, None,
     ])
     current_row += 1
 
     ts_commands.extend([
-        ('SPAN', (0, row_apprec), (1, row_apprec + 2)),  # APPRECIATION cols 0+1, 3 rows
+        ('SPAN', (0, row_apprec), (1, row_apprec + 2)),
         ('VALIGN', (0, row_apprec), (1, row_apprec + 2), 'MIDDLE'),
         ('LEFTPADDING', (0, row_apprec), (0, row_apprec + 2), 5),
-        ('SPAN', (7, row_apprec), (7, row_apprec + 2)),  # Barcode col 7, 3 rows
     ])
 
-    # ── * SIGNATURES ──
+    # Color cells for COULEURS row (row_apprec + 2)
+    couleur_row = row_apprec + 2
+    for col_idx, hex_color in [(3, c_t1), (4, c_t2), (5, c_t3), (6, c_tot)]:
+        if hex_color:
+            ts_commands.append(('BACKGROUND', (col_idx, couleur_row), (col_idx, couleur_row), colors.HexColor(hex_color)))
+
+    # ── SIGNATURES ──
     row_sig = current_row
     table_data.append([
         Paragraph("<b>*    SIGNATURES</b>", small_left_bold),
@@ -642,59 +649,52 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         Paragraph("Fait à ..............................., le ......./ ......./ 20.....<br/><br/>"
                    "Sceau de l'Ecole<br/>Le (la) Directeur (trice)",
                    ParagraphStyle('FaitA', parent=style_normal, fontSize=8, alignment=1, leading=11)),
-        None, None, None,
+        None, None, None, None,
     ])
-    ts_commands.extend([
-        ('SPAN', (0, row_sig), (3, row_sig)),
-    ])
+    ts_commands.append(('SPAN', (0, row_sig), (3, row_sig)))
     current_row += 1
 
-    # ── TRIMESTRES / INSTITUTEUR (TRICE) / PARENT ──
+    # TRIMESTRES / INSTITUTEUR / PARENT
     row_th = current_row
     table_data.append([
         Paragraph("<b>TRIMESTRES</b>", bold_center),
-        None,
-        Paragraph("<b>INSTITUTEUR (TRICE)</b>", bold_center),
+        None, None,
+        Paragraph("<b>INSTITUTEU<br/>R (TRICE)</b>", ParagraphStyle('InstStyle', parent=style_center, fontName='Helvetica-Bold', fontSize=7, alignment=1)),
         Paragraph("<b>PARENT</b>", bold_center),
         None, None, None, None,
     ])
-    ts_commands.extend([
-        ('SPAN', (0, row_th), (1, row_th)),
-    ])
+    ts_commands.append(('SPAN', (0, row_th), (2, row_th)))
     current_row += 1
 
-    # 1er, 2e, 3e TRIMESTRE — cols 0+1 merged
     row_t1 = current_row
     table_data.append([Paragraph("1<super>er</super> TRIMESTRE", small_normal),
-                        None, None, None, None, None, None, None])
-    ts_commands.append(('SPAN', (0, row_t1), (1, row_t1)))
+                        None, None, None, None, None, None, None, None])
+    ts_commands.append(('SPAN', (0, row_t1), (2, row_t1)))
     current_row += 1
 
     row_t2 = current_row
     table_data.append([Paragraph("2<super>e</super> TRIMESTRE", small_normal),
-                        None, None, None, None, None, None, None])
-    ts_commands.append(('SPAN', (0, row_t2), (1, row_t2)))
+                        None, None, None, None, None, None, None, None])
+    ts_commands.append(('SPAN', (0, row_t2), (2, row_t2)))
     current_row += 1
 
     row_t3 = current_row
     table_data.append([Paragraph("3<super>e</super> TRIMESTRE", small_normal),
-                        None, None, None, None, None, None, None])
-    ts_commands.append(('SPAN', (0, row_t3), (1, row_t3)))
+                        None, None, None, None, None, None, None, None])
+    ts_commands.append(('SPAN', (0, row_t3), (2, row_t3)))
     current_row += 1
 
-    # Right side: ONE big merge from row_sig→row_t3 (no internal lines)
     ts_commands.extend([
-        ('SPAN', (4, row_sig), (7, row_t3)),
-        ('VALIGN', (4, row_sig), (7, row_t3), 'MIDDLE'),
-        ('ALIGN', (4, row_sig), (7, row_t3), 'CENTER'),
+        ('SPAN', (5, row_sig), (8, row_t3)),
+        ('VALIGN', (5, row_sig), (8, row_t3), 'MIDDLE'),
+        ('ALIGN', (5, row_sig), (8, row_t3), 'CENTER'),
     ])
 
-    # ── LEGENDE (3 rows) — cols 0+1 merged vertically, values in cols 2-7 ──
+    # ── LEGENDE ──
     row_leg = current_row
-
     table_data.append([
         Paragraph("<b>LEGENDE</b>", bold_center),
-        None,
+        None, None,
         Paragraph("<b>Pourcentages</b>", small_center),
         Paragraph("<b>100-80</b>", small_center),
         Paragraph("<b>79-60</b>", small_center),
@@ -705,7 +705,7 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     current_row += 1
 
     table_data.append([
-        None, None,
+        None, None, None,
         Paragraph("<b>Qualité</b>", small_center),
         Paragraph("<b>E</b>", small_center),
         Paragraph("<b>TB</b>", small_center),
@@ -716,7 +716,7 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     current_row += 1
 
     table_data.append([
-        None, None,
+        None, None, None,
         Paragraph("<b>Couleurs</b>", small_center),
         Paragraph("JAUNE", small_center),
         Paragraph("BLEU", small_center),
@@ -727,18 +727,17 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     current_row += 1
 
     ts_commands.extend([
-        ('SPAN', (0, row_leg), (1, row_leg + 2)),
-        ('VALIGN', (0, row_leg), (1, row_leg + 2), 'MIDDLE'),
+        ('SPAN', (0, row_leg), (2, row_leg + 2)),
+        ('VALIGN', (0, row_leg), (2, row_leg + 2), 'MIDDLE'),
     ])
 
     row_last_grid = current_row - 1
 
-    # ── Observations (below grid) ──
+    # ── Observations ──
     row_obs = current_row
-
     table_data.append([
         Paragraph("<b>Observations :</b>", small_left_bold),
-        None, None, None,
+        None, None, None, None,
         Paragraph("Sceau de l'Ecole", small_center),
         None, None, None,
     ])
@@ -746,7 +745,7 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
 
     table_data.append([
         Paragraph("(1) Biffer la mention inutile", tiny_normal),
-        None, None, None,
+        None, None, None, None,
         Paragraph("<b>Le (la) Directeur (trice)</b>", small_center),
         None, None, None,
     ])
@@ -755,7 +754,7 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     table_data.append([
         Paragraph("<i>Note importante : le bulletin est sans valeur s'il est raturé ou surchargé</i>",
                    tiny_normal),
-        None, None, None,
+        None, None, None, None,
         None, None, None,
         Paragraph("<i>IGE/PS.001</i>", ParagraphStyle(
             'IgeCode', parent=style_normal, fontName='Helvetica-Oblique',
@@ -764,14 +763,14 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
     current_row += 1
 
     ts_commands.extend([
-        ('SPAN', (0, row_obs), (3, row_obs)),
-        ('SPAN', (4, row_obs), (7, row_obs)),
-        ('SPAN', (0, row_obs + 1), (3, row_obs + 1)),
-        ('SPAN', (4, row_obs + 1), (7, row_obs + 1)),
-        ('SPAN', (0, row_obs + 2), (3, row_obs + 2)),
-        ('SPAN', (4, row_obs + 2), (6, row_obs + 2)),
-        ('ALIGN', (0, row_obs), (3, row_obs + 2), 'LEFT'),
-        ('VALIGN', (0, row_obs), (3, row_obs + 2), 'TOP'),
+        ('SPAN', (0, row_obs), (4, row_obs)),
+        ('SPAN', (5, row_obs), (8, row_obs)),
+        ('SPAN', (0, row_obs + 1), (4, row_obs + 1)),
+        ('SPAN', (5, row_obs + 1), (8, row_obs + 1)),
+        ('SPAN', (0, row_obs + 2), (4, row_obs + 2)),
+        ('SPAN', (5, row_obs + 2), (7, row_obs + 2)),
+        ('ALIGN', (0, row_obs), (4, row_obs + 2), 'LEFT'),
+        ('VALIGN', (0, row_obs), (4, row_obs + 2), 'TOP'),
     ])
 
     # Footer
@@ -781,51 +780,49 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
                    "des sanctions prévues par la loi.</u></b></i>",
                    ParagraphStyle('LegalFooter', parent=style_normal,
                                    fontName='Helvetica-BoldOblique', fontSize=7, alignment=1)),
-        None, None, None, None, None, None, None,
+        None, None, None, None, None, None, None, None,
     ])
-    ts_commands.append(('SPAN', (0, row_footer), (7, row_footer)))
+    ts_commands.append(('SPAN', (0, row_footer), (8, row_footer)))
 
-    # ══════════════════════════════════════════════════════════════════════
-    # STYLES GLOBAUX – UN SEUL GRID CONTINU
-    # ══════════════════════════════════════════════════════════════════════
+    # ── GLOBAL STYLES ──
     ts_commands.extend([
         ('GRID', (0, 0), (-1, row_last_grid), 0.5, colors.black),
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E8E8E8')),
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),
-        ('ALIGN', (2, 0), (-1, -1), 'CENTER'),
-        ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+        ('ALIGN', (3, 0), (-1, -1), 'CENTER'),
+        ('ALIGN', (1, 0), (2, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('LEFTPADDING', (0, 0), (-1, -1), 3),
         ('RIGHTPADDING', (0, 0), (-1, -1), 3),
     ])
 
-    # Création du tableau principal
-
-    # ── Arrondi d'affichage (purement cosmétique, notes inchangées en base) ──
+    # ── Rounded values ──
     if rounded_values:
         from MonEcole_app.views.rdc_structure import apply_rounded_values
         apply_rounded_values(table_data)
 
-    # ── Hauteur dynamique : TOUJOURS contraindre sur 1 page A4 ──
+    # ── Dynamic row heights ──
     from MonEcole_app.views.rdc_structure import compute_single_page_layout
     _rh = compute_single_page_layout(
         table_data,
         page_orientation='portrait',
-        other_elements_h=85,   # header + NID + line2 + title maternelle
+        other_elements_h=85,
         top_margin=5,
         bottom_margin=5,
         ideal_rh=5.5,
         min_rh=3.0,
     )
-    # Column widths: num | name | T1 | T2 | T3 | Total | Qual | Coul
+
+    # Column widths: 9 columns aligned to border
     margin = 5 * mm
     usable_width = A4[0] - 2 * margin
-    col_widths = [12*mm, 53*mm, 22*mm, 22*mm, 22*mm, 22*mm, 22*mm, 22*mm]
+    # num | name_a | name_b | T1 | T2 | T3 | Total | Qual | Coul
+    col_widths = [12*mm, 40*mm, 40*mm, 17*mm, 17*mm, 17*mm, 17*mm, 17*mm, 17*mm]
     total_w = sum(col_widths)
-    if total_w > usable_width:
-        ratio = usable_width / total_w
-        col_widths = [w * ratio for w in col_widths]
+    # Scale to exactly fill usable width
+    ratio = usable_width / total_w
+    col_widths = [w * ratio for w in col_widths]
 
     main_table = Table(
         table_data,
@@ -835,10 +832,9 @@ def create_bulletin_maternelle(elements, style_normal, style_center, style_title
         repeatRows=1
     )
     main_table.setStyle(TableStyle(ts_commands))
-
     elements.append(main_table)
-
     return elements
+
 
 
 def draw_border__maternelle_rdc(canvas, doc, eleve, margin=5*mm, watermark_path=None, is_eschool=False, etab_url=''):
