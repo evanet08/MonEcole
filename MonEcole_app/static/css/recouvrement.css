@@ -50,6 +50,14 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 .hero-card.c5{--bg1:#8b5cf6;--bg2:#a78bfa;--shadow-color:rgba(139,92,246,.3)}
 .hero-card.c6{--bg1:#06b6d4;--bg2:#22d3ee;--shadow-color:rgba(6,182,212,.3)}
 
+/* ── Compact Hero (Dashboard-internal) ── */
+.stats-hero-compact{grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:14px}
+.stats-hero-compact .hero-card{padding:10px 14px;box-shadow:0 2px 8px var(--shadow-color)}
+.stats-hero-compact .hero-card .label{font-size:.58rem;letter-spacing:.6px}
+.stats-hero-compact .hero-card .value{font-size:1.2rem;font-weight:800}
+.stats-hero-compact .hero-card .icon{font-size:1.6rem}
+.stats-hero-compact .hero-card .sub{font-size:.56rem}
+
 /* ── Tab Navigation ── */
 .tab-nav{display:flex;gap:4px;margin-bottom:20px;background:var(--bg-card);border-radius:var(--radius-md);padding:4px;box-shadow:var(--shadow-sm);border:1px solid var(--border-light)}
 .tab-btn{flex:1;padding:11px 16px;border:none;background:transparent;font-family:'Inter',sans-serif;font-size:.82rem;font-weight:600;color:var(--text-secondary);cursor:pointer;border-radius:var(--radius-sm);transition:all .2s ease;display:flex;align-items:center;justify-content:center;gap:6px}

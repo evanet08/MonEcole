@@ -50,15 +50,6 @@
         <!-- CONTENT -->
         <div id="main-content" style="display:none">
 
-            <!-- ═══ HERO KPI ═══ -->
-            <div class="stats-hero" id="hero-summary">
-                <div class="hero-card c1"><span class="icon">💰</span><div class="label">Total Payé</div><div class="value" id="stat-paye">—</div></div>
-                <div class="hero-card c2"><span class="icon">🎯</span><div class="label">Total Attendu</div><div class="value" id="stat-attendu">—</div></div>
-                <div class="hero-card c3"><span class="icon">⚠️</span><div class="label">Reste à Payer</div><div class="value" id="stat-reste">—</div></div>
-                <div class="hero-card c4"><span class="icon">🔄</span><div class="label">Transactions</div><div class="value" id="stat-trans">—</div></div>
-                <div class="hero-card c5"><span class="icon">⏳</span><div class="label">En Dette</div><div class="value" id="stat-dette">—</div></div>
-                <div class="hero-card c6"><span class="icon">🚫</span><div class="label">Rejetés</div><div class="value" id="stat-rejete">—</div></div>
-            </div>
 
             <!-- ═══ TAB NAVIGATION ═══ -->
             <div class="tab-nav" id="tab-nav">
@@ -79,6 +70,15 @@
                         <div class="params-sidebar-item" onclick="switchDashSub('dash-resume',this)"><i class="fas fa-info-circle"></i> Résumé</div>
                     </div>
                     <div class="params-main">
+                        <!-- ═══ KPI Cards (compact, Dashboard only) ═══ -->
+                        <div class="stats-hero stats-hero-compact" id="hero-summary">
+                            <div class="hero-card c1"><span class="icon">💰</span><div class="label">Total Payé</div><div class="value" id="stat-paye">—</div></div>
+                            <div class="hero-card c2"><span class="icon">🎯</span><div class="label">Total Attendu</div><div class="value" id="stat-attendu">—</div></div>
+                            <div class="hero-card c3"><span class="icon">⚠️</span><div class="label">Reste à Payer</div><div class="value" id="stat-reste">—</div></div>
+                            <div class="hero-card c4"><span class="icon">🔄</span><div class="label">Transactions</div><div class="value" id="stat-trans">—</div></div>
+                            <div class="hero-card c5"><span class="icon">⏳</span><div class="label">En Dette</div><div class="value" id="stat-dette">—</div></div>
+                            <div class="hero-card c6"><span class="icon">🚫</span><div class="label">Rejetés</div><div class="value" id="stat-rejete">—</div></div>
+                        </div>
                         <div id="dash-apercu" class="dash-sub active-sub">
                             <div class="dash-section">
                                 <div style="display:flex;justify-content:space-between;align-items:center">
