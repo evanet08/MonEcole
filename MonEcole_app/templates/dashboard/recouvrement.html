@@ -129,10 +129,6 @@
                         <div class="params-sidebar-item" onclick="switchPaySub('pay-reject-panel',this)"><i class="fas fa-times-circle"></i> Rejetés <span class="item-count" id="sidebar-reject-count">0</span></div>
                     </div>
                     <div class="params-main">
-                        <div class="section-header" style="background:linear-gradient(135deg,#064e3b,#059669,#10b981)">
-                            <i class="fas fa-money-bill-wave"></i>
-                            <div><h2>Gestion des Paiements</h2><div class="section-desc">Enregistrez et suivez les paiements des élèves</div></div>
-                        </div>
                         <div class="rec-selector">
                             <div><label>Année</label><select id="pay-annee" onchange="onPayAnneeChange()">{% for a in annees_list %}<option value="{{ a.id_annee }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
                             <div><label>Classe</label><select id="pay-classe" onchange="onPayClasseChange()"><option value="">— Sélectionner —</option></select></div>
@@ -212,10 +208,6 @@
                         <div class="params-sidebar-item" onclick="switchCfgSub('cfg-banques',this)"><i class="fas fa-university"></i> Banques & Comptes</div>
                     </div>
                     <div class="params-main">
-                        <div class="section-header" style="background:linear-gradient(135deg,#78350f,#d97706,#f59e0b)">
-                            <i class="fas fa-cogs"></i>
-                            <div><h2>Configuration Financière</h2><div class="section-desc">Variables, prix, banques, réductions et pénalités</div></div>
-                        </div>
 
                         <!-- Catégories -->
                         <div id="cfg-categories" class="cfg-sub active-sub">
@@ -336,10 +328,6 @@
                         <div class="params-sidebar-item" onclick="switchCaisseSub('caisse-journal',this)"><i class="fas fa-list-alt"></i> Journal des opérations</div>
                     </div>
                     <div class="params-main">
-                        <div class="section-header" style="background:linear-gradient(135deg,#7f1d1d,#dc2626,#f87171)">
-                            <i class="fas fa-cash-register"></i>
-                            <div><h2>Entrées &amp; Sorties de Caisse</h2><div class="section-desc">Suivi des flux financiers hors paiements scolaires</div></div>
-                        </div>
                         <!-- Caisse stat cards -->
                         <div class="stats-hero" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
                             <div class="hero-card c5"><span class="icon">📊</span><div class="label">Total Opérations</div><div class="value" id="caisse-total">—</div></div>
