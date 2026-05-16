@@ -305,7 +305,10 @@ def add_structure_administrative(request):
 def delete_structure_pedagogique(request):
     try:
         data = json.loads(request.body)
-        structure = get_object_or_404(PedagogicStructureInstance, id_structure=data.get('id_structure'))
+        inst_id = data.get('id_structure')
+        structure = PedagogicStructureInstance.objects.filter(id_structure=inst_id).first()
+        if not structure:
+            return JsonResponse({'success': False, 'error': 'Structure introuvable.'}, status=404)
         structure.delete()
         return JsonResponse({'success': True})
     except Exception as e:
@@ -316,7 +319,10 @@ def delete_structure_pedagogique(request):
 def delete_structure_administrative(request):
     try:
         data = json.loads(request.body)
-        structure = get_object_or_404(AdministrativeStructureInstance, id_structure=data.get('id_structure'))
+        inst_id = data.get('id_structure')
+        structure = AdministrativeStructureInstance.objects.filter(id_structure=inst_id).first()
+        if not structure:
+            return JsonResponse({'success': False, 'error': 'Structure introuvable.'}, status=404)
         structure.delete()
         return JsonResponse({'success': True})
     except Exception as e:
@@ -327,7 +333,10 @@ def delete_structure_administrative(request):
 def update_structure_pedagogique(request):
     try:
         data = json.loads(request.body)
-        structure = get_object_or_404(PedagogicStructureInstance, id_structure=data.get('id_structure'))
+        inst_id = data.get('id_structure')
+        structure = PedagogicStructureInstance.objects.filter(id_structure=inst_id).first()
+        if not structure:
+            return JsonResponse({'success': False, 'error': 'Structure introuvable.'}, status=404)
         
         nom = data.get('nom')
         if nom:
@@ -343,7 +352,10 @@ def update_structure_pedagogique(request):
 def update_structure_administrative(request):
     try:
         data = json.loads(request.body)
-        structure = get_object_or_404(AdministrativeStructureInstance, id_structure=data.get('id_structure'))
+        inst_id = data.get('id_structure')
+        structure = AdministrativeStructureInstance.objects.filter(id_structure=inst_id).first()
+        if not structure:
+            return JsonResponse({'success': False, 'error': 'Structure introuvable.'}, status=404)
         
         nom = data.get('nom')
         if nom:
@@ -608,7 +620,9 @@ def save_structure_instance(request):
         
         if id_structure:
             # UPDATE
-            s = get_object_or_404(Model, id_structure=id_structure)
+            s = Model.objects.filter(id_structure=id_structure).first()
+            if not s:
+                return JsonResponse({'success': False, 'error': 'Structure introuvable.'}, status=404)
             s.nom = nom
             s.latitude = lat
             s.longitude = lng
@@ -616,7 +630,7 @@ def save_structure_instance(request):
             # Geographic link for PD
             if type_struct == 'PD' and data.get('administrative_parent_id'):
                 try:
-                    s.administrative_parent = AdministrativeStructureInstance.objects.get(id_structure=data.get('administrative_parent_id'))
+                    s.administrative_parent = AdministrativeStructureInstance.objects.filter(id_structure=data.get('administrative_parent_id')).first()
                 except:
                     pass
             s.save()
@@ -626,7 +640,9 @@ def save_structure_instance(request):
             if ordre > 1:
                 if not parent_id:
                     return JsonResponse({'success': False, 'error': "Un parent est requis pour ce niveau."}, status=400)
-                parent = get_object_or_404(Model, id_structure=parent_id)
+                parent = Model.objects.filter(id_structure=parent_id).first()
+                if not parent:
+                    return JsonResponse({'success': False, 'error': 'Parent introuvable.'}, status=404)
             
             # 1. Create parameters
             create_params = {
@@ -639,7 +655,7 @@ def save_structure_instance(request):
             }
             if type_struct == 'PD' and data.get('administrative_parent_id'):
                 try:
-                    create_params['administrative_parent'] = AdministrativeStructureInstance.objects.get(id_structure=data.get('administrative_parent_id'))
+                    create_params['administrative_parent'] = AdministrativeStructureInstance.objects.filter(id_structure=data.get('administrative_parent_id')).first()
                 except:
                     pass
                     
@@ -1148,13 +1164,13 @@ def generate_fiche_synoptique(request):
                 if len(parts) > 1:
                     parent_id = parts[-2] if len(parts) >= 2 else parts[0]
                     try:
-                        parent_adm = AdministrativeStructureInstance.objects.get(id_structure=parent_id)
+                        parent_adm = AdministrativeStructureInstance.objects.filter(id_structure=parent_id).first()
                         division = parent_adm.nom
                         # Try grandparent for province
                         if len(parts) > 2:
                             gp_id = parts[0]
                             try:
-                                gp_adm = AdministrativeStructureInstance.objects.get(id_structure=gp_id)
+                                gp_adm = AdministrativeStructureInstance.objects.filter(id_structure=gp_id).first()
                                 province = gp_adm.nom
                             except:
                                 pass
@@ -1716,9 +1732,8 @@ def save_etablissement(request):
         except (ValueError, TypeError):
              return JsonResponse({'success': False, 'error': "IDs invalides."}, status=400)
 
-        try:
-            parent_ped = PedagogicStructureInstance.objects.get(id_structure=id_parent_ped)
-        except PedagogicStructureInstance.DoesNotExist:
+        parent_ped = PedagogicStructureInstance.objects.filter(id_structure=id_parent_ped).first()
+        if not parent_ped:
              return JsonResponse({'success': False, 'error': "Structure pédagogique introuvable."}, status=400)
         
         if etab:
@@ -3165,7 +3180,9 @@ def download_ecole_template(request):
             return JsonResponse({'error': 'id_pays et structure pédagogique sont obligatoires.'}, status=400)
         
         pays = get_object_or_404(Pays, id_pays=id_pays)
-        parent_ped = get_object_or_404(PedagogicStructureInstance, id_structure=id_parent_ped)
+        parent_ped = PedagogicStructureInstance.objects.filter(id_structure=id_parent_ped).first()
+        if not parent_ped:
+            return JsonResponse({'error': 'Structure pédagogique introuvable.'}, status=404)
         
         # Charger les régimes du pays pour l'en-tête de la colonne ID_REGIME
         regimes = Regime.objects.filter(pays=pays).order_by('id_regime')
@@ -3395,9 +3412,8 @@ def import_ecoles_excel(request):
             return JsonResponse({'success': False, 'error': 'Structure pédagogique parente non spécifiée. Utilisez le modèle téléchargé.'}, status=400)
         
         # Récupérer le parent pédagogique
-        try:
-            parent_ped = PedagogicStructureInstance.objects.get(id_structure=int(id_parent_ped))
-        except (PedagogicStructureInstance.DoesNotExist, ValueError):
+        parent_ped = PedagogicStructureInstance.objects.filter(id_structure=int(id_parent_ped)).first()
+        if not parent_ped:
             return JsonResponse({'success': False, 'error': f'Structure pédagogique introuvable (ID={id_parent_ped}).'}, status=400)
         
         # --- Lire les en-têtes (ligne 3) ---
@@ -7524,30 +7540,27 @@ def create_admin_instance(request):
                 'error': f'« {nom} » existe déjà à ce niveau.'
             }, status=409)
 
-        # Create the instance (code will be set after we get the ID)
+        # Compute next id_structure BEFORE creation (no longer AutoField)
+        from django.db.models import Max
+        max_id_struct = AdministrativeStructureInstance.objects.filter(
+            pays=pays
+        ).aggregate(m=Max('id_structure'))['m'] or 0
+        next_id_structure = max_id_struct + 1
+
+        # Build code
+        if parent_code:
+            new_code = f"{parent_code}-{next_id_structure}"
+        else:
+            new_code = str(next_id_structure)
+
+        # Create with correct id_structure and code from the start
         new_inst = AdministrativeStructureInstance.objects.create(
+            id_structure=next_id_structure,
             nom=nom,
             ordre=ordre,
             pays=pays,
-            code='',  # will update below
+            code=new_code,
         )
-        # Refresh from DB to get the real id_structure computed by save()
-        new_inst.refresh_from_db()
-
-        # Safety check: id_structure must be > 0
-        if not new_inst.id_structure or new_inst.id_structure == 0:
-            # Force assign next available id_structure
-            from django.db.models import Max
-            max_id = AdministrativeStructureInstance.objects.filter(pays=pays).exclude(pk=new_inst.pk).aggregate(
-                m=Max('id_structure'))['m'] or 0
-            new_inst.id_structure = max_id + 1
-
-        # Build code: parent_code + "-" + id_structure  (or just id_structure if first level)
-        if parent_code:
-            new_inst.code = f"{parent_code}-{new_inst.id_structure}"
-        else:
-            new_inst.code = str(new_inst.id_structure)
-        new_inst.save(update_fields=['code', 'id_structure'])
 
         return JsonResponse({
             'success': True,

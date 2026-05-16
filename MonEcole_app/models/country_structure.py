@@ -416,7 +416,8 @@ class GestionnaireEtablissement(models.Model):
 
 
 class PedagogicStructureInstance(models.Model):
-    id_structure = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
+    id_structure = models.IntegerField()
     nom = models.CharField(max_length=255)
     ordre = models.PositiveIntegerField()
     pays = models.ForeignKey(Pays, on_delete=models.CASCADE, related_name='pedag_instances')
@@ -525,7 +526,8 @@ class Cycle(models.Model):
 
 
 class AdministrativeStructureType(models.Model):
-    id_structure = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
+    id_structure = models.IntegerField()
     code = models.CharField(max_length=10)
     nom = models.CharField(max_length=100)
     ordre = models.PositiveIntegerField(default=1)
@@ -541,7 +543,8 @@ class AdministrativeStructureType(models.Model):
 
 
 class AdministrativeStructureInstance(models.Model):
-    id_structure = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
+    id_structure = models.IntegerField()
     nom = models.CharField(max_length=255)
     ordre = models.PositiveIntegerField()
     pays = models.ForeignKey(Pays, on_delete=models.CASCADE, related_name='admin_instances')
