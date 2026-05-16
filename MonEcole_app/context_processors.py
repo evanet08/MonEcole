@@ -36,3 +36,47 @@ def verification_status(request):
         'phone_verified': phone_verified,
         'user_phone': phone,
     }
+
+
+def activation_status(request):
+    """
+    Injecte le statut d'activation progressive dans tous les templates.
+    Permet au frontend de :
+    - Griser/bloquer les modules non autorisés dans la sidebar
+    - Verrouiller les onglets Configuration si pas de campus
+    - Afficher des messages explicatifs
+    """
+    # Essayer d'abord le statut attaché par le middleware
+    status = getattr(request, 'activation_status', None)
+
+    if status is None:
+        # Fallback : calculer depuis le service
+        try:
+            from MonEcole_app.services.activation_service import get_cached_activation_status
+            etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+            if etab_id:
+                status = get_cached_activation_status(request)
+        except Exception:
+            pass
+
+    if status is None:
+        status = {
+            'geo_complete': False,
+            'campus_exists': False,
+            'config_unlocked': False,
+            'config_tabs_unlocked': False,
+            'modules_allowed': ['administration'],
+            'sections_allowed': ['dashboard', 'structure'],
+            'blocking_reason': '',
+        }
+
+    return {
+        'activation': status,
+        'geo_complete': status.get('geo_complete', False),
+        'campus_exists': status.get('campus_exists', False),
+        'config_unlocked': status.get('config_unlocked', False),
+        'config_tabs_unlocked': status.get('config_tabs_unlocked', False),
+        'modules_allowed': status.get('modules_allowed', []),
+        'sections_allowed': status.get('sections_allowed', []),
+        'activation_blocking_reason': status.get('blocking_reason', ''),
+    }

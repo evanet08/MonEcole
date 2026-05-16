@@ -406,12 +406,20 @@
             <div class="sidebar-nav-center">
 
                 {% block sidebar_items %}
-                <!-- Default: module links dynamiques -->
+                <!-- Default: module links dynamiques avec contrôle d'activation -->
                 {% for mod in user_modules %}
-                <a href="{{ mod.url }}" class="nav-item {% if mod.page == active_module %}active{% endif %}" title="{{ mod.label }}">
-                    <i class="{{ mod.icon }}" style="color:{% if mod.page == 'administration' %}#60a5fa{% elif mod.page == 'enseignements' %}#34d399{% elif mod.page == 'evaluations' %}#f59e0b{% elif mod.page == 'scolarite' %}#a78bfa{% elif mod.page == 'espace_enseignant' %}#818cf8{% elif mod.page == 'communication' %}#f43f5e{% else %}#94a3b8{% endif %}"></i>
-                    <span>{{ mod.label }}</span>
-                </a>
+                    {% if mod.page in modules_allowed %}
+                    <a href="{{ mod.url }}" class="nav-item {% if mod.page == active_module %}active{% endif %}" title="{{ mod.label }}">
+                        <i class="{{ mod.icon }}" style="color:{% if mod.page == 'administration' %}#60a5fa{% elif mod.page == 'enseignements' %}#34d399{% elif mod.page == 'evaluations' %}#f59e0b{% elif mod.page == 'scolarite' %}#a78bfa{% elif mod.page == 'espace_enseignant' %}#818cf8{% elif mod.page == 'communication' %}#f43f5e{% else %}#94a3b8{% endif %}"></i>
+                        <span>{{ mod.label }}</span>
+                    </a>
+                    {% else %}
+                    <div class="nav-item nav-item-locked" title="🔒 {{ mod.label }} — {% if not geo_complete %}Complétez la géolocalisation{% elif not campus_exists %}Créez d'abord un campus{% else %}Module non disponible{% endif %}" style="opacity:0.35;cursor:not-allowed;pointer-events:none;position:relative;">
+                        <i class="{{ mod.icon }}" style="color:#94a3b8"></i>
+                        <span style="color:#94a3b8">{{ mod.label }}</span>
+                        <i class="fas fa-lock" style="position:absolute;top:4px;right:6px;font-size:0.45rem;color:#ef4444;opacity:0.7;z-index:1;"></i>
+                    </div>
+                    {% endif %}
                 {% empty %}
                 <a href="/dashboard/administration/" class="nav-item {% if active_module == 'administration' %}active{% endif %}" title="Administration">
                     <i class="fas fa-building text-blue"></i>

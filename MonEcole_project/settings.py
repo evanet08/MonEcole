@@ -56,6 +56,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'MonEcole_app.middleware.auth.PersonnelAuthMiddleware',
     'MonEcole_app.middleware.tenant.TenantMiddleware',
+    'MonEcole_app.middleware.activation.ActivationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -74,6 +75,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'MonEcole_app.context_processors.verification_status',
+                'MonEcole_app.context_processors.activation_status',
             ],
         },
     },

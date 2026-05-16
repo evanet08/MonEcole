@@ -11,8 +11,9 @@
 </a>
 <a href="/dashboard/administration/?section=structure" class="nav-item {% if active_section == 'structure' %}active{% endif %}" title="MonEcole">
     <i class="fas fa-school" style="color:#0ea5e9"></i>
-    <span>MonEcole</span>
+    <span>Mon Ecole</span>
 </a>
+{% if config_unlocked %}
 <a href="/dashboard/administration/?section=structuration" class="nav-item {% if active_section == 'structuration' %}active{% endif %}" title="Configuration">
     <i class="fas fa-cogs" style="color:#10b981"></i>
     <span>Configuration</span>
@@ -29,6 +30,28 @@
     <i class="fas fa-shield-alt" style="color:#ec4899"></i>
     <span>Utilisateurs</span>
 </a>
+{% else %}
+<div class="nav-item" title="🔒 Configuration — Complétez d'abord la géolocalisation" style="opacity:0.3;cursor:not-allowed;pointer-events:none;position:relative;">
+    <i class="fas fa-cogs" style="color:#94a3b8"></i>
+    <span style="color:#94a3b8">Configuration</span>
+    <i class="fas fa-lock" style="position:absolute;top:4px;right:6px;font-size:0.45rem;color:#ef4444;opacity:0.7;"></i>
+</div>
+<div class="nav-item" title="🔒 Calendrier — Complétez d'abord la géolocalisation" style="opacity:0.3;cursor:not-allowed;pointer-events:none;position:relative;">
+    <i class="fas fa-calendar-alt" style="color:#94a3b8"></i>
+    <span style="color:#94a3b8">Calendrier</span>
+    <i class="fas fa-lock" style="position:absolute;top:4px;right:6px;font-size:0.45rem;color:#ef4444;opacity:0.7;"></i>
+</div>
+<div class="nav-item" title="🔒 Personnel — Complétez d'abord la géolocalisation" style="opacity:0.3;cursor:not-allowed;pointer-events:none;position:relative;">
+    <i class="fas fa-users-cog" style="color:#94a3b8"></i>
+    <span style="color:#94a3b8">Personnel</span>
+    <i class="fas fa-lock" style="position:absolute;top:4px;right:6px;font-size:0.45rem;color:#ef4444;opacity:0.7;"></i>
+</div>
+<div class="nav-item" title="🔒 Utilisateurs — Complétez d'abord la géolocalisation" style="opacity:0.3;cursor:not-allowed;pointer-events:none;position:relative;">
+    <i class="fas fa-shield-alt" style="color:#94a3b8"></i>
+    <span style="color:#94a3b8">Utilisateurs</span>
+    <i class="fas fa-lock" style="position:absolute;top:4px;right:6px;font-size:0.45rem;color:#ef4444;opacity:0.7;"></i>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block page_css %}
@@ -325,6 +348,37 @@
 {% endblock %}
 
 {% block content %}
+{% if not geo_complete %}
+<!-- ACTIVATION ALERT — Géolocalisation requise -->
+<div id="activationAlert" style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1.5px solid #fca5a5;border-radius:14px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 12px rgba(239,68,68,.08);animation:slideDown .4s ease">
+    <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#dc2626,#ef4444);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(220,38,38,.25)">
+        <i class="fas fa-exclamation-triangle" style="color:#fff;font-size:1rem"></i>
+    </div>
+    <div style="flex:1">
+        <div style="font-weight:700;font-size:.85rem;color:#991b1b;margin-bottom:2px"><i class="fas fa-lock" style="margin-right:6px;font-size:.7rem"></i>Activation incomplète</div>
+        <div style="font-size:.72rem;color:#b91c1c;line-height:1.4">
+            {{ activation_blocking_reason }}
+            <br><span style="color:#dc2626;font-weight:600">→ Complétez la section <a href="/dashboard/administration/?section=structure" style="color:#1d4ed8;text-decoration:underline;font-weight:700">Mon Ecole</a> pour débloquer tous les modules.</span>
+        </div>
+    </div>
+</div>
+<style>@keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}</style>
+{% elif not campus_exists %}
+<!-- ACTIVATION ALERT — Campus requis -->
+<div id="activationAlert" style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1.5px solid #fcd34d;border-radius:14px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 12px rgba(245,158,11,.08);animation:slideDown .4s ease">
+    <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#d97706,#f59e0b);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(217,119,6,.25)">
+        <i class="fas fa-map-marker-alt" style="color:#fff;font-size:1rem"></i>
+    </div>
+    <div style="flex:1">
+        <div style="font-weight:700;font-size:.85rem;color:#92400e;margin-bottom:2px"><i class="fas fa-info-circle" style="margin-right:6px;font-size:.7rem"></i>Presque terminé !</div>
+        <div style="font-size:.72rem;color:#a16207;line-height:1.4">
+            Géolocalisation ✓ — Créez maintenant au moins un <strong>campus / emplacement</strong> pour débloquer tous les onglets de configuration et les autres modules.
+            <br><span style="color:#b45309;font-weight:600">→ Rendez-vous dans <a href="/dashboard/administration/?section=structuration" style="color:#1d4ed8;text-decoration:underline;font-weight:700">Configuration → Campus</a>.</span>
+        </div>
+    </div>
+</div>
+<style>@keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}</style>
+{% endif %}
 <!-- STAT CARDS -->
 <div class="stat-grid">
     <div class="stat-card grad-purple"><div class="stat-icon"><i class="fas fa-layer-group"></i></div><div class="stat-info"><div class="stat-label">Cycles Actifs</div><div class="stat-value">{{ stats.n_cycles }}</div></div></div>
@@ -525,9 +579,14 @@
     </div>
     <div class="config-tabs" id="configTabs">
         <button class="config-tab active" data-tab="tab-campus" onclick="switchConfigTab(this)"><i class="fas fa-map-marker-alt"></i>Campus / Emplacement</button>
+        {% if config_tabs_unlocked %}
         <button class="config-tab" data-tab="tab-cycles" onclick="switchConfigTab(this)"><i class="fas fa-layer-group"></i>Cycles & Périodes</button>
         <button class="config-tab" data-tab="tab-classes" onclick="switchConfigTab(this)"><i class="fas fa-chalkboard"></i>Classes</button>
         <button class="config-tab" data-tab="tab-cours" onclick="switchConfigTab(this)" id="btnTabCours" style="display:none"><i class="fas fa-book"></i>Cours & Pondérations</button>
+        {% else %}
+        <button class="config-tab" disabled title="🔒 Créez d'abord un campus" style="opacity:0.35;cursor:not-allowed;position:relative;"><i class="fas fa-layer-group"></i>Cycles & Périodes <i class="fas fa-lock" style="font-size:0.5rem;color:#ef4444;margin-left:4px;"></i></button>
+        <button class="config-tab" disabled title="🔒 Créez d'abord un campus" style="opacity:0.35;cursor:not-allowed;position:relative;"><i class="fas fa-chalkboard"></i>Classes <i class="fas fa-lock" style="font-size:0.5rem;color:#ef4444;margin-left:4px;"></i></button>
+        {% endif %}
 
     </div>
 

@@ -5271,6 +5271,12 @@ def dashboard_campus_create(request):
                     id_pays,
                 ])
                 conn.commit()
+                # Invalider le cache d'activation (nouveau campus = potentiel déblocage)
+                try:
+                    from MonEcole_app.services.activation_service import invalidate_activation_cache
+                    invalidate_activation_cache(request)
+                except Exception:
+                    pass
                 return JsonResponse({'success': True, 'idCampus': cur.lastrowid, 'id_campus': next_id_campus})
         finally:
             conn.close()
@@ -5337,6 +5343,12 @@ def dashboard_campus_delete(request):
                     }, status=400)
                 cur.execute("DELETE FROM campus WHERE idCampus = %s AND id_etablissement = %s AND id_pays = %s", [campus_id, etab_id, id_pays])
                 conn.commit()
+                # Invalider le cache d'activation (suppression campus = potentiel re-verrouillage)
+                try:
+                    from MonEcole_app.services.activation_service import invalidate_activation_cache
+                    invalidate_activation_cache(request)
+                except Exception:
+                    pass
                 return JsonResponse({'success': True})
         finally:
             conn.close()
@@ -7645,6 +7657,14 @@ def update_mon_etablissement(request):
 
         if updated_fields:
             etab.save(update_fields=updated_fields)
+            # Invalider le cache d'activation si des champs critiques ont changé
+            critical_fields = {'latitude', 'longitude', 'ref_administrative'}
+            if critical_fields & set(updated_fields):
+                try:
+                    from MonEcole_app.services.activation_service import invalidate_activation_cache
+                    invalidate_activation_cache(request)
+                except Exception:
+                    pass
 
         return JsonResponse({'success': True, 'updated': updated_fields})
     except AdminUser.DoesNotExist:
