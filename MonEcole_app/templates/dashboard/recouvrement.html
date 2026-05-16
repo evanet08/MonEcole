@@ -200,8 +200,7 @@
                 <div class="params-layout">
                     <div class="params-sidebar">
                         <div class="params-sidebar-title">⚙️ Configuration</div>
-                        <div class="params-sidebar-item active" onclick="switchCfgSub('cfg-categories',this)"><i class="fas fa-folder"></i> Catégories</div>
-                        <div class="params-sidebar-item" onclick="switchCfgSub('cfg-variables',this)"><i class="fas fa-tags"></i> Variables</div>
+                        <div class="params-sidebar-item active" onclick="switchCfgSub('cfg-cat-var',this)"><i class="fas fa-layer-group"></i> Catégories & Variables</div>
                         <div class="params-sidebar-item" onclick="switchCfgSub('cfg-prix',this)"><i class="fas fa-money-check-alt"></i> Prix</div>
                         <div class="params-sidebar-item" onclick="switchCfgSub('cfg-penalites',this)"><i class="fas fa-exclamation-triangle"></i> Pénalités</div>
                         <div class="params-sidebar-item" onclick="switchCfgSub('cfg-butoires',this)"><i class="fas fa-calendar-times"></i> Dates Butoires</div>
@@ -209,32 +208,32 @@
                     </div>
                     <div class="params-main">
 
-                        <!-- Catégories -->
-                        <div id="cfg-categories" class="cfg-sub active-sub">
-                            <div class="dash-section">
-                                <div><div class="dash-section-title"><i class="fas fa-folder"></i> Catégories de Variables</div><div class="dash-section-sub">Regroupez vos frais par catégorie (Minerval, Fournitures, etc.)</div></div>
-                                <div class="rec-form" style="margin-bottom:12px">
-                                    <form id="cat-form" style="display:flex;gap:8px;align-items:flex-end">{% csrf_token %}
-                                        <div style="flex:1"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Nom</label><input type="text" name="nom" class="form-control" placeholder="Ex: Minerval" required style="font-size:.75rem;border-radius:8px;padding:6px 10px"></div>
-                                        <button type="submit" class="rec-btn rec-btn-success" style="height:32px"><i class="fas fa-plus"></i> Ajouter</button>
-                                    </form>
+                        <!-- Catégories & Variables (Side-by-side) -->
+                        <div id="cfg-cat-var" class="cfg-sub active-sub">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                                <div class="dash-section">
+                                    <div class="dash-section-title"><i class="fas fa-folder"></i> Catégories</div>
+                                    <div class="dash-section-sub">Regroupez vos frais par catégorie</div>
+                                    <div class="rec-form" style="margin-bottom:12px">
+                                        <form id="cat-form" style="display:flex;gap:8px;align-items:flex-end">{% csrf_token %}
+                                            <div style="flex:1"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Nom</label><input type="text" name="nom" class="form-control" placeholder="Ex: Minerval" required style="font-size:.75rem;border-radius:8px;padding:6px 10px"></div>
+                                            <button type="submit" class="rec-btn rec-btn-success" style="height:32px"><i class="fas fa-plus"></i></button>
+                                        </form>
+                                    </div>
+                                    <div id="cat-list"><div class="rec-empty"><i class="fas fa-spinner fa-spin"></i></div></div>
                                 </div>
-                                <div id="cat-list"><div class="rec-empty"><i class="fas fa-spinner fa-spin"></i></div></div>
-                            </div>
-                        </div>
-
-                        <!-- Variables -->
-                        <div id="cfg-variables" class="cfg-sub" style="display:none">
-                            <div class="dash-section">
-                                <div><div class="dash-section-title"><i class="fas fa-tags"></i> Variables de Paiement</div><div class="dash-section-sub">Définissez les éléments à payer (frais scolaires, uniformes, etc.)</div></div>
-                                <div class="rec-form" style="margin-bottom:12px">
-                                    <form id="var-form" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">{% csrf_token %}
-                                        <div style="min-width:180px"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Catégorie</label><select name="id_variable_categorie" id="var-cat-select" class="form-control" required style="font-size:.75rem;border-radius:8px;padding:6px 10px"><option value="">—</option></select></div>
-                                        <div style="flex:1"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Nom variable</label><input type="text" name="variable" class="form-control" placeholder="Ex: Frais scolaire T1" required style="font-size:.75rem;border-radius:8px;padding:6px 10px"></div>
-                                        <button type="submit" class="rec-btn rec-btn-success" style="height:32px"><i class="fas fa-plus"></i> Ajouter</button>
-                                    </form>
+                                <div class="dash-section">
+                                    <div class="dash-section-title"><i class="fas fa-tags"></i> Variables de Paiement</div>
+                                    <div class="dash-section-sub">Éléments à payer (frais, uniformes, etc.)</div>
+                                    <div class="rec-form" style="margin-bottom:12px">
+                                        <form id="var-form" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">{% csrf_token %}
+                                            <div style="min-width:140px"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Catégorie</label><select name="id_variable_categorie" id="var-cat-select" class="form-control" required style="font-size:.75rem;border-radius:8px;padding:6px 10px"><option value="">—</option></select></div>
+                                            <div style="flex:1"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Nom variable</label><input type="text" name="variable" class="form-control" placeholder="Ex: Frais scolaire T1" required style="font-size:.75rem;border-radius:8px;padding:6px 10px"></div>
+                                            <button type="submit" class="rec-btn rec-btn-success" style="height:32px"><i class="fas fa-plus"></i></button>
+                                        </form>
+                                    </div>
+                                    <div id="var-list"><div class="rec-empty"><i class="fas fa-spinner fa-spin"></i></div></div>
                                 </div>
-                                <div id="var-list"><div class="rec-empty"><i class="fas fa-spinner fa-spin"></i></div></div>
                             </div>
                         </div>
 

@@ -2,6 +2,7 @@
 Recouvrement — Save/write API views.
 Ported from standalone with id_pays + id_etablissement scoping.
 """
+from django.db.models import ProtectedError
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_protect
@@ -455,3 +456,106 @@ def rec_delete_operation(request, id_operation):
         return JsonResponse({'success': True})
     except OperationCaisse.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Opération non trouvée'}, status=404)
+
+
+# ============================================================
+#  SAFE DELETES — CONFIG ENTITIES
+# ============================================================
+
+@csrf_protect
+@login_required(login_url='login')
+def rec_delete_categorie(request, pk):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST requis'}, status=405)
+    id_pays, id_etab = _require_tenant(request)
+    if not id_pays: return _tenant_error()
+    try:
+        obj = VariableCategorie.objects.get(id_variable_categorie=pk, id_pays=id_pays, id_etablissement=id_etab)
+        obj.delete()
+        return JsonResponse({'success': True})
+    except VariableCategorie.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Catégorie non trouvée'}, status=404)
+    except ProtectedError:
+        return JsonResponse({'success': False, 'error': 'Suppression impossible : des variables sont liées à cette catégorie.'}, status=409)
+
+
+@csrf_protect
+@login_required(login_url='login')
+def rec_delete_variable(request, pk):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST requis'}, status=405)
+    id_pays, id_etab = _require_tenant(request)
+    if not id_pays: return _tenant_error()
+    try:
+        obj = Variable.objects.get(id_variable=pk, id_pays=id_pays, id_etablissement=id_etab)
+        obj.delete()
+        return JsonResponse({'success': True})
+    except Variable.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Variable non trouvée'}, status=404)
+    except ProtectedError:
+        return JsonResponse({'success': False, 'error': 'Suppression impossible : cette variable est utilisée dans des prix, paiements ou pénalités.'}, status=409)
+
+
+@csrf_protect
+@login_required(login_url='login')
+def rec_delete_banque(request, pk):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST requis'}, status=405)
+    id_pays, id_etab = _require_tenant(request)
+    if not id_pays: return _tenant_error()
+    try:
+        obj = Banque.objects.get(id_banque=pk, id_pays=id_pays, id_etablissement=id_etab)
+        obj.delete()
+        return JsonResponse({'success': True})
+    except Banque.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Banque non trouvée'}, status=404)
+    except ProtectedError:
+        return JsonResponse({'success': False, 'error': 'Suppression impossible : des comptes sont liés à cette banque.'}, status=409)
+
+
+@csrf_protect
+@login_required(login_url='login')
+def rec_delete_compte(request, pk):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST requis'}, status=405)
+    id_pays, id_etab = _require_tenant(request)
+    if not id_pays: return _tenant_error()
+    try:
+        obj = Compte.objects.get(id_compte=pk, id_pays=id_pays, id_etablissement=id_etab)
+        obj.delete()
+        return JsonResponse({'success': True})
+    except Compte.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Compte non trouvé'}, status=404)
+    except ProtectedError:
+        return JsonResponse({'success': False, 'error': 'Suppression impossible : des paiements sont liés à ce compte.'}, status=409)
+
+
+@csrf_protect
+@login_required(login_url='login')
+def rec_delete_penalite(request, pk):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST requis'}, status=405)
+    id_pays, id_etab = _require_tenant(request)
+    if not id_pays: return _tenant_error()
+    try:
+        obj = PenaliteConfig.objects.get(id_penalite_regle=pk, id_pays=id_pays, id_etablissement=id_etab)
+        obj.delete()
+        return JsonResponse({'success': True})
+    except PenaliteConfig.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Pénalité non trouvée'}, status=404)
+
+
+@csrf_protect
+@login_required(login_url='login')
+def rec_delete_date_butoire(request, pk):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST requis'}, status=405)
+    id_pays, id_etab = _require_tenant(request)
+    if not id_pays: return _tenant_error()
+    try:
+        obj = VariableDatebutoire.objects.get(id_datebutoire=pk, id_pays=id_pays, id_etablissement=id_etab)
+        obj.delete()
+        return JsonResponse({'success': True})
+    except VariableDatebutoire.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Date butoire non trouvée'}, status=404)
+

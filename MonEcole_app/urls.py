@@ -252,6 +252,12 @@ urlpatterns = [
     path('api/recouvrement/save-operation/', rec_save.rec_save_operation_caisse, name='rec_save_op'),
     path('api/recouvrement/delete-paiement/<int:id_paiement>/', rec_save.rec_delete_paiement, name='rec_del_paie'),
     path('api/recouvrement/delete-operation/<int:id_operation>/', rec_save.rec_delete_operation, name='rec_del_op'),
+    path('api/recouvrement/delete-categorie/<int:pk>/', rec_save.rec_delete_categorie, name='rec_del_cat'),
+    path('api/recouvrement/delete-variable/<int:pk>/', rec_save.rec_delete_variable, name='rec_del_var'),
+    path('api/recouvrement/delete-banque/<int:pk>/', rec_save.rec_delete_banque, name='rec_del_banque'),
+    path('api/recouvrement/delete-compte/<int:pk>/', rec_save.rec_delete_compte, name='rec_del_compte'),
+    path('api/recouvrement/delete-penalite/<int:pk>/', rec_save.rec_delete_penalite, name='rec_del_pen'),
+    path('api/recouvrement/delete-date-butoire/<int:pk>/', rec_save.rec_delete_date_butoire, name='rec_del_but'),
     # Update
     path('api/recouvrement/update-paiement-field/', rec_upd.rec_update_paiement_field, name='rec_upd_field'),
     path('api/recouvrement/update-categorie/<int:categorie_id>/', rec_upd.rec_update_categorie, name='rec_upd_cat'),

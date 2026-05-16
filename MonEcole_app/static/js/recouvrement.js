@@ -14,13 +14,25 @@ const R={
     allVars:'/api/recouvrement/variables-all/',prixClasse:'/api/recouvrement/prix-classe/',
     penalites:'/api/recouvrement/penalites/',savePen:'/api/recouvrement/save-penalite/',
     datesBut:'/api/recouvrement/dates-butoires/',saveDateBut:'/api/recouvrement/save-date-butoire/',
-    updOblig:'/api/recouvrement/update-variable-obligatoire/'
+    updOblig:'/api/recouvrement/update-variable-obligatoire/',
+    updCat:'/api/recouvrement/update-categorie/',updVar:'/api/recouvrement/update-variable/',
+    updBanque:'/api/recouvrement/update-banque/',updCompte:'/api/recouvrement/update-compte/',
+    delCat:'/api/recouvrement/delete-categorie/',delVar:'/api/recouvrement/delete-variable/',
+    delBanque:'/api/recouvrement/delete-banque/',delCompte:'/api/recouvrement/delete-compte/',
+    delPen:'/api/recouvrement/delete-penalite/',delBut:'/api/recouvrement/delete-date-butoire/',
 };
 function fmt(n){return n!=null?(n).toLocaleString('fr-FR'):'—';}
 function $(id){return document.getElementById(id);}
 function post(url,fd){return fetch(url,{method:'POST',body:fd}).then(r=>r.json());}
 function get(url){return fetch(url).then(r=>r.json());}
+function csrf(){return document.querySelector('[name=csrfmiddlewaretoken]')?.value||'';}
 function toast(msg,ok){const t=document.createElement('div');t.textContent=msg;t.style.cssText='position:fixed;top:20px;right:20px;z-index:9999;padding:10px 20px;border-radius:10px;color:#fff;font-size:.78rem;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.2);animation:statPop .3s ease;background:'+(ok?'linear-gradient(135deg,#059669,#10b981)':'linear-gradient(135deg,#dc2626,#f87171)');document.body.appendChild(t);setTimeout(()=>t.remove(),3000);}
+function safeDelete(url,onSuccess){
+    if(!confirm('Êtes-vous sûr de vouloir supprimer cet élément ?'))return;
+    const fd=new FormData();fd.append('csrfmiddlewaretoken',csrf());
+    post(url,fd).then(d=>{if(d.success){toast('Supprimé',true);onSuccess();}else toast(d.error||'Erreur',false);});
+}
+const _actionBtns=(editFn,delFn)=>`<div style="display:flex;gap:4px;justify-content:flex-end">${editFn?`<button onclick="${editFn}" class="rec-btn rec-btn-outline" style="padding:2px 8px;font-size:.58rem" title="Modifier"><i class="fas fa-pen"></i></button>`:''}<button onclick="${delFn}" class="rec-btn rec-btn-outline" style="padding:2px 8px;font-size:.58rem;color:#dc2626" title="Supprimer"><i class="fas fa-trash"></i></button></div>`;
 
 /* Tab switching */
 function switchCfgTab(btn){
@@ -234,7 +246,7 @@ function updatePayField(id,field,value){
 }
 function deletePay(id){
     if(!confirm('Supprimer ce paiement définitivement ?'))return;
-    const fd=new FormData();fd.append('csrfmiddlewaretoken',document.querySelector('[name=csrfmiddlewaretoken]')?.value||'');
+    const fd=new FormData();fd.append('csrfmiddlewaretoken',csrf());
     post('/api/recouvrement/delete-paiement/'+id+'/',fd).then(d=>{if(d.success){toast('Supprimé',true);loadPayAll();loadVarsRestant();}else toast(d.error||'Erreur',false);});
 }
 function exportFicheClasse(){
@@ -259,8 +271,10 @@ function loadCategories(){
         const list=$('cat-list');
         if(list){
             if(!d.categories.length){list.innerHTML='<div class="rec-empty"><i class="fas fa-folder-open"></i>Aucune catégorie</div>';return;}
-            let h='<table class="rec-table"><thead><tr><th>N°</th><th>Catégorie</th></tr></thead><tbody>';
-            d.categories.forEach((c,i)=>{h+=`<tr><td>${i+1}</td><td style="font-weight:600">${c.nom}</td></tr>`;});
+            let h='<table class="rec-table"><thead><tr><th>N°</th><th>Catégorie</th><th style="width:80px">Actions</th></tr></thead><tbody>';
+            d.categories.forEach((c,i)=>{
+                h+=`<tr><td>${i+1}</td><td style="font-weight:600">${c.nom}</td><td>${_actionBtns(`editCat(${c.id_variable_categorie},'${c.nom.replace(/'/g,"\\'")}')`,`deleteCat(${c.id_variable_categorie})`)}</td></tr>`;
+            });
             h+='</tbody></table>';list.innerHTML=h;
         }
         // Fill selects
@@ -268,22 +282,37 @@ function loadCategories(){
         if(vcs){vcs.innerHTML='<option value="">— Catégorie —</option>';d.categories.forEach(c=>{vcs.innerHTML+=`<option value="${c.id_variable_categorie}">${c.nom}</option>`;});}
     });
 }
+function editCat(id,nom){
+    const newNom=prompt('Nouveau nom de la catégorie :',nom);
+    if(!newNom||newNom.trim()===nom)return;
+    const fd=new FormData();fd.append('csrfmiddlewaretoken',csrf());fd.append('nom',newNom.trim());
+    post(R.updCat+id+'/',fd).then(d=>{if(d.success){toast('Catégorie modifiée',true);loadCategories();}else toast(d.error||'Erreur',false);});
+}
+function deleteCat(id){safeDelete(R.delCat+id+'/',()=>{loadCategories();loadVariables();});}
+
 function loadVariables(){
     get(R.allVars).then(d=>{
         const list=$('var-list');
         if(!list)return;
         if(!d.success||!d.variables||!d.variables.length){list.innerHTML='<div class="rec-empty"><i class="fas fa-tags"></i>Aucune variable</div>';return;}
-        let h='<table class="rec-table"><thead><tr><th>N°</th><th>Variable</th><th>Catégorie</th><th style="width:90px">Obligatoire</th></tr></thead><tbody>';
+        let h='<table class="rec-table"><thead><tr><th>N°</th><th>Variable</th><th>Catégorie</th><th style="width:80px">Oblig.</th><th style="width:80px">Actions</th></tr></thead><tbody>';
         d.variables.forEach((v,i)=>{
             const isOb=v.estObligatoire;
-            const cls=isOb?'rec-badge-success':'rec-badge-warning';
             const txt=isOb?'Oui':'Non';
-            h+=`<tr><td>${i+1}</td><td style="font-weight:600">${v.variable}</td><td>${v.categorie||'—'}</td><td><button onclick="toggleObligatoire(${v.id_variable},${!isOb})" class="rec-btn ${isOb?'rec-btn-success':'rec-btn-outline'}" style="padding:2px 8px;font-size:.6rem"><i class="fas fa-${isOb?'check':'times'}"></i> ${txt}</button></td></tr>`;
+            h+=`<tr><td>${i+1}</td><td style="font-weight:600">${v.variable}</td><td>${v.categorie||'—'}</td><td><button onclick="toggleObligatoire(${v.id_variable},${!isOb})" class="rec-btn ${isOb?'rec-btn-success':'rec-btn-outline'}" style="padding:2px 8px;font-size:.6rem"><i class="fas fa-${isOb?'check':'times'}"></i> ${txt}</button></td><td>${_actionBtns(`editVar(${v.id_variable},'${v.variable.replace(/'/g,"\\'")}',${v.id_categorie})`,`deleteVar(${v.id_variable})`)}</td></tr>`;
         });
         h+='</tbody></table>';list.innerHTML=h;
         fillVarSelects(d.variables);
     });
 }
+function editVar(id,nom,catId){
+    const newNom=prompt('Nouveau nom de la variable :',nom);
+    if(!newNom||newNom.trim()===nom)return;
+    const fd=new FormData();fd.append('csrfmiddlewaretoken',csrf());fd.append('variable',newNom.trim());fd.append('categorie_id',catId);
+    post(R.updVar+id+'/',fd).then(d=>{if(d.success){toast('Variable modifiée',true);loadVariables();}else toast(d.error||'Erreur',false);});
+}
+function deleteVar(id){safeDelete(R.delVar+id+'/',()=>{loadVariables();});}
+
 function fillVarSelects(vars){
     ['pen-variable','but-variable'].forEach(id=>{
         const sel=$(id);if(!sel)return;
@@ -293,7 +322,7 @@ function fillVarSelects(vars){
 }
 function toggleObligatoire(varId,newVal){
     const fd=new FormData();
-    fd.append('csrfmiddlewaretoken',document.querySelector('[name=csrfmiddlewaretoken]')?.value||'');
+    fd.append('csrfmiddlewaretoken',csrf());
     fd.append('id_variable',varId);fd.append('estObligatoire',newVal?'true':'false');
     post(R.updOblig,fd).then(d=>{if(d.success){toast('Mis à jour',true);loadVariables();}else toast(d.error||'Erreur',false);});
 }
@@ -303,8 +332,10 @@ function loadBanques(){
         const bl=$('banque-list');
         if(bl){
             if(!d.banques.length){bl.innerHTML='<div class="rec-empty"><i class="fas fa-university"></i>Aucune banque</div>';return;}
-            let h='<table class="rec-table"><thead><tr><th>N°</th><th>Banque</th><th>Sigle</th></tr></thead><tbody>';
-            d.banques.forEach((b,i)=>{h+=`<tr><td>${i+1}</td><td style="font-weight:600">${b.banque}</td><td>${b.sigle||'—'}</td></tr>`;});
+            let h='<table class="rec-table"><thead><tr><th>N°</th><th>Banque</th><th>Sigle</th><th style="width:80px">Actions</th></tr></thead><tbody>';
+            d.banques.forEach((b,i)=>{
+                h+=`<tr><td>${i+1}</td><td style="font-weight:600">${b.banque}</td><td>${b.sigle||'—'}</td><td>${_actionBtns(`editBanque(${b.id_banque},'${b.banque.replace(/'/g,"\\'")}','${(b.sigle||'').replace(/'/g,"\\'")}')`,`deleteBanque(${b.id_banque})`)}</td></tr>`;
+            });
             h+='</tbody></table>';bl.innerHTML=h;
         }
         // Fill selects
@@ -316,16 +347,34 @@ function loadBanques(){
             cl.innerHTML='';
             let all=[];
             Promise.all(d.banques.map(b=>fetch('/api/recouvrement/comptes/'+b.id_banque+'/').then(r=>r.json()).then(cd=>{
-                (cd.comptes||[]).forEach(c=>{all.push({banque:b.banque,...c});});
+                (cd.comptes||[]).forEach(c=>{all.push({banque:b.banque,id_banque:b.id_banque,...c});});
             }))).then(()=>{
                 if(!all.length){cl.innerHTML='<div class="rec-empty"><i class="fas fa-credit-card"></i>Aucun compte</div>';return;}
-                let h='<table class="rec-table"><thead><tr><th>N°</th><th>Banque</th><th>Compte</th></tr></thead><tbody>';
-                all.forEach((c,i)=>{h+=`<tr><td>${i+1}</td><td>${c.banque}</td><td style="font-weight:600;font-family:monospace">${c.compte}</td></tr>`;});
+                let h='<table class="rec-table"><thead><tr><th>N°</th><th>Banque</th><th>Compte</th><th style="width:80px">Actions</th></tr></thead><tbody>';
+                all.forEach((c,i)=>{
+                    h+=`<tr><td>${i+1}</td><td>${c.banque}</td><td style="font-weight:600;font-family:monospace">${c.compte}</td><td>${_actionBtns(`editCompte(${c.id_compte},'${c.compte.replace(/'/g,"\\'")}',${c.id_banque})`,`deleteCompte(${c.id_compte})`)}</td></tr>`;
+                });
                 h+='</tbody></table>';cl.innerHTML=h;
             });
         }
     });
 }
+function editBanque(id,nom,sigle){
+    const newNom=prompt('Nom de la banque :',nom);
+    if(!newNom)return;
+    const newSigle=prompt('Sigle :',sigle);
+    const fd=new FormData();fd.append('csrfmiddlewaretoken',csrf());fd.append('banque',newNom.trim());fd.append('sigle',newSigle||'');
+    post(R.updBanque+id+'/',fd).then(d=>{if(d.success){toast('Banque modifiée',true);loadBanques();}else toast(d.error||'Erreur',false);});
+}
+function deleteBanque(id){safeDelete(R.delBanque+id+'/',()=>{loadBanques();});}
+function editCompte(id,compte,banqueId){
+    const newCompte=prompt('N° de compte :',compte);
+    if(!newCompte||newCompte.trim()===compte)return;
+    const fd=new FormData();fd.append('csrfmiddlewaretoken',csrf());fd.append('compte',newCompte.trim());fd.append('banque_id',banqueId);
+    post(R.updCompte+id+'/',fd).then(d=>{if(d.success){toast('Compte modifié',true);loadBanques();}else toast(d.error||'Erreur',false);});
+}
+function deleteCompte(id){safeDelete(R.delCompte+id+'/',()=>{loadBanques();});}
+
 function loadPrixClasses(){loadClasses('prix-classe',$('prix-annee').value);}
 function loadPrix(){
     const a=$('prix-annee')?.value, sel=$('prix-classe'), c=sel?.value;
@@ -383,15 +432,17 @@ function loadPenalites(){
         const list=$('pen-list');
         if(!list)return;
         if(!d.success||!d.data||!d.data.length){list.innerHTML='<div class="rec-empty"><i class="fas fa-gavel"></i>Aucune pénalité configurée</div>';return;}
-        let h='<table class="rec-table"><thead><tr><th>N°</th><th>Variable</th><th>Type</th><th>Valeur</th><th>Plafond</th><th>Année</th><th>Statut</th></tr></thead><tbody>';
+        let h='<table class="rec-table"><thead><tr><th>N°</th><th>Variable</th><th>Type</th><th>Valeur</th><th>Plafond</th><th>Année</th><th>Statut</th><th style="width:60px">Actions</th></tr></thead><tbody>';
         d.data.forEach((p,i)=>{
             const typeBadge=p.type==='FORFAIT'?'<span class="rec-badge rec-badge-info"><i class="fas fa-coins"></i> Forfait</span>':'<span class="rec-badge rec-badge-warning"><i class="fas fa-percentage"></i> Pourcentage</span>';
             const statBadge=p.actif?'<span class="rec-badge rec-badge-success"><i class="fas fa-check"></i> Actif</span>':'<span class="rec-badge rec-badge-danger"><i class="fas fa-times"></i> Inactif</span>';
-            h+=`<tr><td>${i+1}</td><td style="font-weight:600">${p.variable}</td><td>${typeBadge}</td><td style="font-weight:700">${p.valeur}${p.type==='POURCENTAGE'?'%':' Fbu'}</td><td>${p.plafond?fmt(p.plafond)+' Fbu':'—'}</td><td>${p.annee||'—'}</td><td>${statBadge}</td></tr>`;
+            h+=`<tr><td>${i+1}</td><td style="font-weight:600">${p.variable}</td><td>${typeBadge}</td><td style="font-weight:700">${p.valeur}${p.type==='POURCENTAGE'?'%':' Fbu'}</td><td>${p.plafond?fmt(p.plafond)+' Fbu':'—'}</td><td>${p.annee||'—'}</td><td>${statBadge}</td><td>${_actionBtns(null,`deletePen(${p.id})`)}</td></tr>`;
         });
         h+='</tbody></table>';list.innerHTML=h;
     });
 }
+function deletePen(id){safeDelete(R.delPen+id+'/',()=>{loadPenalites();});}
+
 
 /* ========== DATES BUTOIRES ========== */
 function loadButClasses(){loadClasses('but-classe',$('but-annee').value);}
@@ -401,15 +452,17 @@ function loadButoires(){
         const list=$('but-list');
         if(!list)return;
         if(!d.success||!d.data||!d.data.length){list.innerHTML='<div class="rec-empty"><i class="fas fa-calendar-times"></i>Aucune date butoire configurée</div>';return;}
-        let h='<table class="rec-table"><thead><tr><th>N°</th><th>Variable</th><th>Date limite</th></tr></thead><tbody>';
+        let h='<table class="rec-table"><thead><tr><th>N°</th><th>Variable</th><th>Date limite</th><th style="width:60px">Actions</th></tr></thead><tbody>';
         d.data.forEach((b,i)=>{
             const dateStr=b.date_butoire||'—';
             const isPast=b.date_butoire&&new Date(b.date_butoire)<new Date();
-            h+=`<tr><td>${i+1}</td><td style="font-weight:600">${b.variable||'—'}</td><td style="font-weight:700;color:${isPast?'#dc2626':'#059669'}"><i class="fas fa-calendar-day"></i> ${dateStr}</td></tr>`;
+            h+=`<tr><td>${i+1}</td><td style="font-weight:600">${b.variable||'—'}</td><td style="font-weight:700;color:${isPast?'#dc2626':'#059669'}"><i class="fas fa-calendar-day"></i> ${dateStr}</td><td>${_actionBtns(null,`deleteBut(${b.id})`)}</td></tr>`;
         });
         h+='</tbody></table>';list.innerHTML=h;
     });
 }
+function deleteBut(id){safeDelete(R.delBut+id+'/',()=>{loadButoires();});}
+
 
 /* ========== CAISSE ========== */
 function switchCaissTab(btn){
