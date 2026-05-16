@@ -26,7 +26,7 @@ function toast(msg,ok){const t=document.createElement('div');t.textContent=msg;t
 function switchCfgTab(btn){
     document.querySelectorAll('#cfgTabs .config-tab').forEach(t=>t.classList.remove('active'));
     btn.classList.add('active');
-    document.querySelectorAll('#sec-configuration .config-tab-content').forEach(c=>c.classList.remove('active'));
+    document.querySelectorAll('#tab-configuration .config-tab-content').forEach(c=>c.classList.remove('active'));
     $(btn.dataset.tab).classList.add('active');
 }
 
@@ -161,7 +161,7 @@ function loadComptes(){
 function switchPayTab(btn){
     document.querySelectorAll('#payTabs .config-tab').forEach(t=>t.classList.remove('active'));
     btn.classList.add('active');
-    document.querySelectorAll('#sec-paiements .config-tab-content').forEach(c=>c.classList.remove('active'));
+    document.querySelectorAll('#tab-paiements .config-tab-content').forEach(c=>c.classList.remove('active'));
     $(btn.dataset.tab).classList.add('active');
 }
 function loadPayAll(){loadPayPending();loadPayValidated();loadPayRejected();}
@@ -415,7 +415,7 @@ function loadButoires(){
 function switchCaissTab(btn){
     document.querySelectorAll('#caisseTabs .config-tab').forEach(t=>t.classList.remove('active'));
     btn.classList.add('active');
-    document.querySelectorAll('#sec-caisse .config-tab-content').forEach(c=>c.classList.remove('active'));
+    document.querySelectorAll('#tab-caisse .config-tab-content').forEach(c=>c.classList.remove('active'));
     $(btn.dataset.tab).classList.add('active');
 }
 function loadCatOperations(){

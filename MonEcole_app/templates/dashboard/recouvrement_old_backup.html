@@ -1,0 +1,365 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Recouvrement — {{ etab.nom }}{% endblock %}
+{% block meta_description %}Gestion financière de {{ etab.nom }}{% endblock %}
+{% block page_indicator %}Recouvrement{% endblock %}
+
+{% block sidebar_items %}
+<a href="/dashboard/recouvrement/?section=dashboard" class="nav-item {% if active_section == 'dashboard' %}active{% endif %}" title="Dashboard">
+    <i class="fas fa-chart-pie" style="color:#6366f1"></i><span>Dashboard</span>
+</a>
+<a href="/dashboard/recouvrement/?section=paiements" class="nav-item {% if active_section == 'paiements' %}active{% endif %}" title="Paiements">
+    <i class="fas fa-money-bill-wave" style="color:#10b981"></i><span>Paiements</span>
+</a>
+<a href="/dashboard/recouvrement/?section=configuration" class="nav-item {% if active_section == 'configuration' %}active{% endif %}" title="Configuration">
+    <i class="fas fa-cogs" style="color:#f59e0b"></i><span>Configuration</span>
+</a>
+<a href="/dashboard/recouvrement/?section=caisse" class="nav-item {% if active_section == 'caisse' %}active{% endif %}" title="Caisse">
+    <i class="fas fa-cash-register" style="color:#ef4444"></i><span>Caisse</span>
+</a>
+{% endblock %}
+
+{% block page_css %}
+<link rel="stylesheet" href="{% static 'css/recouvrement.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- STAT CARDS -->
+<div class="stat-grid">
+    <div class="stat-card grad-emerald"><div class="stat-icon"><i class="fas fa-money-bill-wave"></i></div><div class="stat-info"><div class="stat-label">Total Payé</div><div class="stat-value" id="stat-paye">—</div></div></div>
+    <div class="stat-card grad-amber"><div class="stat-icon"><i class="fas fa-bullseye"></i></div><div class="stat-info"><div class="stat-label">Total Attendu</div><div class="stat-value" id="stat-attendu">—</div></div></div>
+    <div class="stat-card grad-rose"><div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="stat-info"><div class="stat-label">Reste à Payer</div><div class="stat-value" id="stat-reste">—</div></div></div>
+    <div class="stat-card grad-purple"><div class="stat-icon"><i class="fas fa-exchange-alt"></i></div><div class="stat-info"><div class="stat-label">Transactions</div><div class="stat-value" id="stat-trans">—</div></div></div>
+    <div class="stat-card grad-blue"><div class="stat-icon"><i class="fas fa-user-clock"></i></div><div class="stat-info"><div class="stat-label">En Dette</div><div class="stat-value" id="stat-dette">—</div></div></div>
+    <div class="stat-card grad-teal"><div class="stat-icon"><i class="fas fa-ban"></i></div><div class="stat-info"><div class="stat-label">Rejetés</div><div class="stat-value" id="stat-rejete">—</div></div></div>
+</div>
+
+<!-- ============ DASHBOARD ============ -->
+<div class="etab-section {% if active_section == 'dashboard' %}active-section{% endif %}" id="sec-dashboard">
+    <div class="row g-3">
+        <div class="col-lg-8">
+            <div class="dash-section">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div><div class="dash-section-title"><i class="fas fa-chart-bar"></i> Aperçu Financier</div><div class="dash-section-sub">Répartition des paiements par variable</div></div>
+                    <div class="rec-selector" style="margin-bottom:0">
+                        <select id="dash-annee" onchange="loadDashboard()">{% for a in annees_list %}<option value="{{ a.id_annee }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select>
+                    </div>
+                </div>
+                <div id="dash-chart-area" style="min-height:200px"><div class="rec-empty"><i class="fas fa-chart-area"></i>Chargement...</div></div>
+            </div>
+            <div class="dash-section">
+                <div class="dash-section-title"><i class="fas fa-list-ol"></i> Détails</div>
+                <div class="dash-section-sub">Cliquez sur une statistique ci-dessus pour voir le détail</div>
+                <div id="dash-detail-table"><div class="rec-empty"><i class="fas fa-hand-pointer"></i>Sélectionnez une statistique</div></div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="dash-section">
+                <div class="dash-section-title"><i class="fas fa-bolt"></i> Actions Rapides</div>
+                <div class="d-flex flex-column gap-2 mt-2">
+                    <a href="/dashboard/recouvrement/?section=paiements" class="action-btn" style="background:var(--grad-emerald)"><i class="fas fa-plus-circle"></i><span>Nouveau Paiement</span></a>
+                    <a href="/dashboard/recouvrement/?section=configuration" class="action-btn" style="background:var(--grad-amber)"><i class="fas fa-tags"></i><span>Configurer Variables & Prix</span></a>
+                    <a href="/dashboard/recouvrement/?section=caisse" class="action-btn" style="background:var(--grad-rose)"><i class="fas fa-cash-register"></i><span>Entrées & Sorties</span></a>
+                </div>
+            </div>
+            <div class="dash-section">
+                <div class="dash-section-title"><i class="fas fa-info-circle"></i> Résumé</div>
+                <div class="dash-section-sub">Année en cours</div>
+                <div id="dash-resume"><div class="rec-empty" style="padding:1rem"><i class="fas fa-spinner fa-spin"></i></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ PAIEMENTS ============ -->
+<div class="etab-section {% if active_section == 'paiements' %}active-section{% endif %}" id="sec-paiements">
+    <div class="section-header" style="background:linear-gradient(135deg,#064e3b,#059669,#10b981)">
+        <i class="fas fa-money-bill-wave"></i>
+        <div><h2>Gestion des Paiements</h2><div class="section-desc">Enregistrez et suivez les paiements des élèves</div></div>
+    </div>
+    <div class="rec-selector">
+        <div><label>Année</label><select id="pay-annee" onchange="onPayAnneeChange()">{% for a in annees_list %}<option value="{{ a.id_annee }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
+        <div><label>Classe</label><select id="pay-classe" onchange="onPayClasseChange()"><option value="">— Sélectionner —</option></select></div>
+        <div><label>Élève</label><select id="pay-eleve" onchange="onPayEleveChange()"><option value="">— Sélectionner —</option></select></div>
+        <button class="rec-btn rec-btn-primary" onclick="togglePayForm()" id="btnNewPay" style="display:none"><i class="fas fa-plus"></i> Payer</button>
+    </div>
+    <!-- Pay Form -->
+    <div id="pay-form-wrap" style="display:none">
+        <div class="rec-form">
+            <div style="font-weight:700;font-size:.82rem;color:#312e81;margin-bottom:10px"><i class="fas fa-receipt" style="margin-right:6px;color:#6366f1"></i>Nouveau paiement</div>
+            <form id="pay-form">{% csrf_token %}
+                <input type="hidden" name="id_annee" id="pf-annee"><input type="hidden" name="id_classe" id="pf-classe">
+                <input type="hidden" name="id_eleve" id="pf-eleve"><input type="hidden" name="idCampus" id="pf-campus">
+                <input type="hidden" name="id_cycle" id="pf-cycle"><input type="hidden" name="groupe" id="pf-groupe">
+                <div class="rec-form-grid">
+                    <div><label>Variable *</label><select name="id_variable" id="pf-variable" required></select></div>
+                    <div><label>Montant *</label><input type="number" name="montant" required min="1" placeholder="0"></div>
+                    <div><label>Date paiement *</label><input type="date" name="date_paie" required></div>
+                    <div><label>Compte *</label><select name="id_compte" id="pf-compte" required></select></div>
+                    <div><label>Bordereau</label><input type="file" name="bordereau" accept="image/*,.pdf"></div>
+                </div>
+                <div style="text-align:right;margin-top:10px">
+                    <button type="button" class="rec-btn rec-btn-outline" onclick="togglePayForm()"><i class="fas fa-times"></i> Annuler</button>
+                    <button type="submit" class="rec-btn rec-btn-success"><i class="fas fa-save"></i> Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- Variables restant -->
+    <div id="pay-variables-cards" style="display:none">
+        <div class="dash-section" style="padding:12px 16px">
+            <div class="dash-section-title" style="font-size:.8rem"><i class="fas fa-receipt"></i> Situation de l'élève</div>
+            <div id="pay-vars-grid"></div>
+        </div>
+    </div>
+    <!-- Paiements Tabs -->
+    <div class="dash-section" style="padding:12px 16px">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="dash-section-title" style="font-size:.8rem"><i class="fas fa-history"></i> Paiements de la classe</div>
+            <div class="d-flex gap-2" id="pay-export-btns" style="display:none!important">
+                <button class="rec-btn rec-btn-outline" onclick="exportFicheClasse()" style="padding:3px 10px;font-size:.62rem"><i class="fas fa-file-pdf" style="color:#dc2626"></i> Fiche Classe</button>
+                <button class="rec-btn rec-btn-outline" onclick="exportFicheEleve()" style="padding:3px 10px;font-size:.62rem" id="btn-fiche-eleve"><i class="fas fa-file-pdf" style="color:#2563eb"></i> Fiche Élève</button>
+            </div>
+        </div>
+        <div class="config-tabs" id="payTabs">
+            <button class="config-tab active" data-tab="pay-tab-pending" onclick="switchPayTab(this)"><i class="fas fa-clock"></i>En attente <span id="pay-pending-count" class="rec-badge rec-badge-warning" style="font-size:.55rem;margin-left:4px">0</span></button>
+            <button class="config-tab" data-tab="pay-tab-validated" onclick="switchPayTab(this)"><i class="fas fa-check-circle"></i>Validés <span id="pay-valid-count" class="rec-badge rec-badge-success" style="font-size:.55rem;margin-left:4px">0</span></button>
+            <button class="config-tab" data-tab="pay-tab-rejected" onclick="switchPayTab(this)"><i class="fas fa-times-circle"></i>Rejetés <span id="pay-rejected-count" class="rec-badge rec-badge-danger" style="font-size:.55rem;margin-left:4px">0</span></button>
+        </div>
+        <div class="config-tab-content active" id="pay-tab-pending">
+            <div style="overflow-x:auto;max-height:50vh;overflow-y:auto" id="pay-pending-wrap"><div class="rec-empty"><i class="fas fa-search"></i>Sélectionnez une classe</div></div>
+        </div>
+        <div class="config-tab-content" id="pay-tab-validated">
+            <div style="overflow-x:auto;max-height:50vh;overflow-y:auto" id="pay-validated-wrap"><div class="rec-empty"><i class="fas fa-search"></i>Sélectionnez une classe</div></div>
+        </div>
+        <div class="config-tab-content" id="pay-tab-rejected">
+            <div style="overflow-x:auto;max-height:50vh;overflow-y:auto" id="pay-rejected-wrap"><div class="rec-empty"><i class="fas fa-search"></i>Sélectionnez une classe</div></div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ CONFIGURATION ============ -->
+<div class="etab-section {% if active_section == 'configuration' %}active-section{% endif %}" id="sec-configuration">
+    <div class="section-header" style="background:linear-gradient(135deg,#78350f,#d97706,#f59e0b)">
+        <i class="fas fa-cogs"></i>
+        <div><h2>Configuration Financière</h2><div class="section-desc">Variables, prix, banques, réductions et pénalités</div></div>
+    </div>
+    <div class="config-tabs" id="cfgTabs">
+        <button class="config-tab active" data-tab="tab-categories" onclick="switchCfgTab(this)"><i class="fas fa-folder"></i>Catégories</button>
+        <button class="config-tab" data-tab="tab-variables" onclick="switchCfgTab(this)"><i class="fas fa-tags"></i>Variables</button>
+        <button class="config-tab" data-tab="tab-prix" onclick="switchCfgTab(this)"><i class="fas fa-money-check-alt"></i>Prix</button>
+        <button class="config-tab" data-tab="tab-penalites" onclick="switchCfgTab(this)"><i class="fas fa-exclamation-triangle"></i>Pénalités</button>
+        <button class="config-tab" data-tab="tab-butoires" onclick="switchCfgTab(this)"><i class="fas fa-calendar-times"></i>Dates Butoires</button>
+        <button class="config-tab" data-tab="tab-banques" onclick="switchCfgTab(this)"><i class="fas fa-university"></i>Banques &amp; Comptes</button>
+    </div>
+
+    <!-- Tab: Catégories -->
+    <div class="config-tab-content active" id="tab-categories">
+        <div class="dash-section">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div><div class="dash-section-title"><i class="fas fa-folder"></i> Catégories de Variables</div><div class="dash-section-sub">Regroupez vos frais par catégorie (Minerval, Fournitures, etc.)</div></div>
+            </div>
+            <div class="rec-form" style="margin-bottom:12px">
+                <form id="cat-form" class="d-flex gap-2 align-items-end">{% csrf_token %}
+                    <div style="flex:1"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Nom</label><input type="text" name="nom" class="form-control form-control-sm" placeholder="Ex: Minerval" required style="font-size:.75rem;border-radius:8px"></div>
+                    <button type="submit" class="rec-btn rec-btn-success" style="height:32px"><i class="fas fa-plus"></i> Ajouter</button>
+                </form>
+            </div>
+            <div id="cat-list"><div class="rec-empty"><i class="fas fa-spinner fa-spin"></i></div></div>
+        </div>
+    </div>
+
+    <!-- Tab: Variables -->
+    <div class="config-tab-content" id="tab-variables">
+        <div class="dash-section">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div><div class="dash-section-title"><i class="fas fa-tags"></i> Variables de Paiement</div><div class="dash-section-sub">Définissez les éléments à payer (frais scolaires, uniformes, etc.)</div></div>
+            </div>
+            <div class="rec-form" style="margin-bottom:12px">
+                <form id="var-form" class="d-flex gap-2 align-items-end flex-wrap">{% csrf_token %}
+                    <div style="min-width:180px"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Catégorie</label><select name="id_variable_categorie" id="var-cat-select" class="form-select form-select-sm" required style="font-size:.75rem;border-radius:8px"><option value="">—</option></select></div>
+                    <div style="flex:1"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Nom variable</label><input type="text" name="variable" class="form-control form-control-sm" placeholder="Ex: Frais scolaire T1" required style="font-size:.75rem;border-radius:8px"></div>
+                    <button type="submit" class="rec-btn rec-btn-success" style="height:32px"><i class="fas fa-plus"></i> Ajouter</button>
+                </form>
+            </div>
+            <div id="var-list"><div class="rec-empty"><i class="fas fa-spinner fa-spin"></i></div></div>
+        </div>
+    </div>
+
+    <!-- Tab: Prix -->
+    <div class="config-tab-content" id="tab-prix">
+        <div class="dash-section">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div><div class="dash-section-title"><i class="fas fa-money-check-alt"></i> Prix par Variable & Classe</div><div class="dash-section-sub">Sélectionnez une année et une classe, puis définissez le prix de chaque variable</div></div>
+            </div>
+            <div class="rec-selector">
+                <div><label>Année</label><select id="prix-annee" onchange="loadPrixClasses()">{% for a in annees_list %}<option value="{{ a.id_annee }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
+                <div><label>Classe</label><select id="prix-classe" onchange="loadPrix()"><option value="">— Sélectionner —</option></select></div>
+            </div>
+            <div id="prix-grid">
+                <div class="rec-empty"><i class="fas fa-hand-pointer"></i>Sélectionnez une année et une classe pour configurer les prix</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab: Pénalités -->
+    <div class="config-tab-content" id="tab-penalites">
+        <div class="dash-section">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div><div class="dash-section-title"><i class="fas fa-exclamation-triangle"></i> Règles de Pénalité</div><div class="dash-section-sub">Configurez les pénalités de retard (forfait ou pourcentage) par variable</div></div>
+            </div>
+            <div class="rec-form" style="margin-bottom:12px">
+                <form id="pen-form" class="d-flex gap-2 align-items-end flex-wrap">{% csrf_token %}
+                    <div><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Année</label><select name="id_annee" id="pen-annee" class="form-select form-select-sm" required style="font-size:.75rem;border-radius:8px">{% for a in annees_list %}<option value="{{ a.id_annee }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
+                    <div><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Variable</label><select name="id_variable" id="pen-variable" class="form-select form-select-sm" style="font-size:.75rem;border-radius:8px"><option value="">— Toutes —</option></select></div>
+                    <div><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Type</label><select name="type_penalite" class="form-select form-select-sm" required style="font-size:.75rem;border-radius:8px"><option value="FORFAIT">Forfait</option><option value="POURCENTAGE">Pourcentage (%)</option></select></div>
+                    <div><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Valeur</label><input type="number" name="valeur" class="form-control form-control-sm" required min="0" step="0.01" placeholder="0" style="font-size:.75rem;border-radius:8px;width:90px"></div>
+                    <div><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Plafond</label><input type="number" name="plafond" class="form-control form-control-sm" min="0" placeholder="—" style="font-size:.75rem;border-radius:8px;width:90px"></div>
+                    <button type="submit" class="rec-btn rec-btn-success" style="height:32px"><i class="fas fa-plus"></i> Ajouter</button>
+                </form>
+            </div>
+            <div id="pen-list"><div class="rec-empty"><i class="fas fa-spinner fa-spin"></i></div></div>
+        </div>
+    </div>
+
+    <!-- Tab: Dates Butoires -->
+    <div class="config-tab-content" id="tab-butoires">
+        <div class="dash-section">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div><div class="dash-section-title"><i class="fas fa-calendar-times"></i> Dates Butoires</div><div class="dash-section-sub">Fixez les dates limites de paiement par variable et classe</div></div>
+            </div>
+            <div class="rec-form" style="margin-bottom:12px">
+                <form id="but-form" class="d-flex gap-2 align-items-end flex-wrap">{% csrf_token %}
+                    <div><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Année</label><select name="id_annee" id="but-annee" class="form-select form-select-sm" required style="font-size:.75rem;border-radius:8px" onchange="loadButClasses()">{% for a in annees_list %}<option value="{{ a.id_annee }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
+                    <div><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Classe</label><select name="id_classe" id="but-classe" class="form-select form-select-sm" required style="font-size:.75rem;border-radius:8px"><option value="">— Sélectionner —</option></select></div>
+                    <div><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Variable</label><select name="id_variable" id="but-variable" class="form-select form-select-sm" required style="font-size:.75rem;border-radius:8px"><option value="">—</option></select></div>
+                    <div><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Date limite</label><input type="date" name="date_butoire" class="form-control form-control-sm" required style="font-size:.75rem;border-radius:8px"></div>
+                    <button type="submit" class="rec-btn rec-btn-success" style="height:32px"><i class="fas fa-plus"></i> Enregistrer</button>
+                </form>
+            </div>
+            <div id="but-list"><div class="rec-empty"><i class="fas fa-spinner fa-spin"></i></div></div>
+        </div>
+    </div>
+
+    <!-- Tab: Banques -->
+    <div class="config-tab-content" id="tab-banques">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="dash-section">
+                    <div class="dash-section-title"><i class="fas fa-university"></i> Banques</div>
+                    <div class="dash-section-sub">Institutions bancaires</div>
+                    <div class="rec-form" style="margin-bottom:12px">
+                        <form id="banque-form" class="d-flex gap-2 align-items-end flex-wrap">{% csrf_token %}
+                            <div style="flex:1"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Nom</label><input type="text" name="banque" class="form-control form-control-sm" placeholder="Ex: BANCOBU" required style="font-size:.75rem;border-radius:8px"></div>
+                            <div style="width:100px"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Sigle</label><input type="text" name="sigle" class="form-control form-control-sm" placeholder="BCB" style="font-size:.75rem;border-radius:8px"></div>
+                            <button type="submit" class="rec-btn rec-btn-success" style="height:32px"><i class="fas fa-plus"></i></button>
+                        </form>
+                    </div>
+                    <div id="banque-list"><div class="rec-empty"><i class="fas fa-spinner fa-spin"></i></div></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="dash-section">
+                    <div class="dash-section-title"><i class="fas fa-credit-card"></i> Comptes Bancaires</div>
+                    <div class="dash-section-sub">Comptes liés aux banques</div>
+                    <div class="rec-form" style="margin-bottom:12px">
+                        <form id="compte-form" class="d-flex gap-2 align-items-end flex-wrap">{% csrf_token %}
+                            <div style="min-width:150px"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Banque</label><select name="id_banque" id="compte-banque-select" class="form-select form-select-sm" required style="font-size:.75rem;border-radius:8px"><option value="">—</option></select></div>
+                            <div style="flex:1"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">N° compte</label><input type="text" name="compte" class="form-control form-control-sm" placeholder="001-12345-00" required style="font-size:.75rem;border-radius:8px"></div>
+                            <button type="submit" class="rec-btn rec-btn-success" style="height:32px"><i class="fas fa-plus"></i></button>
+                        </form>
+                    </div>
+                    <div id="compte-list"><div class="rec-empty"><i class="fas fa-spinner fa-spin"></i></div></div>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ CAISSE ============ -->
+<div class="etab-section {% if active_section == 'caisse' %}active-section{% endif %}" id="sec-caisse">
+    <div class="section-header" style="background:linear-gradient(135deg,#7f1d1d,#dc2626,#f87171)">
+        <i class="fas fa-cash-register"></i>
+        <div><h2>Entrées &amp; Sorties de Caisse</h2><div class="section-desc">Suivi des flux financiers hors paiements scolaires</div></div>
+    </div>
+    <!-- Stat cards -->
+    <div class="stat-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="stat-card grad-purple"><div class="stat-icon"><i class="fas fa-chart-bar"></i></div><div class="stat-info"><div class="stat-label">Total Opérations</div><div class="stat-value" id="caisse-total">—</div></div></div>
+        <div class="stat-card grad-emerald"><div class="stat-icon"><i class="fas fa-arrow-down"></i></div><div class="stat-info"><div class="stat-label">Total Entrées</div><div class="stat-value" id="caisse-entrees">—</div></div></div>
+        <div class="stat-card grad-rose"><div class="stat-icon"><i class="fas fa-arrow-up"></i></div><div class="stat-info"><div class="stat-label">Total Sorties</div><div class="stat-value" id="caisse-sorties">—</div></div></div>
+        <div class="stat-card grad-blue"><div class="stat-icon"><i class="fas fa-balance-scale"></i></div><div class="stat-info"><div class="stat-label">Solde</div><div class="stat-value" id="caisse-solde">—</div></div></div>
+    </div>
+    <!-- Tabs -->
+    <div class="config-tabs" id="caisseTabs">
+        <button class="config-tab active" data-tab="tab-cat-ops" onclick="switchCaissTab(this)"><i class="fas fa-folder"></i>Catégories d'opérations</button>
+        <button class="config-tab" data-tab="tab-journal" onclick="switchCaissTab(this)"><i class="fas fa-list-alt"></i>Journal des opérations</button>
+    </div>
+
+    <!-- Tab: Catégories d'opérations -->
+    <div class="config-tab-content active" id="tab-cat-ops">
+        <div class="dash-section">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div><div class="dash-section-title"><i class="fas fa-folder"></i> Catégories d'opérations</div><div class="dash-section-sub">Organisez vos entrées et sorties par catégorie</div></div>
+            </div>
+            <div class="rec-form" style="margin-bottom:12px">
+                <form id="cat-op-form" class="d-flex gap-2 align-items-end flex-wrap">{% csrf_token %}
+                    <div style="min-width:120px"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Type</label><select name="type_operation" class="form-select form-select-sm" required style="font-size:.75rem;border-radius:8px"><option value="">—</option><option value="ENTREE">⬆️ Entrée</option><option value="SORTIE">⬇️ Sortie</option></select></div>
+                    <div style="flex:1"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Nom</label><input type="text" name="nom" class="form-control form-control-sm" placeholder="Ex: Fournitures bureau" required style="font-size:.75rem;border-radius:8px"></div>
+                    <div style="flex:1"><label style="font-size:.62rem;color:#64748b;font-weight:700;text-transform:uppercase">Description</label><input type="text" name="description" class="form-control form-control-sm" placeholder="Optionnel" style="font-size:.75rem;border-radius:8px"></div>
+                    <input type="hidden" name="id_annee" id="catop-annee">
+                    <input type="hidden" name="idCampus" id="catop-campus">
+                    <button type="submit" class="rec-btn rec-btn-success" style="height:32px"><i class="fas fa-plus"></i> Ajouter</button>
+                </form>
+            </div>
+            <div id="cat-op-list"><div class="rec-empty"><i class="fas fa-spinner fa-spin"></i></div></div>
+        </div>
+    </div>
+
+    <!-- Tab: Journal des opérations -->
+    <div class="config-tab-content" id="tab-journal">
+        <div class="dash-section">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div><div class="dash-section-title"><i class="fas fa-exchange-alt"></i> Journal des opérations</div><div class="dash-section-sub">Enregistrez et consultez toutes les opérations financières</div></div>
+                <div class="d-flex gap-2">
+                    <button class="rec-btn rec-btn-outline" style="padding:3px 10px;font-size:.65rem" onclick="exportOpsPDF()"><i class="fas fa-file-pdf" style="color:#dc2626"></i> PDF</button>
+                    <button class="rec-btn rec-btn-outline" style="padding:3px 10px;font-size:.65rem" onclick="exportOpsExcel()"><i class="fas fa-file-excel" style="color:#059669"></i> Excel</button>
+                </div>
+            </div>
+            <div class="rec-selector">
+                <div><label>Année</label><select id="caisse-annee" onchange="loadOperations()">{% for a in annees_list %}<option value="{{ a.id_annee }}" {% if a.isOpen %}selected{% endif %}>{{ a.annee }}</option>{% endfor %}</select></div>
+                <div><label>Catégorie</label><select id="caisse-cat" onchange="loadOperations()"><option value="">Toutes</option></select></div>
+                <div><label>Type</label><select id="caisse-type" onchange="loadOperations()"><option value="">Tous</option><option value="ENTREE">⬆️ Entrées</option><option value="SORTIE">⬇️ Sorties</option></select></div>
+                <button class="rec-btn rec-btn-success" onclick="toggleOpForm()"><i class="fas fa-plus"></i> Nouvelle opération</button>
+            </div>
+            <div id="op-form-wrap" style="display:none">
+                <div class="rec-form">
+                    <div style="font-weight:700;font-size:.82rem;color:#7f1d1d;margin-bottom:10px"><i class="fas fa-plus-circle" style="margin-right:6px"></i>Nouvelle opération</div>
+                    <form id="op-form">{% csrf_token %}
+                        <div class="rec-form-grid">
+                            <div><label>Type *</label><select name="type_operation" id="op-type" required onchange="loadCatOps()"><option value="">—</option><option value="ENTREE">Entrée</option><option value="SORTIE">Sortie</option></select></div>
+                            <div><label>Catégorie *</label><select name="categorie" id="op-cat" required><option value="">—</option></select></div>
+                            <div><label>Montant *</label><input type="number" name="montant" required min="1" placeholder="0"></div>
+                            <div><label>Date *</label><input type="date" name="date_operation" required></div>
+                            <div><label>Mode</label><select name="mode_paiement"><option value="ESPECES">Espèces</option><option value="CHEQUE">Chèque</option><option value="VIREMENT">Virement</option><option value="AUTRE">Autre</option></select></div>
+                            <div><label>Source / Bénéf.</label><input type="text" name="source_beneficiaire" placeholder="Nom"></div>
+                            <div><label>Référence</label><input type="text" name="reference" placeholder="N° reçu"></div>
+                            <div><label>Description</label><input type="text" name="description" placeholder="Détails"></div>
+                        </div>
+                        <input type="hidden" name="id_annee" id="op-annee"><input type="hidden" name="idCampus" id="op-campus">
+                        <div style="text-align:right;margin-top:10px">
+                            <button type="button" class="rec-btn rec-btn-outline" onclick="toggleOpForm()"><i class="fas fa-times"></i> Annuler</button>
+                            <button type="submit" class="rec-btn rec-btn-success"><i class="fas fa-save"></i> Enregistrer</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div style="overflow-x:auto;max-height:55vh;overflow-y:auto" id="op-table-wrap"><div class="rec-empty"><i class="fas fa-spinner fa-spin"></i></div></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script src="{% static 'js/recouvrement.js' %}"></script>
+{% endblock %}
