@@ -1339,17 +1339,27 @@ def generate_fiche_synoptique(request):
         annee_label = ''
         if latest_etab_annee:
             annee_label = latest_etab_annee.annee.annee
-            activated_classes = EtablissementAnneeClasse.objects.filter(
+            eac_list = list(EtablissementAnneeClasse.objects.filter(
                 etablissement_annee=latest_etab_annee
-            ).select_related('classe', 'classe__cycle', 'section').order_by(
-                'classe__cycle__ordre', 'classe__ordre'
-            )
+            ).select_related('section'))
+            # Manual lookup: EAC.classe_id = business key
+            eac_bks = set(e.classe_id for e in eac_list)
+            classes_by_bk = {}
+            if eac_bks:
+                for cls in Classe.objects.filter(
+                    id_classe__in=eac_bks, id_pays=etab.pays_id
+                ).select_related('cycle'):
+                    classes_by_bk[cls.id_classe] = cls
+            activated_classes = eac_list
         
         # Group by cycle
         from collections import OrderedDict
         cycles_data = OrderedDict()
         for eac in activated_classes:
-            cycle = eac.classe.cycle
+            cls = classes_by_bk.get(eac.classe_id)
+            if not cls or not cls.cycle:
+                continue
+            cycle = cls.cycle
             if cycle.pk not in cycles_data:
                 cycles_data[cycle.pk] = {
                     'nom': cycle.nom,
@@ -1357,7 +1367,6 @@ def generate_fiche_synoptique(request):
                     'hasSections': cycle.hasSections,
                     'classes': OrderedDict()
                 }
-            cls = eac.classe
             if cls.id_classe not in cycles_data[cycle.pk]['classes']:
                 cycles_data[cycle.pk]['classes'][cls.id_classe] = {
                     'nom': cls.nom,
@@ -3812,7 +3821,7 @@ def get_etablissement_config(request):
         etab_annee, created = EtablissementAnnee.objects.get_or_create(
             etablissement=etablissement,
             annee=annee,
-            defaults={'id_pays': etablissement.pays_id}
+            defaults={'pays_id': etablissement.pays_id}
         )
         
         # Get activated classes with sections and groups
@@ -3886,7 +3895,7 @@ def save_etablissement_config(request):
         etab_annee, created = EtablissementAnnee.objects.get_or_create(
             etablissement=etablissement,
             annee=annee,
-            defaults={'id_pays': etablissement.pays_id}
+            defaults={'pays_id': etablissement.pays_id}
         )
         
         # Clear existing config — use raw SQL on Hub to avoid Django cross-DB
@@ -7737,13 +7746,21 @@ def toggle_calendar_synch(request):
         if annee_active:
             etab_annee, _ = EtablissementAnnee.objects.get_or_create(
                 etablissement=etab, annee=annee_active,
-                defaults={'id_pays': etab.pays_id}
+                defaults={'pays_id': etab.pays_id}
             )
-            active_cycle_ids = set(
+            # Manual lookup: EAC.classe_id stores business key, not surrogate PK
+            eac_bks = set(
                 EtablissementAnneeClasse.objects.filter(
                     etablissement_annee=etab_annee
-                ).select_related('classe').values_list('classe__cycle_id', flat=True).distinct()
+                ).values_list('classe_id', flat=True)
             )
+            active_cycle_ids = set()
+            if eac_bks:
+                active_cycle_ids = set(
+                    Classe.objects.filter(
+                        id_classe__in=eac_bks, id_pays=etab.pays_id
+                    ).values_list('cycle_id', flat=True)
+                )
             if active_cycle_ids:
                 cycle_configs = list(
                     RepartitionConfigCycle.objects.filter(
@@ -8693,7 +8710,7 @@ def provision_repartitions_for_etab(request):
         # Get or create EtablissementAnnee
         etab_annee, _ = EtablissementAnnee.objects.get_or_create(
             etablissement=etablissement, annee=annee,
-            defaults={'id_pays': etablissement.pays_id}
+            defaults={'pays_id': etablissement.pays_id}
         )
         
         # Collect cycle IDs from activated classes
@@ -13353,12 +13370,13 @@ def get_bulletin_overview(request):
         if not ea:
             return JsonResponse({'success': False, 'error': 'Config étab-année introuvable.'})
 
-        # Resolve cycle for the class
-        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).select_related('classe').first()
+        # Resolve cycle for the class — manual lookup (EAC.classe_id = business key)
+        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).first()
         if not eac:
             return JsonResponse({'success': False, 'error': 'Classe introuvable.'})
 
-        cycle_id = getattr(eac.classe, 'cycle_id', None) or getattr(eac, 'cycle_id', None)
+        cls_obj = Classe.objects.filter(id_classe=eac.classe_id, id_pays=etab.pays_id).first()
+        cycle_id = cls_obj.cycle_id if cls_obj else None
 
         # Get root type + hierarchy for this cycle
         root_type_id = None
@@ -15217,16 +15235,13 @@ def get_evaluations_repartitions(request):
 
         pays_id = etab.pays_id
 
-        # Résoudre le cycle de la classe sélectionnée
-        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).select_related('classe').first()
+        # Résoudre le cycle de la classe — manual lookup (EAC.classe_id = business key)
+        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).first()
         if not eac:
             return JsonResponse({'success': True, 'repartitions': [], 'has_children': False})
 
-        cycle_id = None
-        if hasattr(eac.classe, 'cycle_id'):
-            cycle_id = eac.classe.cycle_id
-        elif hasattr(eac, 'cycle_id'):
-            cycle_id = eac.cycle_id
+        cls_obj = Classe.objects.filter(id_classe=eac.classe_id, id_pays=pays_id).first()
+        cycle_id = cls_obj.cycle_id if cls_obj else None
 
         if not cycle_id:
             return JsonResponse({'success': True, 'repartitions': [], 'has_children': False})
@@ -16111,9 +16126,19 @@ def get_deliberated_classes(request):
             return JsonResponse({'success': True, 'classes': []})
 
         # Récupérer toutes les EAC pour cet établissement/année
-        eacs = EtablissementAnneeClasse.objects.filter(
+        # IMPORTANT: EAC.classe_id = business key, NOT surrogate PK
+        eac_list = list(EtablissementAnneeClasse.objects.filter(
             etablissement_annee=ea
-        ).select_related('classe', 'classe__cycle', 'section')
+        ).select_related('section'))
+
+        # Manual lookup: resolve classes with id_pays filter
+        eac_classe_bks = set(eac.classe_id for eac in eac_list)
+        classes_by_bk = {}
+        if eac_classe_bks:
+            for cls in Classe.objects.filter(
+                id_classe__in=eac_classe_bks, id_pays=etab.pays_id
+            ).select_related('cycle'):
+                classes_by_bk[cls.id_classe] = cls
 
         # Lire les modèles de bulletin depuis le Hub (filtré par pays)
         from MonEcole_app.models.evaluations.bulletin_model import BulletinClasseModel, BulletinModel
@@ -16155,8 +16180,9 @@ def get_deliberated_classes(request):
             delib_classes.add(vals)
 
         classes = []
-        for eac in eacs:
+        for eac in eac_list:
             hub_classe_id = eac.classe_id
+            cls = classes_by_bk.get(hub_classe_id)
             model_info = bcm_map.get(hub_classe_id, None)
             is_deliberated = (hub_classe_id, eac.groupe, eac.section_id) in delib_classes
 
@@ -16170,12 +16196,12 @@ def get_deliberated_classes(request):
                 """, [annee.pk, eac.classe_id, eac.groupe, eac.section_id, etab.id_etablissement])
                 nb_eleves = cur.fetchone()[0]
 
-            cycle_name = eac.classe.cycle.cycle if eac.classe and hasattr(eac.classe, 'cycle') and eac.classe.cycle else '—'
+            cycle_name = cls.cycle.cycle if cls and cls.cycle else '—'
             section_name = eac.section.nom if eac.section else None
 
             classes.append({
                 'eac_id': eac.id,
-                'classe_name': eac.classe.classe if eac.classe else '—',
+                'classe_name': cls.classe if cls else '—',
                 'groupe': eac.groupe or '',
                 'cycle_name': cycle_name,
                 'section_name': section_name,

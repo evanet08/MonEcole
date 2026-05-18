@@ -92,7 +92,8 @@ class EtablissementAnnee(models.Model):
                                       db_column='etablissement_id')
     annee = models.ForeignKey('Annee', on_delete=models.CASCADE,
                               db_column='annee_id')
-    id_pays = models.IntegerField(null=True, blank=True)
+    pays_id = models.IntegerField(default=0)  # real writable column
+    id_pays = models.IntegerField(null=True, blank=True)  # VIRTUAL GENERATED AS (pays_id) — read-only alias
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
