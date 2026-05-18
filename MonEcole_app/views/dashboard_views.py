@@ -133,39 +133,20 @@ def _get_dashboard_context(request):
         ).first()
 
         if etab_annee:
-            # NOTE: classe_id stocke le business key (classes.id_classe), pas le surrogate PK.
-            # On ne peut PAS utiliser select_related('classe__cycle') car Django JOIN sur classes.id.
-            # IDEM pour select_related('section') — section_id = business key (id_section)
+            # select_related JOINs on surrogate PK (classes.id, sections.id)
             classes_config = list(EtablissementAnneeClasse.objects.filter(
                 etablissement_annee=etab_annee
-            ))
+            ).select_related('classe', 'classe__cycle', 'section'))
 
             stats['n_classes'] = len(classes_config)
 
-            # Build lookup: id_classe (business key) → Classe object (with cycle prefetched)
-            eac_classe_bk_set = set(cc.classe_id for cc in classes_config)
-            eac_sec_bk_set = set(cc.section_id for cc in classes_config if cc.section_id)
-            classes_by_bk = {}  # {id_classe: Classe}
-            if eac_classe_bk_set:
-                for cls in ClasseHub.objects.filter(id_classe__in=eac_classe_bk_set, id_pays=pays.id_pays).select_related('cycle'):
-                    classes_by_bk[cls.id_classe] = cls
-            # Manual section lookup: EAC.section_id = business key (id_section)
-            sections_by_bk = {}  # {id_section: Section}
-            try:
-                from MonEcole_app.models.country_structure import Section as SectionHub
-                if eac_sec_bk_set:
-                    for sec in SectionHub.objects.filter(id_section__in=eac_sec_bk_set, id_pays=pays.id_pays):
-                        sections_by_bk[sec.id_section] = sec
-            except ImportError:
-                pass
-
-            # Cycles distincts (via business keys)
+            # Cycles distincts
             cycle_ids = set()
             cycle_counts = {}
             for cc in classes_config:
-                cls = classes_by_bk.get(cc.classe_id)
+                cls = cc.classe
                 if cls and cls.cycle:
-                    cid = cls.cycle.id_cycle  # business key du cycle
+                    cid = cls.cycle.id_cycle
                     cycle_ids.add(cid)
                     cycle_counts[cid] = cycle_counts.get(cid, 0) + 1
 
@@ -184,8 +165,8 @@ def _get_dashboard_context(request):
 
             # Detail par classe
             for cc in classes_config:
-                cls = classes_by_bk.get(cc.classe_id)
-                sec = sections_by_bk.get(cc.section_id)
+                cls = cc.classe
+                sec = cc.section
                 classe_label = cls.classe if cls else '-'
                 if cls and cls.cycle:
                     classe_label = cls.classe + ' - ' + cls.cycle.cycle
@@ -199,8 +180,8 @@ def _get_dashboard_context(request):
                     'groupe': cc.groupe or '',
                 })
 
-            # Cours — utiliser les surrogate PK résolus via le lookup
-            classe_ids = [cls.id for cls in classes_by_bk.values()]
+            # Cours
+            classe_ids = [cc.classe_id for cc in classes_config if cc.classe_id]
             try:
                 cours_annee_qs = CoursAnneeModel.objects.filter(
                     annee=annee_active,
@@ -226,9 +207,8 @@ def _get_dashboard_context(request):
             # Répartitions temporelles — filtrer selon les cycles de l'établissement
             active_cycle_ids = set()
             for cc in classes_config:
-                cls = classes_by_bk.get(cc.classe_id)
-                if cls and cls.cycle_id:
-                    active_cycle_ids.add(cls.cycle_id)
+                if cc.classe and cc.classe.cycle_id:
+                    active_cycle_ids.add(cc.classe.cycle_id)
 
             # Récupérer les configs cycle pour cet établissement
             etab_cycle_configs = list(
