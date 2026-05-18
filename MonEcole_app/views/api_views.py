@@ -3834,9 +3834,9 @@ def get_etablissement_config(request):
             section_nom = f"{sec.code} - {sec.nom}" if sec else '-'
             activated.append({
                 'id': eac.id,
-                'classe_id': eac.classe_id,
+                'classe_id': cls.id_classe if cls else eac.classe_id,
                 'classe_nom': classe_nom,
-                'section_id': eac.section_id,
+                'section_id': sec.id_section if sec else eac.section_id,
                 'section_nom': section_nom,
                 'groupe': eac.groupe,
                 'classe_par_annee_id': eac.id,
@@ -4161,13 +4161,14 @@ def _resolve_eac_keys(cur, eac_id):
     Retourne dict {classe_id, groupe, section_id, cycle_id, annee_id, campus_id} ou None.
     """
     cur.execute("""
-        SELECT eac.classe_id, eac.groupe, eac.section_id,
+        SELECT cl.id_classe AS classe_id, eac.groupe, s.id_section AS section_id,
                cl.cycle_id, ea.annee_id,
                (SELECT c.idCampus FROM db_monecole.campus c
                 WHERE c.id_etablissement = ea.etablissement_id AND c.is_active=1 LIMIT 1) AS campus_id
         FROM countryStructure.etablissements_annees_classes eac
         JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
-        JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id AND cl.id_pays = ea.id_pays
+        JOIN countryStructure.classes cl ON cl.id = eac.classe_id AND cl.id_pays = ea.id_pays
+        LEFT JOIN countryStructure.sections s ON s.id = eac.section_id AND s.id_pays = cl.id_pays
         WHERE eac.id = %s
     """, [eac_id])
     return cur.fetchone()
@@ -4186,16 +4187,21 @@ def _resolve_eac_orm(eac_id):
     """
     Version ORM de _resolve_eac_keys.
     Résout un EAC.id (Hub) en clés métier stables via Django ORM.
-    Retourne dict {classe_id, groupe, section_id} ou None.
+    Retourne dict {classe_id, groupe, section_id} avec BUSINESS KEYS
+    (id_classe, id_section) pour le matching avec les tables spoke.
     """
     try:
         from MonEcole_app.models.country_structure import EtablissementAnneeClasse
-        eac = EtablissementAnneeClasse.objects.filter(id=eac_id).first()
+        eac = EtablissementAnneeClasse.objects.filter(id=eac_id).select_related(
+            'classe', 'section'
+        ).first()
         if eac:
+            cls = eac.classe
+            sec = eac.section
             return {
-                'classe_id': eac.classe_id,
+                'classe_id': cls.id_classe if cls else eac.classe_id,
                 'groupe': eac.groupe,
-                'section_id': eac.section_id,
+                'section_id': sec.id_section if sec else eac.section_id,
             }
     except Exception:
         pass
@@ -4308,12 +4314,13 @@ def dashboard_add_eleve(request):
                 # Get classe_par_annee details (cycle) — Hub-only query
                 id_pays_val = int(getattr(request, 'id_pays', None) or request.session.get('id_pays') or 0)
                 cur.execute("""
-                    SELECT eac.id, eac.classe_id, eac.groupe, eac.section_id,
+                    SELECT eac.id, cl.id_classe AS classe_id, eac.groupe, s.id_section AS section_id,
                            ea.annee_id AS id_annee_id,
                            cl.cycle_id AS cycle_id
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON eac.etablissement_annee_id = ea.id
-                    JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id AND cl.id_pays = ea.id_pays
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id AND cl.id_pays = ea.id_pays
+                    LEFT JOIN countryStructure.sections s ON s.id = eac.section_id AND s.id_pays = cl.id_pays
                     WHERE eac.id = %s
                 """, [classe_par_annee_id])
                 ca = cur.fetchone()
@@ -4434,8 +4441,8 @@ def dashboard_eleve_template(request):
                                COALESCE(s.nom, '') as section_nom,
                                COALESCE(eac.groupe, '') as groupe
                         FROM countryStructure.etablissements_annees_classes eac
-                        JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id AND cl.id_pays = eac.id_pays
-                        LEFT JOIN countryStructure.sections s ON s.id_section = eac.section_id AND s.id_pays = cl.id_pays
+                        JOIN countryStructure.classes cl ON cl.id = eac.classe_id AND cl.id_pays = eac.id_pays
+                        LEFT JOIN countryStructure.sections s ON s.id = eac.section_id AND s.id_pays = cl.id_pays
                         WHERE eac.id = %s
                     """, [classe_par_annee_id])
                     row = cur.fetchone()
@@ -4448,8 +4455,11 @@ def dashboard_eleve_template(request):
 
                     # Fetch existing students enrolled in this class (via business keys)
                     cur.execute("""
-                        SELECT eac.classe_id, eac.groupe, eac.section_id
-                        FROM countryStructure.etablissements_annees_classes eac WHERE eac.id = %s
+                        SELECT cl.id_classe AS classe_id, eac.groupe, s.id_section AS section_id
+                        FROM countryStructure.etablissements_annees_classes eac
+                        JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                        LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
+                        WHERE eac.id = %s
                     """, [classe_par_annee_id])
                     bk = cur.fetchone()
                     if bk:
@@ -4750,11 +4760,12 @@ def dashboard_import_eleves(request):
             with conn.cursor() as cur:
                 # Verify class exists — Hub-only query
                 cur.execute("""
-                    SELECT eac.id, eac.classe_id, eac.groupe, eac.section_id,
+                    SELECT eac.id, cl.id_classe AS classe_id, eac.groupe, s.id_section AS section_id,
                            ea.annee_id AS id_annee_id, cl.cycle_id AS cycle_id
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON eac.etablissement_annee_id = ea.id
-                    JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id AND cl.id_pays = ea.id_pays
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id AND cl.id_pays = ea.id_pays
+                    LEFT JOIN countryStructure.sections s ON s.id = eac.section_id AND s.id_pays = cl.id_pays
                     WHERE eac.id = %s
                 """,
                     [classe_id]
@@ -4990,8 +5001,8 @@ def parent_update_template(request):
                            COALESCE(s.nom, '') as section_nom,
                            COALESCE(eac.groupe, '') as groupe
                     FROM countryStructure.etablissements_annees_classes eac
-                    JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id AND cl.id_pays = eac.id_pays
-                    LEFT JOIN countryStructure.sections s ON s.id_section = eac.section_id AND s.id_pays = cl.id_pays
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id AND cl.id_pays = eac.id_pays
+                    LEFT JOIN countryStructure.sections s ON s.id = eac.section_id AND s.id_pays = cl.id_pays
                     WHERE eac.id = %s
                 """, [classe_par_annee_id])
                 row = cur.fetchone()
@@ -5001,8 +5012,11 @@ def parent_update_template(request):
                     if row['groupe']: classe_label += ' (' + row['groupe'] + ')'
 
                 cur.execute("""
-                    SELECT eac.classe_id, eac.groupe, eac.section_id
-                    FROM countryStructure.etablissements_annees_classes eac WHERE eac.id = %s
+                    SELECT cl.id_classe AS classe_id, eac.groupe, s.id_section AS section_id
+                    FROM countryStructure.etablissements_annees_classes eac
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                    LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
+                    WHERE eac.id = %s
                 """, [classe_par_annee_id])
                 bk = cur.fetchone()
                 if bk:
@@ -5441,8 +5455,11 @@ def dashboard_eleves_stats(request):
                 if classe_par_annee_id:
                     # Resolve EAC.id → business keys
                     cur.execute("""
-                        SELECT eac.classe_id, eac.groupe, eac.section_id
-                        FROM countryStructure.etablissements_annees_classes eac WHERE eac.id = %s
+                        SELECT cl.id_classe AS classe_id, eac.groupe, s.id_section AS section_id
+                        FROM countryStructure.etablissements_annees_classes eac
+                        JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                        LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
+                        WHERE eac.id = %s
                     """, [int(classe_par_annee_id)])
                     bk = cur.fetchone()
                     if bk:
@@ -5595,8 +5612,11 @@ def dashboard_eleves_list(request):
             with conn.cursor() as cur:
                 # Resolve EAC.id → business keys
                 cur.execute("""
-                    SELECT eac.classe_id, eac.groupe, eac.section_id
-                    FROM countryStructure.etablissements_annees_classes eac WHERE eac.id = %s
+                    SELECT cl.id_classe AS classe_id, eac.groupe, s.id_section AS section_id
+                    FROM countryStructure.etablissements_annees_classes eac
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                    LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
+                    WHERE eac.id = %s
                 """, [classe_par_annee_id])
                 bk = cur.fetchone()
                 print(f"[dashboard_eleves_list] EAC lookup for id={classe_par_annee_id}: bk={bk}", file=sys.stderr, flush=True)
@@ -6585,7 +6605,7 @@ def dashboard_attribution_cours(request):
                     eac = EtablissementAnneeClasse.objects.select_related(
                         'classe', 'etablissement_annee', 'etablissement_annee__annee'
                     ).get(id=int(id_classe))
-                    real_classe_id = eac.classe_id
+                    real_classe_id = eac.bk_classe_id
                     annee_id = eac.etablissement_annee.annee_id
                     etab_id_hub = eac.etablissement_annee.etablissement_id
 
@@ -6642,7 +6662,7 @@ def dashboard_attribution_cours(request):
                             WHERE ac.id_cours_id IN ({placeholders})
                               AND ac.classe_id = %s AND ac.groupe <=> %s AND ac.section_id <=> %s
                               AND ac.id_etablissement = %s AND ac.id_pays = %s
-                        """, ca_annee_ids + [real_classe_id, eac.groupe, eac.section_id, id_etablissement, id_pays])
+                        """, ca_annee_ids + [real_classe_id, eac.groupe, eac.bk_section_id, id_etablissement, id_pays])
                         for r in cur.fetchall():
                             attributions_map[r['id_cours_id']] = r
 
@@ -7434,12 +7454,13 @@ def dashboard_etablissement_view(request):
                         FROM eleve_inscription ei
                         JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                         JOIN countryStructure.etablissements_annees_classes eac
-                          ON eac.classe_id = ei.classe_id
-                          AND (eac.groupe COLLATE utf8mb4_general_ci <=> ei.groupe COLLATE utf8mb4_general_ci)
-                          AND eac.section_id <=> ei.section_id
-                        JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id AND cl.id_pays = eac.id_pays
-                        LEFT JOIN countryStructure.sections s ON s.id_section = eac.section_id AND s.id_pays = cl.id_pays
-                        WHERE ei.idCampus_id IN ({placeholders}) AND ei.status = 1{annee_filter}
+                          ON eac.etablissement_annee_id = eac.etablissement_annee_id
+                        JOIN countryStructure.classes cl ON cl.id = eac.classe_id AND cl.id_pays = eac.id_pays
+                          AND cl.id_classe = ei.classe_id
+                        LEFT JOIN countryStructure.sections s ON s.id = eac.section_id AND s.id_pays = cl.id_pays
+                        WHERE (eac.groupe COLLATE utf8mb4_general_ci <=> ei.groupe COLLATE utf8mb4_general_ci)
+                          AND ei.section_id <=> s.id_section
+                          AND ei.idCampus_id IN ({placeholders}) AND ei.status = 1{annee_filter}
                         GROUP BY eac.id
                         ORDER BY cl.ordre, cl.nom, eac.groupe
                     """, base_params)
@@ -8952,7 +8973,7 @@ def get_evaluation_cours(request):
             'etablissement_annee__etablissement'
         ).get(id=int(eac_id))
 
-        classe_id = eac.classe_id
+        classe_id = eac.classe_id  # Hub cours uses surrogate PK
         annee_id = eac.etablissement_annee.annee_id
         etab_id = eac.etablissement_annee.etablissement_id
         id_pays = eac.etablissement_annee.id_pays or eac.etablissement_annee.etablissement.pays_id
@@ -9703,7 +9724,7 @@ def get_notes_grid(request):
                 # 1. Get annee + campus + business keys from the EAC
                 cur.execute("""
                     SELECT ea.annee_id AS id_annee, ea.etablissement_id AS id_etab,
-                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
+                           cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
                     WHERE eac.id = %s LIMIT 1
@@ -9995,7 +10016,7 @@ def download_notes_template(request):
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT ea.annee_id AS id_annee,
-                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
+                           cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
                     WHERE eac.id = %s LIMIT 1
@@ -10512,7 +10533,7 @@ def calculate_period_batch(request):
                 # Get business keys
                 cur.execute("""
                     SELECT ea.annee_id AS id_annee,
-                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
+                           cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
                     WHERE eac.id = %s LIMIT 1
@@ -10896,7 +10917,7 @@ def calculate_period_notes(request):
                 # Get business keys
                 cur.execute("""
                     SELECT ea.annee_id AS id_annee,
-                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
+                           cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
                     WHERE eac.id = %s LIMIT 1
@@ -11274,7 +11295,7 @@ def calculate_notes_bulletin(request):
                 # Get annee + business keys
                 cur.execute("""
                     SELECT ea.annee_id AS id_annee,
-                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
+                           cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
                     WHERE eac.id = %s LIMIT 1
@@ -11585,7 +11606,7 @@ def sync_all_notes_bulletin(request):
                 # 1. Get business keys from EAC
                 cur.execute("""
                     SELECT ea.annee_id AS id_annee, ea.id AS etab_annee_id,
-                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
+                           cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
                     WHERE eac.id = %s LIMIT 1
@@ -12162,7 +12183,7 @@ def mass_import_template(request):
                 # 1. Get business keys from EAC
                 cur.execute("""
                     SELECT ea.annee_id AS id_annee, ea.id AS etab_annee_id,
-                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
+                           cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
                     WHERE eac.id = %s LIMIT 1
@@ -12929,7 +12950,7 @@ def get_exam_grid(request):
                 # 1. Get annee + business keys from EAC
                 cur.execute("""
                     SELECT ea.annee_id AS id_annee, ea.etablissement_id AS id_etab,
-                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
+                           cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
                     WHERE eac.id = %s LIMIT 1
@@ -13179,7 +13200,7 @@ def download_exam_template(request):
                 # Get context from EAC
                 cur.execute("""
                     SELECT ea.annee_id AS id_annee,
-                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
+                           cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
                     WHERE eac.id = %s LIMIT 1
@@ -13357,7 +13378,7 @@ def get_bulletin_overview(request):
             return JsonResponse({'success': False, 'error': 'Config étab-année introuvable.'})
 
         # Resolve cycle for the class — manual lookup (EAC.classe_id = business key)
-        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).first()
+        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).select_related('classe', 'section').first()
         if not eac:
             return JsonResponse({'success': False, 'error': 'Classe introuvable.'})
 
@@ -13677,7 +13698,7 @@ def get_notes_bulletin(request):
                 # Get students + business keys
                 cur.execute("""
                     SELECT ea.annee_id AS id_annee,
-                           eac.classe_id AS bk_classe, eac.groupe AS bk_groupe, eac.section_id AS bk_section
+                           cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
                     WHERE eac.id = %s LIMIT 1
@@ -14738,9 +14759,10 @@ def dashboard_transfer_eleves(request):
             with conn.cursor() as cur:
                 # Resolve destination EAC.id → business keys
                 cur.execute("""
-                    SELECT eac.classe_id, eac.groupe, eac.section_id, cl.cycle_id
+                    SELECT cl.id_classe AS classe_id, eac.groupe, s.id_section AS section_id, cl.cycle_id
                     FROM countryStructure.etablissements_annees_classes eac
-                    JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id AND cl.id_pays = eac.id_pays
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id AND cl.id_pays = eac.id_pays
+                    LEFT JOIN countryStructure.sections s ON s.id = eac.section_id AND s.id_pays = cl.id_pays
                     WHERE eac.id = %s
                 """, [dest_classe_id])
                 bk = cur.fetchone()
@@ -15222,7 +15244,7 @@ def get_evaluations_repartitions(request):
         pays_id = etab.pays_id
 
         # Résoudre le cycle de la classe — manual lookup (EAC.classe_id = business key)
-        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).first()
+        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).select_related('classe', 'section').first()
         if not eac:
             return JsonResponse({'success': True, 'repartitions': [], 'has_children': False})
 
@@ -15355,7 +15377,7 @@ def get_deliberation_conditions(request):
             return JsonResponse({'success': True, 'conditions': []})
 
         # Get the EtablissementAnneeClasse to resolve classe and cycle
-        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).first()
+        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).select_related('classe', 'section').first()
         if not eac:
             return JsonResponse({'success': True, 'conditions': []})
 
@@ -15436,7 +15458,7 @@ def execute_deliberation(request):
             return JsonResponse({'success': False, 'error': 'Aucune année en cours.'}, status=400)
 
         # Resolve EAC
-        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).first()
+        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).select_related('classe', 'section').first()
         if not eac:
             return JsonResponse({'success': False, 'error': 'Classe non trouvée.'}, status=404)
 
@@ -15452,7 +15474,7 @@ def execute_deliberation(request):
                   AND ei.id_etablissement = %s
                   AND ei.status = 1
                 ORDER BY e.nom, e.prenom
-            """, [annee.pk, eac.classe_id, eac.groupe, eac.section_id, etab.id_etablissement])
+            """, [annee.pk, eac.bk_classe_id, eac.groupe, eac.bk_section_id, etab.id_etablissement])
             columns = [col[0] for col in cur.description]
             eleves = [dict(zip(columns, row)) for row in cur.fetchall()]
 
@@ -15693,7 +15715,7 @@ def execute_deliberation(request):
                             ON DUPLICATE KEY UPDATE
                                 pourcentage=VALUES(pourcentage), place=VALUES(place)
                         """, [r['id_eleve'], campus_id, annee.pk, cycle_id,
-                              eac.classe_id, eac.groupe, eac.section_id,
+                              eac.bk_classe_id, eac.groupe, eac.bk_section_id,
                               _resolved_config_id or int(repartition_id),
                               _resolved_config_id or int(repartition_id),
                               r['pourcentage'], r['place'], etab.id_etablissement, etab.pays_id])
@@ -15715,7 +15737,7 @@ def execute_deliberation(request):
                             ON DUPLICATE KEY UPDATE
                                 pourcentage=VALUES(pourcentage), place=VALUES(place)
                         """, [r['id_eleve'], campus_id, annee.pk, cycle_id,
-                              eac.classe_id, eac.groupe, eac.section_id,
+                              eac.bk_classe_id, eac.groupe, eac.bk_section_id,
                               _resolved_config_id or int(repartition_id),
                               r['pourcentage'], r['place'], etab.id_etablissement, etab.pays_id])
                     saved_count += 1
@@ -15732,9 +15754,9 @@ def execute_deliberation(request):
                         defaults={
                             'idCampus_id': campus_id,
                             'id_cycle_id': cycle_id,
-                            'id_classe_id': eac.classe_id,
+                            'id_classe_id': eac.bk_classe_id,
                             'groupe': eac.groupe,
-                            'section_id': eac.section_id,
+                            'section_id': eac.bk_section_id,
                             'id_session_id': int(session_id),
                             'id_mention_id': r.get('mention_id', 1),
                             'id_decision_id': r.get('finalite_id', 1),
@@ -15792,16 +15814,16 @@ def cancel_deliberation(request):
         if not annee:
             return JsonResponse({'success': False, 'error': 'Aucune année en cours.'}, status=400)
 
-        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).first() if classe_id else None
+        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).select_related('classe', 'section').first() if classe_id else None
         base_filter = {
             'id_annee': annee,
             'id_etablissement': etab.id_etablissement,
             'id_pays': etab.pays_id,
         }
         if eac:
-            base_filter['id_classe_id'] = eac.classe_id
+            base_filter['id_classe_id'] = eac.bk_classe_id
             base_filter['groupe'] = eac.groupe
-            base_filter['section_id'] = eac.section_id
+            base_filter['section_id'] = eac.bk_section_id
 
         ANNUAL_POS = 100
 
@@ -16008,7 +16030,7 @@ def get_deliberation_results(request):
         if not annee:
             return JsonResponse({'success': True, 'resultats': []})
 
-        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).first() if classe_id else None
+        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).select_related('classe', 'section').first() if classe_id else None
         if not eac:
             return JsonResponse({'success': True, 'resultats': []})
 
@@ -16016,9 +16038,9 @@ def get_deliberation_results(request):
             'id_annee': annee,
             'id_etablissement': etab.id_etablissement,
             'id_pays': etab.pays_id,
-            'id_classe_id': eac.classe_id,
+            'id_classe_id': eac.bk_classe_id,
             'groupe': eac.groupe,
-            'section_id': eac.section_id,
+            'section_id': eac.bk_section_id,
         }
 
         results_qs = None
@@ -16162,7 +16184,7 @@ def get_deliberated_classes(request):
             cls = eac.classe
             sec = eac.section
             model_info = bcm_map.get(hub_classe_id, None)
-            is_deliberated = (hub_classe_id, eac.groupe, eac.section_id) in delib_classes
+            is_deliberated = (hub_classe_id, eac.groupe, eac.bk_section_id) in delib_classes
 
             # Compter les élèves inscrits
             from django.db import connection
@@ -16171,7 +16193,7 @@ def get_deliberated_classes(request):
                     SELECT COUNT(DISTINCT id_eleve_id) FROM eleve_inscription
                     WHERE id_annee_id=%s AND classe_id=%s AND groupe <=> %s AND section_id <=> %s
                       AND id_etablissement=%s AND status=1
-                """, [annee.pk, eac.classe_id, eac.groupe, eac.section_id, etab.id_etablissement])
+                """, [annee.pk, eac.bk_classe_id, eac.groupe, eac.bk_section_id, etab.id_etablissement])
                 nb_eleves = cur.fetchone()[0]
 
             cycle_name = cls.cycle.cycle if cls and cls.cycle else '—'
@@ -16220,7 +16242,7 @@ def get_bulletin_eleves(request):
             return JsonResponse({'success': True, 'eleves': []})
 
         # Resolve EAC.id → business keys
-        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).first()
+        eac = EtablissementAnneeClasse.objects.filter(id=classe_id).select_related('classe', 'section').first()
         if not eac:
             return JsonResponse({'success': False, 'error': 'Classe non trouvée'}, status=404)
 
@@ -16235,7 +16257,7 @@ def get_bulletin_eleves(request):
                   AND ei.id_etablissement = %s
                   AND ei.status = 1
                 ORDER BY e.nom, e.prenom
-            """, [annee.pk, eac.classe_id, eac.groupe, eac.section_id, etab.id_etablissement])
+            """, [annee.pk, eac.bk_classe_id, eac.groupe, eac.bk_section_id, etab.id_etablissement])
             columns = [col[0] for col in cur.description]
             rows = cur.fetchall()
 

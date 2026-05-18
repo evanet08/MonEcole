@@ -128,6 +128,22 @@ class EtablissementAnneeClasse(models.Model):
         managed = False
         verbose_name = 'Classe Activée'
 
+    @property
+    def bk_classe_id(self):
+        """Business key (id_classe) for spoke tables — requires select_related('classe')."""
+        try:
+            return self.classe.id_classe if self.classe_id else None
+        except Exception:
+            return self.classe_id
+
+    @property
+    def bk_section_id(self):
+        """Business key (id_section) for spoke tables — requires select_related('section')."""
+        try:
+            return self.section.id_section if self.section_id else None
+        except Exception:
+            return self.section_id
+
     def __str__(self):
         return f"{self.classe} - {self.groupe or ''}"
 
