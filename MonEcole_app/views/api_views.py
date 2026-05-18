@@ -1341,15 +1341,23 @@ def generate_fiche_synoptique(request):
             annee_label = latest_etab_annee.annee.annee
             eac_list = list(EtablissementAnneeClasse.objects.filter(
                 etablissement_annee=latest_etab_annee
-            ).select_related('section'))
+            ))
             # Manual lookup: EAC.classe_id = business key
             eac_bks = set(e.classe_id for e in eac_list)
+            eac_sec_bks = set(e.section_id for e in eac_list if e.section_id)
             classes_by_bk = {}
             if eac_bks:
                 for cls in Classe.objects.filter(
                     id_classe__in=eac_bks, id_pays=etab.pays_id
                 ).select_related('cycle'):
                     classes_by_bk[cls.id_classe] = cls
+            # Manual section lookup: EAC.section_id = business key (id_section)
+            sections_by_bk = {}
+            if eac_sec_bks and Section:
+                for sec in Section.objects.filter(
+                    id_section__in=eac_sec_bks, id_pays=etab.pays_id
+                ):
+                    sections_by_bk[sec.id_section] = sec
             activated_classes = eac_list
         
         # Group by cycle
@@ -1372,9 +1380,10 @@ def generate_fiche_synoptique(request):
                     'nom': cls.nom,
                     'sections': []
                 }
-            if eac.section:
+            sec = sections_by_bk.get(eac.section_id)
+            if sec:
                 cycles_data[cycle.pk]['classes'][cls.id_classe]['sections'].append(
-                    f"{eac.section.code} ({eac.section.nom})"
+                    f"{sec.code} ({sec.nom})"
                 )
         
         if annee_label:
@@ -3618,26 +3627,44 @@ def get_resultats_etablissements(request):
             etab = ea.etablissement
 
             # Classes configurées + compter les cours pour chaque classe
-            classes_config = ea.classes_config.select_related(
-                'classe', 'classe__cycle', 'section'
-            ).all()
+            # NO select_related: classe_id/section_id are business keys, not surrogate PKs
+            eac_list = list(ea.classes_config.all())
+
+            # Manual class lookup
+            eac_bks = set(e.classe_id for e in eac_list)
+            eac_sec_bks = set(e.section_id for e in eac_list if e.section_id)
+            cls_by_bk = {}
+            if eac_bks:
+                for cls in Classe.objects.filter(
+                    id_classe__in=eac_bks, id_pays=pays.id_pays
+                ).select_related('cycle'):
+                    cls_by_bk[cls.id_classe] = cls
+            # Manual section lookup
+            sec_by_bk = {}
+            if eac_sec_bks and Section:
+                for sec in Section.objects.filter(
+                    id_section__in=eac_sec_bks, id_pays=pays.id_pays
+                ):
+                    sec_by_bk[sec.id_section] = sec
 
             config_classes = []
             classes_with_cours = 0
             total_cours = 0
 
-            for eac in classes_config:
-                nb_cours = Cours.objects.filter(classe=eac.classe, id_pays=pays.id_pays).count()
+            for eac in eac_list:
+                cls = cls_by_bk.get(eac.classe_id)
+                sec = sec_by_bk.get(eac.section_id)
+                nb_cours = Cours.objects.filter(classe_id=eac.classe_id, id_pays=pays.id_pays).count() if cls else 0
                 has_cours = nb_cours > 0
                 if has_cours:
                     classes_with_cours += 1
                 total_cours += nb_cours
 
                 config_classes.append({
-                    'name': eac.classe.nom,
-                    'id_classe': eac.classe.id_classe,
-                    'cycle': eac.classe.cycle.nom if eac.classe.cycle else '',
-                    'section': eac.section.nom if eac.section else None,
+                    'name': cls.nom if cls else '-',
+                    'id_classe': cls.id_classe if cls else eac.classe_id,
+                    'cycle': cls.cycle.nom if cls and cls.cycle else '',
+                    'section': sec.nom if sec else None,
                     'groupe': eac.groupe,
                     'nb_cours': nb_cours,
                     'has_cours': has_cours,
@@ -3829,27 +3856,38 @@ def get_etablissement_config(request):
         # NOT the surrogate PK (id). select_related('classe') would JOIN
         # on classes.id which can match a class from a DIFFERENT country!
         # Use manual lookup filtered by id_pays (same pattern as dashboard_views.py).
-        eac_list = list(etab_annee.classes_config.select_related('section').all())
+        eac_list = list(etab_annee.classes_config.all())
         eac_classe_bks = set(eac.classe_id for eac in eac_list)
+        eac_section_bks = set(eac.section_id for eac in eac_list if eac.section_id)
+        # Manual class lookup: EAC.classe_id = business key (id_classe)
         classes_by_bk = {}
         if eac_classe_bks:
             for cls in Classe.objects.filter(
                 id_classe__in=eac_classe_bks, id_pays=int(id_pays)
             ).select_related('cycle'):
                 classes_by_bk[cls.id_classe] = cls
+        # Manual section lookup: EAC.section_id = business key (id_section)
+        sections_by_bk = {}
+        if eac_section_bks and Section:
+            for sec in Section.objects.filter(
+                id_section__in=eac_section_bks, id_pays=int(id_pays)
+            ):
+                sections_by_bk[sec.id_section] = sec
 
         activated = []
         for eac in eac_list:
             cls = classes_by_bk.get(eac.classe_id)
+            sec = sections_by_bk.get(eac.section_id)
             classe_nom = cls.classe if cls else '-'
             if cls and cls.cycle:
                 classe_nom = f"{cls.classe} - {cls.cycle.cycle}"
+            section_nom = f"{sec.code} - {sec.nom}" if sec else '-'
             activated.append({
                 'id': eac.id,
                 'classe_id': eac.classe_id,
                 'classe_nom': classe_nom,
                 'section_id': eac.section_id,
-                'section_nom': str(eac.section) if eac.section else '-',
+                'section_nom': section_nom,
                 'groupe': eac.groupe,
                 'classe_par_annee_id': eac.id,
             })
@@ -4178,8 +4216,8 @@ def _resolve_eac_keys(cur, eac_id):
                (SELECT c.idCampus FROM db_monecole.campus c
                 WHERE c.id_etablissement = ea.etablissement_id AND c.is_active=1 LIMIT 1) AS campus_id
         FROM countryStructure.etablissements_annees_classes eac
-        JOIN countryStructure.classes cl ON cl.id = eac.classe_id
         JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+        JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id AND cl.id_pays = ea.id_pays
         WHERE eac.id = %s
     """, [eac_id])
     return cur.fetchone()
@@ -4325,7 +4363,7 @@ def dashboard_add_eleve(request):
                            cl.cycle_id AS cycle_id
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON eac.etablissement_annee_id = ea.id
-                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                    JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id AND cl.id_pays = ea.id_pays
                     WHERE eac.id = %s
                 """, [classe_par_annee_id])
                 ca = cur.fetchone()
@@ -4446,8 +4484,8 @@ def dashboard_eleve_template(request):
                                COALESCE(s.nom, '') as section_nom,
                                COALESCE(eac.groupe, '') as groupe
                         FROM countryStructure.etablissements_annees_classes eac
-                        JOIN countryStructure.classes cl ON cl.id = eac.classe_id
-                        LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
+                        JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id AND cl.id_pays = eac.id_pays
+                        LEFT JOIN countryStructure.sections s ON s.id_section = eac.section_id AND s.id_pays = cl.id_pays
                         WHERE eac.id = %s
                     """, [classe_par_annee_id])
                     row = cur.fetchone()
@@ -4766,7 +4804,7 @@ def dashboard_import_eleves(request):
                            ea.annee_id AS id_annee_id, cl.cycle_id AS cycle_id
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON eac.etablissement_annee_id = ea.id
-                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                    JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id AND cl.id_pays = ea.id_pays
                     WHERE eac.id = %s
                 """,
                     [classe_id]
@@ -5002,8 +5040,8 @@ def parent_update_template(request):
                            COALESCE(s.nom, '') as section_nom,
                            COALESCE(eac.groupe, '') as groupe
                     FROM countryStructure.etablissements_annees_classes eac
-                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
-                    LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
+                    JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id AND cl.id_pays = eac.id_pays
+                    LEFT JOIN countryStructure.sections s ON s.id_section = eac.section_id AND s.id_pays = cl.id_pays
                     WHERE eac.id = %s
                 """, [classe_par_annee_id])
                 row = cur.fetchone()
@@ -6999,20 +7037,39 @@ def dashboard_etablissement_view(request):
         ).first()
 
         if etab_annee:
-            # Classes configurées
-            classes_config = EtablissementAnneeClasse.objects.filter(
+            # Classes configurées — NO select_related: business key mismatch!
+            classes_config = list(EtablissementAnneeClasse.objects.filter(
                 etablissement_annee=etab_annee
-            ).select_related('classe__cycle', 'section')
+            ))
 
-            stats['n_classes'] = classes_config.count()
+            # Manual class lookup: EAC.classe_id = business key (id_classe)
+            eac_bks = set(cc.classe_id for cc in classes_config)
+            eac_sec_bks = set(cc.section_id for cc in classes_config if cc.section_id)
+            classes_by_bk = {}
+            if eac_bks:
+                for cls in Classe.objects.filter(
+                    id_classe__in=eac_bks, id_pays=pays.id_pays
+                ).select_related('cycle'):
+                    classes_by_bk[cls.id_classe] = cls
+            # Manual section lookup: EAC.section_id = business key (id_section)
+            sections_by_bk = {}
+            if eac_sec_bks and Section:
+                for sec in Section.objects.filter(
+                    id_section__in=eac_sec_bks, id_pays=pays.id_pays
+                ):
+                    sections_by_bk[sec.id_section] = sec
+
+            stats['n_classes'] = len(classes_config)
 
             # Cycles distincts
             cycle_ids = set()
             cycle_counts = {}
             for cc in classes_config:
-                cid = cc.classe.cycle_id
-                cycle_ids.add(cid)
-                cycle_counts[cid] = cycle_counts.get(cid, 0) + 1
+                cls = classes_by_bk.get(cc.classe_id)
+                if cls and cls.cycle:
+                    cid = cls.cycle_id
+                    cycle_ids.add(cid)
+                    cycle_counts[cid] = cycle_counts.get(cid, 0) + 1
 
             stats['n_cycles'] = len(cycle_ids)
 
@@ -7029,14 +7086,16 @@ def dashboard_etablissement_view(request):
             # Detail par classe
             classes_detail = []
             for cc in classes_config:
-                classe_label = str(cc.classe) if cc.classe else '-'
+                cls = classes_by_bk.get(cc.classe_id)
+                sec = sections_by_bk.get(cc.section_id)
+                classe_label = cls.classe if cls else '-'
                 if cc.groupe:
                     classe_label += f" {cc.groupe}"
                 classes_detail.append({
                     'eac_id': cc.id,
                     'classe_nom': classe_label,
-                    'cycle_nom': str(cc.classe.cycle) if cc.classe and cc.classe.cycle else '-',
-                    'section_nom': str(cc.section) if cc.section else '-',
+                    'cycle_nom': cls.cycle.nom if cls and cls.cycle else '-',
+                    'section_nom': f"{sec.code} - {sec.nom}" if sec else '-',
                     'groupe': cc.groupe or '',
                 })
 
@@ -7445,8 +7504,8 @@ def dashboard_etablissement_view(request):
                           ON eac.classe_id = ei.classe_id
                           AND (eac.groupe COLLATE utf8mb4_general_ci <=> ei.groupe COLLATE utf8mb4_general_ci)
                           AND eac.section_id <=> ei.section_id
-                        JOIN countryStructure.classes cl ON cl.id = eac.classe_id
-                        LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
+                        JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id AND cl.id_pays = eac.id_pays
+                        LEFT JOIN countryStructure.sections s ON s.id_section = eac.section_id AND s.id_pays = cl.id_pays
                         WHERE ei.idCampus_id IN ({placeholders}) AND ei.status = 1{annee_filter}
                         GROUP BY eac.id
                         ORDER BY cl.ordre, cl.nom, eac.groupe
@@ -14754,7 +14813,7 @@ def dashboard_transfer_eleves(request):
                 cur.execute("""
                     SELECT eac.classe_id, eac.groupe, eac.section_id, cl.cycle_id
                     FROM countryStructure.etablissements_annees_classes eac
-                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                    JOIN countryStructure.classes cl ON cl.id_classe = eac.classe_id AND cl.id_pays = eac.id_pays
                     WHERE eac.id = %s
                 """, [dest_classe_id])
                 bk = cur.fetchone()
@@ -16129,16 +16188,24 @@ def get_deliberated_classes(request):
         # IMPORTANT: EAC.classe_id = business key, NOT surrogate PK
         eac_list = list(EtablissementAnneeClasse.objects.filter(
             etablissement_annee=ea
-        ).select_related('section'))
+        ))
 
         # Manual lookup: resolve classes with id_pays filter
         eac_classe_bks = set(eac.classe_id for eac in eac_list)
+        eac_section_bks = set(eac.section_id for eac in eac_list if eac.section_id)
         classes_by_bk = {}
         if eac_classe_bks:
             for cls in Classe.objects.filter(
                 id_classe__in=eac_classe_bks, id_pays=etab.pays_id
             ).select_related('cycle'):
                 classes_by_bk[cls.id_classe] = cls
+        # Manual section lookup: EAC.section_id = business key (id_section)
+        sections_by_bk = {}
+        if eac_section_bks and Section:
+            for sec in Section.objects.filter(
+                id_section__in=eac_section_bks, id_pays=etab.pays_id
+            ):
+                sections_by_bk[sec.id_section] = sec
 
         # Lire les modèles de bulletin depuis le Hub (filtré par pays)
         from MonEcole_app.models.evaluations.bulletin_model import BulletinClasseModel, BulletinModel
@@ -16183,6 +16250,7 @@ def get_deliberated_classes(request):
         for eac in eac_list:
             hub_classe_id = eac.classe_id
             cls = classes_by_bk.get(hub_classe_id)
+            sec = sections_by_bk.get(eac.section_id)
             model_info = bcm_map.get(hub_classe_id, None)
             is_deliberated = (hub_classe_id, eac.groupe, eac.section_id) in delib_classes
 
@@ -16197,7 +16265,7 @@ def get_deliberated_classes(request):
                 nb_eleves = cur.fetchone()[0]
 
             cycle_name = cls.cycle.cycle if cls and cls.cycle else '—'
-            section_name = eac.section.nom if eac.section else None
+            section_name = sec.nom if sec else None
 
             classes.append({
                 'eac_id': eac.id,

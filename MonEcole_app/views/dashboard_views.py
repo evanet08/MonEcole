@@ -133,21 +133,31 @@ def _get_dashboard_context(request):
         ).first()
 
         if etab_annee:
-            # Classes configurées
             # NOTE: classe_id stocke le business key (classes.id_classe), pas le surrogate PK.
             # On ne peut PAS utiliser select_related('classe__cycle') car Django JOIN sur classes.id.
-            classes_config = EtablissementAnneeClasse.objects.filter(
+            # IDEM pour select_related('section') — section_id = business key (id_section)
+            classes_config = list(EtablissementAnneeClasse.objects.filter(
                 etablissement_annee=etab_annee
-            ).select_related('section')
+            ))
 
-            stats['n_classes'] = classes_config.count()
+            stats['n_classes'] = len(classes_config)
 
             # Build lookup: id_classe (business key) → Classe object (with cycle prefetched)
             eac_classe_bk_set = set(cc.classe_id for cc in classes_config)
+            eac_sec_bk_set = set(cc.section_id for cc in classes_config if cc.section_id)
             classes_by_bk = {}  # {id_classe: Classe}
             if eac_classe_bk_set:
                 for cls in ClasseHub.objects.filter(id_classe__in=eac_classe_bk_set, id_pays=pays.id_pays).select_related('cycle'):
                     classes_by_bk[cls.id_classe] = cls
+            # Manual section lookup: EAC.section_id = business key (id_section)
+            sections_by_bk = {}  # {id_section: Section}
+            try:
+                from MonEcole_app.models.country_structure import Section as SectionHub
+                if eac_sec_bk_set:
+                    for sec in SectionHub.objects.filter(id_section__in=eac_sec_bk_set, id_pays=pays.id_pays):
+                        sections_by_bk[sec.id_section] = sec
+            except ImportError:
+                pass
 
             # Cycles distincts (via business keys)
             cycle_ids = set()
@@ -175,6 +185,7 @@ def _get_dashboard_context(request):
             # Detail par classe
             for cc in classes_config:
                 cls = classes_by_bk.get(cc.classe_id)
+                sec = sections_by_bk.get(cc.section_id)
                 classe_label = cls.classe if cls else '-'
                 if cls and cls.cycle:
                     classe_label = cls.classe + ' - ' + cls.cycle.cycle
@@ -184,7 +195,7 @@ def _get_dashboard_context(request):
                     'eac_id': cc.id,
                     'classe_nom': classe_label,
                     'cycle_nom': cls.cycle.cycle if cls and cls.cycle else '-',
-                    'section_nom': cc.section.nom if cc.section else '-',
+                    'section_nom': sec.nom if sec else '-',
                     'groupe': cc.groupe or '',
                 })
 

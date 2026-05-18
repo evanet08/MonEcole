@@ -334,7 +334,8 @@ class TypeSubdivision(models.Model):
 
 
 class Section(models.Model):
-    id_section = models.AutoField(primary_key=True)
+    id = models.BigAutoField(primary_key=True)
+    id_section = models.IntegerField()  # business key, per-country
     nom = models.CharField(max_length=100)
     code = models.CharField(max_length=20)
     type_subdivision = models.ForeignKey(TypeSubdivision, on_delete=models.CASCADE,
