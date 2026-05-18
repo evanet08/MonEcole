@@ -3816,12 +3816,29 @@ def get_etablissement_config(request):
         )
         
         # Get activated classes with sections and groups
+        # IMPORTANT: classe_id in EAC stores the business key (id_classe),
+        # NOT the surrogate PK (id). select_related('classe') would JOIN
+        # on classes.id which can match a class from a DIFFERENT country!
+        # Use manual lookup filtered by id_pays (same pattern as dashboard_views.py).
+        eac_list = list(etab_annee.classes_config.select_related('section').all())
+        eac_classe_bks = set(eac.classe_id for eac in eac_list)
+        classes_by_bk = {}
+        if eac_classe_bks:
+            for cls in Classe.objects.filter(
+                id_classe__in=eac_classe_bks, id_pays=int(id_pays)
+            ).select_related('cycle'):
+                classes_by_bk[cls.id_classe] = cls
+
         activated = []
-        for eac in etab_annee.classes_config.select_related('classe', 'section').all():
+        for eac in eac_list:
+            cls = classes_by_bk.get(eac.classe_id)
+            classe_nom = cls.classe if cls else '-'
+            if cls and cls.cycle:
+                classe_nom = f"{cls.classe} - {cls.cycle.cycle}"
             activated.append({
                 'id': eac.id,
                 'classe_id': eac.classe_id,
-                'classe_nom': str(eac.classe) if eac.classe else '-',
+                'classe_nom': classe_nom,
                 'section_id': eac.section_id,
                 'section_nom': str(eac.section) if eac.section else '-',
                 'groupe': eac.groupe,
@@ -3858,9 +3875,9 @@ def save_etablissement_config(request):
         etablissement = Etablissement.objects.filter(**etab_filters).first()
         if not etablissement:
             return JsonResponse({'success': False, 'error': 'Établissement introuvable'})
-        # Frontend sends annee_active.id (PK) — resolve robustly
-        annee = Annee.objects.filter(pk=id_annee).first()
-        if not annee and id_pays:
+        # Frontend sends annee_active.id (PK) — resolve with pays filter
+        annee = Annee.objects.filter(pk=id_annee, pays_id=id_pays).first()
+        if not annee:
             annee = Annee.objects.filter(id_annee=id_annee, pays_id=id_pays).first()
         if not annee:
             return JsonResponse({'success': False, 'error': 'Année introuvable'})
@@ -3887,7 +3904,7 @@ def save_etablissement_config(request):
             section_id = item.get('section_id')
             groupes = item.get('groupes', [])  # List of group letters, e.g. ['A', 'B', 'C'] or []
             
-            classe = Classe.objects.filter(id_classe=classe_id).first()
+            classe = Classe.objects.filter(id_classe=classe_id, id_pays=int(id_pays)).first()
             if not classe:
                 continue  # Skip unknown classes silently
             section = None
