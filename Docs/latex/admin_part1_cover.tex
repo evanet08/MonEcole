@@ -1,0 +1,41 @@
+% === COUVERTURE FLYER ===
+\thispagestyle{empty}
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[coverbg] (current page.south west) rectangle (current page.north east);
+  \fill[coveraccent,opacity=0.10] (current page.north east) ++(-3,0.5) circle (7cm);
+  \fill[teal,opacity=0.06] (current page.south west) ++(2,-1) circle (9cm);
+  \fill[amber,opacity=0.04] (current page.center) ++(5,-3) circle (4cm);
+  \draw[coveraccent,line width=1.5pt,opacity=0.3] ([yshift=-5cm]current page.north west) ++(2,0) -- ++(17,0);
+  \node[fill=coveraccent,rounded corners=12pt,minimum size=1.6cm,inner sep=0pt] at ([yshift=-3cm]current page.north) {\color{white}\fontsize{24pt}{24pt}\selectfont\faCogs};
+  \node[anchor=north,text width=15cm,align=center] at ([yshift=-5.5cm]current page.north) {
+    \color{white}\fontsize{28pt}{32pt}\selectfont\textbf{Module Administration}\\[8pt]
+    \fontsize{14pt}{18pt}\selectfont\color{coveraccent!70!white}Guide Complet --- Plateforme \textbf{MonEcole}
+  };
+  \node[anchor=north,text width=15cm,align=center] at ([yshift=-8.5cm]current page.north) {
+    \color{white!55}\fontsize{9pt}{13pt}\selectfont
+    Architecture Hub-and-Spoke $\bullet$ Configuration int\'egrale $\bullet$ Gouvernance des donn\'ees\\[3pt]
+    Fiche \'etablissement $\bullet$ Cycles \& Classes $\bullet$ Calendrier $\bullet$ Personnel $\bullet$ Droits d'acc\`es
+  };
+  \draw[coveraccent,line width=1pt] ([yshift=-10.5cm]current page.north) ++(-4,0) -- ++(8,0);
+  % 6 sections en miniatures
+  \node[anchor=north] at ([yshift=-11.5cm]current page.north) {
+    \begin{tikzpicture}[
+      sec/.style={rounded corners=6pt,minimum height=.7cm,minimum width=2.3cm,font=\tiny\bfseries,inner sep=3pt,text=white,drop shadow={shadow xshift=.5pt,shadow yshift=-.5pt,opacity=0.15}}
+    ]
+      \node[sec,fill=indigo] (a) at (0,0) {\faThLarge\ Dashboard};
+      \node[sec,fill=sky,right=3pt of a] (b) {\faSchool\ Mon \'Ecole};
+      \node[sec,fill=emerald,right=3pt of b] (c) {\faCogs\ Configuration};
+      \node[sec,fill=amber,right=3pt of c] (d) {\faCalendar\ Calendrier};
+      \node[sec,fill=amber!80!black,right=3pt of d] (e) {\faUsers\ Personnel};
+      \node[sec,fill=rose,right=3pt of e] (f) {\faIcon{shield-alt}\ Utilisateurs};
+    \end{tikzpicture}
+  };
+  \node[anchor=north,text width=15cm,align=center] at ([yshift=-14cm]current page.north) {
+    \color{white!40}\scriptsize
+    \faBuilding\hspace{3pt}Architecture Multi-Tenant \quad\faCalendar\hspace{3pt}Mai 2026 --- v2.0 \quad\faBook\hspace{3pt}6 Sections
+  };
+  \node[anchor=south] at ([yshift=1cm]current page.south) {
+    \color{white!25}\tiny \faCopyright\hspace{2pt} Nexora Tech --- Tous droits r\'eserv\'es
+  };
+\end{tikzpicture}
+\newpage

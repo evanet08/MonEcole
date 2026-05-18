@@ -1,0 +1,357 @@
+% ===================================================================
+% SECTIONS 1-6 DETAILLEES — STYLE FLYER COMPACT
+% ===================================================================
+
+% ========== SECTION 1 : DASHBOARD ==========
+\chapsec{indigo}{th-large}{Section 1 --- Dashboard : Vue d'Ensemble de l'\'Etablissement}
+
+\begin{multicols}{2}
+
+{\scriptsize Le Dashboard est la \textbf{page d'accueil} du module. Il offre une synth\`ese instantan\'ee sans n\'ecessiter de configuration.}
+
+\flyersec{indigo}{chart-bar}{4 Cartes Statistiques}
+
+\begin{center}\scriptsize
+\begin{tabularx}{\columnwidth}{@{}l@{\hspace{4pt}}l@{\hspace{4pt}}X@{}}
+\toprule
+\textbf{Carte} & \textbf{Ic.} & \textbf{Donn\'ee} \\
+\midrule
+Cycles Actifs & \faLayerGroup & Nb cycles activ\'es \\
+Classes & \faChalkboard & Nb classes configur\'ees \\
+Enseignants & \faUsers & Personnel en fonction \\
+\'El\`eves & \faUserGraduate & Inscriptions actives \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\flyersec{violet}{columns}{3 Zones de Contenu}
+
+\begin{itemize}[font=\scriptsize]
+  \item[\faStream] \textbf{Timeline Gantt} --- Progression trimestres (actifs/termin\'es/\`a venir) avec barres color\'ees.
+  \item[\faVenusMars] \textbf{R\'epartition Genre} --- Graphique donut Gar\c{c}ons/Filles avec l\'egende.
+  \item[\faBolt] \textbf{Actions Rapides} --- Boutons d'acc\`es direct vers les sections cl\'es + r\'ecap cycles/classes.
+\end{itemize}
+
+\begin{infobox}
+\scriptsize Le Dashboard se rafra\^ichit automatiquement. Il constitue le meilleur indicateur de l'\'etat de pr\'eparation de l'\'etablissement.
+\end{infobox}
+
+\end{multicols}
+
+% ========== SECTION 2 : MON ECOLE ==========
+\chapsec{sky}{school}{Section 2 --- Mon \'Ecole : Identit\'e et Localisation}
+
+\begin{multicols}{2}
+
+{\scriptsize Section \textbf{critique} --- c'est le premier pr\'erequis. Elle contient la fiche d'identit\'e et le syst\`eme de localisation administrative. \textbf{Sans elle, tout est verrouill\'e.}}
+
+\flyersec{sky}{id-card}{Panneau Gauche : Fiche \'Etablissement}
+
+{\scriptsize La fiche est organis\'ee en \textbf{3 colonnes} \'editables~:}
+
+\begin{center}\scriptsize
+\begin{tabularx}{\columnwidth}{@{}l@{\hspace{3pt}}X@{}}
+\toprule
+\textbf{Colonne} & \textbf{Champs} \\
+\midrule
+\faImage\ Logo+Identif. & Logo (upload), Nom, Sigle, R\'egime, Struct. P\'edago., Ann\'ees cr\'eation/agr\'ement \\
+\faStamp\ Immatric.+Dir. & Matricule, Code \'Ecole, N\textdegree DINACOPE, R\'ef. Agr\'ement, Code Structurel, Doc agr\'ement (PDF), Repr\'esentant, Gestionnaire \\
+\faAddressBook\ Coord.+Adr. & Email, T\'el., Fax, Bo\^ite Postale, Sous-domaine, Cha\^ine admin., Rue, N\textdegree \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{stepbox}[title={\faPen\ Modifier la fiche}]
+\begin{enumerate}[label=\textcolor{indigo}{\scriptsize\textbf{\arabic*.}},font=\scriptsize,itemsep=0pt]
+  \item Cliquer \btn{indigo}{Modifier} $\to$ champs \'editables (contour indigo)
+  \item Modifier les champs souhait\'es (champs gris\'es = lecture seule)
+  \item \btn{emerald}{Enregistrer} ou \btn{rose}{Annuler}
+\end{enumerate}
+\end{stepbox}
+
+\begin{stepbox}[title={\faUpload\ Uploads}]
+\scriptsize \textbf{Logo}~: clic sur la zone $\to$ s\'election image $\to$ aper\c{c}u instantan\'e.\\
+\textbf{Document agr\'ement}~: \btn{violet}{Joindre} $\to$ PDF/JPG/PNG/DOC $\to$ aper\c{c}u cliquable.
+\end{stepbox}
+
+\columnbreak
+
+\flyersec{emerald}{map-marker-alt}{Panneau Droit : Localisation}
+
+{\scriptsize Syst\`eme de \textbf{cascade auto-compl\'et\'ee} rattachant l'\'ecole \`a la structure administrative nationale du Hub~:}
+
+\begin{center}
+\begin{tikzpicture}[
+  lv/.style={draw=slate!25,fill=#1!6,rounded corners=4pt,minimum width=3.2cm,minimum height=.55cm,font=\tiny\bfseries,text=slate,align=center},
+  ar/.style={-{Stealth[length=3pt]},semithick,color=slatelight}
+]
+  \node[lv=violet] (l1) at (0,0) {\faIcon{map-marker-alt}\ Province};
+  \node[lv=indigo] (l2) at (0,-.8) {\faCity\ Division (Ville)};
+  \node[lv=sky] (l3) at (0,-1.6) {\faHome\ Sous-Division};
+  \node[lv=emerald] (l4) at (0,-2.4) {\faRoad\ Rue + Num\'ero};
+  \draw[ar](l1)--(l2);\draw[ar](l2)--(l3);\draw[ar](l3)--(l4);
+\end{tikzpicture}
+\end{center}
+
+\begin{stepbox}[title={\faIcon{map-marker-alt}\ Configurer la localisation}]
+\begin{enumerate}[label=\textcolor{indigo}{\scriptsize\textbf{\arabic*.}},font=\scriptsize,itemsep=0pt]
+  \item \textbf{Niveau 1}~: taper les 1\`eres lettres $\to$ suggestions du Hub $\to$ s\'electionner ou \textcolor{emerald}{\faPlus\ Cr\'eer}
+  \item \textbf{Niveau 2}~: s'active apr\`es verrouillage du N1 $\to$ m\^eme logique
+  \item \textbf{Niveau 3}~: idem $\to$ champs Rue/Num\'ero apparaissent
+  \item Remplir rue et num\'ero puis \btn{emerald}{Attacher \`a l'\'ecole}
+\end{enumerate}
+\end{stepbox}
+
+\flyersec{teal}{crosshairs}{G\'eolocalisation GPS}
+
+{\scriptsize Apr\`es la cascade, le bouton \btn{sky}{G\'eolocaliser} ouvre une \textbf{carte Leaflet}~:}
+\begin{itemize}[font=\scriptsize,itemsep=0pt]
+  \item Clic sur la carte = placer le marqueur
+  \item Bouton \textit{D\'etecter ma position} = GPS navigateur
+  \item Sauvegarde des coordonn\'ees (lat/lng)
+\end{itemize}
+
+\begin{warnbox}
+\scriptsize La g\'eolocalisation est le \textbf{d\'eclencheur du d\'eblocage}. Sans elle~: Configuration, Calendrier, Personnel et Utilisateurs restent inaccessibles.
+\end{warnbox}
+
+\end{multicols}
+
+\newpage
+% ========== SECTION 3 : CONFIGURATION ==========
+\chapsec{emerald}{cogs}{Section 3 --- Configuration : Moteur P\'edagogique}
+
+\begin{multicols}{2}
+
+{\scriptsize La Configuration est le c\oe ur p\'edagogique. Elle s'organise en \textbf{4 onglets} avec verrouillage progressif~:}
+
+\begin{center}
+\begin{tikzpicture}[
+  tab/.style={rounded corners=3pt,minimum height=.5cm,font=\tiny\bfseries,inner sep=3pt,text=white,fill=#1}
+]
+  \node[tab=emerald] (t1) at (0,0) {\faIcon{map-marker-alt}\ Campus};
+  \node[tab=indigo,right=2pt of t1] (t2) {\faLayerGroup\ Cycles};
+  \node[tab=sky,right=2pt of t2] (t3) {\faChalkboard\ Classes};
+  \node[tab=violet,right=2pt of t3] (t4) {\faBook\ Cours};
+\end{tikzpicture}
+\end{center}
+
+% --- TAB CAMPUS ---
+\flyersec{emerald}{map-marker-alt}{Onglet 1 : Campus / Emplacement}
+
+{\scriptsize Un campus = un site physique. Minimum 1 requis pour d\'ebloquer Cycles et Classes.}
+
+\begin{stepbox}[title={\faPlus\ Cr\'eer un campus}]
+\begin{enumerate}[label=\textcolor{indigo}{\scriptsize\textbf{\arabic*.}},font=\scriptsize,itemsep=0pt]
+  \item \btn{emerald}{Nouveau campus}
+  \item Remplir~: \chp{Nom} (oblig.), \chp{Adresse}, \chp{Localisation}
+  \item \btn{emerald}{Enregistrer} $\to$ liste mise \`a jour
+  \item Le 1er campus \textbf{d\'ebloque} les onglets suivants
+\end{enumerate}
+\end{stepbox}
+
+{\scriptsize Chaque campus peut \^etre modifi\'e (inline) ou supprim\'e. La liste affiche le nom, l'adresse et les actions.}
+
+% --- TAB CYCLES ---
+\flyersec{indigo}{layer-group}{Onglet 2 : Cycles \& P\'eriodes}
+
+{\scriptsize Active les cycles du Hub national et affiche les trimestres/semestres associ\'es.}
+
+\begin{stepbox}[title={\faCheck\ Activer des cycles}]
+\begin{enumerate}[label=\textcolor{indigo}{\scriptsize\textbf{\arabic*.}},font=\scriptsize,itemsep=0pt]
+  \item Cases \`a cocher par cycle (Maternelle, Primaire, Humanit\'es...)
+  \item \btn{emerald}{Sauvegarder}
+  \item Timeline Gantt + d\'etail trimestres se mettent \`a jour
+  \item Chaque p\'eriode~: statut Ouvert/Ferm\'e + bouton toggle
+\end{enumerate}
+\end{stepbox}
+
+\begin{tipbox}
+\scriptsize S\'electionnez un \textbf{s\'electeur d'ann\'ee} en haut \`a droite pour configurer diff\'erentes ann\'ees scolaires.
+\end{tipbox}
+
+% --- TAB CLASSES ---
+\flyersec{sky}{chalkboard}{Onglet 3 : Classes}
+
+{\scriptsize Cochez les classes \`a activer par cycle pour l'ann\'ee scolaire~:}
+
+\begin{stepbox}[title={\faCheck\ Configurer les classes}]
+\begin{enumerate}[label=\textcolor{indigo}{\scriptsize\textbf{\arabic*.}},font=\scriptsize,itemsep=0pt]
+  \item Classes group\'ees par cycle (en-t\^ete bleu)
+  \item \textbf{Cocher} les classes actives
+  \item Pour cycles \`a sections (Humanit\'es/CFP)~: cocher les sections par classe
+  \item \textbf{Stepper groupes}~: d\'efinir le nb de parall\`eles (A, B, C...)
+  \item \btn{emerald}{Sauvegarder} $\to$ cr\'eation des entr\'ees Hub
+\end{enumerate}
+\end{stepbox}
+
+% --- TAB COURS ---
+\flyersec{violet}{book}{Onglet 4 : Cours \& Pond\'erations}
+
+{\scriptsize Visible \textbf{uniquement} pour les cycles non-uniformes (CFP) o\`u les cours varient par \'etablissement.}
+
+\begin{stepbox}[title={\faBook\ G\'erer les cours}]
+\begin{enumerate}[label=\textcolor{indigo}{\scriptsize\textbf{\arabic*.}},font=\scriptsize,itemsep=0pt]
+  \item Filtres~: \chp{Cycle} $\to$ \chp{Classe} $\to$ \chp{Fili\`ere}
+  \item Grille~: Nom, Code, Domaine, Max Points, Heures, Statut
+  \item \btn{emerald}{Ajouter un cours} $\to$ modale (Nom, Code, Domaine)
+  \item \btn{violet}{Domaines} $\to$ CRUD des domaines
+  \item \btn{violet}{Mod\`ele Excel} + \btn{rose}{Importer} $\to$ import en masse
+  \item Activation en masse via cases \`a cocher
+\end{enumerate}
+\end{stepbox}
+
+\begin{cbox}[title={\faGavel\ Gouvernance}]{violet}
+\scriptsize La configuration annuelle cr\'ee un \textbf{instantan\'e fig\'e}~: m\^eme si le Hub \'evolue, l'\'etablissement conserve sa config initiale. Cela garantit l'int\'egrit\'e des bulletins en cours d'ann\'ee.
+\end{cbox}
+
+\end{multicols}
+
+\newpage
+% ========== SECTION 4 : CALENDRIER ==========
+\chapsec{amber}{calendar-alt}{Section 4 --- Calendrier Scolaire}
+
+\begin{multicols}{2}
+
+{\scriptsize Le calendrier g\`ere les \textbf{dates des p\'eriodes acad\'emiques} et le choix entre mode synchronis\'e (national) ou personnalis\'e.}
+
+\flyersec{amber}{sync-alt}{Mode Synchronis\'e vs Personnalis\'e}
+
+\begin{center}\scriptsize
+\begin{tabularx}{\columnwidth}{@{}l@{\hspace{3pt}}X@{\hspace{3pt}}X@{}}
+\toprule
+& \textbf{Synchro.} & \textbf{Perso.} \\
+\midrule
+Dates & Hub national & \'Etablissement \\
+Modif. & Lecture seule & \'Editable \\
+Ouv./Ferm. & Automatique & Manuelle \\
+Usage & \'Ecoles publiques & Priv\'ees, CFP \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+{\scriptsize Basculement via un \textbf{toggle switch} en haut de la section. Ic\^one et description changent dynamiquement.}
+
+\flyersec{amber}{layer-group}{Configuration par Cycle}
+
+{\scriptsize Pour chaque cycle activ\'e, le syst\`eme affiche les p\'eriodes avec~:}
+\begin{itemize}[font=\scriptsize,itemsep=0pt]
+  \item \textbf{Dates d\'ebut/fin} (\'editables en mode perso.)
+  \item \textbf{Statut} Ouvert \textcolor{emerald}{$\bullet$} / Ferm\'e \textcolor{slatelight}{$\circ$}
+  \item \textbf{Bouton toggle} pour basculer le statut
+\end{itemize}
+
+\begin{stepbox}[title={\faCalendar\ Modifier le calendrier}]
+\begin{enumerate}[label=\textcolor{indigo}{\scriptsize\textbf{\arabic*.}},font=\scriptsize,itemsep=0pt]
+  \item D\'esactiver toggle \textit{Synchronis\'e} $\to$ mode personnalis\'e
+  \item Modifier dates d\'ebut/fin par p\'eriode
+  \item \btn{emerald}{Ouvrir} / \btn{rose}{Fermer} pour activer/d\'esactiver
+  \item Timeline Gantt en bas se met \`a jour en temps r\'eel
+\end{enumerate}
+\end{stepbox}
+
+\begin{dangerbox}
+\scriptsize \textbf{Fermer} une p\'eriode emp\^eche les enseignants de saisir des notes dans le module \'Evaluations. V\'erifiez que toutes les notes sont saisies \textbf{avant} la fermeture.
+\end{dangerbox}
+
+\columnbreak
+% ========== SECTION 5 : PERSONNEL ==========
+\flyersec{amber!80!black}{users-cog}{Section 5 --- Personnel}
+
+{\scriptsize G\`ere l'ensemble du personnel~: enseignants, administratifs, personnel d'appui. Affiche des stats et une grille \'editable.}
+
+\vspace{2pt}
+{\scriptsize\textbf{4 cartes}~: Enseignants $\bullet$ Cours $\bullet$ Classes $\bullet$ Cycles}
+
+\begin{center}\scriptsize
+\begin{tabularx}{\columnwidth}{@{}l@{\hspace{3pt}}l@{\hspace{3pt}}X@{}}
+\toprule
+\textbf{Bouton} & \textbf{Coul.} & \textbf{Action} \\
+\midrule
+\faUserPlus\ Ajouter & Vert & Formulaire inline \\
+\faIcon{sync-alt}\ Actualiser & Bleu & Recharge la liste \\
+\faFileDownload\ Mod\`ele & Violet & Template Excel \\
+\faFileUpload\ Importer & Rose & Import Excel \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{stepbox}[title={\faUserPlus\ Ajouter du personnel}]
+\begin{enumerate}[label=\textcolor{indigo}{\scriptsize\textbf{\arabic*.}},font=\scriptsize,itemsep=0pt]
+  \item \btn{emerald}{Ajouter} $\to$ formulaire 3 colonnes
+  \item Remplir~: \chp{Nom}, \chp{Pr\'enom}, \chp{Post-nom}, \chp{Genre}, \chp{T\'el}, \chp{Email}
+  \item \btn{emerald}{Enregistrer} $\to$ appara\^it dans la grille
+\end{enumerate}
+\end{stepbox}
+
+{\scriptsize\textbf{Grille interactive}~: cellules \'editables inline (\texttt{contenteditable}). Clic direct $\to$ \'edition $\to$ sauvegarde auto (flash vert). Bouton \btn{indigo}{Colonnes} pour choisir les colonnes visibles~:}
+
+{\tiny Nom, Pr\'enom, Post-nom, Genre, T\'el, Email, Matricule, Cat\'egorie, Type, Poste, Dipl\^ome, Sp\'ecialit\'e, Vacation, T\^ache, Photo.}
+
+{\scriptsize Les colonnes r\'ef\'erence (Cat\'egorie, Poste...) utilisent des \textbf{menus d\'eroulants inline} aliment\'es par les tables du module Enseignements.}
+
+\begin{tipbox}
+\scriptsize L'import Excel est recommand\'e pour les \'etablissements avec beaucoup de personnel. Le mod\`ele contient les colonnes attendues avec exemples.
+\end{tipbox}
+
+\end{multicols}
+
+\newpage
+% ========== SECTION 6 : UTILISATEURS ==========
+\chapsec{rose}{shield-alt}{Section 6 --- Utilisateurs \& Attribution des Droits}
+
+\begin{multicols}{2}
+
+{\scriptsize Derni\`ere \'etape de configuration~: d\'etermine \textit{qui peut faire quoi} dans le syst\`eme.}
+
+\flyersec{rose}{chart-bar}{3 Cartes Statistiques}
+
+{\scriptsize \textbf{Personnel Total} $\bullet$ \textbf{Utilisateurs Actifs} (ayant un compte) $\bullet$ \textbf{Super Admin} (gestionnaire principal)}
+
+\flyersec{rose}{user-shield}{Grille d'Attribution}
+
+{\scriptsize Chaque ligne de personnel affiche~:}
+\begin{itemize}[font=\scriptsize,itemsep=0pt]
+  \item Nom complet + email
+  \item \textbf{Toggle statut}~: Actif \textcolor{emerald}{$\bullet$} / Inactif \textcolor{slatelight}{$\circ$}
+  \item \textbf{Cases \`a cocher par module}~: Administration, Scolarit\'e, Enseignements, \'Evaluations, Recouvrement, Espace Enseignant
+\end{itemize}
+
+\begin{stepbox}[title={\faIcon{shield-alt}\ Attribuer des droits}]
+\begin{enumerate}[label=\textcolor{indigo}{\scriptsize\textbf{\arabic*.}},font=\scriptsize,itemsep=0pt]
+  \item Rechercher le personnel (barre de recherche)
+  \item Toggle $\to$ \textit{Actif}~: le personnel re\c{c}oit ses identifiants par email (OTP)
+  \item Cocher les modules autoris\'es $\to$ sauvegarde imm\'ediate
+  \item Le personnel voit uniquement les modules coch\'es dans sa navigation
+\end{enumerate}
+\end{stepbox}
+
+\columnbreak
+
+\flyersec{violet}{gavel}{Principe du Moindre Privil\`ege}
+
+\begin{center}
+\begin{tikzpicture}[
+  role/.style={draw=slate!25,fill=#1!6,rounded corners=4pt,minimum width=3.5cm,minimum height=.5cm,font=\tiny\bfseries,text=slate,align=left,text width=3.3cm},
+]
+  \node[role=emerald] (r1) at (0,0) {\faChalkboardTeacher\ Enseignant\\[-1pt]\tiny\color{slatelight} Espace Enseignant uniquement};
+  \node[role=sky,below=3pt of r1] (r2) {\faUserTie\ Pr\'efet d'\'Etudes\\[-1pt]\tiny\color{slatelight} Scolarit\'e + \'Evaluations};
+  \node[role=indigo,below=3pt of r2] (r3) {\faCrown\ Directeur/Gestionnaire\\[-1pt]\tiny\color{slatelight} Administration + tous modules};
+\end{tikzpicture}
+\end{center}
+
+\begin{dangerbox}
+\scriptsize Seul le \textbf{Super Admin} peut acc\'eder \`a la section Utilisateurs. Les droits d'administration ne doivent \^etre accord\'es qu'au personnel de confiance.
+\end{dangerbox}
+
+\begin{cbox}[title={\faGavel\ Gouvernance des acc\`es}]{violet}
+\scriptsize Ce syst\`eme garantit~:
+\begin{itemize}[font=\scriptsize,itemsep=0pt,leftmargin=8pt]
+  \item S\'eparation des responsabilit\'es
+  \item Tra\c{c}abilit\'e des acc\`es
+  \item Protection contre les modifications accidentelles
+  \item Conformit\'e aux politiques institutionnelles
+\end{itemize}
+\end{cbox}
+
+\end{multicols}

@@ -1,0 +1,143 @@
+% ===================================================================
+% FLUX, BONNES PRATIQUES, REFERENCE — STYLE FLYER COMPACT
+% ===================================================================
+
+\newpage
+\chapsec{coverbg}{route}{Flux de Configuration Recommand\'e --- De Z\'ero \`a Op\'erationnel}
+
+\begin{center}
+\begin{tikzpicture}[
+  st/.style={draw=slate!30,fill=white,rounded corners=6pt,minimum width=1.7cm,minimum height=1.3cm,align=center,font=\tiny\bfseries,text=slate,drop shadow={shadow xshift=.5pt,shadow yshift=-.5pt,opacity=0.08}},
+  ar/.style={-{Stealth[length=4pt,width=3pt]},semithick,color=slatelight},
+  num/.style={circle,fill=#1,text=white,font=\tiny\bfseries,minimum size=12pt,inner sep=0pt}
+]
+  \node[st] (s1) at (0,0) {\faSchool\\[1pt]Fiche};
+  \node[st,right=3pt of s1] (s2) {\faIcon{map-marker-alt}\\[1pt]Localiser};
+  \node[st,right=3pt of s2] (s3) {\faBuilding\\[1pt]Campus};
+  \node[st,right=3pt of s3] (s4) {\faLayerGroup\\[1pt]Cycles};
+  \node[st,right=3pt of s4] (s5) {\faChalkboard\\[1pt]Classes};
+  \node[st,right=3pt of s5] (s6) {\faCalendar\\[1pt]Calendrier};
+  \node[st,right=3pt of s6] (s7) {\faUserPlus\\[1pt]Personnel};
+  \node[st,right=3pt of s7] (s8) {\faIcon{shield-alt}\\[1pt]Droits};
+  \node[st,right=3pt of s8,fill=emerald!8,draw=emerald] (s9) {\faCheck\\[1pt]Op\'er.};
+  \foreach \i/\j in {s1/s2,s2/s3,s3/s4,s4/s5,s5/s6,s6/s7,s7/s8,s8/s9} \draw[ar](\i)--(\j);
+  \foreach \i/\n/\c in {s1/1/sky,s2/2/sky,s3/3/emerald,s4/4/indigo,s5/5/indigo,s6/6/amber,s7/7/amber,s8/8/rose,s9/\faCheck/emerald}
+    \node[num=\c,above=2pt of \i] {\n};
+\end{tikzpicture}
+\end{center}
+
+\begin{multicols}{2}
+
+\flyersec{emerald}{clipboard-check}{Bonnes Pratiques}
+
+\begin{enumerate}[label=\textcolor{emerald}{\scriptsize\faCheckCircle},font=\scriptsize,itemsep=1pt]
+  \item \textbf{Commencer par Mon \'Ecole}~: la localisation d\'ebloque tout. Ne jamais tenter de contourner.
+  \item \textbf{1 campus suffit} si l'\'etablissement n'a qu'un site. Ne pas multiplier sans raison.
+  \item \textbf{V\'erifier les cycles avant les classes}~: un cycle activ\'e sans classes = configuration vide.
+  \item \textbf{Importer le personnel par Excel} pour gagner du temps. Toujours v\'erifier avant import.
+  \item \textbf{Moindre privil\`ege}~: n'attribuer que les modules n\'ecessaires par utilisateur.
+  \item \textbf{Calendrier synchronis\'e} par d\'efaut~: ne basculer en perso. que si n\'ecessaire.
+  \item \textbf{Sauvegarder explicitement}~: les onglets de config n\'ecessitent un clic \btn{emerald}{Sauvegarder}.
+  \item \textbf{P\'eriodes}~: ouvrir en d\'ebut de trimestre, fermer apr\`es saisie compl\`ete des notes.
+\end{enumerate}
+
+\flyersec{rose}{exclamation-triangle}{Erreurs Courantes \& Solutions}
+
+\begin{center}\scriptsize
+\begin{tabularx}{\columnwidth}{@{}l@{\hspace{3pt}}X@{}}
+\toprule
+\textbf{Probl\`eme} & \textbf{Solution} \\
+\midrule
+\faLock\ Sections verrouill\'ees & Compl\'eter localisation \textbf{Mon \'Ecole} \\
+\faLock\ Onglets Cycles/Classes gris & Cr\'eer $\geq$1 \textbf{campus} \\
+Aucune classe affich\'ee & Activer les \textbf{cycles} d'abord \\
+Personnel invisible & V\'erifier enregistrement + \'etablissement \\
+Modules inaccessibles & Attribuer droits dans \textbf{Utilisateurs} \\
+Notes non saisissables & Ouvrir la \textbf{p\'eriode} dans Calendrier \\
+Import Excel \'echoue & V\'erifier format/colonnes/UTF-8 \\
+Logo non affich\'e & V\'erifier format image (JPG/PNG) \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\end{multicols}
+
+% === IMPACTS ===
+\begin{dangerbox}
+\scriptsize\textbf{Impacts d'une mauvaise configuration~:}
+\textbf{Classes manquantes} $\to$ inscriptions/notes impossibles \quad$\bullet$\quad
+\textbf{Calendrier ferm\'e} $\to$ blocage total saisie notes \quad$\bullet$\quad
+\textbf{Personnel absent} $\to$ pas d'attribution cours/horaires \quad$\bullet$\quad
+\textbf{Droits mal attribu\'es} $\to$ modifications non autoris\'ees ou inaccessibilit\'e
+\end{dangerbox}
+
+% === REFERENCE RAPIDE ===
+\chapsec{slate}{bookmark}{R\'ef\'erence Rapide \& Glossaire}
+
+\begin{multicols}{3}
+
+\flyersec{indigo}{compass}{Navigation}
+
+{\scriptsize
+\begin{tabularx}{\columnwidth}{@{}l@{\hspace{2pt}}l@{\hspace{2pt}}X@{}}
+\faThLarge & Indigo & Dashboard \\
+\faSchool & Bleu & Mon \'Ecole \\
+\faCogs & Vert & Configuration \\
+\faCalendar & Ambre & Calendrier \\
+\faUsers & Ambre & Personnel \\
+\faIcon{shield-alt} & Rose & Utilisateurs \\
+\end{tabularx}
+}
+
+\flyersec{violet}{book}{Glossaire}
+
+{\tiny
+\textcolor{indigo}{\textbf{Campus}}~: site physique.\\
+\textcolor{indigo}{\textbf{Cascade admin.}}~: Province$\to$Division$\to$Sous-Div.\\
+\textcolor{indigo}{\textbf{Config. annuelle}}~: instantan\'e fig\'e cycles/classes.\\
+\textcolor{indigo}{\textbf{Cycle}}~: niveau p\'edago (Maternelle, Primaire...).\\
+\textcolor{indigo}{\textbf{Hub}}~: BDD centrale nationale.\\
+\textcolor{indigo}{\textbf{P\'eriode}}~: trimestre/semestre avec statut.\\
+\textcolor{indigo}{\textbf{R\'ef. admin.}}~: code hi\'erarchique (12-45-78).\\
+\textcolor{indigo}{\textbf{Spoke}}~: BDD locale \'etablissement.\\
+\textcolor{indigo}{\textbf{Struct. p\'edago.}}~: mod\`ele cycles applicables.\\
+\textcolor{indigo}{\textbf{Verrouillage}}~: s\'ecurit\'e progressive.\\
+}
+
+\flyersec{sky}{plug}{APIs Cl\'es}
+
+{\tiny
+\texttt{/api/mon-etablissement/}\\
+\texttt{/api/update-mon-etablissement/}\\
+\texttt{/api/upload-etab-logo/}\\
+\texttt{/api/upload-etab-document/}\\
+\texttt{/api/create-admin-instance/}\\
+\texttt{/api/update-admin-instance/}\\
+\texttt{/api/dashboard/campus-list/}\\
+\texttt{/api/dashboard/campus-create/}\\
+\texttt{/api/get-cycles/}\\
+\texttt{/api/get-etablissement-config/}\\
+\texttt{/api/save-etablissement-config/}\\
+\texttt{/api/update-calendar-config/}\\
+\texttt{/api/dashboard/personnel-list/}\\
+\texttt{/api/dashboard/add-personnel/}\\
+\texttt{/api/dashboard/import-personnel/}\\
+\texttt{/api/dashboard/users/}\\
+\texttt{/api/dashboard/users/toggle/}\\
+\texttt{/api/dashboard/users/modules/}\\
+\texttt{/api/get-cours/}\\
+\texttt{/api/save-cours/}\\
+\texttt{/api/import-cours-excel/}\\
+}
+
+\end{multicols}
+
+% === FOOTER ===
+\vfill
+\begin{center}
+\begin{tikzpicture}
+  \fill[coverbg,rounded corners=8pt] (0,0) rectangle (17,1.6);
+  \node[text=white,font=\small\bfseries] at (8.5,1) {\faCheck\hspace{6pt}Module Administration --- Guide Complet};
+  \node[text=white!45,font=\tiny] at (8.5,.45) {MonEcole $\bullet$ Nexora Tech $\bullet$ Mai 2026 $\bullet$ v2.0 $\bullet$ Architecture Hub-and-Spoke};
+\end{tikzpicture}
+\end{center}

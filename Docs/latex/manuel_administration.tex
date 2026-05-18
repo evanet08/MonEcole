@@ -1,0 +1,50 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}\usepackage[T1]{fontenc}\usepackage[french]{babel}
+\usepackage{geometry}\geometry{top=1.2cm,bottom=1.2cm,left=1.2cm,right=1.2cm}
+\usepackage{graphicx,xcolor,tikz,multicol,tabularx,booktabs,float,enumitem,hyperref,fancyhdr,caption,wrapfig,mdframed}
+\usetikzlibrary{shapes.geometric,arrows.meta,positioning,calc,shadows.blur,fit,backgrounds,decorations.pathmorphing,mindmap}
+\usepackage{tcolorbox}\tcbuselibrary{skins,breakable}
+\usepackage{fontawesome5}
+\hypersetup{colorlinks=true,linkcolor=indigo,urlcolor=indigo,pdftitle={MonEcole --- Module Administration}}
+\setlength{\parindent}{0pt}\setlength{\parskip}{2pt}
+\setlength{\columnsep}{12pt}\setlength{\columnseprule}{0.2pt}
+\def\columnseprulecolor{\color{slate!20}}
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{\scriptsize\color{slatelight}\leftmark}
+\fancyhead[R]{\scriptsize\color{indigo}\textbf{MonEcole} \faSchool}
+\fancyfoot[C]{\scriptsize\color{slatelight}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}\renewcommand{\footrulewidth}{0.2pt}
+\setlist{nosep,leftmargin=12pt,itemsep=1pt}
+
+% ====== COULEURS ======
+\definecolor{indigo}{HTML}{4338CA}\definecolor{violet}{HTML}{7C3AED}
+\definecolor{amber}{HTML}{D97706}\definecolor{emerald}{HTML}{059669}
+\definecolor{rose}{HTML}{E11D48}\definecolor{slate}{HTML}{334155}
+\definecolor{slatelight}{HTML}{94A3B8}\definecolor{teal}{HTML}{0D9488}
+\definecolor{sky}{HTML}{0EA5E9}\definecolor{coverbg}{HTML}{1E1B4B}
+\definecolor{coveraccent}{HTML}{6366F1}\definecolor{hubcolor}{HTML}{2563EB}
+\definecolor{spokecolor}{HTML}{059669}\definecolor{lightbg}{HTML}{F8FAFC}
+
+% ====== BOXES COMPACTES ======
+\newtcolorbox{cbox}[2][]{enhanced,colback=#2!5,colframe=#2,fonttitle=\scriptsize\bfseries,left=4pt,right=4pt,top=3pt,bottom=3pt,arc=3pt,boxrule=0.8pt,#1}
+\newtcolorbox{tipbox}[1][]{enhanced,colback=emerald!5,colframe=emerald,fonttitle=\scriptsize\bfseries,title={\faLightbulb\hspace{4pt}Astuce},left=4pt,right=4pt,top=2pt,bottom=2pt,arc=3pt,boxrule=0.7pt,#1}
+\newtcolorbox{warnbox}[1][]{enhanced,colback=amber!8,colframe=amber,fonttitle=\scriptsize\bfseries,title={\faExclamationTriangle\hspace{4pt}Attention},left=4pt,right=4pt,top=2pt,bottom=2pt,arc=3pt,boxrule=0.7pt,#1}
+\newtcolorbox{dangerbox}[1][]{enhanced,colback=rose!5,colframe=rose,fonttitle=\scriptsize\bfseries,title={\faTimes\hspace{4pt}Critique},left=4pt,right=4pt,top=2pt,bottom=2pt,arc=3pt,boxrule=0.7pt,#1}
+\newtcolorbox{infobox}[1][]{enhanced,colback=indigo!4,colframe=indigo,fonttitle=\scriptsize\bfseries,title={\faInfoCircle\hspace{4pt}Info},left=4pt,right=4pt,top=2pt,bottom=2pt,arc=3pt,boxrule=0.7pt,#1}
+\newtcolorbox{stepbox}[1][]{enhanced,colback=white,colframe=indigo!50,fonttitle=\scriptsize\bfseries,left=5pt,right=5pt,top=3pt,bottom=3pt,arc=4pt,boxrule=1pt,#1}
+
+% ====== COMMANDES ======
+\newcommand{\btn}[2]{{\colorbox{#1}{\tiny\sffamily\bfseries\color{white}\,#2\,}}}
+\newcommand{\chp}[1]{\texttt{\scriptsize\color{violet}#1}}
+\newcommand{\secicon}[3]{\textcolor{#1}{\faIcon{#2}}\,\textbf{\scriptsize #3}}
+\newcommand{\flyersec}[3]{%
+\noindent\begin{tikzpicture}\fill[#1,rounded corners=4pt](0,0)rectangle(\columnwidth,.45);\node[right]at(.15,.225){\color{white}\scriptsize\bfseries\faIcon{#2}\hspace{4pt}#3};\end{tikzpicture}\par\vspace{2pt}}
+\newcommand{\chapsec}[3]{%
+\noindent\begin{tikzpicture}\fill[#1,rounded corners=5pt](0,0)rectangle(\textwidth,.55);\node[right]at(.2,.275){\color{white}\small\bfseries\faIcon{#2}\hspace{6pt}#3};\end{tikzpicture}\par\vspace{4pt}}
+
+\begin{document}
+\input{admin_part1_cover}
+\input{admin_part2_architecture}
+\input{admin_part3_sections}
+\input{admin_part4_advanced}
+\end{document}

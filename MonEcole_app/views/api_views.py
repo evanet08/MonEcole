@@ -90,11 +90,12 @@ def _get_tenant_etab(request):
     id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
     if not etab_id:
         return None, JsonResponse({'success': False, 'error': 'Établissement non résolu (tenant).'}, status=403)
-    # Scope by both id_etablissement and pays for multi-tenant safety
-    filters = {'id_etablissement': etab_id}
-    if id_pays:
-        filters['pays_id'] = id_pays
-    etab = Etablissement.objects.select_related('pays').filter(**filters).first()
+    if not id_pays:
+        return None, JsonResponse({'success': False, 'error': 'Pays non résolu (tenant).'}, status=403)
+    # Scope by both id_etablissement and pays for multi-tenant safety — OBLIGATOIRE
+    etab = Etablissement.objects.select_related('pays').filter(
+        id_etablissement=etab_id, pays_id=id_pays
+    ).first()
     if not etab:
         return None, JsonResponse({'success': False, 'error': f'Établissement {etab_id} introuvable.'}, status=404)
     return etab, None
@@ -3790,19 +3791,20 @@ def get_etablissement_config(request):
         if not id_etablissement or not id_annee:
             return JsonResponse({'success': False, 'error': 'Paramètres manquants'})
         
-        # Resolve pays context for multi-tenant filtering
+        # Resolve pays context for multi-tenant filtering — OBLIGATOIRE
         id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays') or request.GET.get('id_pays')
+        if not id_pays:
+            return JsonResponse({'success': False, 'error': 'Pays non résolu (tenant).'}, status=403)
         
-        # Get the Etablissement and Annee (no get_object_or_404 — must return JSON, not HTML 404)
-        etab_filters = {'id_etablissement': id_etablissement}
-        if id_pays:
-            etab_filters['pays_id'] = id_pays
-        etablissement = Etablissement.objects.filter(**etab_filters).first()
+        # Get the Etablissement and Annee — filtrage strict par id_pays
+        etablissement = Etablissement.objects.filter(
+            id_etablissement=id_etablissement, pays_id=id_pays
+        ).first()
         if not etablissement:
             return JsonResponse({'success': False, 'error': f'Établissement {id_etablissement} introuvable'})
-        # Frontend sends annee_active.id (PK) — resolve robustly
-        annee = Annee.objects.filter(pk=id_annee).first()
-        if not annee and id_pays:
+        # Frontend sends annee_active.id (PK) — resolve with pays filter
+        annee = Annee.objects.filter(pk=id_annee, pays_id=id_pays).first()
+        if not annee:
             annee = Annee.objects.filter(id_annee=id_annee, pays_id=id_pays).first()
         if not annee:
             return JsonResponse({'success': False, 'error': f'Année {id_annee} introuvable'})
@@ -12153,16 +12155,18 @@ def mass_import_template(request):
                 campus_row = cur.fetchone()
                 campus_id = campus_row['idCampus'] if campus_row else None
 
-                # 2. Get enrolled students
+                # 2. Get enrolled students — filtrage strict par id_pays
                 cur.execute("""
                     SELECT DISTINCT e.id_eleve, e.nom, e.prenom
                     FROM eleve_inscription ei
                     JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                     WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
                       AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.id_etablissement = %s AND ei.id_pays = %s
                       AND ei.status = 1
                     ORDER BY e.nom, e.prenom
-                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'],
+                      etab_id, etab.pays_id])
                 eleves = cur.fetchall()
 
                 # 3. Get cours maxima (COALESCE resolves duplicates)
@@ -12238,14 +12242,15 @@ def mass_import_template(request):
                     period_max = maxima_exam  # Pas de TJ ou pas de périodes: exam max entier
 
                 # 4b. ORPHAN CLEANUP: delete evaluations for this cours+class that have NO notes
+                #     Filtrage strict par id_pays pour éviter contamination inter-pays
                 cur.execute("""
                     DELETE ev FROM evaluation ev
                     LEFT JOIN eleve_note en ON en.id_evaluation_id = ev.id_evaluation
                     WHERE ev.id_cours_classe_id = %s
                       AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
-                      AND ev.id_etablissement = %s
+                      AND ev.id_etablissement = %s AND ev.id_pays = %s
                       AND en.id_note IS NULL
-                """, [cours_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id])
+                """, [cours_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id, etab.pays_id])
                 orphans_deleted = cur.rowcount
                 if orphans_deleted > 0:
                     conn.commit()
@@ -12258,14 +12263,14 @@ def mass_import_template(request):
                     rep_id = p.get('id')
                     if not rep_id:
                         continue
-                    # Find evaluations for this cours + repartition + class
+                    # Find evaluations for this cours + repartition + class — filtrage id_pays
                     cur.execute("""
                         SELECT ev.id_evaluation
                         FROM evaluation ev
                         WHERE ev.id_cours_classe_id = %s AND ev.id_repartition_instance = %s
                           AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
-                          AND ev.id_etablissement = %s
-                    """, [cours_id, rep_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id])
+                          AND ev.id_etablissement = %s AND ev.id_pays = %s
+                    """, [cours_id, rep_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id, etab.pays_id])
                     eval_rows = cur.fetchall()
                     if eval_rows:
                         eval_ids = [e['id_evaluation'] for e in eval_rows]
@@ -12310,8 +12315,8 @@ def mass_import_template(request):
                                     SELECT nb.note FROM note_bulletin nb
                                     WHERE nb.id_eleve_id = %s AND nb.id_cours_annee = %s
                                       AND nb.id_repartition_config = %s AND nb.id_note_type = %s
-                                      AND nb.id_etablissement = %s
-                                """, [el['id_eleve'], cours_id, config.id, ex_nt_id, etab_id])
+                                      AND nb.id_etablissement = %s AND nb.id_pays = %s
+                                """, [el['id_eleve'], cours_id, config.id, ex_nt_id, etab_id, etab.pays_id])
                                 nb_row = cur.fetchone()
                                 if nb_row and nb_row['note'] is not None:
                                     existing_notes[f"{el['id_eleve']}_{rep_id}_exam"] = float(nb_row['note'])
@@ -12644,14 +12649,14 @@ def mass_import_notes(request):
                     # Create evaluation title
                     titre = f"{cours_nom} — {header_name}"
 
-                    # Check if evaluation already exists for this cours+repartition
+                    # Check if evaluation already exists for this cours+repartition — filtrage id_pays
                     cur.execute("""
                         SELECT id_evaluation FROM evaluation
                         WHERE id_cours_classe_id = %s AND id_repartition_instance = %s
                           AND classe_id = %s AND groupe <=> %s AND section_id <=> %s
-                          AND id_etablissement = %s
+                          AND id_etablissement = %s AND id_pays = %s
                         LIMIT 1
-                    """, [cours_id, rep_id, bk['classe_id'], bk['groupe'], bk['section_id'], etab_id])
+                    """, [cours_id, rep_id, bk['classe_id'], bk['groupe'], bk['section_id'], etab_id, etab.pays_id])
                     existing_eval = cur.fetchone()
 
                     if existing_eval:
