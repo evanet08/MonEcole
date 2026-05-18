@@ -3956,7 +3956,7 @@ def save_etablissement_config(request):
                 continue  # Skip unknown classes silently
             section = None
             if section_id:
-                section = Section.objects.filter(id_section=section_id).first()
+                section = Section.objects.filter(id_section=section_id, id_pays=int(id_pays)).first()
             
             if groupes and len(groupes) > 0:
                 # Create one record per group
