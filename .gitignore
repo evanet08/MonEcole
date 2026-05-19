@@ -12,6 +12,18 @@ brain/
 *.bak
 *.swp
 .DS_Store
+
+# LaTeX build artifacts
+*.aux
+*.out
+*.toc
+
+# Images logos à la racine (déjà dans static/)
 logoMinistere.png
 logoRDC
+logomineduc.png
+logomineduc_backup.svg
+armoirerdc.png
+
+# Ancien projet recouvrement
 _recouvrement-main/
