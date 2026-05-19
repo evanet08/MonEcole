@@ -14306,7 +14306,10 @@ def save_cours_annee(request):
                 return JsonResponse({'success': False, 'error': 'Cours ou année introuvable.'}, status=404)
 
             etab_id = data.get('etablissement_id') or getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
-            etab = Etablissement.objects.filter(id_etablissement=etab_id).first() if etab_id else None
+            # CoursAnnee.etablissement FK → Institution (not Etablissement)
+            # Filter by pays_id to prevent cross-country collision on business key
+            from MonEcole_app.models.ecole import Institution
+            etab = Institution.objects.filter(id_ecole=etab_id, pays_id=id_pays).first() if etab_id else None
 
             if CoursAnnee.objects.filter(cours=cours, annee=annee, etablissement=etab, id_pays=cours.id_pays).exists():
                 return JsonResponse({'success': False, 'error': 'Ce cours est déjà configuré pour cette année.'}, status=400)
