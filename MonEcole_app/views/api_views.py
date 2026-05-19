@@ -14131,10 +14131,22 @@ def get_cours_annee_data(request):
         else:
             cours_catalogue = cours_catalogue.filter(section_id__isnull=True)
 
-        # Build domaine/section lookup maps
-        domaine_map = {}
+        # Build domaine lookup map with parent hierarchy
+        domaine_objs = {}
+        domaine_map = {}  # id -> nom
+        domaine_parent_map = {}  # id -> {parent_id, parent_nom}
         if Domaine:
-            domaine_map = {d['id_domaine']: d['nom'] for d in Domaine.objects.filter(pays=pays).values('id_domaine', 'nom')}
+            for d in Domaine.objects.filter(pays=pays):
+                domaine_objs[d.id_domaine] = d
+                domaine_map[d.id_domaine] = d.nom
+            # Resolve parents
+            for d_id, d in domaine_objs.items():
+                if d.parent_id and d.parent_id in domaine_objs:
+                    parent = domaine_objs[d.parent_id]
+                    domaine_parent_map[d_id] = {'parent_id': parent.id_domaine, 'parent_nom': parent.nom}
+                else:
+                    domaine_parent_map[d_id] = {'parent_id': None, 'parent_nom': None}
+
         section_map = {}
         if Section:
             section_map = {s['id_section']: s['nom'] for s in Section.objects.filter(id_pays=pays.id_pays).values('id_section', 'nom')}
@@ -14199,10 +14211,22 @@ def get_cours_annee_data(request):
             # Domaine: priority to CoursAnnee.domaine_id, else fallback to Cours.domaine_id
             dom_id = (ca.domaine_id if ca and ca.domaine_id else c.domaine_id)
             dom_nom = domaine_map.get(dom_id, '') if dom_id else ''
+            # Parent domaine (for hierarchical grouping like HUB)
+            parent_info = domaine_parent_map.get(dom_id, {})
+            parent_id = parent_info.get('parent_id')
+            parent_nom = parent_info.get('parent_nom')
+            # If domaine has no parent, it IS the parent (top-level domaine)
+            if not parent_id and dom_id and dom_id in domaine_objs:
+                parent_id = dom_id
+                parent_nom = dom_nom
+                dom_nom = ''  # no sub-group
+
             entry = {
                 'id_cours': c.id_cours, 'code_cours': c.code_cours, 'cours': c.cours,
                 'domaine_id': dom_id,
-                'domaine_nom': dom_nom,
+                'domaine_nom': dom_nom,  # sub-domaine/groupe name (e.g. "Français")
+                'domaine_parent_id': parent_id,  # parent domaine id
+                'domaine_parent_nom': parent_nom,  # parent domaine name (e.g. "DOMAINE DES LANGUES")
                 'is_configured': ca is not None,
                 'is_override': is_override,
                 'section_id': c.section_id,
@@ -14212,7 +14236,16 @@ def get_cours_annee_data(request):
                 entry.update(_ca_fields(ca))
             cours_data.append(entry)
 
-        return JsonResponse({'success': True, 'cours_annee': cours_data, 'annees': annees, 'domaines': domaines})
+        # Build domaines response with parent hierarchy
+        domaines_response = []
+        if Domaine:
+            for d in Domaine.objects.filter(pays=pays).order_by('ordre'):
+                domaines_response.append({
+                    'id_domaine': d.id_domaine, 'nom': d.nom, 'code': d.code,
+                    'parent_id': d.parent_id,
+                })
+
+        return JsonResponse({'success': True, 'cours_annee': cours_data, 'annees': annees, 'domaines': domaines_response})
     except Exception as e:
         import traceback
         traceback.print_exc()

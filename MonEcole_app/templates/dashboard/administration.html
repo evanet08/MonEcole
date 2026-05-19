@@ -2324,20 +2324,27 @@ function renderCoursEtabGrid(cours, domaines, isUniform) {
     const totalOblig = cours.filter(c => c.is_obligatory).length;
     const totalOverrides = cours.filter(c => c.is_override).length;
 
-    // Group by domaine
-    const groups = {};
+    // ---- Group by PARENT DOMAINE (reproducing HUB hierarchy) ----
+    // Order: keep insertion order based on cours.ordre
+    const parentGroups = new Map();  // parent_nom -> { id, nom, cours[] }
     const noGroup = [];
-    cours.forEach(c => {
-        const key = c.domaine_nom || '';
-        if (!key) { noGroup.push(c); return; }
-        if (!groups[key]) groups[key] = { nom: key, id: c.domaine_id, cours: [] };
-        groups[key].cours.push(c);
+    // Sort by ordre first
+    const sorted = [...cours].sort((a, b) => (a.ordre || 999) - (b.ordre || 999));
+    sorted.forEach(c => {
+        const parentNom = c.domaine_parent_nom || '';
+        if (!parentNom) { noGroup.push(c); return; }
+        if (!parentGroups.has(parentNom)) {
+            parentGroups.set(parentNom, { nom: parentNom, id: c.domaine_parent_id, cours: [] });
+        }
+        parentGroups.get(parentNom).cours.push(c);
     });
 
     // Mode label
     const modeLabel = isUniform
         ? '<span style="background:#e0e7ff;color:#4338ca;padding:3px 10px;border-radius:6px;font-size:.7rem;font-weight:600"><i class="fas fa-lock me-1"></i>Cours nationaux (lecture seule)</span>'
         : '<span style="background:#dcfce7;color:#16a34a;padding:3px 10px;border-radius:6px;font-size:.7rem;font-weight:600"><i class="fas fa-sliders-h me-1"></i>Personnalisable par établissement</span>';
+
+    const colSpan = isUniform ? 8 : 10;
 
     let html = `
     <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
@@ -2352,11 +2359,12 @@ function renderCoursEtabGrid(cours, domaines, isUniform) {
         ${modeLabel}
         ${!isUniform ? `<span style="font-size:.7rem;color:#64748b;font-weight:600">${totalOverrides} personnalisation(s)</span>` : ''}
     </div>
+    <div style="font-size:.7rem;color:#94a3b8;margin-bottom:8px"><i class="fas fa-info-circle me-1"></i>${totalConfigured}/${cours.length} activés</div>
 
     <div style="overflow-x:auto">
     <table class="config-table" style="min-width:900px;font-size:.78rem">
     <thead><tr style="background:#f1f5f9;">
-        ${!isUniform ? '<th style="width:32px;text-align:center" title="Cocher pour personnaliser">✏️</th>' : ''}
+        ${!isUniform ? '<th style="width:32px;text-align:center" title="Cocher pour personnaliser">✏️</th>' : '<th style="width:28px"></th>'}
         <th style="text-align:left;min-width:80px">CODE</th>
         <th style="text-align:left">COURS</th>
         <th style="text-align:left;min-width:140px">DOMAINE/GROUPE</th>
@@ -2368,10 +2376,6 @@ function renderCoursEtabGrid(cours, domaines, isUniform) {
         ${!isUniform ? '<th style="text-align:center;width:70px">ACTIONS</th>' : ''}
     </tr></thead><tbody>`;
 
-    const colSpan = isUniform ? 8 : 10;
-    const inpStyle = 'width:45px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:.72rem;padding:2px 4px';
-    const inpReadonly = inpStyle + ';background:#f8fafc;color:#64748b';
-
     function renderRow(c) {
         const tj = c.maxima_tj != null ? c.maxima_tj : '';
         const ex = c.maxima_exam != null ? c.maxima_exam : '';
@@ -2380,13 +2384,15 @@ function renderCoursEtabGrid(cours, domaines, isUniform) {
         const oblig = c.is_obligatory ? 'checked' : '';
         const isOver = c.is_override;
         const rowBg = isOver ? 'background:#fefce8;' : '';
+        const groupeLabel = c.domaine_nom || '—';
 
         if (isUniform) {
-            // READ-ONLY mode for uniform cycles
+            // READ-ONLY mode: exactly like HUB Programme Annuel
             return `<tr style="${rowBg}">
+                <td style="text-align:center"><i class="fas fa-check-square" style="color:#4f46e5;font-size:.7rem;opacity:${c.is_configured ? 1 : .2}"></i></td>
                 <td style="font-weight:600;color:#4f46e5;font-size:.72rem">${c.code_cours || ''}</td>
                 <td>${c.cours}</td>
-                <td style="font-size:.72rem;color:#64748b">${c.domaine_nom || '—'}</td>
+                <td style="font-size:.72rem;color:#64748b">${groupeLabel}</td>
                 <td style="text-align:center;color:#64748b">${ordre}</td>
                 <td style="text-align:center;font-weight:600">${tj}</td>
                 <td style="text-align:center;font-weight:600">${ex}</td>
@@ -2395,7 +2401,7 @@ function renderCoursEtabGrid(cours, domaines, isUniform) {
             </tr>`;
         }
 
-        // EDITABLE mode for non-uniform cycles — but read-only by default, editable when checkbox checked
+        // NON-UNIFORM: editable mode with checkbox
         const editDisabled = isOver ? '' : 'disabled';
         const editChecked = isOver ? 'checked' : '';
         const editBg = isOver ? '' : ';background:#f8fafc;color:#94a3b8';
@@ -2410,22 +2416,22 @@ function renderCoursEtabGrid(cours, domaines, isUniform) {
                     ${domaines.map(d => `<option value="${d.id_domaine}" ${d.id_domaine == c.domaine_id ? 'selected' : ''}>${d.nom}</option>`).join('')}
                 </select>
             </td>
-            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="ordre" value="${ordre}" ${editDisabled} style="${inpStyle}${editBg}"></td>
-            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="maxima_tj" value="${tj}" ${editDisabled} style="${inpStyle}${editBg}"></td>
-            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="maxima_exam" value="${ex}" ${editDisabled} style="${inpStyle}${editBg}"></td>
-            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="heure_semaine" value="${hsem}" ${editDisabled} style="${inpStyle}${editBg}"></td>
+            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="ordre" value="${ordre}" ${editDisabled} style="width:45px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:.72rem;padding:2px 4px${editBg}"></td>
+            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="maxima_tj" value="${tj}" ${editDisabled} style="width:45px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:.72rem;padding:2px 4px${editBg}"></td>
+            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="maxima_exam" value="${ex}" ${editDisabled} style="width:45px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:.72rem;padding:2px 4px${editBg}"></td>
+            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="heure_semaine" value="${hsem}" ${editDisabled} style="width:45px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:.72rem;padding:2px 4px${editBg}"></td>
             <td style="text-align:center"><input type="checkbox" data-cours="${c.id_cours}" data-field="is_obligatory" ${oblig} ${editDisabled} class="cours-oblig-check"></td>
             <td style="text-align:center">
-                <button class="btn btn-sm btn-link p-0" style="font-size:.68rem;color:#2563eb" onclick="editCoursModal(${c.id_cours}, '${(c.cours||'').replace(/'/g,"\\\\'")}', '${c.code_cours||''}', ${c.domaine_id || 'null'})" title="Modifier"><i class="fas fa-pen"></i></button>
-                <button class="btn btn-sm btn-link p-0 ms-1" style="font-size:.68rem;color:#ef4444" onclick="deleteCoursFromCatalog(${c.id_cours}, '${(c.cours||'').replace(/'/g,"\\\\'")}' )" title="Supprimer"><i class="fas fa-trash"></i></button>
+                <button class="btn btn-sm btn-link p-0" style="font-size:.68rem;color:#2563eb" onclick="editCoursModal(${c.id_cours}, '${(c.cours||'').replace(/'/g,"\\\\\\'")}', '${c.code_cours||''}', ${c.domaine_id || 'null'})" title="Modifier"><i class="fas fa-pen"></i></button>
+                <button class="btn btn-sm btn-link p-0 ms-1" style="font-size:.68rem;color:#ef4444" onclick="deleteCoursFromCatalog(${c.id_cours}, '${(c.cours||'').replace(/'/g,"\\\\\\'")}' )" title="Supprimer"><i class="fas fa-trash"></i></button>
             </td>
         </tr>`;
     }
 
-    // Render grouped courses
+    // ---- Render: parent domaine groups (like HUB) ----
     const groupColors = ['#6366f1','#059669','#ea580c','#7c3aed','#0d9488','#d946ef','#0284c7','#dc2626'];
     let gIdx = 0;
-    Object.values(groups).forEach(g => {
+    parentGroups.forEach(g => {
         const col = groupColors[gIdx % groupColors.length];
         html += `<tr><td colspan="${colSpan}" style="background:${col}10;border-left:3px solid ${col};padding:6px 12px;font-weight:700;font-size:.75rem;color:${col}">
             <i class="fas fa-layer-group me-1"></i>${g.nom.toUpperCase()} (${g.cours.length})
@@ -2436,7 +2442,7 @@ function renderCoursEtabGrid(cours, domaines, isUniform) {
 
     if (noGroup.length > 0) {
         html += `<tr><td colspan="${colSpan}" style="background:#f1f5f920;border-left:3px solid #94a3b8;padding:6px 12px;font-weight:700;font-size:.75rem;color:#94a3b8">
-            <i class="fas fa-folder-open me-1"></i>SANS DOMAINE (${noGroup.length})
+            <i class="fas fa-folder-open me-1"></i>Sans domaine (${noGroup.length})
         </td></tr>`;
         noGroup.forEach(c => { html += renderRow(c); });
     }
