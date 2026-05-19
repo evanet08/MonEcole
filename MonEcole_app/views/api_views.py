@@ -3834,9 +3834,9 @@ def get_etablissement_config(request):
             section_nom = f"{sec.code} - {sec.nom}" if sec else '-'
             activated.append({
                 'id': eac.id,
-                'classe_id': cls.id_classe if cls else eac.classe_id,
+                'classe_id': eac.classe_id,
                 'classe_nom': classe_nom,
-                'section_id': sec.id_section if sec else eac.section_id,
+                'section_id': eac.section_id,
                 'section_nom': section_nom,
                 'groupe': eac.groupe,
                 'classe_par_annee_id': eac.id,
@@ -3913,17 +3913,19 @@ def save_etablissement_config(request):
                 for grp in groupes:
                     EtablissementAnneeClasse.objects.create(
                         etablissement_annee=etab_annee,
-                        classe=classe,
-                        section=section,
-                        groupe=grp
+                        classe_id=classe.id_classe,
+                        section_id=section.id_section if section else None,
+                        groupe=grp,
+                        id_pays=int(id_pays)
                     )
             else:
                 # No groups — single record with groupe=NULL
                 EtablissementAnneeClasse.objects.create(
                     etablissement_annee=etab_annee,
-                    classe=classe,
-                    section=section,
-                    groupe=None
+                    classe_id=classe.id_classe,
+                    section_id=section.id_section if section else None,
+                    groupe=None,
+                    id_pays=int(id_pays)
                 )
         
         # ============================================================
