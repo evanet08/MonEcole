@@ -3824,7 +3824,18 @@ def get_sections_list(request):
 
 @require_http_methods(["GET"])
 def get_etablissement_config(request):
-    """API pour récupérer la configuration d'un établissement pour une année."""
+    """API pour récupérer la configuration d'un établissement pour une année.
+    
+    FILTRAGE STRICT MULTI-TENANT:
+    - id_pays: résolu depuis TenantMiddleware / session / GET
+    - id_etablissement: depuis GET param
+    - id_annee: depuis GET param
+    - Classes: résolues par business key (id_classe) + id_pays
+    - Sections: résolues par business key (id_section) + id_pays
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
         id_etablissement = request.GET.get('id_etablissement')
         id_annee = request.GET.get('id_annee')
@@ -3835,76 +3846,113 @@ def get_etablissement_config(request):
         # Resolve pays context for multi-tenant filtering — OBLIGATOIRE
         id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays') or request.GET.get('id_pays')
         if not id_pays:
+            logger.error('[get_etablissement_config] id_pays non résolu pour etab=%s', id_etablissement)
             return JsonResponse({'success': False, 'error': 'Pays non résolu (tenant).'}, status=403)
         
-        # Get the Etablissement and Annee — filtrage strict par id_pays
+        id_pays = int(id_pays)
+        logger.info('[get_etablissement_config] etab=%s annee=%s pays=%s', id_etablissement, id_annee, id_pays)
+        
+        # Get the Etablissement — filtrage strict par id_pays
         etablissement = Etablissement.objects.filter(
-            id_etablissement=id_etablissement, pays_id=id_pays
+            id_etablissement=int(id_etablissement), pays_id=id_pays
         ).first()
         if not etablissement:
-            return JsonResponse({'success': False, 'error': f'Établissement {id_etablissement} introuvable'})
-        # Frontend sends annee_active.id (PK) — resolve with pays filter
-        annee = Annee.objects.filter(pk=id_annee, pays_id=id_pays).first()
-        if not annee:
-            annee = Annee.objects.filter(id_annee=id_annee, pays_id=id_pays).first()
-        if not annee:
-            return JsonResponse({'success': False, 'error': f'Année {id_annee} introuvable'})
+            logger.error('[get_etablissement_config] Etablissement %s introuvable pour pays=%s', id_etablissement, id_pays)
+            return JsonResponse({'success': False, 'error': f'Établissement {id_etablissement} introuvable pour pays {id_pays}'})
         
-        etab_annee, created = EtablissementAnnee.objects.get_or_create(
-            etablissement=etablissement,
-            annee=annee,
-            defaults={'pays_id': etablissement.pays_id}
-        )
+        # Frontend sends annee_active.id (PK) — resolve with pays filter
+        annee = Annee.objects.filter(pk=int(id_annee), pays_id=id_pays).first()
+        if not annee:
+            annee = Annee.objects.filter(id_annee=int(id_annee), pays_id=id_pays).first()
+        if not annee:
+            logger.error('[get_etablissement_config] Annee %s introuvable pour pays=%s', id_annee, id_pays)
+            return JsonResponse({'success': False, 'error': f'Année {id_annee} introuvable pour pays {id_pays}'})
+        
+        # Find EtablissementAnnee — handle potential duplicates
+        etab_annees = EtablissementAnnee.objects.filter(
+            etablissement=etablissement, annee=annee
+        ).order_by('-id')
+        
+        # Pick the one with classes, or the first one
+        etab_annee = None
+        for ea in etab_annees:
+            if ea.classes_config.exists():
+                etab_annee = ea
+                break
+        if not etab_annee:
+            # No EA with classes found — get_or_create as fallback
+            etab_annee, created = EtablissementAnnee.objects.get_or_create(
+                etablissement=etablissement,
+                annee=annee,
+                defaults={'pays_id': etablissement.pays_id}
+            )
         
         # IMPORTANT: classe_id in EAC stores BUSINESS KEY (id_classe), not surrogate PK.
         # Django FK JOIN would resolve via surrogate PK → wrong country's class.
         # We must manually resolve classes by business key + id_pays.
         eac_list = list(etab_annee.classes_config.all())
+        logger.info('[get_etablissement_config] EA id=%s, EAC count=%d', etab_annee.id, len(eac_list))
 
         # Build lookup maps: business_key → correct object for THIS country
         bk_classe_ids = set(eac.classe_id for eac in eac_list)
+
+        classe_lookup = {}  # id_classe (business key) → Classe object (correct country)
+        if bk_classe_ids:
+            for cls in Classe.objects.filter(id_classe__in=bk_classe_ids, id_pays=id_pays).select_related('cycle'):
+                classe_lookup[cls.id_classe] = cls
+
+        # Section FK: eac.section_id is a Django FK pointing to Section.id (surrogate PK).
+        # BUT the stored value is actually the business key (id_section), same pattern as classe_id.
+        # We must resolve by id_section (business key) + id_pays to get the correct country's section.
         bk_section_ids = set(eac.section_id for eac in eac_list if eac.section_id)
-
-        classe_lookup = {}  # id_classe → Classe object (correct country)
-        for cls in Classe.objects.filter(id_classe__in=bk_classe_ids, id_pays=int(id_pays)).select_related('cycle'):
-            classe_lookup[cls.id_classe] = cls
-
-        section_lookup = {}  # id_section → Section object (correct country)
-        if bk_section_ids:
-            for sec in Section.objects.filter(id_section__in=bk_section_ids, id_pays=int(id_pays)):
-                section_lookup[sec.id_section] = sec
+        section_lookup = {}  # section business key → Section object (correct country)
+        if bk_section_ids and Section is not None:
+            try:
+                for sec in Section.objects.filter(id_section__in=bk_section_ids, id_pays=id_pays):
+                    section_lookup[sec.id_section] = sec
+            except Exception as sec_err:
+                logger.warning('[get_etablissement_config] Section lookup failed: %s', sec_err)
 
         activated = []
         for eac in eac_list:
             cls = classe_lookup.get(eac.classe_id)
             sec = section_lookup.get(eac.section_id) if eac.section_id else None
 
-            # Build enriched label: "Classe - Cycle" or "Classe - Cycle - Section"
+            # Build enriched label: "Classe - Cycle - Section (Groupe)"
             classe_nom = cls.classe if cls else f'Classe #{eac.classe_id}'
+            cycle_nom = ''
+            cycle_id = None
             if cls and cls.cycle:
-                classe_nom = f"{cls.classe} - {cls.cycle.cycle}"
+                cycle_nom = cls.cycle.cycle
+                cycle_id = cls.cycle.id_cycle
+                classe_nom = f"{cls.classe} - {cycle_nom}"
             if sec:
-                classe_nom += f" - {sec.code} - {sec.nom}"
+                classe_nom += f" - {sec.nom}"
             if eac.groupe:
                 classe_nom += f" ({eac.groupe})"
 
-            section_nom = f"{sec.code} - {sec.nom}" if sec else '-'
+            section_nom = sec.nom if sec else '-'
             activated.append({
                 'id': eac.id,
                 'classe_id': eac.classe_id,
                 'classe_nom': classe_nom,
+                'cycle_id': cycle_id,
+                'cycle_nom': cycle_nom,
                 'section_id': eac.section_id,
                 'section_nom': section_nom,
                 'groupe': eac.groupe,
                 'classe_par_annee_id': eac.id,
             })
         
+        logger.info('[get_etablissement_config] Returning %d classes for etab=%s pays=%s', len(activated), id_etablissement, id_pays)
         return JsonResponse({
             'success': True,
             'etablissement_annee_id': etab_annee.id,
             'activated_classes': activated
         })
     except Exception as e:
+        import traceback
+        logger.error('[get_etablissement_config] EXCEPTION: %s\n%s', e, traceback.format_exc())
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
