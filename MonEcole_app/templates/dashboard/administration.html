@@ -1941,8 +1941,9 @@ function toggleCycleActivation(cycleId, checkbox) {
 function updateCoursTabVisibility() {
     const btn = document.getElementById('btnTabCours');
     if (!btn) return;
-    const hasNonUniform = cpAllCycles.some(c => activatedCycleIds.has(c.id_cycle) && !c.coursUniformes);
-    btn.style.display = hasNonUniform ? '' : 'none';
+    // Always show tab — uniform cycles show read-only HUB pondérations
+    const hasActiveCycle = cpAllCycles.some(c => activatedCycleIds.has(c.id_cycle));
+    btn.style.display = hasActiveCycle ? '' : 'none';
 }
 
 function toggleSectionActivation(sectionId, checkbox) {
@@ -2234,6 +2235,7 @@ async function saveConfigAnnuelle(){
 
 /* ===== COURS & PONDÉRATIONS (TAB) ===== */
 let coursTabCycles = [];
+let _coursCurrentCycleUniform = true;
 async function loadCoursTab() {
     window._coursTabLoaded = true;
     const sel = document.getElementById('cours-cycle-select');
@@ -2242,13 +2244,14 @@ async function loadCoursTab() {
         const res = await fetch('/api/get-cycles/?id_pays=' + PAYS_ID);
         const data = await res.json();
         if (data.success) {
-            coursTabCycles = (data.cycles || []).filter(c => !c.coursUniformes);
+            coursTabCycles = data.cycles || [];
             if (coursTabCycles.length === 0) {
-                document.getElementById('coursEtabGrid').innerHTML = '<div class="ca-loading"><i class="fas fa-info-circle"></i> Aucun cycle avec cours personnalisables. Tous vos cycles utilisent les cours nationaux uniformes.</div>';
+                document.getElementById('coursEtabGrid').innerHTML = '<div class="ca-loading"><i class="fas fa-info-circle"></i> Aucun cycle disponible.</div>';
                 return;
             }
             coursTabCycles.forEach(c => {
-                sel.innerHTML += `<option value="${c.id_cycle}">${c.nom}</option>`;
+                const badge = c.coursUniformes ? '' : ' ⚙️';
+                sel.innerHTML += `<option value="${c.id_cycle}">${c.nom}${badge}</option>`;
             });
         }
     } catch (e) { console.error(e); }
@@ -2260,36 +2263,44 @@ function onCoursCycleChange() {
     const sectionSel = document.getElementById('cours-section-select');
     classeSel.innerHTML = '<option value="">— Classe —</option>';
     sectionSel.innerHTML = '<option value="">— (aucune filière) —</option>';
-    document.getElementById('coursEtabGrid').innerHTML = '<div class="ca-loading"><i class="fas fa-info-circle"></i> Sélectionnez une classe et une filière.</div>';
+    document.getElementById('coursEtabGrid').innerHTML = '<div class="ca-loading"><i class="fas fa-info-circle"></i> Sélectionnez une classe.</div>';
     if (!cycleId) return;
     const cycle = coursTabCycles.find(c => c.id_cycle == cycleId);
     if (!cycle) return;
+    _coursCurrentCycleUniform = cycle.coursUniformes !== false;
     if (cycle.classes) cycle.classes.forEach(cls => {
         classeSel.innerHTML += `<option value="${cls.id_classe}">${cls.nom}</option>`;
     });
-    if (cycle.sections) cycle.sections.forEach(sec => {
-        sectionSel.innerHTML += `<option value="${sec.id_section}">${sec.nom} (${sec.code})</option>`;
-    });
+    // Hide section dropdown if cycle has no sections
+    if (cycle.sections && cycle.sections.length > 0) {
+        sectionSel.style.display = '';
+        cycle.sections.forEach(sec => {
+            sectionSel.innerHTML += `<option value="${sec.id_section}">${sec.nom} (${sec.code})</option>`;
+        });
+    } else {
+        sectionSel.style.display = 'none';
+    }
 }
 
 function onCoursClasseChange() {
-    document.getElementById('coursEtabGrid').innerHTML = '<div class="ca-loading"><i class="fas fa-info-circle"></i> Sélectionnez une filière puis les cours se chargeront.</div>';
     loadCoursEtab();
 }
 
 async function loadCoursEtab() {
     const classeId = document.getElementById('cours-classe-select').value;
-    const sectionId = document.getElementById('cours-section-select').value;
+    const sectionSel = document.getElementById('cours-section-select');
+    const sectionId = sectionSel.style.display !== 'none' ? sectionSel.value : '';
     const grid = document.getElementById('coursEtabGrid');
     if (!classeId) { grid.innerHTML = '<div class="ca-loading"><i class="fas fa-info-circle"></i> Sélectionnez une classe.</div>'; return; }
     grid.innerHTML = '<div class="ca-loading"><i class="fas fa-spinner fa-spin"></i> Chargement...</div>';
     try {
-        let url = `/api/get-cours-annee/?id_pays=${PAYS_ID}&id_classe=${classeId}&id_annee=${CA_ANNEE_ID}`;
+        let url = `/api/get-cours-annee/?id_pays=${PAYS_ID}&id_classe=${classeId}&id_annee=${CA_ANNEE_ID}&id_etablissement=${CA_ETAB_ID}`;
         if (sectionId) url += `&id_section=${sectionId}`;
         const res = await fetch(url);
         const data = await res.json();
         if (data.success) {
-            renderCoursEtabGrid(data.cours_annee || [], data.domaines || []);
+            const isUniform = _coursCurrentCycleUniform;
+            renderCoursEtabGrid(data.cours_annee || [], data.domaines || [], isUniform);
         } else {
             grid.innerHTML = `<div class="ca-loading" style="color:#ef4444"><i class="fas fa-times-circle"></i> ${data.error}</div>`;
         }
@@ -2298,31 +2309,20 @@ async function loadCoursEtab() {
     }
 }
 
-function renderCoursEtabGrid(cours, domaines) {
+function renderCoursEtabGrid(cours, domaines, isUniform) {
     const grid = document.getElementById('coursEtabGrid');
-    // Store domaines for later use in cours modal
     window._cachedDomaines = domaines;
     if (cours.length === 0) {
-        grid.innerHTML = `
-            <div style="text-align:center;padding:2rem;color:#64748b;">
-                <i class="fas fa-book-open" style="font-size:2.5rem;opacity:.4;margin-bottom:.8rem;display:block"></i>
-                <p style="font-weight:600;font-size:.85rem;margin-bottom:.4rem">Aucun cours dans le catalogue pour cette combinaison</p>
-                <p style="font-size:.75rem;margin-bottom:1rem">Créez des cours et domaines directement ici.</p>
-                <div class="d-flex justify-content-center gap-2">
-                    <button class="btn btn-sm btn-outline-primary" style="font-size:.72rem;border-radius:8px;" onclick="openDomaineModal()">
-                        <i class="fas fa-layer-group me-1"></i>Créer un domaine
-                    </button>
-                    <button class="btn btn-sm btn-success" style="font-size:.72rem;border-radius:8px;" onclick="openCoursModal()">
-                        <i class="fas fa-plus me-1"></i>Créer un cours
-                    </button>
-                </div>
-            </div>`;
+        grid.innerHTML = `<div style="text-align:center;padding:2rem;color:#64748b;">
+            <i class="fas fa-book-open" style="font-size:2.5rem;opacity:.4;margin-bottom:.8rem;display:block"></i>
+            <p style="font-weight:600;font-size:.85rem;margin-bottom:.4rem">Aucun cours dans le catalogue pour cette combinaison</p>
+            <p style="font-size:.75rem">Les cours sont configurés au niveau national (HUB).</p></div>`;
         return;
     }
 
-    // Stats
     const totalConfigured = cours.filter(c => c.is_configured).length;
     const totalOblig = cours.filter(c => c.is_obligatory).length;
+    const totalOverrides = cours.filter(c => c.is_override).length;
 
     // Group by domaine
     const groups = {};
@@ -2334,11 +2334,12 @@ function renderCoursEtabGrid(cours, domaines) {
         groups[key].cours.push(c);
     });
 
-    // Domain select builder
-    const domOpts = domaines.map(d => `<option value="${d.id_domaine}">${d.nom}</option>`).join('');
+    // Mode label
+    const modeLabel = isUniform
+        ? '<span style="background:#e0e7ff;color:#4338ca;padding:3px 10px;border-radius:6px;font-size:.7rem;font-weight:600"><i class="fas fa-lock me-1"></i>Cours nationaux (lecture seule)</span>'
+        : '<span style="background:#dcfce7;color:#16a34a;padding:3px 10px;border-radius:6px;font-size:.7rem;font-weight:600"><i class="fas fa-sliders-h me-1"></i>Personnalisable par établissement</span>';
 
     let html = `
-    <!-- Stats cards -->
     <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
         <div style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border-radius:12px;padding:8px 18px;font-size:.78rem;font-weight:700;display:flex;align-items:center;gap:8px;">
             <i class="fas fa-star"></i>
@@ -2348,51 +2349,75 @@ function renderCoursEtabGrid(cours, domaines) {
             <i class="fas fa-check-double"></i>
             <div><span style="font-size:1.1rem">${totalConfigured} / ${cours.length}</span><br><span style="font-size:.65rem;font-weight:400;opacity:.9">CONFIGURÉS / TOTAL</span></div>
         </div>
-        <button class="btn btn-sm btn-outline-success ms-auto" style="font-size:.72rem;border-radius:8px" onclick="bulkActivateCoursEtab()">
-            <i class="fas fa-check-double me-1"></i>Tout activer
-        </button>
-        <span style="font-size:.72rem;color:#64748b;font-weight:600">${totalConfigured}/${cours.length} activé(s)</span>
+        ${modeLabel}
+        ${!isUniform ? `<span style="font-size:.7rem;color:#64748b;font-weight:600">${totalOverrides} personnalisation(s)</span>` : ''}
     </div>
 
     <div style="overflow-x:auto">
     <table class="config-table" style="min-width:900px;font-size:.78rem">
     <thead><tr style="background:#f1f5f9;">
-        <th style="width:32px;text-align:center">✓</th>
+        ${!isUniform ? '<th style="width:32px;text-align:center" title="Cocher pour personnaliser">✏️</th>' : ''}
         <th style="text-align:left;min-width:80px">CODE</th>
         <th style="text-align:left">COURS</th>
         <th style="text-align:left;min-width:140px">DOMAINE/GROUPE</th>
+        <th style="text-align:center;width:55px">ORDRE</th>
         <th style="text-align:center;width:55px">TJ</th>
         <th style="text-align:center;width:55px">EX</th>
-        <th style="text-align:center;width:55px">TOTAL</th>
         <th style="text-align:center;width:55px">H/SEM</th>
         <th style="text-align:center;width:55px">OBLIG.</th>
-        <th style="text-align:center;width:70px">Actions</th>
+        ${!isUniform ? '<th style="text-align:center;width:70px">ACTIONS</th>' : ''}
     </tr></thead><tbody>`;
 
+    const colSpan = isUniform ? 8 : 10;
+    const inpStyle = 'width:45px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:.72rem;padding:2px 4px';
+    const inpReadonly = inpStyle + ';background:#f8fafc;color:#64748b';
+
     function renderRow(c) {
-        const checked = c.is_configured ? 'checked' : '';
-        const tj = c.maxima_tj || '';
-        const ex = c.maxima_exam || '';
-        const hsem = c.heure_semaine || '';
+        const tj = c.maxima_tj != null ? c.maxima_tj : '';
+        const ex = c.maxima_exam != null ? c.maxima_exam : '';
+        const hsem = c.heure_semaine != null ? c.heure_semaine : '';
+        const ordre = c.ordre != null ? c.ordre : '';
         const oblig = c.is_obligatory ? 'checked' : '';
-        const inpStyle = 'width:45px;text-align:center;border:1px solid #e2e8f0;border-radius:4px;font-size:.72rem;padding:2px 4px';
-        return `<tr data-cours-id="${c.id_cours}">
-            <td style="text-align:center"><input type="checkbox" data-cours="${c.id_cours}" ${checked} class="cours-etab-check"></td>
+        const isOver = c.is_override;
+        const rowBg = isOver ? 'background:#fefce8;' : '';
+
+        if (isUniform) {
+            // READ-ONLY mode for uniform cycles
+            return `<tr style="${rowBg}">
+                <td style="font-weight:600;color:#4f46e5;font-size:.72rem">${c.code_cours || ''}</td>
+                <td>${c.cours}</td>
+                <td style="font-size:.72rem;color:#64748b">${c.domaine_nom || '—'}</td>
+                <td style="text-align:center;color:#64748b">${ordre}</td>
+                <td style="text-align:center;font-weight:600">${tj}</td>
+                <td style="text-align:center;font-weight:600">${ex}</td>
+                <td style="text-align:center">${hsem}</td>
+                <td style="text-align:center">${oblig ? '<i class="fas fa-check text-success"></i>' : ''}</td>
+            </tr>`;
+        }
+
+        // EDITABLE mode for non-uniform cycles — but read-only by default, editable when checkbox checked
+        const editDisabled = isOver ? '' : 'disabled';
+        const editChecked = isOver ? 'checked' : '';
+        const editBg = isOver ? '' : ';background:#f8fafc;color:#94a3b8';
+        const caIdAttr = (isOver && c.id_cours_annee) ? ` data-cours-annee-id="${c.id_cours_annee}"` : '';
+        return `<tr data-cours-id="${c.id_cours}"${caIdAttr} style="${rowBg}">
+            <td style="text-align:center"><input type="checkbox" class="cours-override-check" data-cours="${c.id_cours}" ${editChecked} onchange="toggleCoursOverride(this)" title="Cocher pour personnaliser"></td>
             <td style="font-weight:600;color:#4f46e5;font-size:.72rem">${c.code_cours || ''}</td>
             <td>${c.cours}</td>
             <td>
-                <select data-cours="${c.id_cours}" data-field="domaine_id" style="font-size:.72rem;border:1px solid #e2e8f0;border-radius:4px;padding:2px;width:100%;background:#fff">
+                <select data-cours="${c.id_cours}" data-field="domaine_id" ${editDisabled} style="font-size:.72rem;border:1px solid #e2e8f0;border-radius:4px;padding:2px;width:100%${editBg}">
                     <option value="">—</option>
                     ${domaines.map(d => `<option value="${d.id_domaine}" ${d.id_domaine == c.domaine_id ? 'selected' : ''}>${d.nom}</option>`).join('')}
                 </select>
             </td>
-            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="maxima_tj" value="${tj}" style="${inpStyle}"></td>
-            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="maxima_exam" value="${ex}" style="${inpStyle}"></td>
-            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="heure_semaine" value="${hsem}" style="${inpStyle}"></td>
-            <td style="text-align:center"><input type="checkbox" data-cours="${c.id_cours}" data-field="is_obligatory" ${oblig} class="cours-oblig-check"></td>
+            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="ordre" value="${ordre}" ${editDisabled} style="${inpStyle}${editBg}"></td>
+            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="maxima_tj" value="${tj}" ${editDisabled} style="${inpStyle}${editBg}"></td>
+            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="maxima_exam" value="${ex}" ${editDisabled} style="${inpStyle}${editBg}"></td>
+            <td style="text-align:center"><input type="number" data-cours="${c.id_cours}" data-field="heure_semaine" value="${hsem}" ${editDisabled} style="${inpStyle}${editBg}"></td>
+            <td style="text-align:center"><input type="checkbox" data-cours="${c.id_cours}" data-field="is_obligatory" ${oblig} ${editDisabled} class="cours-oblig-check"></td>
             <td style="text-align:center">
-                <button class="btn btn-sm btn-link p-0" style="font-size:.68rem;color:#2563eb" onclick="editCoursModal(${c.id_cours}, '${c.cours.replace(/'/g,"\\'")}', '${c.code_cours}', ${c.domaine_id || 'null'})" title="Modifier"><i class="fas fa-pen"></i></button>
-                <button class="btn btn-sm btn-link p-0 ms-1" style="font-size:.68rem;color:#ef4444" onclick="deleteCoursFromCatalog(${c.id_cours}, '${c.cours.replace(/'/g,"\\'")}' )" title="Supprimer"><i class="fas fa-trash"></i></button>
+                <button class="btn btn-sm btn-link p-0" style="font-size:.68rem;color:#2563eb" onclick="editCoursModal(${c.id_cours}, '${(c.cours||'').replace(/'/g,"\\\\'")}', '${c.code_cours||''}', ${c.domaine_id || 'null'})" title="Modifier"><i class="fas fa-pen"></i></button>
+                <button class="btn btn-sm btn-link p-0 ms-1" style="font-size:.68rem;color:#ef4444" onclick="deleteCoursFromCatalog(${c.id_cours}, '${(c.cours||'').replace(/'/g,"\\\\'")}' )" title="Supprimer"><i class="fas fa-trash"></i></button>
             </td>
         </tr>`;
     }
@@ -2402,40 +2427,61 @@ function renderCoursEtabGrid(cours, domaines) {
     let gIdx = 0;
     Object.values(groups).forEach(g => {
         const col = groupColors[gIdx % groupColors.length];
-        html += `<tr><td colspan="10" style="background:${col}10;border-left:3px solid ${col};padding:6px 12px;font-weight:700;font-size:.75rem;color:${col}">
+        html += `<tr><td colspan="${colSpan}" style="background:${col}10;border-left:3px solid ${col};padding:6px 12px;font-weight:700;font-size:.75rem;color:${col}">
             <i class="fas fa-layer-group me-1"></i>${g.nom.toUpperCase()} (${g.cours.length})
         </td></tr>`;
         g.cours.forEach(c => { html += renderRow(c); });
         gIdx++;
     });
 
-    // Ungrouped courses
     if (noGroup.length > 0) {
-        html += `<tr><td colspan="10" style="background:#f1f5f920;border-left:3px solid #94a3b8;padding:6px 12px;font-weight:700;font-size:.75rem;color:#94a3b8">
+        html += `<tr><td colspan="${colSpan}" style="background:#f1f5f920;border-left:3px solid #94a3b8;padding:6px 12px;font-weight:700;font-size:.75rem;color:#94a3b8">
             <i class="fas fa-folder-open me-1"></i>SANS DOMAINE (${noGroup.length})
         </td></tr>`;
         noGroup.forEach(c => { html += renderRow(c); });
     }
 
-    html += `</tbody></table></div>
-        <button class="btn-save-config mt-2" onclick="saveCoursEtab()"><i class="fas fa-save" style="margin-right:4px"></i>Sauvegarder les cours</button>`;
+    html += `</tbody></table></div>`;
+    if (!isUniform) {
+        html += `<button class="btn-save-config mt-2" onclick="saveCoursEtab()"><i class="fas fa-save" style="margin-right:4px"></i>Sauvegarder les personnalisations</button>`;
+    }
     grid.innerHTML = html;
 }
 
+function toggleCoursOverride(cb) {
+    const row = cb.closest('tr');
+    const enabled = cb.checked;
+    row.querySelectorAll('input[data-field], select[data-field]').forEach(el => {
+        el.disabled = !enabled;
+        if (enabled) {
+            el.style.background = '#fff';
+            el.style.color = '#0f172a';
+        } else {
+            el.style.background = '#f8fafc';
+            el.style.color = '#94a3b8';
+        }
+    });
+    row.style.background = enabled ? '#fefce8' : '';
+}
+
 async function bulkActivateCoursEtab() {
-    document.querySelectorAll('#coursEtabGrid .cours-etab-check').forEach(cb => cb.checked = true);
-    showToast('Tous les cours cochés. Cliquez Sauvegarder pour confirmer.', 'success');
+    document.querySelectorAll('#coursEtabGrid .cours-override-check').forEach(cb => {
+        cb.checked = true;
+        toggleCoursOverride(cb);
+    });
+    showToast('Tous les cours cochés pour personnalisation. Cliquez Sauvegarder pour confirmer.', 'success');
 }
 
 async function saveCoursEtab() {
     const rows = document.querySelectorAll('#coursEtabGrid tr[data-cours-id]');
     const classeId = document.getElementById('cours-classe-select').value;
-    const sectionId = document.getElementById('cours-section-select').value;
+    const sectionSel = document.getElementById('cours-section-select');
+    const sectionId = sectionSel.style.display !== 'none' ? sectionSel.value : '';
     let saved = 0, errors = [];
     for (const row of rows) {
-        const cb = row.querySelector('.cours-etab-check');
+        const cb = row.querySelector('.cours-override-check');
+        if (!cb || !cb.checked) continue;
         const coursId = cb.dataset.cours;
-        if (!cb.checked) continue;
         const getVal = (field) => {
             const el = row.querySelector(`[data-field="${field}"]`);
             if (!el) return null;
@@ -2443,27 +2489,32 @@ async function saveCoursEtab() {
             return el.value || null;
         };
         try {
+            const payload = {
+                cours_id: coursId,
+                annee_id: CA_ANNEE_ID,
+                etablissement_id: CA_ETAB_ID,
+                id_pays: PAYS_ID,
+                maxima_tj: getVal('maxima_tj'),
+                maxima_exam: getVal('maxima_exam'),
+                heure_semaine: getVal('heure_semaine'),
+                is_obligatory: getVal('is_obligatory'),
+                domaine_id: getVal('domaine_id'),
+                ordre: getVal('ordre')
+            };
+            // If existing override, include id_cours_annee for UPDATE instead of CREATE
+            const existingId = row.dataset.coursAnneeId;
+            if (existingId) payload.id_cours_annee = existingId;
             const res = await fetch('/api/save-cours-annee/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                body: JSON.stringify({
-                    cours_id: coursId,
-                    annee_id: CA_ANNEE_ID,
-                    etablissement_id: CA_ETAB_ID,
-                    maxima_tj: getVal('maxima_tj'),
-                    maxima_exam: getVal('maxima_exam'),
-
-                    heure_semaine: getVal('heure_semaine'),
-                    is_obligatory: getVal('is_obligatory'),
-                    domaine_id: getVal('domaine_id')
-                })
+                body: JSON.stringify(payload)
             });
             const data = await res.json();
             if (data.success) saved++;
             else errors.push(data.error);
         } catch (e) { errors.push(e.message); }
     }
-    if (saved > 0) showToast(`${saved} cours configurés.`, 'success');
+    if (saved > 0) showToast(`${saved} cours personnalisé(s).`, 'success');
     if (errors.length > 0) showToast('Erreurs: ' + errors.slice(0, 3).join(', '), 'error');
     loadCoursEtab();
 }

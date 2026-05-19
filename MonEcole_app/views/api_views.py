@@ -14141,31 +14141,62 @@ def get_cours_annee_data(request):
 
         # Get tenant etab for per-establishment configs
         etab_id = getattr(request, 'id_etablissement', None) or request.session.get('id_etablissement')
+        # Also accept explicit id_etablissement from query params (frontend may pass it)
+        if not etab_id:
+            etab_id = request.GET.get('id_etablissement')
 
-        # Les configs existantes — filtrer par établissement pour isolation
-        configs_map = {}
-        configs_filter = dict(
+        # --- Fetch NATIONAL configs (HUB: etablissement IS NULL) ---
+        base_filter = dict(
             id_pays=id_pays,
             cours__classe__id_classe=id_classe,
             annee__id_annee=id_annee,
         )
-        if etab_id:
-            configs_filter['etablissement__id_ecole'] = etab_id
-        else:
-            configs_filter['etablissement__isnull'] = True
-        configs_qs = CoursAnnee.objects.filter(**configs_filter).select_related('cours')
+        hub_filter = {**base_filter, 'etablissement__isnull': True}
+        hub_qs = CoursAnnee.objects.filter(**hub_filter).select_related('cours')
         if id_section:
-            configs_qs = configs_qs.filter(cours__section_id=id_section)
+            hub_qs = hub_qs.filter(cours__section_id=id_section)
         else:
-            configs_qs = configs_qs.filter(cours__section_id__isnull=True)
-        for ca in configs_qs:
-            configs_map[ca.cours_id] = ca
+            hub_qs = hub_qs.filter(cours__section_id__isnull=True)
+        hub_map = {}
+        for ca in hub_qs:
+            hub_map[ca.cours_id] = ca
 
-        # Construire la réponse
+        # --- Fetch SPOKE configs (establishment-level overrides) ---
+        spoke_map = {}
+        if etab_id:
+            spoke_filter = {**base_filter, 'etablissement__id_ecole': etab_id}
+            spoke_qs = CoursAnnee.objects.filter(**spoke_filter).select_related('cours')
+            if id_section:
+                spoke_qs = spoke_qs.filter(cours__section_id=id_section)
+            else:
+                spoke_qs = spoke_qs.filter(cours__section_id__isnull=True)
+            for ca in spoke_qs:
+                spoke_map[ca.cours_id] = ca
+
+        # Helper to serialize a CoursAnnee into dict fields
+        def _ca_fields(ca):
+            return {
+                'id_cours_annee': ca.id_cours_annee,
+                'maxima_exam': ca.maxima_exam,
+                'maxima_tj': ca.maxima_tj, 'maxima_periode': ca.maxima_periode,
+                'credits': ca.credits, 'heure_semaine': ca.heure_semaine,
+                'is_obligatory': ca.is_obligatory, 'ordre': ca.ordre,
+                'compte_au_nombre_echec': ca.compte_au_nombre_echec,
+                'total_considerable_trimestre': ca.total_considerable_trimestre,
+                'est_considerer_echec_lorsque_pourcentage_est': ca.est_considerer_echec_lorsque_pourcentage_est,
+                'is_second_semester': ca.is_second_semester,
+            }
+
+        # --- Merge: SPOKE overrides HUB ---
         cours_data = []
         for c in cours_catalogue:
-            ca = configs_map.get(c.pk)
-            # Domaine: priority to CoursAnnee.domaine_id, else fallback to Cours.domaine_id (both IntegerFields)
+            spoke_ca = spoke_map.get(c.pk)
+            hub_ca = hub_map.get(c.pk)
+            # Effective config: spoke takes priority over hub
+            ca = spoke_ca or hub_ca
+            is_override = spoke_ca is not None
+
+            # Domaine: priority to CoursAnnee.domaine_id, else fallback to Cours.domaine_id
             dom_id = (ca.domaine_id if ca and ca.domaine_id else c.domaine_id)
             dom_nom = domaine_map.get(dom_id, '') if dom_id else ''
             entry = {
@@ -14173,21 +14204,12 @@ def get_cours_annee_data(request):
                 'domaine_id': dom_id,
                 'domaine_nom': dom_nom,
                 'is_configured': ca is not None,
+                'is_override': is_override,
                 'section_id': c.section_id,
                 'section_nom': section_map.get(c.section_id, ''),
             }
             if ca:
-                entry.update({
-                    'id_cours_annee': ca.id_cours_annee,
-                    'maxima_exam': ca.maxima_exam,
-                    'maxima_tj': ca.maxima_tj, 'maxima_periode': ca.maxima_periode,
-                    'credits': ca.credits, 'heure_semaine': ca.heure_semaine,
-                    'is_obligatory': ca.is_obligatory, 'ordre': ca.ordre,
-                    'compte_au_nombre_echec': ca.compte_au_nombre_echec,
-                    'total_considerable_trimestre': ca.total_considerable_trimestre,
-                    'est_considerer_echec_lorsque_pourcentage_est': ca.est_considerer_echec_lorsque_pourcentage_est,
-                    'is_second_semester': ca.is_second_semester,
-                })
+                entry.update(_ca_fields(ca))
             cours_data.append(entry)
 
         return JsonResponse({'success': True, 'cours_annee': cours_data, 'annees': annees, 'domaines': domaines})
