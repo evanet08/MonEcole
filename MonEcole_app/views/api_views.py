@@ -1944,6 +1944,7 @@ def save_cycle(request):
         
         if id_cycle:
             cycle = get_object_or_404(Cycle, id_cycle=id_cycle, pays_id=pays.id_pays)
+            was_non_uniform = not cycle.coursUniformes
             cycle.nom = nom
             cycle.ordre = ordre
             cycle.duree = duree
@@ -1951,6 +1952,20 @@ def save_cycle(request):
             cycle.coursUniformes = coursUniformes
             cycle.labelSection_id = int(labelSection_id) if labelSection_id else None
             cycle.save()
+            # If switching from non-uniform to uniform → delete all establishment overrides
+            if was_non_uniform and coursUniformes:
+                # Delete CoursAnnee records that have etablissement_id set
+                # for classes belonging to this cycle
+                deleted_count, _ = CoursAnnee.objects.filter(
+                    cours__classe__cycle=cycle,
+                    id_pays=pays.id_pays,
+                    etablissement__isnull=False
+                ).delete()
+                if deleted_count:
+                    import logging
+                    logging.getLogger(__name__).info(
+                        f"[save_cycles] Cleaned {deleted_count} establishment overrides for cycle {cycle.nom} (now uniform)"
+                    )
         else:
             Cycle.objects.create(
                 pays=pays, nom=nom, ordre=ordre, duree=duree,
@@ -2782,41 +2797,63 @@ def get_cours_annee_data(request):
             return JsonResponse({'success': True, 'cours_annee': [], 'annees': annees, 'domaines': domaines})
 
         # Tous les cours du catalogue pour cette classe (+section)
-        cours_catalogue = Cours.objects.filter(classe__id_classe=id_classe, id_pays=id_pays).order_by('cours')
+        cours_catalogue = Cours.objects.filter(classe__id_classe=id_classe, classe__id_pays=id_pays, id_pays=id_pays).select_related('domaine', 'section', 'classe__cycle').order_by('cours')
         if id_section:
-            cours_catalogue = cours_catalogue.filter(section_id=id_section)
+            cours_catalogue = cours_catalogue.filter(section__id_section=id_section)
         else:
-            cours_catalogue = cours_catalogue.filter(section_id__isnull=True)
+            cours_catalogue = cours_catalogue.filter(section__isnull=True)
 
-        # Les configs existantes pour cette année (même filtre section)
-        # IMPORTANT: filter etablissement__isnull=True for national configs only
+        # 1. Configs nationales (shared) — base
         configs_map = {}
         configs_qs = CoursAnnee.objects.filter(id_pays=id_pays,
-            cours__classe__id_classe=id_classe, annee__id_annee=id_annee,
-            etablissement__isnull=True
-        ).select_related('cours')
+            cours__classe__id_classe=id_classe, cours__classe__id_pays=id_pays,
+            annee__id_annee=id_annee, etablissement__isnull=True
+        ).select_related('cours', 'domaine')
         if id_section:
-            configs_qs = configs_qs.filter(cours__section_id=id_section)
+            configs_qs = configs_qs.filter(cours__section__id_section=id_section)
         else:
-            configs_qs = configs_qs.filter(cours__section_id__isnull=True)
+            configs_qs = configs_qs.filter(cours__section__isnull=True)
         for ca in configs_qs:
-            configs_map[ca.cours_id] = ca
+            configs_map[ca.cours_id] = {'ca': ca, 'is_override': False}
 
-        # Construire la réponse : TOUS les cours avec leur état
+        # 2. Override par établissement (si coursUniformes=False)
+        id_etablissement = request.GET.get('id_etablissement')
+        cycle_non_uniform = False
+        if id_etablissement:
+            # Detect if cycle is non-uniform
+            first_cours = cours_catalogue.first()
+            if first_cours and first_cours.classe and first_cours.classe.cycle:
+                cycle_non_uniform = not first_cours.classe.cycle.coursUniformes
+            if cycle_non_uniform:
+                override_qs = CoursAnnee.objects.filter(id_pays=id_pays,
+                    cours__classe__id_classe=id_classe, cours__classe__id_pays=id_pays,
+                    annee__id_annee=id_annee, etablissement__id_etablissement=id_etablissement
+                ).select_related('cours')
+                if id_section:
+                    override_qs = override_qs.filter(cours__section__id_section=id_section)
+                else:
+                    override_qs = override_qs.filter(cours__section__isnull=True)
+                for ca in override_qs:
+                    configs_map[ca.cours_id] = {'ca': ca, 'is_override': True}
+
+        # 3. Construire la réponse : TOUS les cours avec leur état
         cours_data = []
         for c in cours_catalogue:
-            ca = configs_map.get(c.pk)
+            cfg = configs_map.get(c.pk)
+            ca = cfg['ca'] if cfg else None
+            is_override = cfg['is_override'] if cfg else False
             # Domaine : priorité au CoursAnnee, sinon fallback sur Cours
-            dom_id = (ca.domaine_id if ca and ca.domaine_id else c.domaine_id)
+            domaine_obj = ca.domaine if ca and ca.domaine_id else c.domaine
             entry = {
                 'id_cours': c.id_cours,
                 'code_cours': c.code_cours,
                 'cours': c.cours,
-                'domaine_id': dom_id,
-                'domaine_nom': '',
+                'domaine_id': domaine_obj.id_domaine if domaine_obj else None,
+                'domaine_nom': domaine_obj.nom if domaine_obj else '',
                 'is_configured': ca is not None,
-                'section_id': c.section_id,
-                'section_nom': '',
+                'is_override': is_override,
+                'section_id': c.section.id_section if c.section else None,
+                'section_nom': c.section.nom if c.section else '',
             }
             if ca:
                 entry.update({
@@ -2837,7 +2874,8 @@ def get_cours_annee_data(request):
             'success': True,
             'cours_annee': cours_data,
             'annees': annees,
-            'domaines': domaines
+            'domaines': domaines,
+            'cycle_non_uniform': cycle_non_uniform
         })
     except Exception as e:
         import traceback
