@@ -3856,18 +3856,38 @@ def get_etablissement_config(request):
             defaults={'pays_id': etablissement.pays_id}
         )
         
-        # Get activated classes — select_related JOINs on surrogate PK (classes.id, sections.id)
-        eac_list = list(etab_annee.classes_config.select_related(
-            'classe', 'classe__cycle', 'section'
-        ).all())
+        # IMPORTANT: classe_id in EAC stores BUSINESS KEY (id_classe), not surrogate PK.
+        # Django FK JOIN would resolve via surrogate PK → wrong country's class.
+        # We must manually resolve classes by business key + id_pays.
+        eac_list = list(etab_annee.classes_config.all())
+
+        # Build lookup maps: business_key → correct object for THIS country
+        bk_classe_ids = set(eac.classe_id for eac in eac_list)
+        bk_section_ids = set(eac.section_id for eac in eac_list if eac.section_id)
+
+        classe_lookup = {}  # id_classe → Classe object (correct country)
+        for cls in Classe.objects.filter(id_classe__in=bk_classe_ids, id_pays=int(id_pays)).select_related('cycle'):
+            classe_lookup[cls.id_classe] = cls
+
+        section_lookup = {}  # id_section → Section object (correct country)
+        if bk_section_ids:
+            for sec in Section.objects.filter(id_section__in=bk_section_ids, id_pays=int(id_pays)):
+                section_lookup[sec.id_section] = sec
 
         activated = []
         for eac in eac_list:
-            cls = eac.classe
-            sec = eac.section
-            classe_nom = cls.classe if cls else '-'
+            cls = classe_lookup.get(eac.classe_id)
+            sec = section_lookup.get(eac.section_id) if eac.section_id else None
+
+            # Build enriched label: "Classe - Cycle" or "Classe - Cycle - Section"
+            classe_nom = cls.classe if cls else f'Classe #{eac.classe_id}'
             if cls and cls.cycle:
                 classe_nom = f"{cls.classe} - {cls.cycle.cycle}"
+            if sec:
+                classe_nom += f" - {sec.code} - {sec.nom}"
+            if eac.groupe:
+                classe_nom += f" ({eac.groupe})"
+
             section_nom = f"{sec.code} - {sec.nom}" if sec else '-'
             activated.append({
                 'id': eac.id,
