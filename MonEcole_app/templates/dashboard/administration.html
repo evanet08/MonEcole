@@ -1941,9 +1941,9 @@ function toggleCycleActivation(cycleId, checkbox) {
 function updateCoursTabVisibility() {
     const btn = document.getElementById('btnTabCours');
     if (!btn) return;
-    // Always show tab — uniform cycles show read-only HUB pondérations
-    const hasActiveCycle = cpAllCycles.some(c => activatedCycleIds.has(c.id_cycle));
-    btn.style.display = hasActiveCycle ? '' : 'none';
+    // Only show tab if at least one ACTIVATED cycle has coursUniformes=false
+    const hasNonUniform = cpAllCycles.some(c => activatedCycleIds.has(c.id_cycle) && !c.coursUniformes);
+    btn.style.display = hasNonUniform ? '' : 'none';
 }
 
 function toggleSectionActivation(sectionId, checkbox) {
@@ -2244,14 +2244,13 @@ async function loadCoursTab() {
         const res = await fetch('/api/get-cycles/?id_pays=' + PAYS_ID);
         const data = await res.json();
         if (data.success) {
-            coursTabCycles = data.cycles || [];
+            coursTabCycles = (data.cycles || []).filter(c => !c.coursUniformes);
             if (coursTabCycles.length === 0) {
-                document.getElementById('coursEtabGrid').innerHTML = '<div class="ca-loading"><i class="fas fa-info-circle"></i> Aucun cycle disponible.</div>';
+                document.getElementById('coursEtabGrid').innerHTML = '<div class="ca-loading"><i class="fas fa-info-circle"></i> Aucun cycle personnalisable (tous uniformes).</div>';
                 return;
             }
             coursTabCycles.forEach(c => {
-                const badge = c.coursUniformes ? '' : ' ⚙️';
-                sel.innerHTML += `<option value="${c.id_cycle}">${c.nom}${badge}</option>`;
+                sel.innerHTML += `<option value="${c.id_cycle}">${c.nom}</option>`;
             });
         }
     } catch (e) { console.error(e); }

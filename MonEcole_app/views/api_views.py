@@ -14161,7 +14161,7 @@ def get_cours_annee_data(request):
         base_filter = dict(
             id_pays=id_pays,
             cours__classe__id_classe=id_classe,
-            annee__id_annee=id_annee,
+            annee_id=id_annee,
         )
         hub_filter = {**base_filter, 'etablissement__isnull': True}
         hub_qs = CoursAnnee.objects.filter(**hub_filter).select_related('cours')
