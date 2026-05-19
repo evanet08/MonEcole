@@ -1895,13 +1895,12 @@ def get_cycles_data(request):
                 'total_classes': len(all_classes)
             }
             
-            # For cycles with sections, include sections filtered by type
+            # For cycles with sections, include sections filtered by cycle
             if c.hasSections:
-                # Filter sections by the cycle's labelSection type + pays
-                sec_filters = {'id_pays': pays.id_pays}
-                if c.labelSection_id:
-                    sec_filters['type_subdivision_id'] = c.labelSection_id
-                cycle_sections = Section.objects.filter(**sec_filters).values('id_section', 'nom', 'code')
+                # Filter sections belonging to THIS cycle (strict isolation, like HUB)
+                cycle_sections = Section.objects.filter(
+                    cycle=c, id_pays=pays.id_pays
+                ).values('id_section', 'nom', 'code')
                 
                 sections_with_classes = []
                 for section in cycle_sections:

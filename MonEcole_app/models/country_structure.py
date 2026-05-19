@@ -356,6 +356,8 @@ class Section(models.Model):
     code = models.CharField(max_length=20)
     type_subdivision = models.ForeignKey(TypeSubdivision, on_delete=models.CASCADE,
                                           null=True, blank=True, related_name='subdivisions')
+    cycle = models.ForeignKey('Cycle', on_delete=models.CASCADE,
+                              null=True, blank=True, related_name='sections_hub')
     id_pays = models.IntegerField(null=True, blank=True)
 
     class Meta:
