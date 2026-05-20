@@ -1240,9 +1240,9 @@ function populateEvalPeriodeDropdown(selectedId) {
     const reps = window._repartitionsData || [];
     reps.forEach(r => {
         const opt = document.createElement('option');
-        opt.value = r.id || r.id_instance;
+        opt.value = r.id;
         opt.textContent = r.nom;
-        if (selectedId && (String(r.id) === String(selectedId) || String(r.id_instance) === String(selectedId))) opt.selected = true;
+        if (selectedId && String(r.id) === String(selectedId)) opt.selected = true;
         sel.appendChild(opt);
     });
 }
@@ -1380,7 +1380,7 @@ function _buildPeriodGroups() {
         sorted.forEach((p, pi) => {
             const g = { parent_nom: p.nom, children: [] };
             for (let i = pi * per; i < Math.min((pi + 1) * per, orphans.length); i++) g.children.push(orphans[i]);
-            if (g.children.length) groups[p.id_instance] = g;
+            if (g.children.length) groups[p.id] = g;
         });
         orphans.length = 0;
     }
@@ -1433,7 +1433,7 @@ function openMassEvalModal() {
     groupList.forEach(g => {
         chkHtml += `<span class="mass-chk-parent">${g.parent_nom}:</span>`;
         g.children.forEach(r => {
-            const pid = r.id || r.id_instance;
+            const pid = r.id;
             chkHtml += `<label class="mass-chk-label checked"><input type="checkbox" checked value="${pid}" data-parent="${g.parent_nom}" onchange="massUpdateSelection()"> ${r.nom || 'Période'}</label>`;
         });
     });
@@ -1473,7 +1473,7 @@ function massUpdateSelection() {
     // Filter groups to only checked periods
     const filteredGroups = groupList.map(g => ({
         parent_nom: g.parent_nom,
-        children: g.children.filter(r => checkedIds.has(String(r.id || r.id_instance)))
+        children: g.children.filter(r => checkedIds.has(String(r.id)))
     })).filter(g => g.children.length > 0);
 
     _massRenderCoursSummary(courses, filteredGroups);
@@ -1537,7 +1537,7 @@ async function saveMassEvals() {
     // Filter groups to only checked periods
     const filteredGroups = groupList.map(g => ({
         parent_nom: g.parent_nom,
-        children: g.children.filter(r => checkedIds.has(String(r.id || r.id_instance)))
+        children: g.children.filter(r => checkedIds.has(String(r.id)))
     })).filter(g => g.children.length > 0);
 
     errEl.classList.add('d-none');
@@ -1557,7 +1557,7 @@ async function saveMassEvals() {
             const maxPerEval = (maximaTj && !isNaN(maximaTj) && nbInGroup) ? Math.round((maximaTj / nbInGroup) * 100) / 100 : '';
 
             for (const period of group.children) {
-                const periodeId = period.id || period.id_instance;
+                const periodeId = period.id;
                 const pNom = period.nom || 'Période';
                 const titre = `${cours.cours} — ${pNom}`;
 
@@ -1624,7 +1624,7 @@ async function onCompClasseChange() {
             optgroup.label = typeName;
             grouped[typeName].forEach(r => {
                 const opt = document.createElement('option');
-                opt.value = r.id_instance;
+                opt.value = r.id;
                 opt.textContent = r.nom + (r.debut ? ` (${r.debut} → ${r.fin})` : '');
                 opt.dataset.debut = r.debut || '';
                 opt.dataset.fin = r.fin || '';
@@ -1903,7 +1903,7 @@ function _miRenderCheckboxes() {
         let html = '<label class="mass-chk-label checked" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border-color:#7c3aed;font-weight:700"><input type="checkbox" checked onchange="miToggleAll(this)"> Tout</label>';
         displayReps.forEach(r => {
             // USE repartition_id (instance ID) — NOT r.id (config ID)!
-            const rid = r.repartition_id || r.id_instance;
+            const rid = r.id;
             html += `<label class="mass-chk-label checked"><input type="checkbox" checked value="${rid}" data-nom="${r.nom || 'Trimestre'}" data-type="period" onchange="miUpdateSelection()"> ${r.nom || 'Trimestre'}</label>`;
         });
         periodContainer.innerHTML = html;
@@ -1930,7 +1930,7 @@ function _miRenderCheckboxes() {
     // Fallback: if no parent_instance_id, use parentReps directly
     if (Object.keys(groups).length === 0 && parentReps.length > 0) {
         parentReps.forEach(p => {
-            const pInstId = p.repartition_id || p.id_instance;
+            const pInstId = p.id;
             groups[pInstId] = { parent_nom: p.nom, parent_id: pInstId, children: [] };
         });
         // Distribute orphan leafs across parents by order
@@ -1952,7 +1952,7 @@ function _miRenderCheckboxes() {
     groupList.forEach(g => {
         // Children periods — USE repartition_id (instance ID)
         g.children.forEach(r => {
-            const repId = r.repartition_id || r.id_instance;
+            const repId = r.id;
             html += `<label class="mass-chk-label checked"><input type="checkbox" checked value="${repId}" data-nom="${r.nom || 'Période'}" data-type="period" data-parent="${g.parent_id}" onchange="miUpdateSelection()"> ${r.nom || 'Période'}</label>`;
         });
         // Exam column for this parent — parent_id is already instance ID
@@ -1962,7 +1962,7 @@ function _miRenderCheckboxes() {
     // Orphan leafs (no parent) — just list them
     if (groupList.length === 0) {
         orphanLeafs.forEach(r => {
-            const repId = r.repartition_id || r.id_instance;
+            const repId = r.id;
             html += `<label class="mass-chk-label checked"><input type="checkbox" checked value="${repId}" data-nom="${r.nom || 'Période'}" data-type="period" onchange="miUpdateSelection()"> ${r.nom || 'Période'}</label>`;
         });
     }
@@ -2377,14 +2377,14 @@ function onNotesClasseChange() {
         var sortedParents = parentReps.slice().sort(function(a, b) { return (a.ordre || 0) - (b.ordre || 0); });
         var perParent = Math.ceil(orphans.length / sortedParents.length);
         sortedParents.forEach(function(p, pi) {
-            var group = { parent_nom: p.nom, children: [], parent_id: p.id_instance };
+            var group = { parent_nom: p.nom, children: [], parent_id: p.id };
             var start = pi * perParent;
             var end = Math.min(start + perParent, orphans.length);
             for (var i = start; i < end; i++) {
                 group.children.push(orphans[i]);
             }
             if (group.children.length > 0) {
-                parentGroups[p.id_instance] = group;
+                parentGroups[p.id] = group;
             }
         });
         orphans = []; // all distributed
@@ -2401,7 +2401,7 @@ function onNotesClasseChange() {
         optgroup.label = group.parent_nom;
         group.children.forEach(function(r) {
             var opt = document.createElement('option');
-            opt.value = r.id_instance;
+            opt.value = r.id;
             opt.textContent = r.nom + (r.is_open ? ' ✓' : '');
             opt.dataset.typeCode = r.type_code;
             opt.dataset.isExam = '0';
@@ -2426,7 +2426,7 @@ function onNotesClasseChange() {
         optgroup.label = 'Période';
         orphans.forEach(function(r) {
             var opt = document.createElement('option');
-            opt.value = r.id_instance;
+            opt.value = r.id;
             opt.textContent = r.nom + (r.is_open ? ' ✓' : '');
             opt.dataset.typeCode = r.type_code;
             opt.dataset.isExam = '0';

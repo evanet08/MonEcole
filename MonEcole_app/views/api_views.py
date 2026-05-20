@@ -5370,7 +5370,18 @@ def dashboard_campus_list(request):
                 if id_etablissement and id_pays:
                     cur.execute("SELECT * FROM campus WHERE id_etablissement=%s AND id_pays=%s ORDER BY campus", [id_etablissement, id_pays])
                 elif id_etablissement:
-                    cur.execute("SELECT * FROM campus WHERE id_etablissement=%s ORDER BY campus", [id_etablissement])
+                    # Fallback: still try to use id_pays if we can resolve it
+                    _fb_pays = id_pays
+                    if not _fb_pays:
+                        try:
+                            _fb_etab = Etablissement.objects.using('default').filter(id_etablissement=id_etablissement).first()
+                            _fb_pays = _fb_etab.pays_id if _fb_etab else None
+                        except Exception:
+                            pass
+                    if _fb_pays:
+                        cur.execute("SELECT * FROM campus WHERE id_etablissement=%s AND id_pays=%s ORDER BY campus", [id_etablissement, _fb_pays])
+                    else:
+                        cur.execute("SELECT * FROM campus WHERE id_etablissement=%s ORDER BY campus", [id_etablissement])
                 else:
                     if not id_pays:
                         return JsonResponse({'success': False, 'error': 'id_etablissement ou id_pays requis'}, status=400)
@@ -7488,8 +7499,8 @@ def dashboard_etablissement_view(request):
                 # Get campus IDs for this establishment
                 cur.execute("""
                     SELECT idCampus FROM campus
-                    WHERE id_etablissement = %s AND is_active = 1
-                """, [etab_id])
+                    WHERE id_etablissement = %s AND id_pays = %s AND is_active = 1
+                """, [etab_id, etab.pays_id])
                 campus_ids = [r['idCampus'] for r in cur.fetchall()]
 
                 annee_id = annee_active.pk if annee_active else None
@@ -7497,7 +7508,7 @@ def dashboard_etablissement_view(request):
                 if campus_ids:
                     placeholders = ','.join(['%s'] * len(campus_ids))
                     annee_filter = ' AND ei.id_annee_id = %s' if annee_id else ''
-                    base_params = campus_ids + ([annee_id] if annee_id else [])
+                    base_params = campus_ids + [etab.pays_id] + ([annee_id] if annee_id else [])
 
                     # Total students + gender (filter via campus + annee)
                     cur.execute(f"""
@@ -7507,7 +7518,7 @@ def dashboard_etablissement_view(request):
                             SUM(CASE WHEN e.genre = 'F' THEN 1 ELSE 0 END) as filles
                         FROM eleve_inscription ei
                         JOIN eleve e ON e.id_eleve = ei.id_eleve_id
-                        WHERE ei.idCampus_id IN ({placeholders}) AND ei.status = 1{annee_filter}
+                        WHERE ei.idCampus_id IN ({placeholders}) AND ei.status = 1 AND ei.id_pays = %s{annee_filter}
                     """, base_params)
                     row = cur.fetchone()
                     if row:
@@ -7522,7 +7533,7 @@ def dashboard_etablissement_view(request):
                             COUNT(*) as nb
                         FROM eleve_inscription ei
                         JOIN eleve e ON e.id_eleve = ei.id_eleve_id
-                        WHERE ei.idCampus_id IN ({placeholders}) AND ei.status = 1{annee_filter}
+                        WHERE ei.idCampus_id IN ({placeholders}) AND ei.status = 1 AND ei.id_pays = %s{annee_filter}
                               AND e.date_naissance IS NOT NULL
                               AND e.date_naissance != '0000-00-00'
                         GROUP BY age
@@ -7554,7 +7565,7 @@ def dashboard_etablissement_view(request):
                         LEFT JOIN countryStructure.sections s ON s.id = eac.section_id AND s.id_pays = cl.id_pays
                         WHERE (eac.groupe COLLATE utf8mb4_general_ci <=> ei.groupe COLLATE utf8mb4_general_ci)
                           AND ei.section_id <=> s.id_section
-                          AND ei.idCampus_id IN ({placeholders}) AND ei.status = 1{annee_filter}
+                          AND ei.idCampus_id IN ({placeholders}) AND ei.status = 1 AND ei.id_pays = %s{annee_filter}
                         GROUP BY eac.id
                         ORDER BY cl.ordre, cl.nom, eac.groupe
                     """, base_params)
@@ -7571,7 +7582,7 @@ def dashboard_etablissement_view(request):
                             COUNT(*) as total
                         FROM eleve_inscription ei
                         JOIN campus c ON c.idCampus = ei.idCampus_id
-                        WHERE ei.idCampus_id IN ({placeholders}) AND ei.status = 1{annee_filter}
+                        WHERE ei.idCampus_id IN ({placeholders}) AND ei.status = 1 AND ei.id_pays = %s{annee_filter}
                         GROUP BY c.idCampus, c.campus
                         ORDER BY total DESC
                     """, base_params)
@@ -7584,8 +7595,8 @@ def dashboard_etablissement_view(request):
                     cur.execute(f"""
                         SELECT COUNT(DISTINCT user_id) as total
                         FROM user_enseignement
-                        WHERE id_etablissement = %s
-                    """, [etab_id])
+                        WHERE id_etablissement = %s AND id_pays = %s
+                    """, [etab_id, etab.pays_id])
                     row = cur.fetchone()
                     enseignants_count = int(row['total']) if row else 0
 
@@ -9124,7 +9135,7 @@ def get_evaluations_list(request):
             with conn.cursor() as cur:
                 # Build optional cours filter
                 cours_filter = ""
-                params = [bk['classe_id'], bk['groupe'], bk['section_id'], etab_id]
+                params = [bk['classe_id'], bk['groupe'], bk['section_id'], etab_id, etab.pays_id]
                 if cours_id:
                     cours_filter = "AND e.id_cours_classe_id = %s"
                     params.append(cours_id)
@@ -9144,7 +9155,7 @@ def get_evaluations_list(request):
                     LEFT JOIN countryStructure.cours_annee cann ON cann.id_cours_annee = e.id_cours_classe_id
                     LEFT JOIN countryStructure.cours ca ON ca.id = cann.cours_id
                     WHERE e.classe_id = %s AND e.groupe <=> %s AND e.section_id <=> %s
-                          AND e.id_etablissement = %s
+                          AND e.id_etablissement = %s AND e.id_pays = %s
                           {cours_filter}
                     ORDER BY ca.cours ASC, e.date_eval DESC, e.id_evaluation DESC
                 """, params)
@@ -9241,8 +9252,8 @@ def save_evaluation(request):
 
                 # Get campus_id
                 cur.execute("""
-                    SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1
-                """, [etab_id])
+                    SELECT idCampus FROM campus WHERE id_etablissement = %s AND id_pays = %s AND is_active=1 LIMIT 1
+                """, [etab_id, etab.pays_id])
                 campus_row = cur.fetchone()
                 campus_id = campus_row['idCampus'] if campus_row else None
 
@@ -9258,7 +9269,8 @@ def save_evaluation(request):
                         update_parts.append("document_url=%s")
                         params.append(document_url)
                     params.extend([int(eval_id), etab_id])
-                    cur.execute(f"UPDATE evaluation SET {', '.join(update_parts)} WHERE id_evaluation=%s AND id_etablissement=%s", params)
+                    params.append(etab.pays_id)
+                    cur.execute(f"UPDATE evaluation SET {', '.join(update_parts)} WHERE id_evaluation=%s AND id_etablissement=%s AND id_pays=%s", params)
                     new_id = int(eval_id)
 
                     # Sync evaluation_repartition when repartition changes
@@ -9350,7 +9362,7 @@ def delete_evaluation(request):
             etab_id = etab.id_etablissement
             with conn.cursor() as cur:
                 # Get document_url before deleting to remove file
-                cur.execute("SELECT document_url FROM evaluation WHERE id_evaluation=%s AND id_etablissement=%s", [eval_id, etab_id])
+                cur.execute("SELECT document_url FROM evaluation WHERE id_evaluation=%s AND id_etablissement=%s AND id_pays=%s", [eval_id, etab_id, etab.pays_id])
                 row = cur.fetchone()
                 if row and row['document_url']:
                     import os
@@ -9362,7 +9374,7 @@ def delete_evaluation(request):
                         except Exception:
                             pass
 
-                cur.execute("DELETE FROM evaluation WHERE id_evaluation=%s AND id_etablissement=%s", [eval_id, etab_id])
+                cur.execute("DELETE FROM evaluation WHERE id_evaluation=%s AND id_etablissement=%s AND id_pays=%s", [eval_id, etab_id, etab.pays_id])
             conn.commit()
             return JsonResponse({'success': True})
         finally:
@@ -9394,10 +9406,10 @@ def get_evaluation_candidates(request):
         if not bk:
             return JsonResponse({'success': False, 'error': 'Classe introuvable.'}, status=404)
 
-        # Get repartition config dates — resolve by business key
+        # Get repartition config — resolve by PK with pays_id validation
         ri_obj = RepartitionInstance.objects.filter(
-            id_instance=repartition_id, pays_id=etab.pays_id
-        ).first() or RepartitionInstance.objects.filter(pk=repartition_id).first()
+            pk=repartition_id, pays_id=etab.pays_id
+        ).first()
         config = RepartitionConfigEtabAnnee.objects.filter(
             repartition=ri_obj
         ).first() if ri_obj else None
@@ -9415,10 +9427,10 @@ def get_evaluation_candidates(request):
                         LEFT JOIN countryStructure.evaluation_types et ON et.id = e.id_type_eval
                         WHERE e.classe_id = %s AND e.groupe <=> %s AND e.section_id <=> %s
                               AND e.id_cours_classe_id = %s
-                              AND e.id_etablissement = %s
+                              AND e.id_etablissement = %s AND e.id_pays = %s
                               AND (e.date_eval BETWEEN %s AND %s OR e.id_repartition_instance = %s)
                         ORDER BY e.date_eval ASC
-                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], cours_id, etab_id,
+                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], cours_id, etab_id, etab.pays_id,
                           config.debut, config.fin, int(repartition_id)])
                 else:
                     cur.execute("""
@@ -9429,10 +9441,10 @@ def get_evaluation_candidates(request):
                         LEFT JOIN countryStructure.evaluation_types et ON et.id = e.id_type_eval
                         WHERE e.classe_id = %s AND e.groupe <=> %s AND e.section_id <=> %s
                               AND e.id_cours_classe_id = %s
-                              AND e.id_etablissement = %s
+                              AND e.id_etablissement = %s AND e.id_pays = %s
                               AND (e.id_repartition_instance = %s OR 1=1)
                         ORDER BY e.date_eval ASC
-                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], cours_id, etab_id,
+                    """, [bk['classe_id'], bk['groupe'], bk['section_id'], cours_id, etab_id, etab.pays_id,
                           int(repartition_id)])
 
                 candidates = [{
@@ -9454,8 +9466,10 @@ def get_evaluation_candidates(request):
                                 SELECT e.id_evaluation FROM evaluation e
                                 WHERE e.id_cours_classe_id = %s AND e.classe_id = %s
                                   AND e.groupe <=> %s AND e.section_id <=> %s
+                                  AND e.id_etablissement = %s AND e.id_pays = %s
                             )
-                    """, [config.id, cours_id, bk['classe_id'], bk['groupe'], bk['section_id']])
+                    """, [config.id, cours_id, bk['classe_id'], bk['groupe'], bk['section_id'],
+                          etab_id, etab.pays_id])
                     assigned = [{
                         'id_evaluation': r['id_evaluation'],
                         'pourcentage': float(r['pourcentage']) if r['pourcentage'] else None,
@@ -9498,8 +9512,8 @@ def assign_evaluations(request):
         if err: return err
 
         ri_obj = RepartitionInstance.objects.filter(
-            id_instance=repartition_id, pays_id=etab.pays_id
-        ).first() or RepartitionInstance.objects.filter(pk=repartition_id).first()
+            pk=repartition_id, pays_id=etab.pays_id
+        ).first()
         config = RepartitionConfigEtabAnnee.objects.filter(
             repartition=ri_obj
         ).first() if ri_obj else None
@@ -9516,7 +9530,9 @@ def assign_evaluations(request):
                     WHERE er.id_repartition_config = %s
                       AND e.id_cours_classe_id = %s
                       AND e.classe_id = %s AND e.groupe <=> %s AND e.section_id <=> %s
-                """, [config.id, cours_id, bk['classe_id'], bk['groupe'], bk['section_id']])
+                      AND e.id_etablissement = %s AND e.id_pays = %s
+                """, [config.id, cours_id, bk['classe_id'], bk['groupe'], bk['section_id'],
+                      etab_id, etab.pays_id])
 
                 # Insert new assignments
                 for a in assignments:
@@ -9547,27 +9563,17 @@ def _get_or_create_repartition_config(repartition_id, etab_id, pays_id=None):
     could return a config from a different establishment, causing config_id mismatches
     when reading notes back on the bulletin.
 
-    repartition_id: business key (id_instance) sent from frontend.
+    repartition_id: surrogate PK (repartition_instances.id) sent from frontend.
     etab_id: business key (id_etablissement) of the establishment.
-    pays_id: country id for scoping.
+    pays_id: country id for scoping — REQUIRED for multi-tenant safety.
     """
-    # Resolve RepartitionInstance: try by business key first, then by pk
-    ri = None
+    # Resolve RepartitionInstance by PK with pays_id validation
+    ri_qs = RepartitionInstance.objects.select_related('type').filter(pk=repartition_id)
     if pays_id:
-        ri = RepartitionInstance.objects.select_related('type').filter(
-            id_instance=repartition_id, pays_id=pays_id
-        ).first()
+        ri_qs = ri_qs.filter(pays_id=pays_id)
+    ri = ri_qs.first()
     if not ri:
-        # Fallback: try by pk (backward compat)
-        ri = RepartitionInstance.objects.select_related('type').filter(
-            pk=repartition_id
-        ).first()
-    if not ri:
-        # Last fallback: return any config matching repartition_id
-        config = RepartitionConfigEtabAnnee.objects.filter(
-            repartition_id=repartition_id
-        ).select_related('repartition', 'repartition__type').first()
-        return config
+        return None
 
     etab_annee = EtablissementAnnee.objects.filter(
         etablissement__id_etablissement=etab_id,
@@ -9646,8 +9652,8 @@ def _sync_notes_to_bulletin_inline(cur, eval_eleve_pairs, etab_id, pays_id):
                er.id_repartition_config AS cfg_id
         FROM evaluation ev
         JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
-        WHERE ev.id_evaluation IN ({ph_ev}) AND ev.id_etablissement = %s
-    """, u_eval_ids + [etab_id])
+        WHERE ev.id_evaluation IN ({ph_ev}) AND ev.id_etablissement = %s AND ev.id_pays = %s
+    """, u_eval_ids + [etab_id, pays_id])
     ev_rows = cur.fetchall()
     if not ev_rows:
         return 0
@@ -9727,8 +9733,8 @@ def _sync_notes_to_bulletin_inline(cur, eval_eleve_pairs, etab_id, pays_id):
             SELECT ev.id_evaluation, ev.ponderer_eval
             FROM evaluation ev
             JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
-            WHERE er.id_repartition_config = %s AND ev.id_cours_classe_id = %s AND ev.id_etablissement = %s
-        """, [cfg_id, ca_id, etab_id])
+            WHERE er.id_repartition_config = %s AND ev.id_cours_classe_id = %s AND ev.id_etablissement = %s AND ev.id_pays = %s
+        """, [cfg_id, ca_id, etab_id, pays_id])
         all_ev = cur.fetchall()
         if not all_ev:
             continue
@@ -9746,15 +9752,17 @@ def _sync_notes_to_bulletin_inline(cur, eval_eleve_pairs, etab_id, pays_id):
             cur.execute("""
                 SELECT 1 FROM note_bulletin
                 WHERE id_eleve_id=%s AND id_cours_annee=%s AND id_repartition_config=%s
-                  AND id_note_type=%s AND source_type='SAISIE_DIRECTE' LIMIT 1
-            """, [eid, ca_id, cfg_id, tj_nt_id])
+                  AND id_note_type=%s AND source_type='SAISIE_DIRECTE'
+                  AND id_etablissement=%s AND id_pays=%s LIMIT 1
+            """, [eid, ca_id, cfg_id, tj_nt_id, etab_id, pays_id])
             if cur.fetchone():
                 continue
 
             cur.execute(f"""
                 SELECT en.id_evaluation_id, en.note FROM eleve_note en
                 WHERE en.id_eleve_id = %s AND en.id_evaluation_id IN ({ph_ae})
-            """, [eid] + all_ev_ids)
+                  AND en.id_etablissement = %s AND en.id_pays = %s
+            """, [eid] + all_ev_ids + [etab_id, pays_id])
             raw = {r['id_evaluation_id']: float(r['note']) for r in cur.fetchall() if r['note'] is not None}
 
             n_ev = len(all_ev)
@@ -9827,7 +9835,7 @@ def get_notes_grid(request):
                 if not ctx:
                     return JsonResponse({'success': False, 'error': 'Classe non trouvée.'}, status=404)
 
-                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND id_pays = %s AND is_active=1 LIMIT 1", [etab_id, etab.pays_id])
                 campus_row = cur.fetchone()
                 campus_id = campus_row['idCampus'] if campus_row else None
 
@@ -9838,9 +9846,11 @@ def get_notes_grid(request):
                     JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                     WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
                       AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.id_etablissement = %s AND ei.id_pays = %s
                       AND ei.status = 1
                     ORDER BY e.nom, e.prenom
-                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'],
+                      etab_id, etab.pays_id])
                 eleves = cur.fetchall()
 
                 # 3. Get evaluations for this repartition (period)
@@ -9857,9 +9867,9 @@ def get_notes_grid(request):
                     LEFT JOIN countryStructure.cours ca ON ca.id = cann.cours_id
                     WHERE ev.id_repartition_instance = %s
                       AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
-                      AND ev.id_etablissement = %s
+                      AND ev.id_etablissement = %s AND ev.id_pays = %s
                     ORDER BY ev.id_cours_classe_id, ev.date_eval
-                """, [repartition_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id])
+                """, [repartition_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id, etab.pays_id])
                 evaluations = cur.fetchall()
 
                 # 4. Get existing notes for these evaluations + students
@@ -9871,7 +9881,8 @@ def get_notes_grid(request):
                         SELECT en.id_eleve_id, en.id_evaluation_id, en.note, en.id_note
                         FROM eleve_note en
                         WHERE en.id_evaluation_id IN ({placeholders})
-                    """, eval_ids)
+                          AND en.id_etablissement = %s AND en.id_pays = %s
+                    """, eval_ids + [etab_id, etab.pays_id])
                     for n in cur.fetchall():
                         key = f"{n['id_eleve_id']}_{n['id_evaluation_id']}"
                         notes[key] = {'note': float(n['note']) if n['note'] is not None else None, 'id_note': n['id_note']}
@@ -9978,7 +9989,7 @@ def save_notes(request):
                     if note_val is None or str(note_val).strip() == '':
                         # If existing note, delete it
                         if id_note:
-                            cur.execute("DELETE FROM eleve_note WHERE id_note = %s", [id_note])
+                            cur.execute("DELETE FROM eleve_note WHERE id_note = %s AND id_etablissement = %s AND id_pays = %s", [id_note, etab_id, etab.pays_id])
                         continue
 
                     try:
@@ -9988,7 +9999,7 @@ def save_notes(request):
 
                     if id_note:
                         # UPDATE existing
-                        cur.execute("UPDATE eleve_note SET note = %s WHERE id_note = %s", [note_float, id_note])
+                        cur.execute("UPDATE eleve_note SET note = %s WHERE id_note = %s AND id_pays = %s", [note_float, id_note, etab.pays_id])
                         _sync_pairs.append((eval_id, eleve_id))
                         updated += 1
                     else:
@@ -9996,8 +10007,9 @@ def save_notes(request):
                         cur.execute("""
                             SELECT id_note FROM eleve_note
                             WHERE id_eleve_id = %s AND id_evaluation_id = %s
+                              AND id_etablissement = %s AND id_pays = %s
                             LIMIT 1
-                        """, [eleve_id, eval_id])
+                        """, [eleve_id, eval_id, etab_id, etab.pays_id])
                         existing = cur.fetchone()
                         if existing:
                             cur.execute("UPDATE eleve_note SET note = %s WHERE id_note = %s",
@@ -10010,8 +10022,8 @@ def save_notes(request):
                                 SELECT id_annee_id, idCampus_id, classe_id, groupe, section_id,
                                        id_cours_classe_id, id_classe_id, id_cycle_id,
                                        id_repartition_instance, id_session_id, id_type_eval
-                                FROM evaluation WHERE id_evaluation = %s
-                            """, [eval_id])
+                                FROM evaluation WHERE id_evaluation = %s AND id_pays = %s
+                            """, [eval_id, etab.pays_id])
                             ev_ctx = cur.fetchone()
                             if not ev_ctx:
                                 continue
@@ -10117,7 +10129,7 @@ def download_notes_template(request):
                 """, [classe_id])
                 ctx = cur.fetchone()
 
-                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND id_pays = %s AND is_active=1 LIMIT 1", [etab_id, etab.pays_id])
                 campus_row = cur.fetchone()
                 campus_id = campus_row['idCampus'] if campus_row else None
 
@@ -10128,9 +10140,11 @@ def download_notes_template(request):
                     JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                     WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
                       AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.id_etablissement = %s AND ei.id_pays = %s
                       AND ei.status = 1
                     ORDER BY e.nom, e.prenom
-                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'],
+                      etab_id, etab.pays_id])
                 eleves = cur.fetchall()
 
                 # Get evaluations for this period
@@ -10142,9 +10156,9 @@ def download_notes_template(request):
                     LEFT JOIN countryStructure.cours ca ON ca.id = cann.cours_id
                     WHERE ev.id_repartition_instance = %s
                       AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
-                      AND ev.id_etablissement = %s
+                      AND ev.id_etablissement = %s AND ev.id_pays = %s
                 """
-                eval_params = [repartition_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id]
+                eval_params = [repartition_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id, etab.pays_id]
 
                 # Apply optional cours filter
                 if cours_id_filter:
@@ -10172,7 +10186,8 @@ def download_notes_template(request):
                         FROM eleve_note en
                         WHERE en.id_evaluation_id IN ({placeholders_ev})
                           AND en.id_eleve_id IN ({placeholders_el})
-                    """, eval_ids + eleve_ids)
+                          AND en.id_etablissement = %s AND en.id_pays = %s
+                    """, eval_ids + eleve_ids + [etab_id, etab.pays_id])
                     for n in cur.fetchall():
                         key = f"{n['id_eleve_id']}_{n['id_evaluation_id']}"
                         existing_notes[key] = float(n['note']) if n['note'] is not None else None
@@ -10359,8 +10374,9 @@ def import_notes_excel(request):
                 for nd in notes_to_save:
                     cur.execute("""
                         SELECT id_note FROM eleve_note
-                        WHERE id_eleve_id = %s AND id_evaluation_id = %s LIMIT 1
-                    """, [nd['eleve_id'], nd['evaluation_id']])
+                        WHERE id_eleve_id = %s AND id_evaluation_id = %s
+                          AND id_etablissement = %s AND id_pays = %s LIMIT 1
+                    """, [nd['eleve_id'], nd['evaluation_id'], etab_id, etab.pays_id])
                     existing = cur.fetchone()
 
                     if existing:
@@ -10371,8 +10387,8 @@ def import_notes_excel(request):
                             SELECT id_annee_id, idCampus_id, classe_id, groupe, section_id,
                                    id_cours_classe_id, id_classe_id, id_cycle_id,
                                    id_repartition_instance, id_session_id, id_type_eval
-                            FROM evaluation WHERE id_evaluation = %s
-                        """, [nd['evaluation_id']])
+                            FROM evaluation WHERE id_evaluation = %s AND id_etablissement = %s AND id_pays = %s
+                        """, [nd['evaluation_id'], etab_id, etab.pays_id])
                         ev_ctx = cur.fetchone()
                         if not ev_ctx:
                             continue
@@ -10636,7 +10652,7 @@ def calculate_period_batch(request):
                 if not ctx:
                     return JsonResponse({'success': False, 'error': 'Classe non trouvée.'}, status=404)
 
-                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND id_pays = %s AND is_active=1 LIMIT 1", [etab_id, etab.pays_id])
                 campus_row = cur.fetchone()
                 campus_id = campus_row['idCampus'] if campus_row else None
 
@@ -10645,8 +10661,10 @@ def calculate_period_batch(request):
                     SELECT DISTINCT e.id_eleve
                     FROM eleve_inscription ei JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                     WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
-                      AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s AND ei.status = 1
-                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
+                      AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.id_etablissement = %s AND ei.id_pays = %s AND ei.status = 1
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'],
+                      etab_id, etab.pays_id])
                 eleve_ids = [r['id_eleve'] for r in cur.fetchall()]
                 if not eleve_ids:
                     return JsonResponse({'success': False, 'error': 'Aucun élève.'}, status=404)
@@ -10818,9 +10836,9 @@ def calculate_period_batch(request):
                             JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
                             WHERE er.id_repartition_config = %s
                               AND ev.id_cours_classe_id = %s
-                              AND ev.id_etablissement = %s
+                              AND ev.id_etablissement = %s AND ev.id_pays = %s
                             ORDER BY ev.id_evaluation
-                        """, [cfg_id, cours_id, etab_id])
+                        """, [cfg_id, cours_id, etab_id, etab.pays_id])
                         db_evals = cur.fetchall()
                         if not db_evals:
                             continue
@@ -10854,7 +10872,8 @@ def calculate_period_batch(request):
                                 SELECT en.id_evaluation_id, en.note
                                 FROM eleve_note en
                                 WHERE en.id_eleve_id = %s AND en.id_evaluation_id IN ({placeholders})
-                            """, [eleve_id] + eval_ids)
+                                  AND en.id_etablissement = %s AND en.id_pays = %s
+                            """, [eleve_id] + eval_ids + [etab_id, etab.pays_id])
                             raw_notes = {r['id_evaluation_id']: float(r['note']) if r['note'] is not None else None
                                          for r in cur.fetchall()}
 
@@ -11020,7 +11039,7 @@ def calculate_period_notes(request):
                 if not ctx:
                     return JsonResponse({'success': False, 'error': 'Classe non trouvée.'}, status=404)
 
-                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND id_pays = %s AND is_active=1 LIMIT 1", [etab_id, etab.pays_id])
                 campus_row = cur.fetchone()
                 campus_id = campus_row['idCampus'] if campus_row else None
 
@@ -11029,8 +11048,10 @@ def calculate_period_notes(request):
                     SELECT DISTINCT e.id_eleve
                     FROM eleve_inscription ei JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                     WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
-                      AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s AND ei.status = 1
-                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
+                      AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.id_etablissement = %s AND ei.id_pays = %s AND ei.status = 1
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'],
+                      etab_id, etab.pays_id])
                 eleve_ids = [r['id_eleve'] for r in cur.fetchall()]
                 if not eleve_ids:
                     return JsonResponse({'success': False, 'error': 'Aucun élève.'}, status=404)
@@ -11042,9 +11063,9 @@ def calculate_period_notes(request):
                     JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
                     WHERE er.id_repartition_config = %s
                       AND ev.id_cours_classe_id = %s
-                      AND ev.id_etablissement = %s
+                      AND ev.id_etablissement = %s AND ev.id_pays = %s
                     ORDER BY ev.id_evaluation
-                """, [config_id, cours_id, etab_id])
+                """, [config_id, cours_id, etab_id, etab.pays_id])
                 db_evals = cur.fetchall()
                 if not db_evals:
                     return JsonResponse({'success': False, 'error': 'Aucune évaluation trouvée.'}, status=404)
@@ -11182,7 +11203,8 @@ def calculate_period_notes(request):
                         SELECT en.id_evaluation_id, en.note
                         FROM eleve_note en
                         WHERE en.id_eleve_id = %s AND en.id_evaluation_id IN ({placeholders})
-                    """, [eleve_id] + eval_ids)
+                          AND en.id_etablissement = %s AND en.id_pays = %s
+                    """, [eleve_id] + eval_ids + [etab_id, etab.pays_id])
                     raw_notes = {r['id_evaluation_id']: float(r['note']) if r['note'] is not None else None for r in cur.fetchall()}
 
                     # Weighted calculation
@@ -11254,7 +11276,8 @@ def calculate_period_notes(request):
                                     WHERE nb.id_eleve_id = %s AND nb.id_cours_annee = %s
                                       AND nb.id_note_type = %s
                                       AND nb.id_repartition_config IN ({ch_ph})
-                                """, [eleve_id, cours_id, tj_nt_id] + child_configs)
+                                      AND nb.id_etablissement = %s AND nb.id_pays = %s
+                                """, [eleve_id, cours_id, tj_nt_id] + child_configs + [etab_id, etab.pays_id])
                                 row = cur.fetchone()
                                 raw_total = float(row['total']) if row and row['total'] else None
                                 raw_max = float(row['total_max']) if row and row['total_max'] else None
@@ -11285,7 +11308,8 @@ def calculate_period_notes(request):
                                         WHERE nb.id_eleve_id = %s AND nb.id_cours_annee = %s
                                           AND nb.id_repartition_config = %s
                                           AND nb.id_note_type != %s
-                                    """, [eleve_id, cours_id, pc_id, parent_tot_info['nt_id']])
+                                          AND nb.id_etablissement = %s AND nb.id_pays = %s
+                                    """, [eleve_id, cours_id, pc_id, parent_tot_info['nt_id'], etab_id, etab.pays_id])
                                     trow = cur.fetchone()
                                     t_note = round(float(trow['total']), 2) if trow and trow['total'] else None
                                     t_max = int(trow['total_max']) if trow and trow['total_max'] else parent_tot_info['max']
@@ -11398,7 +11422,7 @@ def calculate_notes_bulletin(request):
                 if not ctx:
                     return JsonResponse({'success': False, 'error': 'Classe non trouvée.'}, status=404)
 
-                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND id_pays = %s AND is_active=1 LIMIT 1", [etab_id, etab.pays_id])
                 campus_row = cur.fetchone()
                 campus_id = campus_row['idCampus'] if campus_row else None
 
@@ -11409,8 +11433,10 @@ def calculate_notes_bulletin(request):
                     JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                     WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
                       AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.id_etablissement = %s AND ei.id_pays = %s
                       AND ei.status = 1
-                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'],
+                      etab_id, etab.pays_id])
                 eleve_ids = [r['id_eleve'] for r in cur.fetchall()]
 
                 if not eleve_ids:
@@ -11477,8 +11503,8 @@ def calculate_notes_bulletin(request):
                                 WHERE er.id_repartition_config = %s
                                   AND ev.id_cours_classe_id = %s
                                   AND ev.classe_id = %s AND ev.groupe <=> %s AND ev.section_id <=> %s
-                                  AND ev.id_etablissement = %s
-                            """, [config.id, cours_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id])
+                                  AND ev.id_etablissement = %s AND ev.id_pays = %s
+                            """, [config.id, cours_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'], etab_id, etab.pays_id])
                             evals = cur.fetchall()
 
                             if not evals:
@@ -11500,7 +11526,8 @@ def calculate_notes_bulletin(request):
                                     WHERE id_eleve_id = %s AND id_cours_annee = %s
                                       AND id_repartition_config = %s AND id_note_type = %s
                                       AND source_type = 'SAISIE_DIRECTE'
-                                """, [eleve_id, cours_id, config.id, nt_id])
+                                      AND id_etablissement = %s AND id_pays = %s
+                                """, [eleve_id, cours_id, config.id, nt_id, etab_id, etab.pays_id])
                                 if cur.fetchone():
                                     continue  # Manually entered — preserve it
 
@@ -11509,7 +11536,8 @@ def calculate_notes_bulletin(request):
                                     FROM eleve_note en
                                     WHERE en.id_eleve_id = %s
                                       AND en.id_evaluation_id IN ({placeholders})
-                                """, [eleve_id] + eval_ids)
+                                      AND en.id_etablissement = %s AND en.id_pays = %s
+                                """, [eleve_id] + eval_ids + [etab_id, etab.pays_id])
                                 row = cur.fetchone()
                                 raw_total = float(row['total_note']) if row else 0
 
@@ -11586,7 +11614,8 @@ def calculate_notes_bulletin(request):
                                     WHERE nb.id_eleve_id = %s AND nb.id_cours_annee = %s
                                       AND nb.id_note_type = %s
                                       AND nb.id_repartition_config IN ({child_placeholders})
-                                """, [eleve_id, cours_id, nt_id] + child_configs)
+                                      AND nb.id_etablissement = %s AND nb.id_pays = %s
+                                """, [eleve_id, cours_id, nt_id] + child_configs + [etab_id, etab.pays_id])
                                 row = cur.fetchone()
                                 raw_total = float(row['total']) if row and row['total'] else None
                                 raw_max = float(row['total_max']) if row and row['total_max'] else None
@@ -11629,7 +11658,8 @@ def calculate_notes_bulletin(request):
                                     WHERE nb.id_eleve_id = %s AND nb.id_cours_annee = %s
                                       AND nb.id_repartition_config = %s
                                       AND nb.id_note_type IN ({other_placeholders})
-                                """, [eleve_id, cours_id, config.id] + other_nt_ids)
+                                      AND nb.id_etablissement = %s AND nb.id_pays = %s
+                                """, [eleve_id, cours_id, config.id] + other_nt_ids + [etab_id, etab.pays_id])
                                 row = cur.fetchone()
                                 note_val = round(float(row['total']), 2) if row and row['total'] else None
                                 total_max_val = int(row['total_max']) if row and row['total_max'] else default_max
@@ -11709,7 +11739,7 @@ def sync_all_notes_bulletin(request):
                 if not ctx:
                     return JsonResponse({'success': False, 'error': 'Classe non trouvée.'}, status=404)
 
-                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND id_pays = %s AND is_active=1 LIMIT 1", [etab_id, etab.pays_id])
                 campus_row = cur.fetchone()
                 campus_id = campus_row['idCampus'] if campus_row else None
 
@@ -11718,8 +11748,10 @@ def sync_all_notes_bulletin(request):
                     SELECT DISTINCT e.id_eleve
                     FROM eleve_inscription ei JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                     WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
-                      AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s AND ei.status = 1
-                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
+                      AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.id_etablissement = %s AND ei.id_pays = %s AND ei.status = 1
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'],
+                      etab_id, etab.pays_id])
                 eleve_ids = [r['id_eleve'] for r in cur.fetchall()]
                 if not eleve_ids:
                     return JsonResponse({'success': False, 'error': 'Aucun élève inscrit.'}, status=404)
@@ -11871,8 +11903,8 @@ def sync_all_notes_bulletin(request):
                                 JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
                                 WHERE er.id_repartition_config = %s
                                   AND ev.id_cours_classe_id = %s
-                                  AND ev.id_etablissement = %s
-                            """, [config_id, cours_id, etab_id])
+                                  AND ev.id_etablissement = %s AND ev.id_pays = %s
+                            """, [config_id, cours_id, etab_id, etab.pays_id])
                             evals = cur.fetchall()
                             if not evals:
                                 continue
@@ -11887,7 +11919,8 @@ def sync_all_notes_bulletin(request):
                                     WHERE id_eleve_id=%s AND id_cours_annee=%s
                                       AND id_repartition_config=%s AND id_note_type=%s
                                       AND source_type='SAISIE_DIRECTE'
-                                """, [eleve_id, cours_id, config_id, tj_nt_id])
+                                      AND id_etablissement=%s AND id_pays=%s
+                                """, [eleve_id, cours_id, config_id, tj_nt_id, etab_id, etab.pays_id])
                                 if cur.fetchone():
                                     continue
 
@@ -11897,7 +11930,8 @@ def sync_all_notes_bulletin(request):
                                     FROM eleve_note en
                                     WHERE en.id_eleve_id = %s
                                       AND en.id_evaluation_id IN ({placeholders})
-                                """, [eleve_id] + eval_ids)
+                                      AND en.id_etablissement = %s AND en.id_pays = %s
+                                """, [eleve_id] + eval_ids + [etab_id, etab.pays_id])
                                 raw_notes = {r['id_evaluation_id']: float(r['note']) if r['note'] is not None else None
                                              for r in cur.fetchall()}
 
@@ -11974,8 +12008,8 @@ def sync_all_notes_bulletin(request):
                                 JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
                                 WHERE er.id_repartition_config = %s
                                   AND ev.id_cours_classe_id = %s
-                                  AND ev.id_etablissement = %s
-                            """, [config_id, cours_id, etab_id])
+                                  AND ev.id_etablissement = %s AND ev.id_pays = %s
+                            """, [config_id, cours_id, etab_id, etab.pays_id])
                             evals = cur.fetchall()
 
                             if not evals:
@@ -11994,7 +12028,8 @@ def sync_all_notes_bulletin(request):
                                     WHERE id_eleve_id = %s AND id_cours_annee = %s
                                       AND id_repartition_config = %s AND id_note_type = %s
                                       AND source_type = 'SAISIE_DIRECTE'
-                                """, [eleve_id, cours_id, config_id, tj_nt_id])
+                                      AND id_etablissement = %s AND id_pays = %s
+                                """, [eleve_id, cours_id, config_id, tj_nt_id, etab_id, etab.pays_id])
                                 if cur.fetchone():
                                     continue
 
@@ -12004,7 +12039,8 @@ def sync_all_notes_bulletin(request):
                                     FROM eleve_note en
                                     WHERE en.id_eleve_id = %s
                                       AND en.id_evaluation_id IN ({placeholders})
-                                """, [eleve_id] + eval_ids)
+                                      AND en.id_etablissement = %s AND en.id_pays = %s
+                                """, [eleve_id] + eval_ids + [etab_id, etab.pays_id])
                                 raw_notes = {r['id_evaluation_id']: float(r['note']) if r['note'] is not None else None
                                              for r in cur.fetchall()}
 
@@ -12083,7 +12119,8 @@ def sync_all_notes_bulletin(request):
                                     WHERE nb.id_eleve_id = %s AND nb.id_cours_annee = %s
                                       AND nb.id_note_type = %s
                                       AND nb.id_repartition_config IN ({ch_ph})
-                                """, [eleve_id, cours_id, child_tj_nt_id] + child_cfg_ids)
+                                      AND nb.id_etablissement = %s AND nb.id_pays = %s
+                                """, [eleve_id, cours_id, child_tj_nt_id] + child_cfg_ids + [etab_id, etab.pays_id])
                                 row = cur.fetchone()
                                 raw_total = float(row['total']) if row and row['total'] else None
                                 raw_max = float(row['total_max']) if row and row['total_max'] else None
@@ -12122,7 +12159,8 @@ def sync_all_notes_bulletin(request):
                                         WHERE nb.id_eleve_id = %s AND nb.id_cours_annee = %s
                                           AND nb.id_repartition_config = %s
                                           AND nb.id_note_type IN ({other_ph})
-                                    """, [eleve_id, cours_id, config_id] + other_nt_ids)
+                                          AND nb.id_etablissement = %s AND nb.id_pays = %s
+                                    """, [eleve_id, cours_id, config_id] + other_nt_ids + [etab_id, etab.pays_id])
                                     row = cur.fetchone()
                                     note_val = round(float(row['total']), 2) if row and row['total'] else None
                                     total_max_val = int(row['total_max']) if row and row['total_max'] else (tot_nt['ponderation_max'] or 40)
@@ -12286,7 +12324,7 @@ def mass_import_template(request):
                 if not ctx:
                     return JsonResponse({'success': False, 'error': 'Classe non trouvée.'}, status=404)
 
-                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND id_pays = %s AND is_active=1 LIMIT 1", [etab_id, etab.pays_id])
                 campus_row = cur.fetchone()
                 campus_id = campus_row['idCampus'] if campus_row else None
 
@@ -12416,7 +12454,8 @@ def mass_import_template(request):
                                        COUNT(en.id_note) AS cnt
                                 FROM eleve_note en
                                 WHERE en.id_eleve_id = %s AND en.id_evaluation_id IN ({ph})
-                            """, [el['id_eleve']] + eval_ids)
+                                  AND en.id_etablissement = %s AND en.id_pays = %s
+                            """, [el['id_eleve']] + eval_ids + [etab_id, etab.pays_id])
                             row = cur.fetchone()
                             if row and row['cnt'] and row['cnt'] > 0:
                                 existing_notes[f"{el['id_eleve']}_{rep_id}_period"] = float(row['total'])
@@ -12743,8 +12782,8 @@ def mass_import_notes(request):
                 bk = _resolve_eac_keys(cur, classe_id)
 
                 cur.execute("""
-                    SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1
-                """, [etab_id])
+                    SELECT idCampus FROM campus WHERE id_etablissement = %s AND id_pays = %s AND is_active=1 LIMIT 1
+                """, [etab_id, etab.pays_id])
                 campus_row = cur.fetchone()
                 campus_id = campus_row['idCampus'] if campus_row else None
 
@@ -12860,8 +12899,9 @@ def mass_import_notes(request):
                             cur.execute("""
                                 SELECT id_note FROM eleve_note
                                 WHERE id_eleve_id = %s AND id_evaluation_id = %s
+                                  AND id_etablissement = %s AND id_pays = %s
                                 LIMIT 1
-                            """, [eleve_id, eval_id])
+                            """, [eleve_id, eval_id, etab_id, etab.pays_id])
                             existing_note = cur.fetchone()
 
                             if existing_note:
@@ -13053,7 +13093,7 @@ def get_exam_grid(request):
                 if not ctx:
                     return JsonResponse({'success': False, 'error': 'Classe non trouvée.'}, status=404)
 
-                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND id_pays = %s AND is_active=1 LIMIT 1", [etab_id, etab.pays_id])
                 campus_row = cur.fetchone()
                 campus_id = campus_row['idCampus'] if campus_row else None
 
@@ -13064,9 +13104,11 @@ def get_exam_grid(request):
                     JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                     WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
                       AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.id_etablissement = %s AND ei.id_pays = %s
                       AND ei.status = 1
                     ORDER BY e.nom, e.prenom
-                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'],
+                      etab_id, etab.pays_id])
                 eleves = cur.fetchall()
 
                 # 3. Get cours for this class with maxima_exam
@@ -13095,8 +13137,8 @@ def get_exam_grid(request):
                         WHERE nb.id_repartition_config = %s
                           AND nb.id_note_type = %s
                           AND nb.id_cours_annee IN ({placeholders})
-                          AND nb.id_etablissement = %s
-                    """, [config.id, ex_note_type_id] + cours_ids + [etab_id])
+                          AND nb.id_etablissement = %s AND nb.id_pays = %s
+                    """, [config.id, ex_note_type_id] + cours_ids + [etab_id, etab.pays_id])
                     for n in cur.fetchall():
                         key = f"{n['id_eleve_id']}_{n['id_cours_annee']}"
                         notes[key] = float(n['note']) if n['note'] is not None else None
@@ -13202,7 +13244,8 @@ def save_exam_notes(request):
                             DELETE FROM note_bulletin
                             WHERE id_eleve_id = %s AND id_cours_annee = %s
                               AND id_repartition_config = %s AND id_note_type = %s
-                        """, [eleve_id, cours_annee_id, config.id, ex_nt_id])
+                              AND id_etablissement = %s AND id_pays = %s
+                        """, [eleve_id, cours_annee_id, config.id, ex_nt_id, etab_id, etab.pays_id])
                         continue
 
                     try:
@@ -13301,7 +13344,7 @@ def download_exam_template(request):
                 """, [classe_id])
                 ctx = cur.fetchone()
 
-                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND id_pays = %s AND is_active=1 LIMIT 1", [etab_id, etab.pays_id])
                 campus_row = cur.fetchone()
                 campus_id = campus_row['idCampus'] if campus_row else None
 
@@ -13312,9 +13355,11 @@ def download_exam_template(request):
                     JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                     WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
                       AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.id_etablissement = %s AND ei.id_pays = %s
                       AND ei.status = 1
                     ORDER BY e.nom, e.prenom
-                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'],
+                      etab_id, etab.pays_id])
                 eleves = cur.fetchall()
 
                 # Courses with maxima_exam
@@ -13346,8 +13391,8 @@ def download_exam_template(request):
                               AND nb.id_note_type = %s
                               AND nb.id_cours_annee IN ({ph_c})
                               AND nb.id_eleve_id IN ({ph_e})
-                              AND nb.id_etablissement = %s
-                        """, [config.id, ex_note_type_id] + cours_ids + eleve_ids + [etab_id])
+                              AND nb.id_etablissement = %s AND nb.id_pays = %s
+                        """, [config.id, ex_note_type_id] + cours_ids + eleve_ids + [etab_id, etab.pays_id])
                         for n in cur.fetchall():
                             key = f"{n['id_eleve_id']}_{n['id_cours_annee']}"
                             existing_notes[key] = float(n['note']) if n['note'] is not None else None
@@ -13614,7 +13659,7 @@ def get_bulletin_overview(request):
                 if not ctx:
                     return JsonResponse({'success': False, 'error': 'Contexte classe introuvable.'})
 
-                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND id_pays = %s AND is_active=1 LIMIT 1", [etab_id, etab.pays_id])
                 campus_row = cur.fetchone()
                 campus_id = campus_row['idCampus'] if campus_row else None
 
@@ -13625,9 +13670,10 @@ def get_bulletin_overview(request):
                     JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                     WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
                       AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
-                      AND ei.status = 1
+                      AND ei.id_etablissement = %s AND ei.id_pays = %s AND ei.status = 1
                     ORDER BY e.nom, e.prenom
-                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'],
+                      etab_id, etab.pays_id])
                 eleves = [dict(r) for r in cur.fetchall()]
 
                 # Courses
@@ -13654,8 +13700,8 @@ def get_bulletin_overview(request):
                         SELECT nb.id_eleve_id, nb.id_cours_annee, nb.id_repartition_config,
                                nb.id_note_type, nb.note, nb.maxima
                         FROM note_bulletin nb
-                        WHERE nb.id_repartition_config IN ({ph}) AND nb.id_etablissement = %s
-                    """, config_ids + [etab_id])
+                        WHERE nb.id_repartition_config IN ({ph}) AND nb.id_etablissement = %s AND nb.id_pays = %s
+                    """, config_ids + [etab_id, etab.pays_id])
                     for n in cur.fetchall():
                         key = f"{n['id_eleve_id']}_{n['id_cours_annee']}_{n['id_repartition_config']}_{n['id_note_type']}"
                         notes[key] = {
@@ -13677,10 +13723,10 @@ def get_bulletin_overview(request):
                         FROM evaluation ev
                         JOIN evaluation_repartition er ON er.id_evaluation = ev.id_evaluation
                         WHERE er.id_repartition_config IN ({ph2})
-                          AND ev.id_etablissement = %s
+                          AND ev.id_etablissement = %s AND ev.id_pays = %s
                           AND ev.id_cours_classe_id IN ({ph_cours})
                         ORDER BY ev.id_evaluation
-                    """, config_ids + [etab_id] + cours_ids_list)
+                    """, config_ids + [etab_id, etab.pays_id] + cours_ids_list)
                     for ev in cur.fetchall():
                         evaluations.append({
                             'id': ev['id_evaluation'],
@@ -13699,7 +13745,8 @@ def get_bulletin_overview(request):
                         SELECT en.id_eleve_id, en.id_evaluation_id, en.note
                         FROM eleve_note en
                         WHERE en.id_evaluation_id IN ({ph3})
-                    """, eval_ids_all)
+                          AND en.id_etablissement = %s AND en.id_pays = %s
+                    """, eval_ids_all + [etab_id, etab.pays_id])
                     for rn in cur.fetchall():
                         key = f"{rn['id_eleve_id']}_{rn['id_evaluation_id']}"
                         raw_notes[key] = float(rn['note']) if rn['note'] is not None else None
@@ -13799,7 +13846,7 @@ def get_notes_bulletin(request):
                 """, [classe_id])
                 ctx = cur.fetchone()
 
-                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND is_active=1 LIMIT 1", [etab_id])
+                cur.execute("SELECT idCampus FROM campus WHERE id_etablissement = %s AND id_pays = %s AND is_active=1 LIMIT 1", [etab_id, etab.pays_id])
                 campus_row = cur.fetchone()
                 campus_id = campus_row['idCampus'] if campus_row else None
 
@@ -13809,9 +13856,11 @@ def get_notes_bulletin(request):
                     JOIN eleve e ON e.id_eleve = ei.id_eleve_id
                     WHERE ei.id_annee_id = %s AND ei.idCampus_id = %s
                       AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
+                      AND ei.id_etablissement = %s AND ei.id_pays = %s
                       AND ei.status = 1
                     ORDER BY e.nom, e.prenom
-                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section']])
+                """, [ctx['id_annee'], campus_id, ctx['bk_classe'], ctx['bk_groupe'], ctx['bk_section'],
+                      etab_id, etab.pays_id])
                 eleves = cur.fetchall()
 
                 # Get cours (with maxima_exam) — filtered by classe
@@ -13834,9 +13883,9 @@ def get_notes_bulletin(request):
                     SELECT nb.id_eleve_id, nb.id_cours_annee, nb.id_note_type,
                            nb.note, nb.maxima, nb.source_type, nb.date_calcul
                     FROM note_bulletin nb
-                    WHERE nb.id_repartition_config = %s AND nb.id_etablissement = %s
+                    WHERE nb.id_repartition_config = %s AND nb.id_etablissement = %s AND nb.id_pays = %s
                     ORDER BY nb.id_note_bulletin ASC
-                """, [config.id, etab_id])
+                """, [config.id, etab_id, etab.pays_id])
                 notes_raw = cur.fetchall()
 
                 # Build notes dict: key = "eleve_cours_notetype"
@@ -14951,8 +15000,9 @@ def document_types_api(request):
         try:
             if request.method == 'GET':
                 id_etablissement = request.GET.get('id_etablissement')
+                id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
                 with conn.cursor() as cur:
-                    cur.execute("SELECT * FROM document_type WHERE id_etablissement=%s ORDER BY nom", [id_etablissement])
+                    cur.execute("SELECT * FROM document_type WHERE id_etablissement=%s AND id_pays=%s ORDER BY nom", [id_etablissement, id_pays])
                     rows = cur.fetchall()
                 return JsonResponse({'success': True, 'types': [
                     {'id': r['id'], 'nom': r['nom'], 'description': r.get('description') or '',
@@ -14967,8 +15017,9 @@ def document_types_api(request):
                     return JsonResponse({'success': False, 'error': 'Nom requis'}, status=400)
                 with conn.cursor() as cur:
                     cur.execute(
-                        "INSERT INTO document_type (nom, description, isObligatoire, id_etablissement) VALUES (%s,%s,%s,%s)",
-                        [nom, data.get('description', ''), int(data.get('isObligatoire', 0)), data.get('id_etablissement')]
+                        "INSERT INTO document_type (nom, description, isObligatoire, id_etablissement, id_pays) VALUES (%s,%s,%s,%s,%s)",
+                        [nom, data.get('description', ''), int(data.get('isObligatoire', 0)), data.get('id_etablissement'),
+                         getattr(request, 'id_pays', None) or request.session.get('id_pays')]
                     )
                     conn.commit()
                 return JsonResponse({'success': True, 'id': cur.lastrowid})
@@ -14980,8 +15031,9 @@ def document_types_api(request):
                     # Also delete associated student documents
                     id_etablissement = data.get('id_etablissement')
                     if id_etablissement:
-                        cur.execute("DELETE FROM document_eleve WHERE id_document_type=%s AND id_etablissement=%s", [doc_id, id_etablissement])
-                        cur.execute("DELETE FROM document_type WHERE id=%s AND id_etablissement=%s", [doc_id, id_etablissement])
+                        _del_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
+                        cur.execute("DELETE FROM document_eleve WHERE id_document_type=%s AND id_etablissement=%s AND id_pays=%s", [doc_id, id_etablissement, _del_pays])
+                        cur.execute("DELETE FROM document_type WHERE id=%s AND id_etablissement=%s AND id_pays=%s", [doc_id, id_etablissement, _del_pays])
                     else:
                         cur.execute("DELETE FROM document_eleve WHERE id_document_type=%s", [doc_id])
                         cur.execute("DELETE FROM document_type WHERE id=%s", [doc_id])
@@ -15008,9 +15060,10 @@ def eleve_documents_api(request):
                 id_eleve = request.GET.get('id_eleve')
                 id_etablissement = request.GET.get('id_etablissement')
                 with conn.cursor() as cur:
+                    id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
                     cur.execute(
-                        "SELECT * FROM document_eleve WHERE id_eleve=%s AND id_etablissement=%s",
-                        [id_eleve, id_etablissement]
+                        "SELECT * FROM document_eleve WHERE id_eleve=%s AND id_etablissement=%s AND id_pays=%s",
+                        [id_eleve, id_etablissement, id_pays]
                     )
                     rows = cur.fetchall()
                 return JsonResponse({'success': True, 'documents': [
@@ -15057,11 +15110,12 @@ def eleve_documents_api(request):
 
                 with conn.cursor() as cur:
                     # Upsert: delete old then insert
-                    cur.execute("DELETE FROM document_eleve WHERE id_eleve=%s AND id_document_type=%s AND id_etablissement=%s",
-                                [id_eleve, id_document_type, id_etablissement])
+                    _doc_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
+                    cur.execute("DELETE FROM document_eleve WHERE id_eleve=%s AND id_document_type=%s AND id_etablissement=%s AND id_pays=%s",
+                                [id_eleve, id_document_type, id_etablissement, _doc_pays])
                     cur.execute(
-                        "INSERT INTO document_eleve (id_eleve, id_document_type, file_url, date_upload, id_etablissement) VALUES (%s,%s,%s,%s,%s)",
-                        [id_eleve, id_document_type, file_url, today, id_etablissement]
+                        "INSERT INTO document_eleve (id_eleve, id_document_type, file_url, date_upload, id_etablissement, id_pays) VALUES (%s,%s,%s,%s,%s,%s)",
+                        [id_eleve, id_document_type, file_url, today, id_etablissement, _doc_pays]
                     )
                     conn.commit()
                 return JsonResponse({'success': True, 'file_url': file_url})
@@ -15073,7 +15127,7 @@ def eleve_documents_api(request):
                     # Get file path to delete physical file
                     id_etablissement = data.get('id_etablissement')
                     id_pays = getattr(request, 'id_pays', None) or request.session.get('id_pays')
-                    cur.execute("SELECT file_url FROM document_eleve WHERE id=%s AND id_etablissement=%s", [doc_id, id_etablissement])
+                    cur.execute("SELECT file_url FROM document_eleve WHERE id=%s AND id_etablissement=%s AND id_pays=%s", [doc_id, id_etablissement, id_pays])
                     row = cur.fetchone()
                     if row and row.get('file_url'):
                         import os
@@ -15084,7 +15138,7 @@ def eleve_documents_api(request):
                                 os.remove(filepath)
                             except Exception:
                                 pass
-                    cur.execute("DELETE FROM document_eleve WHERE id=%s AND id_etablissement=%s", [doc_id, id_etablissement])
+                    cur.execute("DELETE FROM document_eleve WHERE id=%s AND id_etablissement=%s AND id_pays=%s", [doc_id, id_etablissement, id_pays])
                     conn.commit()
                 return JsonResponse({'success': True})
         finally:
@@ -15152,8 +15206,8 @@ def dashboard_users_list(request):
                 cur.execute("""
                     SELECT um.user_id, um.module_id, um.is_active
                     FROM user_module um
-                    WHERE um.id_etablissement = %s
-                """, [etab_id])
+                    WHERE um.id_etablissement = %s AND um.id_pays = %s
+                """, [etab_id, etab.pays_id])
                 user_modules_raw = cur.fetchall()
 
             # Indexer les modules par personnel
@@ -15316,8 +15370,8 @@ def dashboard_users_modules(request):
                     # Check if user_module exists
                     cur.execute("""
                         SELECT id_user_module FROM user_module
-                        WHERE user_id=%s AND module_id=%s AND id_etablissement=%s
-                    """, [pid, mod_id, etab_id])
+                        WHERE user_id=%s AND module_id=%s AND id_etablissement=%s AND id_pays=%s
+                    """, [pid, mod_id, etab_id, id_pays])
                     existing = cur.fetchone()
 
                     if existing:
@@ -15327,17 +15381,17 @@ def dashboard_users_modules(request):
                         """, [1 if is_active else 0, existing['id_user_module']])
                     elif is_active:
                         cur.execute("""
-                            INSERT INTO user_module (id_annee_id, user_id, module_id, is_active, id_etablissement, date_creation)
-                            VALUES (%s, %s, %s, 1, %s, CURDATE())
-                        """, [annee_id, pid, mod_id, etab_id])
+                            INSERT INTO user_module (id_annee_id, user_id, module_id, is_active, id_etablissement, id_pays, date_creation)
+                            VALUES (%s, %s, %s, 1, %s, %s, CURDATE())
+                        """, [annee_id, pid, mod_id, etab_id, id_pays])
 
                 conn.commit()
 
                 # Activer automatiquement isUser + is_verified si au moins un module actif
                 cur.execute("""
                     SELECT COUNT(*) as cnt FROM user_module
-                    WHERE user_id=%s AND id_etablissement=%s AND is_active=1
-                """, [pid, etab_id])
+                    WHERE user_id=%s AND id_etablissement=%s AND id_pays=%s AND is_active=1
+                """, [pid, etab_id, id_pays])
                 cnt = cur.fetchone()['cnt']
                 if cnt > 0:
                     cur.execute("""
@@ -15623,10 +15677,10 @@ def execute_deliberation(request):
                 JOIN eleve e ON ei.id_eleve_id = e.id_eleve
                 WHERE ei.id_annee_id = %s
                   AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
-                  AND ei.id_etablissement = %s
+                  AND ei.id_etablissement = %s AND ei.id_pays = %s
                   AND ei.status = 1
                 ORDER BY e.nom, e.prenom
-            """, [annee.pk, eac.bk_classe_id, eac.groupe, eac.bk_section_id, etab.id_etablissement])
+            """, [annee.pk, eac.bk_classe_id, eac.groupe, eac.bk_section_id, etab.id_etablissement, etab.pays_id])
             columns = [col[0] for col in cur.description]
             eleves = [dict(zip(columns, row)) for row in cur.fetchall()]
 
@@ -15780,10 +15834,10 @@ def execute_deliberation(request):
                         COALESCE(SUM(nb.maxima), 0) as total_max
                     FROM note_bulletin nb
                     WHERE nb.id_eleve_id = %s
-                      AND nb.id_etablissement = %s
+                      AND nb.id_etablissement = %s AND nb.id_pays = %s
                       AND nb.id_repartition_config IN ({cfg_placeholders})
                       AND nb.id_note_type IN ({nt_placeholders})
-                """, [id_eleve, etab.id_etablissement] + config_ids + note_types)
+                """, [id_eleve, etab.id_etablissement, etab.pays_id] + config_ids + note_types)
                 row = cur.fetchone()
                 total_note = float(row[0]) if row and row[0] else 0
                 total_max = float(row[1]) if row and row[1] else 0
@@ -16344,8 +16398,8 @@ def get_deliberated_classes(request):
                 cur.execute("""
                     SELECT COUNT(DISTINCT id_eleve_id) FROM eleve_inscription
                     WHERE id_annee_id=%s AND classe_id=%s AND groupe <=> %s AND section_id <=> %s
-                      AND id_etablissement=%s AND status=1
-                """, [annee.pk, eac.bk_classe_id, eac.groupe, eac.bk_section_id, etab.id_etablissement])
+                      AND id_etablissement=%s AND id_pays=%s AND status=1
+                """, [annee.pk, eac.bk_classe_id, eac.groupe, eac.bk_section_id, etab.id_etablissement, etab.pays_id])
                 nb_eleves = cur.fetchone()[0]
 
             cycle_name = cls.cycle.cycle if cls and cls.cycle else '—'
@@ -16406,10 +16460,10 @@ def get_bulletin_eleves(request):
                 JOIN eleve e ON ei.id_eleve_id = e.id_eleve
                 WHERE ei.id_annee_id = %s
                   AND ei.classe_id = %s AND ei.groupe <=> %s AND ei.section_id <=> %s
-                  AND ei.id_etablissement = %s
+                  AND ei.id_etablissement = %s AND ei.id_pays = %s
                   AND ei.status = 1
                 ORDER BY e.nom, e.prenom
-            """, [annee.pk, eac.bk_classe_id, eac.groupe, eac.bk_section_id, etab.id_etablissement])
+            """, [annee.pk, eac.bk_classe_id, eac.groupe, eac.bk_section_id, etab.id_etablissement, etab.pays_id])
             columns = [col[0] for col in cur.description]
             rows = cur.fetchall()
 
