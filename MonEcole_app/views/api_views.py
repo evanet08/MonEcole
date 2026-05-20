@@ -15535,7 +15535,7 @@ def get_evaluations_repartitions(request):
         if cls_obj.id_pays != pays_id:
             source_cycle = Cycle.objects.filter(id=cls_obj.cycle_id).first()
             if source_cycle:
-                target_cycle = Cycle.objects.filter(id_cycle=source_cycle.id_cycle, id_pays=pays_id).first()
+                target_cycle = Cycle.objects.filter(id_cycle=source_cycle.id_cycle, pays_id=pays_id).first()
                 cycle_id = target_cycle.id if target_cycle else None
             else:
                 cycle_id = None
