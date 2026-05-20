@@ -9249,6 +9249,8 @@ def save_evaluation(request):
                 # Get annee_id from the session context
                 # Resolve EAC → business keys
                 bk = _resolve_eac_keys(cur, classe_id)
+                if not bk:
+                    return JsonResponse({'success': False, 'error': 'Classe non trouvée (EAC non résolu).'}, status=404)
 
                 # Get campus_id
                 cur.execute("""
@@ -12795,6 +12797,8 @@ def mass_import_notes(request):
             with conn.cursor() as cur:
                 # Get business keys
                 bk = _resolve_eac_keys(cur, classe_id)
+                if not bk:
+                    return JsonResponse({'success': False, 'error': 'Classe non trouvée (EAC non résolu).'}, status=404)
 
                 cur.execute("""
                     SELECT idCampus FROM campus WHERE id_etablissement = %s AND id_pays = %s AND is_active=1 LIMIT 1
@@ -15470,12 +15474,13 @@ def get_evaluations_repartitions(request):
 
         pays_id = etab.pays_id
 
-        # Résoudre le cycle de la classe — manual lookup (EAC.classe_id = business key)
+        # Résoudre le cycle de la classe — EAC.classe_id = surrogate PK (classes.id)
         eac = EtablissementAnneeClasse.objects.filter(id=classe_id).select_related('classe', 'section').first()
         if not eac:
             return JsonResponse({'success': True, 'repartitions': [], 'has_children': False})
 
-        cls_obj = Classe.objects.filter(id_classe=eac.classe_id, id_pays=pays_id).first()
+        # eac.classe_id is the surrogate PK (classes.id), NOT the business key (id_classe)
+        cls_obj = Classe.objects.filter(id=eac.classe_id).first()
         cycle_id = cls_obj.cycle_id if cls_obj else None
 
         if not cycle_id:
@@ -15501,13 +15506,16 @@ def get_evaluations_repartitions(request):
         )
         cycle_hier = None
         global_hier = None
+        any_hier = None  # Fallback: any hierarchy with the same type_parent for this country
         for h in all_hierarchies:
             if h.cycle_id == cycle_id:
                 cycle_hier = h
                 break
             elif h.cycle_id is None:
                 global_hier = h
-        resolved_hier = cycle_hier or global_hier
+            elif any_hier is None:
+                any_hier = h  # Keep first match as fallback
+        resolved_hier = cycle_hier or global_hier or any_hier
         if resolved_hier:
             allowed_type_ids.add(resolved_hier.type_enfant_id)
             child_count_per_root = resolved_hier.nombre_enfants
