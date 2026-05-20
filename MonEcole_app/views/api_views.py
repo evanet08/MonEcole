@@ -9830,6 +9830,8 @@ def get_notes_grid(request):
                            cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                    LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
                     WHERE eac.id = %s LIMIT 1
                 """, [classe_id])
                 ctx = cur.fetchone()
@@ -10126,6 +10128,8 @@ def download_notes_template(request):
                            cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                    LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
                     WHERE eac.id = %s LIMIT 1
                 """, [classe_id])
                 ctx = cur.fetchone()
@@ -10647,6 +10651,8 @@ def calculate_period_batch(request):
                            cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                    LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
                     WHERE eac.id = %s LIMIT 1
                 """, [classe_id])
                 ctx = cur.fetchone()
@@ -11034,6 +11040,8 @@ def calculate_period_notes(request):
                            cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                    LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
                     WHERE eac.id = %s LIMIT 1
                 """, [classe_id])
                 ctx = cur.fetchone()
@@ -11417,6 +11425,8 @@ def calculate_notes_bulletin(request):
                            cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                    LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
                     WHERE eac.id = %s LIMIT 1
                 """, [classe_id])
                 ctx = cur.fetchone()
@@ -11734,6 +11744,8 @@ def sync_all_notes_bulletin(request):
                            cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                    LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
                     WHERE eac.id = %s LIMIT 1
                 """, [classe_id])
                 ctx = cur.fetchone()
@@ -12319,6 +12331,8 @@ def mass_import_template(request):
                            cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                    LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
                     WHERE eac.id = %s LIMIT 1
                 """, [classe_id])
                 ctx = cur.fetchone()
@@ -13088,6 +13102,8 @@ def get_exam_grid(request):
                            cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                    LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
                     WHERE eac.id = %s LIMIT 1
                 """, [classe_id])
                 ctx = cur.fetchone()
@@ -13341,6 +13357,8 @@ def download_exam_template(request):
                            cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                    LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
                     WHERE eac.id = %s LIMIT 1
                 """, [classe_id])
                 ctx = cur.fetchone()
@@ -13843,6 +13861,8 @@ def get_notes_bulletin(request):
                            cl.id_classe AS bk_classe, eac.groupe AS bk_groupe, s.id_section AS bk_section
                     FROM countryStructure.etablissements_annees_classes eac
                     JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
+                    JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+                    LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
                     WHERE eac.id = %s LIMIT 1
                 """, [classe_id])
                 ctx = cur.fetchone()
