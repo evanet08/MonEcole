@@ -4265,20 +4265,66 @@ def _get_spoke_connection():
 def _resolve_eac_keys(cur, eac_id):
     """
     Résout un EAC.id (Hub) en clés métier stables.
-    Retourne dict {classe_id, groupe, section_id, cycle_id, annee_id, campus_id} ou None.
+    
+    Logique de résolution :
+      - EAC.classe_id = surrogate PK (classes.id) — peut pointer vers une classe d'un autre pays
+      - On retourne les business keys (id_classe, id_section) pour le Spoke
+      - Le campus est résolu via le business key de l'établissement (etablissements.id_etablissement)
+      - Le cycle_id retourné est celui du pays de l'EA (résolu via id_cycle business key si cross-country)
+    
+    Retourne dict {classe_id, groupe, section_id, cycle_id, annee_id, campus_id, etab_annee_id} ou None.
     """
     cur.execute("""
         SELECT cl.id_classe AS classe_id, eac.groupe, s.id_section AS section_id,
-               cl.cycle_id, ea.annee_id,
-               (SELECT c.idCampus FROM db_monecole.campus c
-                WHERE c.id_etablissement = ea.etablissement_id AND c.is_active=1 LIMIT 1) AS campus_id
+               cl.cycle_id AS raw_cycle_id, cl.id_pays AS cl_pays,
+               ea.annee_id, ea.pays_id AS ea_pays, ea.id AS etab_annee_id,
+               e.id_etablissement AS etab_bk
         FROM countryStructure.etablissements_annees_classes eac
         JOIN countryStructure.etablissements_annees ea ON ea.id = eac.etablissement_annee_id
-        JOIN countryStructure.classes cl ON cl.id = eac.classe_id AND cl.id_pays = ea.id_pays
-        LEFT JOIN countryStructure.sections s ON s.id = eac.section_id AND s.id_pays = cl.id_pays
+        JOIN countryStructure.classes cl ON cl.id = eac.classe_id
+        LEFT JOIN countryStructure.sections s ON s.id = eac.section_id
+        LEFT JOIN countryStructure.etablissements e ON e.id = ea.etablissement_id
         WHERE eac.id = %s
     """, [eac_id])
-    return cur.fetchone()
+    row = cur.fetchone()
+    if not row:
+        return None
+
+    # Résoudre le cycle pour le pays de l'EA (pas celui de la classe)
+    cycle_id = row['raw_cycle_id']
+    if row['cl_pays'] != row['ea_pays'] and cycle_id:
+        # Classe d'un autre pays — mapper le cycle via business key (id_cycle)
+        cur.execute("""
+            SELECT target_cy.id
+            FROM countryStructure.cycles source_cy
+            JOIN countryStructure.cycles target_cy ON target_cy.id_cycle = source_cy.id_cycle
+                                                   AND target_cy.id_pays = %s
+            WHERE source_cy.id = %s
+            LIMIT 1
+        """, [row['ea_pays'], cycle_id])
+        mapped = cur.fetchone()
+        cycle_id = mapped['id'] if mapped else cycle_id
+
+    # Résoudre le campus via le business key de l'établissement
+    campus_id = None
+    if row['etab_bk'] is not None:
+        cur.execute("""
+            SELECT c.idCampus FROM db_monecole.campus c
+            WHERE c.id_etablissement = %s AND c.id_pays = %s AND c.is_active = 1
+            LIMIT 1
+        """, [row['etab_bk'], row['ea_pays']])
+        campus_row = cur.fetchone()
+        campus_id = campus_row['idCampus'] if campus_row else None
+
+    return {
+        'classe_id': row['classe_id'],
+        'groupe': row['groupe'],
+        'section_id': row['section_id'],
+        'cycle_id': cycle_id,
+        'annee_id': row['annee_id'],
+        'campus_id': campus_id,
+        'etab_annee_id': row['etab_annee_id'],
+    }
 
 
 def _ei_classe_filter(alias='ei'):
@@ -15479,9 +15525,20 @@ def get_evaluations_repartitions(request):
         if not eac:
             return JsonResponse({'success': True, 'repartitions': [], 'has_children': False})
 
-        # eac.classe_id is the surrogate PK (classes.id), NOT the business key (id_classe)
+        # eac.classe_id is the surrogate PK (classes.id) — may point to a class from another country
         cls_obj = Classe.objects.filter(id=eac.classe_id).first()
-        cycle_id = cls_obj.cycle_id if cls_obj else None
+        if not cls_obj or not cls_obj.cycle_id:
+            return JsonResponse({'success': True, 'repartitions': [], 'has_children': False})
+
+        # Si la classe est d'un autre pays que le tenant, mapper le cycle via business key (id_cycle)
+        cycle_id = cls_obj.cycle_id
+        if cls_obj.id_pays != pays_id:
+            source_cycle = Cycle.objects.filter(id=cls_obj.cycle_id).first()
+            if source_cycle:
+                target_cycle = Cycle.objects.filter(id_cycle=source_cycle.id_cycle, id_pays=pays_id).first()
+                cycle_id = target_cycle.id if target_cycle else None
+            else:
+                cycle_id = None
 
         if not cycle_id:
             return JsonResponse({'success': True, 'repartitions': [], 'has_children': False})
