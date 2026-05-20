@@ -9603,6 +9603,7 @@ def _get_or_create_repartition_config(repartition_id, etab_id, pays_id=None):
         fin=ri.date_fin,
         is_open=True,
         is_national=True,
+        id_pays=pays_id or (ri.pays_id if ri.pays_id else None),
     )
     return RepartitionConfigEtabAnnee.objects.filter(
         id=config.id
